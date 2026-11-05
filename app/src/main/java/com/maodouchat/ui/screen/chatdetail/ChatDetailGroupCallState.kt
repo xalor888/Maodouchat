@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 
 /**
  * G335：**发起群通话前的那一段选择**（通话类型 → 选成员 → 搜索成员）。

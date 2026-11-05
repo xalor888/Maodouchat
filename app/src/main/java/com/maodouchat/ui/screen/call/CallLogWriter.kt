@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import android.app.Application
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallLogEntry
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.core.model.Direction

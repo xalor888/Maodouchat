@@ -1,4 +1,4 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 /**
  * 通话状态

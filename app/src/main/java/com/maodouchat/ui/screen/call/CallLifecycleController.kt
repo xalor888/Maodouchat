@@ -4,7 +4,7 @@ import com.maodouchat.call.CallActionBus
 import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.webrtc.CallReliabilityPolicy
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

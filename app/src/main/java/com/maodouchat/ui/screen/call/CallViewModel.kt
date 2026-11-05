@@ -8,7 +8,7 @@ import com.maodouchat.call.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager

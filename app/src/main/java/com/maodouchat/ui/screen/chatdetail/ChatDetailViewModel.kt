@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.crypto.DecryptHistoryPolicy
+import com.maodouchat.core.model.CallType
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
@@ -475,9 +476,8 @@ class ChatDetailViewModel(
         // 9.144：委托 JsonFormat 权威实现——本地手写清单漏字段（forwardedFrom 等）曾被静默丢弃
         com.maodouchat.util.JsonFormat.composeContentWithMeta(text, meta)
 
-    /** 群通话入口：把当前群除自己外的成员挨个邀请 */
     fun startGroupCallFromChat(
-        callType: com.maodouchat.webrtc.CallType,
+        callType: CallType,
         selectedMemberIds: Set<String>? = null
     ) = groupCallController.startGroupCallFromChat(callType, selectedMemberIds)
 

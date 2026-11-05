@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

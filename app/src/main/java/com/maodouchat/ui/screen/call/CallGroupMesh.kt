@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallSessionGate
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import com.maodouchat.webrtc.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.webrtc.WebRTCManager

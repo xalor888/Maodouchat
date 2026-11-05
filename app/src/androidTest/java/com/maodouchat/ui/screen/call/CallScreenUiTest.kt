@@ -11,7 +11,8 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,7 +94,7 @@ class CallScreenUiTest {
         compose.setContent {
             CallScreen(
                 contactName = "dave",
-                callType = com.maodouchat.webrtc.CallType.AUDIO,
+                callType = CallType.AUDIO,
                 callState = CallState.CONNECTED,
                 duration = "01:23",
             )

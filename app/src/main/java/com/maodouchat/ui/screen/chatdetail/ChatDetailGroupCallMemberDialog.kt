@@ -29,7 +29,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.GroupCallPolicy
 
 /**

@@ -6,7 +6,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallMediaPermission
 import com.maodouchat.webrtc.CallReliabilityPolicy
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 
 /**
  * 通话权限的唯一入口：各入口（来电路由、去电目的地、聊天页通话按钮）不再各自硬编码权限集合，

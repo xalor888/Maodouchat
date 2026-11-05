@@ -2,8 +2,8 @@ package com.maodouchat.ui.screen.call
 
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.NetworkQuality
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 
 /** WebRTC 原生库加载失败（下载/预加载），用于向用户呈现友好错误而非原生 UnsatisfiedLinkError。 */

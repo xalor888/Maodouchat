@@ -91,7 +91,7 @@ internal suspend fun ApplicationCall.canFetchKeys(
 
 /**
  * Line-anchored, port-aware SDP video detection. Mirrors the client-side
- * [com.maodouchat.webrtc.CallType.detectFromSdp] so an audio-only call is not
+ * [com.maodouchat.core.model.CallType.detectFromSdp] so an audio-only call is not
  * misclassified as video (which would wrongly show the video UI / notification).
  * A bare `contains("m=video")` also matches attribute lines (e.g. `a=...`) and a
  * disabled `m=video 0 ...` (port 0), so we require a media line whose port > 0.

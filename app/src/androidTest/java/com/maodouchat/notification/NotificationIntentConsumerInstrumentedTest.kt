@@ -9,7 +9,7 @@ import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.PendingIncomingCall
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.navigation.NotificationTarget
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
+import com.maodouchat.core.model.CallType
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -151,7 +152,7 @@ class ChatDetailDialogsUiTest {
     private fun setGroupCallDialog(
         candidateCount: Int,
         visible: Boolean = true,
-        onPick: (com.maodouchat.webrtc.CallType) -> Unit = {},
+        onPick: (CallType) -> Unit = {},
         onDismiss: () -> Unit = {},
     ) {
         compose.setContent {
@@ -167,7 +168,7 @@ class ChatDetailDialogsUiTest {
     @Test
     fun groupCallUnderMeshLimitOmitsTheMemberPickerHint() {
         var dismiss = 0
-        val picked = mutableListOf<com.maodouchat.webrtc.CallType>()
+        val picked = mutableListOf<CallType>()
         val under = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
         setGroupCallDialog(candidateCount = under, onPick = { picked += it }, onDismiss = { dismiss++ })
 
@@ -181,14 +182,14 @@ class ChatDetailDialogsUiTest {
         // 点「语音通话」→ 只传 AUDIO 出来，不触发 onDismiss
         compose.onNodeWithText(str(R.string.chat_voice_call)).performClick()
         compose.runOnIdle {
-            check(picked == listOf(com.maodouchat.webrtc.CallType.AUDIO)) { "应只收到 AUDIO，实际 $picked" }
+            check(picked == listOf(CallType.AUDIO)) { "应只收到 AUDIO，实际 $picked" }
         }
         check(dismiss == 0) { "点语音通话不应触发 onDismiss" }
     }
 
     @Test
     fun groupCallOverMeshLimitShowsTheHintAndStillOnlyReportsTheType() {
-        val picked = mutableListOf<com.maodouchat.webrtc.CallType>()
+        val picked = mutableListOf<CallType>()
         val over = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS + 1
         setGroupCallDialog(candidateCount = over, onPick = { picked += it })
 
@@ -200,7 +201,7 @@ class ChatDetailDialogsUiTest {
         // 所以即便超限，点按钮也仍然只是 onPick(VIDEO)——不多做一件事。
         compose.onNodeWithText(str(R.string.chat_video_call)).performClick()
         compose.runOnIdle {
-            check(picked == listOf(com.maodouchat.webrtc.CallType.VIDEO)) { "应只收到 VIDEO，实际 $picked" }
+            check(picked == listOf(CallType.VIDEO)) { "应只收到 VIDEO，实际 $picked" }
         }
     }
 

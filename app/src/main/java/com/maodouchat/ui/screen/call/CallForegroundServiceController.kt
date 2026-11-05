@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.call
 
 import com.maodouchat.R
 import com.maodouchat.call.CallSystemIntegration
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 
 // 前台服务起停一族：从 CallViewModel 纯搬移；VM 留同签名委托。
 internal class CallForegroundServiceController(
