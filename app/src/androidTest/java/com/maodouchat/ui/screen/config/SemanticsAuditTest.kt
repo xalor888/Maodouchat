@@ -35,7 +35,7 @@ import com.maodouchat.ui.screen.explore.ExploreViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import com.maodouchat.ui.screen.call.CallScreen
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

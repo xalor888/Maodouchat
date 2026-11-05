@@ -5,7 +5,7 @@ import com.maodouchat.core.model.IceReconnectAction
 import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.webrtc.CallReliabilityPolicy
 import com.maodouchat.webrtc.CallSessionGate
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

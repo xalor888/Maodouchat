@@ -5,8 +5,8 @@ import com.maodouchat.R
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.notification.CallNotificationService
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

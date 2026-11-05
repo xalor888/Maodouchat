@@ -8,6 +8,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.AiCostVisibilityPolicy
+import com.maodouchat.core.model.CallType
 import com.maodouchat.data.local.entity.AiOperationError
 
 /**
@@ -90,7 +91,7 @@ internal fun requestVoiceCallPermission(
     onVoiceCall: (String, String) -> Unit
 ) {
     // 权限集合走统一门；语音通话只需麦克风，缺失时只请求这一项。
-    if (com.maodouchat.call.CallPermissionGate.hasPermissions(context, com.maodouchat.webrtc.CallType.AUDIO)) {
+    if (com.maodouchat.call.CallPermissionGate.hasPermissions(context, CallType.AUDIO)) {
         onVoiceCall(contactId, contactName)
     } else {
         launchPermissionRequest(Manifest.permission.RECORD_AUDIO)
@@ -104,7 +105,7 @@ internal fun requestVideoCallPermissions(
     contactName: String,
     onVideoCall: (String, String) -> Unit
 ) {
-    val missing = com.maodouchat.call.CallPermissionGate.missingPermissions(context, com.maodouchat.webrtc.CallType.VIDEO)
+    val missing = com.maodouchat.call.CallPermissionGate.missingPermissions(context, CallType.VIDEO)
     if (missing.isEmpty()) {
         onVideoCall(contactId, contactName)
     } else {

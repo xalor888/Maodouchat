@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 
 data class GroupCallRequest(
     val chatId: String,

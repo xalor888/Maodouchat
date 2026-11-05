@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow

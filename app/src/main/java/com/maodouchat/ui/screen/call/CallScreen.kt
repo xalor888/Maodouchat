@@ -60,10 +60,10 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.NetworkQuality
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.GroupCallPolicy
 
 /** 音视频通话页面 */

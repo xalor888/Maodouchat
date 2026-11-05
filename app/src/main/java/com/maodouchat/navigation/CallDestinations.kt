@@ -20,8 +20,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.maodouchat.R
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import com.maodouchat.ui.navigation.IncomingCallRoute
 
 /**
@@ -77,7 +77,7 @@ fun NavGraphBuilder.callDestinations(navController: NavHostController) {
 
         // 仅在真正 IDLE 状态才发起通话，避免进程恢复后重复发起
         LaunchedEffect(callPermissionsGranted) {
-            if (callPermissionsGranted == true && callViewModel.uiState.value.callState == com.maodouchat.webrtc.CallState.IDLE) {
+            if (callPermissionsGranted == true && callViewModel.uiState.value.callState == CallState.IDLE) {
                 if (isGroupCall && memberIds.isNotEmpty()) {
                     callViewModel.startGroupCall(effectiveContactId, memberIds, callType)
                 } else {

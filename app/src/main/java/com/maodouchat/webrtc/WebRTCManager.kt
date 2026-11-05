@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.WebRTCException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -826,10 +828,8 @@ class WebRTCManager(
         runCatching { peerConnections[peerUserId]?.addIceCandidate(candidate) }
     }
 
-    /** 群通话：是否已经存在与该对端的连接 */
     fun hasGroupPeer(peerUserId: String): Boolean = peerConnections.containsKey(peerUserId)
 
-    /** 群通话：当前对端数 */
     fun groupPeerCount(): Int = peerConnections.size
 
     /** 群通话：关闭与某对端的连接 */

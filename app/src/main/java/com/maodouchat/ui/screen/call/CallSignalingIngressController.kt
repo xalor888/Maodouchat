@@ -13,8 +13,8 @@ import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.webrtc.CallReliabilityPolicy
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling

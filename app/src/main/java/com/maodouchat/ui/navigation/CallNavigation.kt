@@ -22,8 +22,8 @@ import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.IncomingCallWatcher
 import com.maodouchat.ui.screen.call.CallScreen
 import com.maodouchat.ui.screen.call.CallViewModel
-import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallState
+import com.maodouchat.core.model.CallType
 // B5 新增（仅追加）：平板双栏布局
 import com.maodouchat.navigation.Routes
 

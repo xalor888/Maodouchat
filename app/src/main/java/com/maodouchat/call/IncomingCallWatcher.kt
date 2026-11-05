@@ -11,7 +11,7 @@ import com.maodouchat.service.CallForegroundService
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.telecom.MaodouchatConnectionService
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

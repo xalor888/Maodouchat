@@ -23,7 +23,7 @@ import com.maodouchat.core.model.SettingsSession
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import androidx.compose.runtime.Composable
 import com.maodouchat.ui.screen.call.CallScreen
-import com.maodouchat.webrtc.CallState
+import com.maodouchat.core.model.CallState
 import com.maodouchat.ui.screen.explore.ExploreScreen
 import com.maodouchat.ui.screen.explore.ExploreViewModel
 import com.maodouchat.explore.repository.FeedController

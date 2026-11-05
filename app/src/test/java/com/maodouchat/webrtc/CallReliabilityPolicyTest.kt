@@ -3,6 +3,7 @@ package com.maodouchat.webrtc
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallAudioRoutePolicy
 import com.maodouchat.core.model.CallMediaPermission
+import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.IceReconnectAction
 import org.junit.Assert.assertEquals

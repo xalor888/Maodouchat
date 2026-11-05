@@ -1,7 +1,7 @@
 package com.maodouchat.call
 
 import com.maodouchat.core.session.SignalingOfferFreshnessPolicy
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.SignalMessage
 
 object PolledIncomingBatchPolicy {

@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.CallType
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 会话详情的「群组与实时功能」对话框：位置分享时长、群公告、群通话类型选择（从 ChatDetailDialogs 按专题拆出，零行为改动）。 */
@@ -110,7 +111,7 @@ internal fun GroupAnnouncementDialog(
 internal fun GroupCallTypeDialog(
     visible: Boolean,
     candidateCount: Int,
-    onPick: (com.maodouchat.webrtc.CallType) -> Unit,
+    onPick: (CallType) -> Unit,
     onDismiss: () -> Unit,
 ) {
     if (!visible) return
@@ -138,7 +139,7 @@ internal fun GroupCallTypeDialog(
                 }
                 Spacer(Modifier.height(8.dp))
                 TextButton(
-                    onClick = { onPick(com.maodouchat.webrtc.CallType.AUDIO) },
+                    onClick = { onPick(CallType.AUDIO) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Outlined.Call, contentDescription = null)
@@ -146,7 +147,7 @@ internal fun GroupCallTypeDialog(
                     Text(stringResource(R.string.chat_voice_call), modifier = Modifier.weight(1f))
                 }
                 TextButton(
-                    onClick = { onPick(com.maodouchat.webrtc.CallType.VIDEO) },
+                    onClick = { onPick(CallType.VIDEO) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(Icons.Outlined.Videocam, contentDescription = null)

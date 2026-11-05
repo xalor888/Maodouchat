@@ -1,7 +1,7 @@
 package com.maodouchat.call
 
 import com.maodouchat.call.PendingIncomingCall
-import com.maodouchat.webrtc.CallType
+import com.maodouchat.core.model.CallType
 import com.maodouchat.webrtc.SignalMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
