@@ -2,6 +2,10 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.AgentOverlayMode
+import com.maodouchat.core.model.AgentSession
+import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.core.model.LocalAiProvider
 
 /**
  * Account-scoped encrypted store for user-owned model endpoints.

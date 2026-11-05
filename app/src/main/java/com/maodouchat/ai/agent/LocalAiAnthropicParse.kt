@@ -1,8 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentToolCall
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 // Anthropic Messages 响应解析簇。
 

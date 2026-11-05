@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.ai.agent.LocalAiStorePrefs.optDoubleOrNull
+import com.maodouchat.core.model.LocalAiProvider
 import org.json.JSONArray
 import org.json.JSONObject
 

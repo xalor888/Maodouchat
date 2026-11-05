@@ -1,9 +1,6 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-/**
- * User-owned model endpoint. Stored only in EncryptedSharedPreferences on this device.
- * Never sent to the Maodou chat server.
- */
+/** 用户自配模型端点，只存本机加密存储，不发往毛豆服务器。 */
 enum class LocalAiProtocol {
     OPENAI_CHAT_COMPLETIONS,
     OPENAI_RESPONSES,
@@ -29,10 +26,7 @@ data class LocalAiProvider(
     val stream: Boolean = true,
     val supportsVision: Boolean = false
 ) {
-    /**
-     * 判断当前模型是否具备视觉多模态能力。
-     * 若显式设置为 true 则为 true；若为 false，则尝试匹配知名视觉模型命名规则。
-     */
+    /** 显式开启，或模型名匹配视觉模型命名规则时为 true。 */
     fun hasVisionCapability(): Boolean {
         if (supportsVision) return true
         val m = model.trim().lowercase()

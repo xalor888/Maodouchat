@@ -37,6 +37,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import com.maodouchat.core.model.AiWritingStylePolicy
+import com.maodouchat.core.model.LocalAiProtocol
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +62,6 @@ import androidx.compose.runtime.setValue
 
 /**
  * 「AI 与隐私」页（G99 从 `SettingsSubScreens.kt` 拆出，原 633 行）。
- *
  * 聊天内 AI 开关 + 本机授权 + 调用审计。审计行组件与文案映射见 `AiPrivacySettingsRows.kt`。
  *
  * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）。
@@ -97,7 +97,7 @@ fun AiPrivacySettingsScreen(
     }
     val activeProvider = remember { com.maodouchat.ai.agent.LocalAiProviderStore.activeProvider(context) }
     var providerProtocol by remember {
-        mutableStateOf(activeProvider?.protocol ?: com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_CHAT_COMPLETIONS)
+        mutableStateOf(activeProvider?.protocol ?: LocalAiProtocol.OPENAI_CHAT_COMPLETIONS)
     }
     var providerOrg by remember { mutableStateOf(activeProvider?.organization.orEmpty()) }
     var providerAnthropicVersion by remember {
@@ -265,13 +265,13 @@ fun AiPrivacySettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                        com.maodouchat.ai.agent.LocalAiProtocol.entries.forEach { proto ->
+                        LocalAiProtocol.entries.forEach { proto ->
                             val label = when (proto) {
-                                com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
+                                LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
                                     stringResource(R.string.agent_protocol_chat_completions)
-                                com.maodouchat.ai.agent.LocalAiProtocol.OPENAI_RESPONSES ->
+                                LocalAiProtocol.OPENAI_RESPONSES ->
                                     stringResource(R.string.agent_protocol_responses)
-                                com.maodouchat.ai.agent.LocalAiProtocol.ANTHROPIC_MESSAGES ->
+                                LocalAiProtocol.ANTHROPIC_MESSAGES ->
                                     stringResource(R.string.agent_protocol_anthropic)
                             }
                             FilterChip(
@@ -315,7 +315,7 @@ fun AiPrivacySettingsScreen(
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (providerProtocol != com.maodouchat.ai.agent.LocalAiProtocol.ANTHROPIC_MESSAGES) {
+                    if (providerProtocol != LocalAiProtocol.ANTHROPIC_MESSAGES) {
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = providerOrg,
