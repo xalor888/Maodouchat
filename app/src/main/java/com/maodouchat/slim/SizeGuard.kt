@@ -1,5 +1,7 @@
 package com.maodouchat.slim
 
+import com.maodouchat.core.model.ApkReport
+import com.maodouchat.core.model.SizeBucket
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
