@@ -1,7 +1,7 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
 /**
- * Pure merge helpers for [com.maodouchat.data.repository.NotificationCenterRepository.add].
+ * Pure merge helpers for NotificationCenterRepository.add.
  * Push wake-up and local v2 Inbox projection may surface the same message; count must not double.
  * Ring-timeout + peer hang-up can both emit the same MISSED_CALL; same for callId.
  */

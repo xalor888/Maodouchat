@@ -1,4 +1,4 @@
-package com.maodouchat.update
+package com.maodouchat.core.model
 
 /**
  * Install-time update gates (pure): package/signer trust + APK archive versionCode.

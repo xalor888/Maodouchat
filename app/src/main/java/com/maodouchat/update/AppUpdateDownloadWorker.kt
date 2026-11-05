@@ -3,6 +3,7 @@ package com.maodouchat.update
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.maodouchat.core.model.AppUpdateDownloadRetryPolicy
 
 /**
  * P09：下载并校验官服 APK；成功后弹出系统安装器。

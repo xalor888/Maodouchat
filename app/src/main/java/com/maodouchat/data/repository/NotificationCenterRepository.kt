@@ -64,7 +64,7 @@ class NotificationCenterRepository(context: Context) {
                 val existing = current[index]
                 // FCM+WS same message, or ring-timeout+peer-hang-up same missed call:
                 // do not double-count under a shared mergeKey.
-                val skipCount = com.maodouchat.notification.NotificationCenterMergePolicy
+                val skipCount = com.maodouchat.core.model.NotificationCenterMergePolicy
                     .shouldSkipCountIncrement(
                         itemType = item.type,
                         existingId = existing.id,

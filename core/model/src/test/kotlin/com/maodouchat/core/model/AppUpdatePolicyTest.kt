@@ -1,4 +1,4 @@
-package com.maodouchat.update
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -172,6 +172,25 @@ class AppUpdatePolicyTest {
     fun formatNotesDecodesPercentEncodedUtf8() {
         assertTrue(AppUpdatePolicy.formatNotes("%E6%9B%B4%E6%96%B0") == "更新")
         assertTrue(AppUpdatePolicy.formatNotes("%25") == "%")
+    }
+
+    @Test
+    fun runtimeBaseUrlHostIsOfficial() {
+        // Self-hosted runtime server may host its own official APK.
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://myserver.example/a.apk", runtimeBaseUrl = "https://myserver.example"))
+        assertTrue(AppUpdatePolicy.isOfficialApkUrl("https://myserver.example:8443/a.apk", runtimeBaseUrl = "https://myserver.example/"))
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://other.example/a.apk", runtimeBaseUrl = "https://myserver.example"))
+        // Without a runtime base URL the official-hosts-only rule still holds.
+        assertFalse(AppUpdatePolicy.isOfficialApkUrl("https://myserver.example/a.apk"))
+        assertTrue(
+            AppUpdatePolicy.shouldOfferUpdate(
+                currentVersionCode = 17,
+                remoteVersionCode = 18,
+                apkUrl = "https://myserver.example/a.apk",
+                apkSha256 = apkSha256,
+                runtimeBaseUrl = "https://myserver.example",
+            )
+        )
     }
 
     @Test

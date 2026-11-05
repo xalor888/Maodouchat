@@ -1,7 +1,7 @@
-package com.maodouchat.update
+package com.maodouchat.core.model
 
 /**
- * Pure retry classification for [AppUpdateDownloadWorker].
+ * Pure retry classification for AppUpdateDownloadWorker.
  *
  * 判据是 `error.message` 的文本（门序见 `OfficialApkInstaller.downloadAndVerify`）：
  * - 明确的可重试类：HTTP 非 2xx、空 body、过小、超时、DNS、连接失败；

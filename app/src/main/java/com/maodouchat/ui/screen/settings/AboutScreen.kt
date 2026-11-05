@@ -50,8 +50,9 @@ import androidx.core.net.toUri
 import androidx.work.WorkInfo
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.network.ApiConfig
 import com.maodouchat.update.AppUpdateDownloadScheduler
-import com.maodouchat.update.AppUpdatePolicy
+import com.maodouchat.core.model.AppUpdatePolicy
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import com.maodouchat.data.repository.PublicServerInfoRepository
@@ -200,7 +201,7 @@ fun AboutScreen(onBack: () -> Unit = {}) {
                         checkingUpdate = false
                         result.fold(
                             onSuccess = { remote ->
-                                if (AppUpdatePolicy.shouldOfferUpdate(versionCode, remote.versionCode, remote.apkUrl, remote.apkSha256)) {
+                                if (AppUpdatePolicy.shouldOfferUpdate(versionCode, remote.versionCode, remote.apkUrl, remote.apkSha256, runtimeBaseUrl = ApiConfig.BASE_URL)) {
                                     updateMessage = context.getString(
                                         R.string.about_update_available,
                                         remote.versionName.ifBlank { remote.versionCode.toString() }
