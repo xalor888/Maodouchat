@@ -1,12 +1,11 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ApiFailureKind
 
 /**
  * 登录/注册等面向用户的失败文案：HTTP 优先用服务端 message；
  * 网络/超时/无效响应没有 serverMessage（Exception.message 为 null），必须落到非空兜底。
  */
-internal fun Throwable.toUserFacingMessage(
+fun Throwable.toUserFacingMessage(
     networkMessage: String,
     timeoutMessage: String,
     invalidResponseMessage: String,
@@ -25,7 +24,7 @@ internal fun Throwable.toUserFacingMessage(
     return message?.trim()?.takeIf { it.isNotEmpty() } ?: fallbackMessage
 }
 
-internal fun apiExceptionForIOException(error: java.io.IOException): ApiException {
+fun apiExceptionForIOException(error: java.io.IOException): ApiException {
     val connectionWasNeverEstablished = generateSequence<Throwable>(error) { it.cause }
         .any {
             it is java.net.UnknownHostException ||

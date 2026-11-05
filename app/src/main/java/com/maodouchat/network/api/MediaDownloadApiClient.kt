@@ -11,6 +11,7 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.FileOutputStream
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 
 internal object MediaDownloadApiClient : MediaDownloadApi {

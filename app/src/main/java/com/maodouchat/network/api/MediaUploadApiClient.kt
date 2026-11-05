@@ -10,6 +10,7 @@ import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 
 internal object MediaUploadApiClient : MediaUploadApi {

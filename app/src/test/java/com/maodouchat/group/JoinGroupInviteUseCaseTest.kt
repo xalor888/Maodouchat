@@ -1,6 +1,6 @@
 package com.maodouchat.group
 
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ChatDto
 import kotlin.test.Test

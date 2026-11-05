@@ -1,4 +1,4 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 /**
  * 音频约束的纯策略（G178 从 WebRTCManager 抽出）。
@@ -8,7 +8,7 @@ package com.maodouchat.webrtc
  */
 
 /** 标准音频约束：回声消除 + 自动增益 + 噪声抑制。 */
-internal fun standardAudioConstraints(): List<Pair<String, String>> = listOf(
+fun standardAudioConstraints(): List<Pair<String, String>> = listOf(
     "echoCancellation" to "true",
     "autoGainControl" to "true",
     "noiseSuppression" to "true",

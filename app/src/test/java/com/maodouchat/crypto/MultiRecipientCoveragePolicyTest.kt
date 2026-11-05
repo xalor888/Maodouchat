@@ -2,7 +2,7 @@ package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.core.model.TransientCoverageException
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.Target
 import org.junit.Assert.assertEquals

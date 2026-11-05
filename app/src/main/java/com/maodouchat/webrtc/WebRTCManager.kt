@@ -10,6 +10,7 @@ import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.WebRTCException
+import com.maodouchat.core.model.standardAudioConstraints
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,7 +66,6 @@ class WebRTCManager(
         }
     }
 
-    /** 当前 ICE 服务器列表（UI 判断是否仅 STUN 时使用）。 */
     fun currentIceServers(): List<CallIceServer> = configuredIceServers
 
     init {

@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 
 /**

@@ -1,6 +1,5 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ApiFailureKind
 
 class ApiException(
     val kind: ApiFailureKind,

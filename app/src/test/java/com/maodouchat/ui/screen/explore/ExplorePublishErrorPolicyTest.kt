@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.core.model.ExplorePublishErrorKind
-import com.maodouchat.network.ApiException
+import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
