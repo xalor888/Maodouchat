@@ -7,13 +7,20 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiWritingStylePreferences
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentOverlayMode
+import com.maodouchat.core.model.AgentSession
+import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.BallState
+import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.core.model.PendingAgentApproval
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 object MaodouAgentService {
 

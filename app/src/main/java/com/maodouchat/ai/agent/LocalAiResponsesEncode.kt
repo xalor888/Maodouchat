@@ -1,5 +1,7 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.LocalAiProvider
 import org.json.JSONArray
 import org.json.JSONObject
 

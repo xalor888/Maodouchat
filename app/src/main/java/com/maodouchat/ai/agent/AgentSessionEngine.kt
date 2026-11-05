@@ -1,7 +1,12 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Approval
+import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.core.model.PendingAgentApproval
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 

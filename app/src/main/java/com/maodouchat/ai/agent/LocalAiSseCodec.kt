@@ -1,5 +1,6 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.SseDeltaParts
 import org.json.JSONObject
 
 // SSE 流式解析簇。

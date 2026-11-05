@@ -2,6 +2,8 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentSession
 import org.json.JSONArray
 import org.json.JSONObject
 

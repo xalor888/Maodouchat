@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.core.model.AgentTurnEvent
+import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking

@@ -1,5 +1,7 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.core.model.LocalAiProvider
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request

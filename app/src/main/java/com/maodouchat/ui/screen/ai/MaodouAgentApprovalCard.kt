@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.ai.agent.PendingAgentApproval
+import com.maodouchat.core.model.PendingAgentApproval
 import com.maodouchat.ui.component.LinearActionButton
 import com.maodouchat.ui.theme.LocalChatPalette
 

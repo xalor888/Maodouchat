@@ -1,8 +1,11 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.core.model.LocalAiProvider
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.UUID
 
 // Chat Completions 协议簇：请求编码 + 响应解析。
 

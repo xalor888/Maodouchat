@@ -33,7 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.maodouchat.ai.agent.AgentChatMessage
+import com.maodouchat.core.model.AgentChatMessage
 import com.maodouchat.ui.component.linearPressEffect
 import com.maodouchat.ui.theme.LocalChatPalette
 

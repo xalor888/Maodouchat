@@ -1,6 +1,8 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
+import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.core.model.LocalAiProvider
 import java.util.UUID
 
 // provider 草稿簇：新建端点时的协议默认草稿 + 可用性判定。

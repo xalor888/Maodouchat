@@ -1,5 +1,9 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.AgentSession
+import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.core.model.LocalAiProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
