@@ -2,8 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-
-enum class MediaCenterCategory { MEDIA, FILES, VOICE, LINKS, LOCATION }
+import com.maodouchat.core.model.MediaCenterCategory
 
 data class MediaCenterItem(
     val message: Message,

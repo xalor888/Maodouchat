@@ -13,4 +13,3 @@ data class AiTasksUiState(
     val isSecretChat: Boolean = false,
 )
 
-internal enum class AiTaskFilter { ALL, PENDING, COMPLETED }

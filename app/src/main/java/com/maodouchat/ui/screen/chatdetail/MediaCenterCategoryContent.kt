@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.MediaCenterCategory
 import com.maodouchat.core.model.MediaExportResult
 
 import android.widget.Toast

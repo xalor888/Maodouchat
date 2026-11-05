@@ -2,7 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.MediaCenterCategory
+import com.maodouchat.core.model.MediaCenterCategory
 import com.maodouchat.ui.screen.chatdetail.buildMediaCenterItems
 import kotlin.test.Test
 import kotlin.test.assertEquals
