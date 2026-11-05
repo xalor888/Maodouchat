@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.NetworkQuality
 
 // 通话顶部网络质量小药丸（绿/黄/红）
 @Composable
