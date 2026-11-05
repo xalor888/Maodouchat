@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
+import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.model.MessagingV2GroupControlPolicy
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol
