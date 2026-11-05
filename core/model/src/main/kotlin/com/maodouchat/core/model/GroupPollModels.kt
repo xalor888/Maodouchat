@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.groupplay
+package com.maodouchat.core.model
 
 /** 群投票列表项（服务端 PollSnapshot 的轻量客户端模型）。 */
 data class PollListItem(
