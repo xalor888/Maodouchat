@@ -7,7 +7,7 @@ import com.maodouchat.explore.repository.ExploreDraft
 import com.maodouchat.explore.repository.MediaUploadQueue
 import com.maodouchat.explore.repository.PostMutationJournal
 import com.maodouchat.explore.repository.PostMutationRepository
-import com.maodouchat.explore.repository.UploadItem
+import com.maodouchat.core.model.UploadItem
 import com.maodouchat.network.CommentLikeResponse
 import com.maodouchat.network.CurrentUserPublicResponse
 import com.maodouchat.network.NearbyLocationStatusResponse

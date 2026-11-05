@@ -1,5 +1,6 @@
 package com.maodouchat.explore.repository
 
+import com.maodouchat.core.model.UploadStatus
 import com.maodouchat.network.AttachmentUploadResponse
 import com.maodouchat.network.AttachmentUploadStatusResponse
 import com.maodouchat.network.api.MediaApi
