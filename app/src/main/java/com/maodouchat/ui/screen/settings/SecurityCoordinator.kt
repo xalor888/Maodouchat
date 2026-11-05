@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.settings
 
-import com.maodouchat.settings.repository.SecurityPreferences
-import com.maodouchat.settings.repository.SecurityPreferencesPatch
+import com.maodouchat.core.model.SecurityPreferences
+import com.maodouchat.core.model.SecurityPreferencesPatch
 import com.maodouchat.settings.repository.SettingsRepository
-import com.maodouchat.settings.repository.SettingsSession
+import com.maodouchat.core.model.SettingsSession
 import com.maodouchat.settings.repository.SettingsSessionChangedException
 
 /**

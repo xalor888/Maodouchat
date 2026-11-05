@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.settings.model.LoadedPrivacy
 import com.maodouchat.settings.model.PrivacyField
 import com.maodouchat.settings.model.SettingsUiState
-import com.maodouchat.settings.repository.SettingsPrivacyPatch
+import com.maodouchat.core.model.SettingsPrivacyPatch
 import com.maodouchat.settings.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
