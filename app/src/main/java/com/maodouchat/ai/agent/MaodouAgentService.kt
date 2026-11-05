@@ -7,6 +7,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiWritingStylePreferences
+import com.maodouchat.core.model.BallState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
