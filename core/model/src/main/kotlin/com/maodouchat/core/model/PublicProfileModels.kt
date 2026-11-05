@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
 /**
  * 公开个人主页数据

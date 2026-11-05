@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.PublicProfileData
 import com.maodouchat.data.repository.PublicServerInfoRepository
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.TextHint
@@ -245,11 +246,13 @@ private fun ProfileContentView(
                 .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            if (profile.avatar != null && profile.avatar.isNotBlank()) {
+            // 跨模块公开属性无法 smart cast，先取到局部变量
+            val avatar = profile.avatar
+            if (avatar != null && avatar.isNotBlank()) {
                 // 使用统一的 Avatar 组件（本地密钥隔离缓存）
                 com.maodouchat.ui.component.Avatar(
                     name = profile.name,
-                    avatarUrl = profile.avatar,
+                    avatarUrl = avatar,
                     size = com.maodouchat.ui.component.AvatarSize.LG
                 )
             } else {

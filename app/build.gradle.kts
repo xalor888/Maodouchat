@@ -232,8 +232,9 @@ android {
 // 后果是 `:app:assembleRelease :app:verifyReleaseSize`（CI 的 release dry-run 与 release.yml
 // 都在跑的同一条命令）直接失败——体积护栏把发布路径锁死了。
 //
-// SizeGuard 只 import java.io/java.util.zip，是纯 JVM main；它需要的只有应用自身的 class
-// 与 Kotlin 运行时，因此用一条独立、可解析、与 Android 变体解析无关的配置。
+// SizeGuard 只 import java.io/java.util.zip，是纯 JVM main；它需要的只有应用自身的 class、
+// :core:model 的编译产物（ApkReport / SizeBucket 已迁入该模块）与 Kotlin 运行时，
+// 因此用一条独立、可解析、与 Android 变体解析无关的配置。
 val sizeGuardRuntime: Configuration by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -262,10 +263,12 @@ dependencies {
 tasks.register<JavaExec>("verifyReleaseSize") {
     group = "verification"
     description = "体积护栏：检查 Release APK 体积 ≤ 基线（默认 14MB），超限即失败"
-    dependsOn("assembleRelease")
+    dependsOn("assembleRelease", ":core:model:compileKotlin")
     classpath = files(
         layout.buildDirectory.dir("intermediates/javac/release/classes"),
         layout.buildDirectory.dir("tmp/kotlin-classes/release"),
+        // ApkReport / SizeBucket 已迁入 :core:model（纯 JVM 模块），SizeGuard 运行时需要它的编译产物。
+        project(":core:model").layout.buildDirectory.dir("classes/kotlin/main"),
         sizeGuardRuntime
     )
     mainClass.set("com.maodouchat.slim.SizeGuard")

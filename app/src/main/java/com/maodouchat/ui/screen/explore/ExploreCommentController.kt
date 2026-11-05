@@ -6,7 +6,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.explore.policy.ExploreFeedPolicy
-import com.maodouchat.explore.policy.ExplorePaging
+import com.maodouchat.core.model.ExplorePaging
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.network.PostCommentDto

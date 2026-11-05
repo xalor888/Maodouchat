@@ -1,9 +1,6 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
-
-internal data class CallLogRow(
+data class CallLogRow(
     val id: String,
     val peerId: String,
     val peerName: String,
