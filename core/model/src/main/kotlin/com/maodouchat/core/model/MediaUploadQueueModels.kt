@@ -1,4 +1,4 @@
-package com.maodouchat.explore.repository
+package com.maodouchat.core.model
 
 enum class UploadStatus {
     IDLE,
