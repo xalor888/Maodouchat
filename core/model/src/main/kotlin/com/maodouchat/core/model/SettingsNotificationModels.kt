@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.core.model
 
 /** 「新消息通知」设置页的 UI 状态。 */
 data class NotificationSettingsUiState(

@@ -2,6 +2,7 @@ package com.maodouchat.network
 
 import android.content.Context
 import com.maodouchat.BuildConfig
+import com.maodouchat.core.model.ServerChangeResult
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Problem
 import com.maodouchat.core.session.Reason

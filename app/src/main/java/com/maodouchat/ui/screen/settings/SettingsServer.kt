@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import com.maodouchat.R
-import com.maodouchat.network.ServerChangeResult
+import com.maodouchat.core.model.ServerChangeResult
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue

@@ -1,6 +1,6 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
-data class Info(
+data class ServerInfo(
     val name: String,
     val description: String,
     val announcement: String,

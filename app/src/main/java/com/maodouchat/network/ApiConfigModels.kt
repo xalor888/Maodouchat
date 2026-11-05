@@ -1,11 +1,5 @@
 package com.maodouchat.network
 
-sealed interface ServerChangeResult {
-    data object Changed : ServerChangeResult
-    data object Unchanged : ServerChangeResult
-    data class Failed(val message: String) : ServerChangeResult
-}
-
 // Token 存储 Key
 object Prefs {
     const val TOKEN_KEY = "auth_token"
