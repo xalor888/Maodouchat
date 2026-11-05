@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.scheduling.ChatReminderOutcome
 import com.maodouchat.scheduling.ChatScheduleController
-import com.maodouchat.scheduling.ChatScheduleRejection
+import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.scheduling.MessageReminderRequest
 import com.maodouchat.core.model.MessageReminder
 import kotlinx.coroutines.flow.MutableStateFlow

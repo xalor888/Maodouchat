@@ -1,6 +1,7 @@
 package com.maodouchat.scheduling
 
 import com.maodouchat.core.model.MessageReminder
+import com.maodouchat.core.model.ConversationScheduleFailure
 import com.maodouchat.util.ScheduledMessage
 
 data class ScheduledMessageRequest(
@@ -21,13 +22,6 @@ data class MessageReminderRequest(
     val remindAtMillis: Long,
 )
 
-enum class ConversationScheduleFailure {
-    SESSION_MISSING,
-    INVALID_REQUEST,
-    LIMIT_REACHED,
-    NOT_FOUND,
-    STORAGE,
-}
 
 sealed interface ConversationScheduleResult<out T> {
     data class Success<T>(val value: T) : ConversationScheduleResult<T>

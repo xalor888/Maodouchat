@@ -1,6 +1,7 @@
 package com.maodouchat.conversation
 
 import com.maodouchat.core.model.ConversationCapability
+import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.ConversationPrivacyContext
 import com.maodouchat.core.model.ConversationPrivacyDecision
 import com.maodouchat.core.model.ConversationPrivacyPolicy
