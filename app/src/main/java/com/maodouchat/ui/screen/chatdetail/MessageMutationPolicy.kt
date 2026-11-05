@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 
 /**
  * Transport / server ambiguity: the request may already have been applied.

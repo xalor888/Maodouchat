@@ -3,7 +3,7 @@ package com.maodouchat.webrtc
 import com.maodouchat.core.model.FailureOperation
 import com.maodouchat.core.model.SignalingException
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.WebSocketClient
 import kotlinx.serialization.json.Json

@@ -3,7 +3,7 @@ package com.maodouchat.crypto
 import android.os.Build
 import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.PreKeyDataDto
 import com.maodouchat.network.UploadKeysRequest

@@ -1,12 +1,6 @@
 package com.maodouchat.network
 
-enum class ApiFailureKind {
-    HTTP,
-    TIMEOUT,
-    NETWORK,
-    INVALID_RESPONSE,
-    UNEXPECTED
-}
+import com.maodouchat.core.model.ApiFailureKind
 
 class ApiException(
     val kind: ApiFailureKind,

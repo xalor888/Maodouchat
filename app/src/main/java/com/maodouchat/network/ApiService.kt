@@ -34,6 +34,7 @@ import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.network.api.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
 import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.model.ApiFailureKind
 
 /**
  * REST API client compatibility facade.
@@ -434,7 +435,6 @@ object ApiService :
             }
         }
     }
-
 
     private fun jsonBody(value: String) = value.toRequestBody(JSON_MEDIA)
 

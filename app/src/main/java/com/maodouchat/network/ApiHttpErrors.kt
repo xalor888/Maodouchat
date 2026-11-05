@@ -1,5 +1,7 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.ApiFailureKind
+
 /** HTTP 错误语义：错误体解析、异常构造、会话变更哨兵（自 ApiService 抽出，零行为改动）。 */
 internal object ApiHttpErrors {
 

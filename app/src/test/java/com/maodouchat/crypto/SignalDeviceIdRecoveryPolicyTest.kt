@@ -2,7 +2,7 @@ package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

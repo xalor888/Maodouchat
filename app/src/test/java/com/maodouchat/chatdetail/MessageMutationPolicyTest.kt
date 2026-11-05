@@ -7,7 +7,7 @@ import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.messaging.v2.MessageMutationTracker
 import com.maodouchat.ui.screen.chatdetail.isAlreadyTerminalMutation
 import com.maodouchat.ui.screen.chatdetail.isAmbiguousTransportFailure

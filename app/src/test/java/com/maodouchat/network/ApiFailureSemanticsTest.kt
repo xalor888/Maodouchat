@@ -11,6 +11,7 @@ import java.net.ConnectException
 import java.net.NoRouteToHostException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import com.maodouchat.core.model.ApiFailureKind
 
 class ApiFailureSemanticsTest {
     @Test
