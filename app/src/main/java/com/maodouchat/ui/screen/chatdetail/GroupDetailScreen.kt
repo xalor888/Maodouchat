@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.core.model.GroupDetailTab
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.screen.chatdetail.group.CandidateRow
@@ -72,7 +73,6 @@ fun GroupDetailScreen(
     val mediaCenterState by mediaCenterViewModel.uiState.collectAsStateWithLifecycle()
     val chatId = viewModel.chatId
     var selectedTab by rememberSaveable { mutableStateOf(GroupDetailTab.MEMBERS) }
-    // 对话框/搜索/展开交互状态簇收进持有类（见 GroupDetailInteractionState.kt），纯搬移不改判断。
     val interaction = rememberGroupDetailInteractionState(state.members)
     var titleTarget by interaction.titleTarget
     var removeTarget by interaction.removeTarget
