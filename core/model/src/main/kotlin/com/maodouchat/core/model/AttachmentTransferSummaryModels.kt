@@ -1,4 +1,4 @@
-package com.maodouchat.attachment
+package com.maodouchat.core.model
 
 data class Summary(
     val active: Int = 0,
