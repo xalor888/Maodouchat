@@ -1,11 +1,10 @@
-package com.maodouchat.call
+package com.maodouchat.core.model
 
-import com.maodouchat.webrtc.SignalMessage
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 
 class CallOfferSelectorTest {
 
@@ -114,8 +113,10 @@ class CallOfferSelectorTest {
     @Test
     fun emptyOffersThrowNoSuchElement() {
         // 失败：空列表无首选可回退——调用方须保证非空，这里钉死抛错语义。
-        assertFailsWith<NoSuchElementException> {
+        try {
             CallOfferSelector.selectPrimary(emptyList(), "c1")
+            fail("空列表应当抛 NoSuchElementException")
+        } catch (e: NoSuchElementException) {
         }
     }
 

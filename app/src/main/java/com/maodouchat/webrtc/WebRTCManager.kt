@@ -10,6 +10,7 @@ import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.WebRTCException
+import com.maodouchat.core.model.resolveIceServers
 import com.maodouchat.core.model.standardAudioConstraints
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,7 +52,6 @@ class WebRTCManager(
     @Volatile
     private var configuredIceServers: List<CallIceServer> = resolveIceServers(initialIceServers)
 
-    /** 通话中替换 ICE 服务器列表（TURN 凭据刷新）。空列表回退公共 STUN。 */
     fun refreshIceServers(servers: List<CallIceServer>) {
         configuredIceServers = resolveIceServers(servers)
         val freshConfig = PeerConnection.RTCConfiguration(buildIceServers()).apply {

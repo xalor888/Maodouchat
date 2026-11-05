@@ -1,14 +1,6 @@
-package com.maodouchat.call
+package com.maodouchat.core.model
 
-import com.maodouchat.webrtc.SignalMessage
-
-/**
- * 来电 offer 选择纯策略（P03）。
- *
- * 自 `IncomingCallObserver` 的 REST 轮询与 WS 两条路径抽出的共享谓词：
- * 终端信令判定、群 mesh 边过滤、首选 offer 选择。两条路径的 pending 去重
- * 谓词有意不同（WS 处理实时单事件、轮询处理批量），保留在调用方。
- */
+/** 来电 offer 选择纯策略：终端信令判定、群 mesh 边过滤、首选 offer 选择。 */
 object CallOfferSelector {
 
     /** 终端信令：挂断/忙/拒（大小写不敏感）。 */

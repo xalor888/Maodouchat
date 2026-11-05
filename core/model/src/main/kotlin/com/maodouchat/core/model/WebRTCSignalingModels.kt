@@ -1,9 +1,9 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class SendSignalRequest(
+data class SendSignalRequest(
     val toUserId: String,
     val type: String,
     val payload: String,
