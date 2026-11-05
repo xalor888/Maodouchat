@@ -1,5 +1,6 @@
 package com.maodouchat.group
 
+import com.maodouchat.core.model.GroupOwnedBotUi
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.network.ApiService

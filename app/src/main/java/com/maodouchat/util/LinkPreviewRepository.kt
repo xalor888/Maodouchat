@@ -9,6 +9,7 @@ import okhttp3.Request
 import java.net.URI
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import com.maodouchat.core.model.InFlightLock
 import com.maodouchat.core.model.LinkPreviewPolicy
 import com.maodouchat.core.model.Preview
 
