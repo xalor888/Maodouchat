@@ -6,7 +6,6 @@ import com.maodouchat.core.model.CallIceServer
 import com.maodouchat.core.model.CallState
 import com.maodouchat.webrtc.CallNetworkQualityPolicy
 import com.maodouchat.webrtc.CallSessionGate
-import com.maodouchat.webrtc.Level
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CoroutineScope
@@ -44,17 +43,10 @@ internal class CallSessionTimersController(
         networkStatsJob = scope.launch {
             while (callSessionGate.isCurrent(session) && currentState().callState == CallState.CONNECTED) {
                 val stats = webRTCManager()?.getConnectionStatsSnapshot()
-                val mapped = when (
-                    CallNetworkQualityPolicy.fromStats(
-                        rttMs = stats?.rttMs,
-                        packetLossPercent = stats?.packetLossPercent
-                    )
-                ) {
-                    Level.GOOD -> NetworkQuality.GOOD
-                    Level.FAIR -> NetworkQuality.FAIR
-                    Level.POOR -> NetworkQuality.POOR
-                    Level.UNKNOWN -> NetworkQuality.UNKNOWN
-                }
+                val mapped = CallNetworkQualityPolicy.fromStats(
+                    rttMs = stats?.rttMs,
+                    packetLossPercent = stats?.packetLossPercent
+                )
                 if (currentState().networkStats != mapped) {
                     updateState { it.copy(networkStats = mapped) }
                 }
