@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
+import com.maodouchat.core.model.MyQrCodeDecision
+import com.maodouchat.core.model.RejectReason
 import com.maodouchat.data.model.User
 
 /**
@@ -27,16 +29,16 @@ internal object MyQrCodeLoadPolicy {
         local: User?,
         remote: Result<User>?,
         sessionMayContinue: Boolean = true,
-    ): Decision {
-        if (!qrEnabled) return Decision.Reject(RejectReason.DISABLED)
+    ): MyQrCodeDecision {
+        if (!qrEnabled) return MyQrCodeDecision.Reject(RejectReason.DISABLED)
         if (token.isBlank() && userId.isBlank()) {
-            return Decision.Reject(RejectReason.NO_SESSION)
+            return MyQrCodeDecision.Reject(RejectReason.NO_SESSION)
         }
         // 门禁不通过（已登出/切号）时不得采用远端资料——那可能是下一个账号的
         val live = remote?.getOrNull()?.takeIf { sessionMayContinue }
         val name = live?.name?.takeIf { it.isNotBlank() } ?: local?.name.orEmpty()
         val avatar = live?.avatar ?: local?.avatar
-        return Decision.Allow(
+        return MyQrCodeDecision.Allow(
             targetUserId = userId,
             displayName = name,
             avatar = avatar,

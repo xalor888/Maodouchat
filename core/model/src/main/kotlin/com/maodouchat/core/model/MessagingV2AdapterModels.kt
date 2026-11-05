@@ -1,4 +1,4 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 data class MessagingV2DeviceTarget(val userId: String, val deviceId: Int)
 

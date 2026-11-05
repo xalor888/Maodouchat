@@ -3,9 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.conversation.ConversationLocalCleanupMode
-import com.maodouchat.conversation.ConversationLocalCleanupSession
-import com.maodouchat.conversation.ConversationLocalCleanupStep
+import com.maodouchat.core.model.ConversationLocalCleanupMode
+import com.maodouchat.core.model.ConversationLocalCleanupSession
+import com.maodouchat.core.model.ConversationLocalCleanupStep
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags

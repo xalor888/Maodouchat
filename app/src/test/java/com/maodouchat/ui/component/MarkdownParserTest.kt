@@ -3,6 +3,7 @@ package com.maodouchat.ui.component
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.maodouchat.core.model.MdBlock
 
 /**
  * G147：Markdown 块级解析的测试（保护 G127 从 `MarkdownMessage.kt` 抽出的 `MarkdownParser.kt`）。

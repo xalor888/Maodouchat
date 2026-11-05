@@ -7,7 +7,3 @@ internal fun interface MessagingV2EventOutbox {
         groupRevision: Long?,
     )
 }
-
-internal data class MessagingV2MutationCommit(
-    val localProjectionError: Throwable? = null,
-)
