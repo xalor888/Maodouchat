@@ -1,5 +1,7 @@
 package com.maodouchat.webrtc
 
+import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoutePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

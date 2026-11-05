@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.maodouchat.core.model.CallAudioRoute
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,9 +31,6 @@ import org.webrtc.VideoTrack
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * WebRTC 音视频通话管理器
- */
 class WebRTCManager(
     context: Context,
     initialIceServers: List<CallIceServer> = CallIceServer.defaultStun()
