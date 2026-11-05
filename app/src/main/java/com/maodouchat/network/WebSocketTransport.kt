@@ -21,6 +21,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import com.maodouchat.core.model.WebSocketErrorKind
 
 /**
  * WebSocket 客户端（单例 + 自动重连）
@@ -30,8 +31,7 @@ internal object WebSocketTransport : RealtimeTransport {
     private const val INITIAL_RECONNECT_DELAY_MS = 1_000L
     private const val MAX_RECONNECT_DELAY_MS = 30_000L
     // 9.3xx：借鉴 Ideaura 的保活思路——重连永不"永久死亡"。
-    // 前 MAX_FAST_RECONNECT_ATTEMPTS 次按指数退避快速重试；超出后改为每 RECONNECT_SLOW_INTERVAL_MS
-    // 的低频保活重试（网络恢复/服务端重启后自动恢复），彻底杜绝"断线 20 次后永久静默"。
+    // 前 MAX_FAST_RECONNECT_ATTEMPTS 次按指数退避快速重试；超出后改为每 RECONNECT_SLOW_INTERVAL_MS 的低频保活重试（网络恢复/服务端重启后自动恢复），彻底杜绝"断线 20 次后永久静默"。
     private const val MAX_FAST_RECONNECT_ATTEMPTS = 20
     private const val RECONNECT_SLOW_INTERVAL_MS = 60_000L
 

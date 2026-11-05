@@ -2,7 +2,7 @@ package com.maodouchat.attachment
 
 import com.maodouchat.crypto.NoRecipientDevicesException
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertFalse

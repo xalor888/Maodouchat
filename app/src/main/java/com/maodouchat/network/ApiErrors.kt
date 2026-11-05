@@ -1,5 +1,7 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.ApiFailureKind
+
 /**
  * 登录/注册等面向用户的失败文案：HTTP 优先用服务端 message；
  * 网络/超时/无效响应没有 serverMessage（Exception.message 为 null），必须落到非空兜底。

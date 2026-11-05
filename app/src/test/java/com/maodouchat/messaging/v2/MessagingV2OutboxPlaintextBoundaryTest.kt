@@ -5,7 +5,7 @@ import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.network.SendMessageRequestV2

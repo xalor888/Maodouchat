@@ -3,7 +3,7 @@ package com.maodouchat.crypto
 import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 
 /** Pure coverage checks shared by direct multi-device envelopes and their tests. */
 internal object MultiRecipientCoveragePolicy {

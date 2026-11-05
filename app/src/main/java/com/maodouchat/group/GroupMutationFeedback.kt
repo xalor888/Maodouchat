@@ -4,7 +4,7 @@ import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 
 object GroupMutationFeedbackPolicy {
     fun success(action: GroupMutationAction, detail: String? = null) = GroupMutationFeedback(

@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ChatDto
 import com.maodouchat.navigation.AppLinkRouter
 import com.maodouchat.navigation.sanitizeChatInviteToken

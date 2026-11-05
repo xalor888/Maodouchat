@@ -12,7 +12,7 @@ import com.maodouchat.ui.screen.chatdetail.PendingAiAction
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
 import com.maodouchat.network.ApiException
-import com.maodouchat.network.ApiFailureKind
+import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.invocationCategory
