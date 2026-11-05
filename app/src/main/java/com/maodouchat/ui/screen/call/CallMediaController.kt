@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.webrtc.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoute
 import org.webrtc.SurfaceViewRenderer
 
 // 媒体簇：从 CallViewModel 纯搬移——音视频开关/摄像头/音频路由透传、

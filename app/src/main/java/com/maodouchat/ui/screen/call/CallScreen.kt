@@ -61,7 +61,7 @@ import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.webrtc.CallState
-import com.maodouchat.webrtc.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.GroupCallPolicy
 

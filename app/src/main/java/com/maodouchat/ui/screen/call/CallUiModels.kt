@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.call
 
-import com.maodouchat.webrtc.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.webrtc.CallState
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.GroupPeerConnectionState

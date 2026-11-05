@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.webrtc.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoute
 
 internal fun audioRouteIcon(route: CallAudioRoute?) = when (route) {
     CallAudioRoute.BLUETOOTH -> Icons.Filled.BluetoothAudio

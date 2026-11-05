@@ -1,4 +1,4 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 enum class CallAudioRoute { BLUETOOTH, WIRED, EARPIECE, SPEAKER }
 

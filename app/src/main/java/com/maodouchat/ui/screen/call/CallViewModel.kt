@@ -10,7 +10,7 @@ import com.maodouchat.call.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.webrtc.CallType
 import com.maodouchat.webrtc.CallSessionGate
-import com.maodouchat.webrtc.CallAudioRoute
+import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
