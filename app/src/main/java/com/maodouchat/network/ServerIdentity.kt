@@ -1,6 +1,7 @@
 package com.maodouchat.network
 
 import androidx.core.content.edit
+import com.maodouchat.core.model.ServerInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,8 +24,8 @@ import java.net.URL
 object ServerIdentity {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val _current = MutableStateFlow<Info?>(null)
-    val current: StateFlow<Info?> = _current.asStateFlow()
+    private val _current = MutableStateFlow<ServerInfo?>(null)
+    val current: StateFlow<ServerInfo?> = _current.asStateFlow()
 
     /** 当前是否第三方服务器模式（运行时自定义地址，区别于编译期官方默认）。 */
     val isThirdPartyServer: Boolean get() = ApiConfig.isUsingRuntimeServer
@@ -34,7 +35,7 @@ object ServerIdentity {
         scope.launch { refresh() }
     }
 
-    suspend fun refresh(baseUrl: String = ApiConfig.BASE_URL): Info? = withContext(Dispatchers.IO) {
+    suspend fun refresh(baseUrl: String = ApiConfig.BASE_URL): ServerInfo? = withContext(Dispatchers.IO) {
         val normalized = baseUrl.trim().trimEnd('/')
         // 域名已变化：先丢弃旧身份，避免跨服务器串显
         if (_current.value?.baseUrl != normalized) _current.value = null
@@ -65,7 +66,7 @@ object ServerIdentity {
     }
 
     /** 拉取指定地址的服务器身份；网络失败/非 Maodouchat 服务返回 null。 */
-    fun fetch(baseUrl: String): Info? = runCatching {
+    fun fetch(baseUrl: String): ServerInfo? = runCatching {
         val normalized = baseUrl.trim().trimEnd('/')
         val connection = URL("$normalized/api/server/info").openConnection() as HttpURLConnection
         connection.connectTimeout = 5_000
@@ -75,7 +76,7 @@ object ServerIdentity {
             if (connection.responseCode !in 200..299) return@runCatching null
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(body)
-            Info(
+            ServerInfo(
                 name = json.optString("name", "").take(60).ifBlank { "Maodouchat Server" },
                 description = json.optString("description", "").take(500),
                 announcement = json.optString("announcement", "").take(1000),

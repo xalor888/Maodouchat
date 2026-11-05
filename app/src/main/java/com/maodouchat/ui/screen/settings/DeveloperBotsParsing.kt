@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.core.model.BotUi
 import org.json.JSONArray
 import org.json.JSONObject
 

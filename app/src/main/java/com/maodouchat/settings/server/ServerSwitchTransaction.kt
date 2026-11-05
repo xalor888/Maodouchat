@@ -3,7 +3,7 @@ package com.maodouchat.settings.server
 import android.content.Context
 import com.maodouchat.core.session.ServerSwitchResult
 import com.maodouchat.network.ApiConfig
-import com.maodouchat.network.ServerChangeResult
+import com.maodouchat.core.model.ServerChangeResult
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

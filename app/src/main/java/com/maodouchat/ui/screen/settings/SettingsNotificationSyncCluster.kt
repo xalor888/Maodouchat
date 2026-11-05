@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.settings
 
+import com.maodouchat.core.model.NotificationSettingsUiState
 import com.maodouchat.data.repository.NotificationSettingsNetworkRepository
 import android.app.Application
 import androidx.lifecycle.viewModelScope

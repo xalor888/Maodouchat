@@ -1,4 +1,4 @@
-package com.maodouchat.widget
+package com.maodouchat.core.model
 
 // ---- 模型 ----
 data class WidgetConfig(

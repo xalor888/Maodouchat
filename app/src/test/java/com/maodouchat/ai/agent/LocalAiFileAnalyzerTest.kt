@@ -1,5 +1,6 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.PreparedDocumentKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -15,7 +16,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("meeting.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertTrue(prepared.text.contains("周六发布"))
     }
 
@@ -58,7 +59,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("data.json", "application/json", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("{\"a\":1}", prepared.text)
     }
 
@@ -75,7 +76,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("hi", prepared.text)
     }
 
@@ -103,7 +104,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("<a/>".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.xml", "application/xml", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("<a/>", prepared.text)
     }
 
@@ -131,7 +132,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("# hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.md", "text/markdown", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("# hi", prepared.text)
     }
 
@@ -150,7 +151,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("a,b".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.csv", "text/csv", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("a,b", prepared.text)
     }
 
@@ -181,7 +182,7 @@ class LocalAiFileAnalyzerTest {
         val four = Base64.getEncoder().encodeToString("%PDF".toByteArray(Charsets.US_ASCII))
         val prepared = LocalAiFileAnalyzer.prepare("x.txt", "text/plain", four)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("%PDF", prepared.text)
     }
 
@@ -191,7 +192,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN; CHARSET=UTF-8", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/plain; charset=utf-8", prepared.mimeType)
         assertEquals("hi", prepared.text)
     }
@@ -230,7 +231,7 @@ class LocalAiFileAnalyzerTest {
         assertNull(LocalAiFileAnalyzer.prepare("a.txt", " text/plain", encoded))
         val trailing = LocalAiFileAnalyzer.prepare("a.txt", "text/plain ", encoded)
         assertNotNull(trailing)
-        assertEquals(Kind.TEXT, trailing!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, trailing!!.kind)
         assertEquals("text/plain ", trailing.mimeType)
     }
 
@@ -245,7 +246,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("<p>hi</p>".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.html", "text/html", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("<p>hi</p>", prepared.text)
     }
 
@@ -255,7 +256,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.json", "application/json", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -264,7 +265,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.json", "APPLICATION/JSON", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("application/json", prepared.mimeType)
         assertEquals("{\"a\":1}", prepared.text)
     }
@@ -280,7 +281,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("<a/>".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.xml", "APPLICATION/XML", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("application/xml", prepared.mimeType)
         assertEquals("<a/>", prepared.text)
     }
@@ -291,7 +292,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("a,b".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.csv", "TEXT/CSV; CHARSET=UTF-8", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/csv; charset=utf-8", prepared.mimeType)
         assertEquals("a,b", prepared.text)
     }
@@ -309,7 +310,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -320,7 +321,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
     @Test
@@ -336,7 +337,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/", prepared.mimeType)
     }
 
@@ -353,11 +354,11 @@ class LocalAiFileAnalyzerTest {
         val json = Base64.getEncoder().encodeToString("{\"a\":1}".toByteArray(Charsets.UTF_8))
         val viaJsonMime = LocalAiFileAnalyzer.prepare("notes.txt", "application/json", json)
         assertNotNull(viaJsonMime)
-        assertEquals(Kind.TEXT, viaJsonMime!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, viaJsonMime!!.kind)
         val plain = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val viaPlainMime = LocalAiFileAnalyzer.prepare("data.json", "text/plain", plain)
         assertNotNull(viaPlainMime)
-        assertEquals(Kind.TEXT, viaPlainMime!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, viaPlainMime!!.kind)
     }
 
     @Test
@@ -372,7 +373,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -381,7 +382,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.md", "text/markdown; charset=utf-8", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/markdown; charset=utf-8", prepared.mimeType)
         assertEquals("hi", prepared.text)
     }
@@ -391,7 +392,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.md", "TEXT/MARKDOWN", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/markdown", prepared.mimeType)
         assertEquals("hi", prepared.text)
     }
@@ -414,7 +415,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "TEXT/PLAIN; charset=utf-8", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("text/plain; charset=utf-8", prepared.mimeType)
         assertEquals("hi", prepared.text)
     }
@@ -432,7 +433,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -442,7 +443,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -452,7 +453,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -460,7 +461,7 @@ class LocalAiFileAnalyzerTest {
     fun `base64 without padding is accepted`() {
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", "aGk")
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("hi", prepared.text)
     }
 
@@ -479,7 +480,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString(body.toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("a.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals(body, prepared.text)
     }
 
@@ -494,7 +495,7 @@ class LocalAiFileAnalyzerTest {
         val encoded = Base64.getEncoder().encodeToString("hi".toByteArray(Charsets.UTF_8))
         val prepared = LocalAiFileAnalyzer.prepare("notes.pdf.txt", "text/plain", encoded)
         assertNotNull(prepared)
-        assertEquals(Kind.TEXT, prepared!!.kind)
+        assertEquals(PreparedDocumentKind.TEXT, prepared!!.kind)
         assertEquals("notes.pdf.txt", prepared.fileName)
     }
 

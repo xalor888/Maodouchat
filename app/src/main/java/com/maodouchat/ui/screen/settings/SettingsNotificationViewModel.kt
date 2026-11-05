@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.settings
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import com.maodouchat.core.model.NotificationSettingsUiState
 import com.maodouchat.notification.NotificationPreferences
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow

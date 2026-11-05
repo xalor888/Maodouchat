@@ -1,5 +1,6 @@
 package com.maodouchat.widget
 
+import com.maodouchat.core.model.WidgetRow
 import com.maodouchat.data.model.Chat
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 

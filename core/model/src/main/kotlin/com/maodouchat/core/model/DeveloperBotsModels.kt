@@ -1,6 +1,6 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.core.model
 
-internal data class BotUi(
+data class BotUi(
     val id: String,
     val name: String,
     val username: String,

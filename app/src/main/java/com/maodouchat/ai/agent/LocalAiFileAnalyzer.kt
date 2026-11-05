@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.core.graphics.createBitmap
+import com.maodouchat.core.model.PreparedDocument
+import com.maodouchat.core.model.PreparedDocumentKind
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Base64
@@ -30,7 +32,7 @@ object LocalAiFileAnalyzer {
             val pages = renderPdfPages(bytes) ?: return null
             if (pages.isEmpty()) return null
             return PreparedDocument(
-                kind = Kind.PDF_PAGES,
+                kind = PreparedDocumentKind.PDF_PAGES,
                 fileName = fileName.ifBlank { "document.pdf" },
                 mimeType = "application/pdf",
                 pageJpegsBase64 = pages
@@ -45,7 +47,7 @@ object LocalAiFileAnalyzer {
         val decoded = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull() ?: return null
         if (decoded.isBlank() || '\u0000' in decoded || '\uFFFD' in decoded) return null
         return PreparedDocument(
-            kind = Kind.TEXT,
+            kind = PreparedDocumentKind.TEXT,
             fileName = fileName.ifBlank { "document.txt" },
             mimeType = mime.ifBlank { "text/plain" },
             text = decoded.take(MAX_TEXT_CHARS)
