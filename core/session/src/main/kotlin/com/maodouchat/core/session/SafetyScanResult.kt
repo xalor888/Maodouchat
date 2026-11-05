@@ -1,9 +1,8 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.core.session
 
 import com.maodouchat.core.model.QrTarget
-import com.maodouchat.core.session.SafetyScanStatus
 
-internal data class SafetyScanResult(
+data class SafetyScanResult(
     val target: QrTarget.Safety,
     val status: SafetyScanStatus
 ) {

@@ -15,6 +15,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.core.session.SafetyScanStatus
+import com.maodouchat.core.session.SafetyScanResult
 import com.maodouchat.data.model.User
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
