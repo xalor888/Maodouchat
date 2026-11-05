@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import android.util.Log
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AttachmentTransferDisposition
 import com.maodouchat.data.local.dao.AttachmentTransferDao
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
