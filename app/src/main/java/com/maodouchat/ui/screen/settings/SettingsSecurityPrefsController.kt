@@ -5,7 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import com.maodouchat.settings.repository.SecurityPreferencesPatch
+import com.maodouchat.core.model.SecurityPreferencesPatch
 import com.maodouchat.settings.repository.SettingsRepository
 
 /**

@@ -1,4 +1,4 @@
-package com.maodouchat.settings.repository
+package com.maodouchat.core.model
 
 data class SettingsSession(val ownerUserId: String)
 

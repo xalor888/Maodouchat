@@ -14,12 +14,12 @@ import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 import com.maodouchat.ui.screen.chatlist.ChatListViewModel
 import com.maodouchat.ui.screen.settings.SecurityCoordinator
-import com.maodouchat.settings.repository.SettingsPrivacy
-import com.maodouchat.settings.repository.SettingsPrivacyPatch
-import com.maodouchat.settings.repository.SettingsProfile
+import com.maodouchat.core.model.SettingsPrivacy
+import com.maodouchat.core.model.SettingsPrivacyPatch
+import com.maodouchat.core.model.SettingsProfile
 import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.ui.screen.settings.SettingsScreen
-import com.maodouchat.settings.repository.SettingsSession
+import com.maodouchat.core.model.SettingsSession
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import androidx.compose.runtime.Composable
 import com.maodouchat.ui.screen.call.CallScreen
@@ -37,8 +37,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import com.maodouchat.settings.repository.SecurityPreferences
-import com.maodouchat.settings.repository.SecurityPreferencesPatch
+import com.maodouchat.core.model.SecurityPreferences
+import com.maodouchat.core.model.SecurityPreferencesPatch
 
 /**
  * G325c：**配置健壮性探针**——屏幕在 RTL 与大字体下是否仍能渲染。
@@ -180,16 +180,16 @@ class ConfigRobustnessTest {
         )
         override suspend fun loadSecurityPreferences(
             session: SettingsSession,
-        ): Result<com.maodouchat.settings.repository.SecurityPreferences> = Result.success(
-            com.maodouchat.settings.repository.SecurityPreferences(
+        ): Result<SecurityPreferences> = Result.success(
+            SecurityPreferences(
                 appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
             )
         )
         override suspend fun saveSecurityPreferences(
             session: SettingsSession,
-            patch: com.maodouchat.settings.repository.SecurityPreferencesPatch,
-        ): Result<com.maodouchat.settings.repository.SecurityPreferences> = Result.success(
-            com.maodouchat.settings.repository.SecurityPreferences(
+            patch: SecurityPreferencesPatch,
+        ): Result<SecurityPreferences> = Result.success(
+            SecurityPreferences(
                 appLockTimeoutMinutes = 5L, screenSecureEnabled = false, sensitiveGateEnabled = false,
             )
         )

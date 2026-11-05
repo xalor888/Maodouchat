@@ -1,6 +1,12 @@
 package com.maodouchat.settings.repository
 
 import android.app.Application
+import com.maodouchat.core.model.SecurityPreferences
+import com.maodouchat.core.model.SecurityPreferencesPatch
+import com.maodouchat.core.model.SettingsPrivacy
+import com.maodouchat.core.model.SettingsPrivacyPatch
+import com.maodouchat.core.model.SettingsProfile
+import com.maodouchat.core.model.SettingsSession
 
 interface SettingsRepository {
     fun currentSession(): SettingsSession?
