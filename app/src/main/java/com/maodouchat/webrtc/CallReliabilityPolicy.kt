@@ -1,6 +1,7 @@
 package com.maodouchat.webrtc
 
 import com.maodouchat.core.model.CallMediaPermission
+import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.IceReconnectAction
 import java.util.concurrent.atomic.AtomicLong
 

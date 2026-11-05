@@ -1,5 +1,7 @@
 package com.maodouchat.webrtc
 
+import com.maodouchat.core.model.CallIceServer
+
 /**
  * ICE 服务器的纯策略（G178 从 WebRTCManager 抽出）。
  *

@@ -1,10 +1,10 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class CallIceServerTest {
+class CallIceServerModelsTest {
     @Test
     fun isStunOnly_trueForDefaultStun() {
         assertTrue(CallIceServer.isStunOnly(CallIceServer.defaultStun()))
