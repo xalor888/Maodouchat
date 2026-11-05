@@ -17,6 +17,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.maodouchat.R
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.screen.chatdetail.ChatDetailScreen
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 // B5 新增（仅追加）：平板双栏布局
@@ -97,7 +98,7 @@ internal fun ChatDetailListPaneRoute(navController: NavHostController) {
                             val customized = com.maodouchat.util.ChatAppearancePreferences.hasCustomBubbleColor(bubbleCtx)
                             com.maodouchat.ui.theme.resolveSentBubble(themeSentSpec, customized, userColor)
                         }
-                        val themeFamily = com.maodouchat.ui.theme.ThemeFamily.normalize(
+                        val themeFamily = ThemeFamily.normalize(
                             com.maodouchat.util.ThemePreferences.family.collectAsState().value
                         )
                         val bubbleShapes = remember(chatId, appearanceVersion, themeFamily) {

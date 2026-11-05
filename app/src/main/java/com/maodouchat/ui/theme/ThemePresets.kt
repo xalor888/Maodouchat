@@ -3,6 +3,7 @@ package com.maodouchat.ui.theme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.theme.ChatPalette
 import com.maodouchat.theme.SentBubbleSpec
 import com.maodouchat.theme.ThemePaint

@@ -51,7 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.component.LinearActionButton
-import com.maodouchat.ui.theme.ThemeFamily
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.theme.bubbleShapesFor
 import com.maodouchat.ui.theme.resolveThemePaint
 import com.maodouchat.util.ThemePreferences

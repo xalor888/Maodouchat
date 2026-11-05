@@ -1,7 +1,7 @@
 package com.maodouchat.theme
 
 import androidx.compose.ui.graphics.Color
-import com.maodouchat.ui.theme.ThemeFamily
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.theme.resolveSentBubble
 import com.maodouchat.ui.theme.resolveThemePaint
 import com.maodouchat.util.ThemePreferences

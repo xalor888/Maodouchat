@@ -54,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.util.CustomThemeStore
 
 /**
@@ -261,7 +262,7 @@ private fun slotDisplayName(slot: String): String = stringResource(
 private fun defaultSlotColor(slot: String, variant: String): Color {
     val dark = variant == "dark"
     val paint = com.maodouchat.ui.theme.resolveThemePaint(
-        com.maodouchat.ui.theme.ThemeFamily.normalize(com.maodouchat.util.ThemePreferences.family.value),
+        ThemeFamily.normalize(com.maodouchat.util.ThemePreferences.family.value),
         dark
     )
     return slotDefaultColor(paint, slot)

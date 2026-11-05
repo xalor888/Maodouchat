@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowInsetsControllerCompat
+import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.util.ThemePreferences
 import kotlinx.coroutines.launch
 
@@ -159,7 +160,7 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     // 9.253：自定义主题覆盖层——用户改过的颜色槽位叠加在家族默认之上（revision 驱动刷新）
     val customRevision by com.maodouchat.util.CustomThemeStore.revision.collectAsState()
     val paint = remember(themeStylePref, accentPref, useDark, customRevision, oledBlack) {
-        val base = resolveThemePaint(com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref), useDark)
+        val base = resolveThemePaint(ThemeFamily.normalize(themeStylePref), useDark)
         val accent = com.maodouchat.ui.theme.accentFor(accentPref, useDark)
         var withAccent = if (accent == null) base else base.copy(
             colorScheme = base.colorScheme.copy(primary = accent, onPrimary = Color.White)
@@ -216,7 +217,7 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         LocalSentBubbleSpec provides paint.sentBubbleSpec,
         LocalDarkTheme provides useDark,
         LocalMotionSettings provides motionSettings,
-        LocalLiquidGlassEnabled provides com.maodouchat.ui.theme.ThemeFamily.normalize(themeStylePref).isLiquidGlass,
+        LocalLiquidGlassEnabled provides ThemeFamily.normalize(themeStylePref).isLiquidGlass,
         LocalLiquidGlassBlur provides 1f,
     ) {
         MaterialTheme(colorScheme = paint.colorScheme, typography = MaodouchatTypography, shapes = MaodouchatShapes) {
