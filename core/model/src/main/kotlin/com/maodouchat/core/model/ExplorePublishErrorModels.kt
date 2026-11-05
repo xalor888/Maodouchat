@@ -1,6 +1,6 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
-enum class Kind {
+enum class ExplorePublishErrorKind {
     POST_RESTRICTED,
     MESSAGE_RESTRICTED,
     SUSPENDED,

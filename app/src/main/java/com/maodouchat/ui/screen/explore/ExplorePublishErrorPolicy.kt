@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.core.model.ExplorePublishErrorKind
 import com.maodouchat.network.ApiException
 
 /**
@@ -8,7 +9,7 @@ import com.maodouchat.network.ApiException
  */
 object ExplorePublishErrorPolicy {
 
-    fun classify(error: Throwable): Kind {
+    fun classify(error: Throwable): ExplorePublishErrorKind {
         val api = error as? ApiException
         val status = api?.statusCode
         val message = listOfNotNull(api?.serverMessage, error.message)
@@ -19,19 +20,19 @@ object ExplorePublishErrorPolicy {
             message.contains("sign in") || message.contains("token")
         ) {
             // Prefer auth only for clear auth failures; restriction copy can include 403.
-            if (status == 401) return Kind.AUTH
+            if (status == 401) return ExplorePublishErrorKind.AUTH
         }
         if (isPostRestricted(message) || (status == 403 && message.contains("动态"))) {
-            return Kind.POST_RESTRICTED
+            return ExplorePublishErrorKind.POST_RESTRICTED
         }
         if (isMessageRestricted(message)) {
-            return Kind.MESSAGE_RESTRICTED
+            return ExplorePublishErrorKind.MESSAGE_RESTRICTED
         }
         if (isSuspended(message) || (status == 403 && message.contains("封禁"))) {
-            return Kind.SUSPENDED
+            return ExplorePublishErrorKind.SUSPENDED
         }
-        if (status == 401) return Kind.AUTH
-        return Kind.FALLBACK
+        if (status == 401) return ExplorePublishErrorKind.AUTH
+        return ExplorePublishErrorKind.FALLBACK
     }
 
     /**
@@ -43,11 +44,11 @@ object ExplorePublishErrorPolicy {
         val server = (error as? ApiException)?.serverMessage?.trim().orEmpty()
             .ifBlank { error.message?.trim().orEmpty() }
         return when (kind) {
-            Kind.POST_RESTRICTED,
-            Kind.MESSAGE_RESTRICTED,
-            Kind.SUSPENDED -> server.ifBlank { fallback }
-            Kind.AUTH -> server.ifBlank { fallback }
-            Kind.FALLBACK -> server.ifBlank { fallback }
+            ExplorePublishErrorKind.POST_RESTRICTED,
+            ExplorePublishErrorKind.MESSAGE_RESTRICTED,
+            ExplorePublishErrorKind.SUSPENDED -> server.ifBlank { fallback }
+            ExplorePublishErrorKind.AUTH -> server.ifBlank { fallback }
+            ExplorePublishErrorKind.FALLBACK -> server.ifBlank { fallback }
         }
     }
 
