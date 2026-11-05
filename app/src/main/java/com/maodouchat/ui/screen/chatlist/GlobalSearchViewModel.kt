@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
+import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.model.Chat
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Job
