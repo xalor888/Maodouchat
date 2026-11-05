@@ -2,7 +2,6 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
-import com.maodouchat.crypto.SenderKeyDistOutcome
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
