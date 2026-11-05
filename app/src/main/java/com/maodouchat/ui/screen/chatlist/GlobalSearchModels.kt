@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.R
-
-enum class GlobalSearchMode { KEYWORD, AI }
+import com.maodouchat.core.model.GlobalSearchHit
+import com.maodouchat.core.model.GlobalSearchMode
 
 /** 搜索类型过滤 */
 enum class SearchFilterType(val apiValue: String, val labelRes: Int) {
@@ -14,17 +14,6 @@ enum class SearchFilterType(val apiValue: String, val labelRes: Int) {
     VIDEO("VIDEO", R.string.search_filter_video),
     LINK("LINK", R.string.search_filter_link)
 }
-
-data class GlobalSearchHit(
-    val chatId: String,
-    val messageId: String,
-    val chatName: String,
-    val senderName: String,
-    val text: String,
-    val timestamp: Long,
-    val semanticScore: Double? = null,
-    val messageType: String = "TEXT"
-)
 
 data class GlobalSearchUiState(
     val query: String = "",
