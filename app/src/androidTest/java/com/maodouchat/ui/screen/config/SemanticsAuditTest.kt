@@ -27,7 +27,7 @@ import com.maodouchat.ui.screen.settings.SettingsScreen
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.core.model.FeedSession
 import com.maodouchat.network.PostDto
 import com.maodouchat.ui.screen.explore.ExploreOrchestrator
 import com.maodouchat.ui.screen.explore.ExploreScreen

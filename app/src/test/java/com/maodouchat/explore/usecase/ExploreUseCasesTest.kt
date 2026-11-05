@@ -3,7 +3,7 @@ package com.maodouchat.explore.usecase
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.explore.repository.DraftRepository
-import com.maodouchat.explore.repository.ExploreDraft
+import com.maodouchat.core.model.ExploreDraft
 import com.maodouchat.explore.repository.MediaUploadQueue
 import com.maodouchat.explore.repository.PostMutationJournal
 import com.maodouchat.explore.repository.PostMutationRepository
@@ -23,7 +23,7 @@ import com.maodouchat.network.api.SocialApi
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.core.model.FeedSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
