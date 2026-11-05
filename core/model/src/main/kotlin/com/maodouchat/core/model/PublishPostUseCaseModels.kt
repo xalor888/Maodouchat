@@ -1,4 +1,4 @@
-package com.maodouchat.explore.usecase
+package com.maodouchat.core.model
 
 sealed class PublishPostValidation {
     object Valid : PublishPostValidation()

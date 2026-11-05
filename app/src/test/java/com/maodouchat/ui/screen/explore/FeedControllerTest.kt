@@ -10,8 +10,8 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.repository.FeedSession
-import com.maodouchat.explore.repository.FeedSessionChangedException
+import com.maodouchat.core.model.FeedSession
+import com.maodouchat.core.model.FeedSessionChangedException
 
 class FeedControllerTest {
     private val post = PostDto(

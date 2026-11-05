@@ -19,7 +19,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.core.model.FeedSession
 
 /**
  * G309c：`ExploreScreen` 本体的 **UI 层**覆盖（Q03 第 1 项的第四个入口）。

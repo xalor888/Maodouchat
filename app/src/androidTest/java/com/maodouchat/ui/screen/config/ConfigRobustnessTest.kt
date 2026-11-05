@@ -29,7 +29,7 @@ import com.maodouchat.ui.screen.explore.ExploreViewModel
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.ui.screen.explore.ExploreOrchestrator
-import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.core.model.FeedSession
 import com.maodouchat.network.PostDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

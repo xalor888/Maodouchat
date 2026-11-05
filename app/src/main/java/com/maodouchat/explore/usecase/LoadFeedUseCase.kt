@@ -6,7 +6,7 @@ import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.explore.repository.FeedRepository
-import com.maodouchat.explore.repository.FeedSession
+import com.maodouchat.core.model.FeedSession
 
 class LoadFeedUseCase(
     private val feedRepository: FeedRepository,
