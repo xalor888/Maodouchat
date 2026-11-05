@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.model
 
 data class Certificate(
     val certificate: String,
@@ -7,7 +7,7 @@ data class Certificate(
     val userId: String
 )
 
-internal data class CacheKey(
+data class CacheKey(
     val userId: String,
     val deviceId: Int
 )
