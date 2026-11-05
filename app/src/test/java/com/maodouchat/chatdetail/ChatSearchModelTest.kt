@@ -4,8 +4,8 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.ChatSearchScope
-import com.maodouchat.ui.screen.chatdetail.ChatSearchWindow
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import com.maodouchat.ui.screen.chatdetail.buildChatSearchDocuments
 import com.maodouchat.ui.screen.chatdetail.searchChatDocuments

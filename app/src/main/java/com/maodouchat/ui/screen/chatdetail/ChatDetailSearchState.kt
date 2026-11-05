@@ -7,6 +7,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import com.maodouchat.core.model.ChatSearchMode
+import com.maodouchat.core.model.ChatSearchScope
+import com.maodouchat.core.model.ChatSearchWindow
 
 /**
  * G335：**会话内搜索**的六个状态（搜索栏开没开、关键词、命中下标、模式、范围、时间窗）。

@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.maodouchat.core.model.ChatSearchMode
 import com.maodouchat.data.model.Message
 
 // 搜索派生量族：消息文档、本地关键词结果、语义候选与最终合并结果。
