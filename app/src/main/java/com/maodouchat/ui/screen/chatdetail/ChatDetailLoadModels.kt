@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.data.model.Chat
 
 internal data class ChatLoadInput(
@@ -18,13 +19,3 @@ internal data class ChatLoadPlan(
     val revisionWarning: String?,
     val fromCache: Boolean,
 )
-
-internal /** 加载完成后要执行的副作用。用 sealed 让调用方的 `when` 必须穷尽。 */
-sealed interface ChatLoadEffect {
-    data class OccupySessionCipher(val chatId: String, val peerUserId: String?) : ChatLoadEffect
-    data object LoadGroupCandidates : ChatLoadEffect
-    data class RefreshBotCommands(val chatId: String) : ChatLoadEffect
-    data class RefreshBlockState(val peerUserId: String) : ChatLoadEffect
-    data object RefreshScheduledMessages : ChatLoadEffect
-    data class RefreshIdentitySafety(val peerUserId: String) : ChatLoadEffect
-}

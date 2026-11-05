@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatDetailMessageLabels
 import com.maodouchat.core.model.ChatHeaderStatus
 import com.maodouchat.core.model.resolveChatHeaderStatus
 
@@ -8,30 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
-
-/** 文案标签簇：原在 ChatDetailRoute 顶部内联读取，纯搬移。 */
-internal data class ChatDetailMessageLabels(
-    val sensitiveAuthTitle: String,
-    val sensitiveAuthExport: String,
-    val sensitiveAuthClearHistory: String,
-    val sensitiveAuthFailed: String,
-    val chatPermissionRecordMsg: String,
-    val chatPermissionVoiceCallMsg: String,
-    val chatPermissionVideoCallMsg: String,
-    val chatPermissionLocationMsg: String,
-    val chatCopiedMsg: String,
-    val chatAiImageResultTitle: String,
-    val chatAiFileResultTitle: String,
-    val chatGroupAiTitle: String,
-    val chatGroupAiCopiedMsg: String,
-    val chatClipboardMessageLabel: String,
-    val chatClipboardTranslationLabel: String,
-    val chatTranslationCopiedMsg: String,
-    val chatClipboardTranscriptLabel: String,
-    val chatTranscriptCopiedMsg: String,
-    val unknownSenderLabel: String,
-    val groupMemberLabel: String,
-)
 
 @Composable
 internal fun rememberChatDetailMessageLabels(): ChatDetailMessageLabels =
