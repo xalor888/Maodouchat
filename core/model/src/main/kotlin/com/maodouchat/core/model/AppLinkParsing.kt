@@ -1,4 +1,4 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 /**
  * 解析外部深链。大小写规则：scheme/host 按 ASCII 小写归一化后匹配白名单
@@ -13,7 +13,7 @@ package com.maodouchat.navigation
  * - maodouchat://invite/{code} / https://chat.mdou.me/join/{code}
  * - maodouchat:chat-invite:v1:{token}（生产分享/QR 冒号协议，与 QrPayloadParser 同构）
  */
-internal fun AppLinkRouter.parseDeepLink(uriString: String): AppLinkParseResult {
+fun AppLinkRouter.parseDeepLink(uriString: String): AppLinkParseResult {
     val raw = uriString.trim()
     if (raw.isEmpty()) return AppLinkParseResult.Rejected("empty")
     // 生产邀请载荷无 ://（maodouchat:chat-invite:v1:…），与深链共用同一 GroupInvite 目标。
@@ -44,7 +44,7 @@ internal fun AppLinkRouter.parseDeepLink(uriString: String): AppLinkParseResult 
  *
  * 不把任意 host 并入 [parseDeepLink]，以免破坏 Manifest / 深链白名单语义。
  */
-internal fun AppLinkRouter.resolveUserFacingUrl(raw: String): AppLinkParseResult {
+fun AppLinkRouter.resolveUserFacingUrl(raw: String): AppLinkParseResult {
     when (val deep = parseDeepLink(raw)) {
         is AppLinkParseResult.Accepted -> return deep
         is AppLinkParseResult.Rejected -> Unit

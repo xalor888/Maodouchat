@@ -28,7 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.maodouchat.core.model.NotificationTargetReplayDecision
 import com.maodouchat.core.model.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
-import com.maodouchat.navigation.toDestination
+import com.maodouchat.core.model.toDestination
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.network.TokenManager

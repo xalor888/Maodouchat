@@ -1,7 +1,8 @@
 package com.maodouchat.contacts
 
 import com.maodouchat.core.model.QrParsedPayload
-import com.maodouchat.navigation.sanitizeChatInviteToken
+import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.sanitizeChatInviteToken
 import java.nio.charset.StandardCharsets
 
 /**
@@ -68,7 +69,7 @@ object QrPayloadParser {
     }
 
     private fun parseChatInvitePayload(rawToken: String): QrParsedPayload {
-        val token = com.maodouchat.navigation.AppLinkRouter.sanitizeChatInviteToken(rawToken)
+        val token = AppLinkRouter.sanitizeChatInviteToken(rawToken)
             ?: return QrParsedPayload.Invalid("Malformed chat invite token in payload")
         return QrParsedPayload.ChatInvite(token)
     }

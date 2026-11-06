@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupInviteController
 import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.group.GroupMutationFeedbackPolicy
+import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

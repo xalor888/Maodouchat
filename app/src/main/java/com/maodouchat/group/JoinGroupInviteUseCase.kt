@@ -4,9 +4,9 @@ import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ChatDto
-import com.maodouchat.navigation.AppLinkRouter
-import com.maodouchat.navigation.sanitizeChatInviteToken
-import com.maodouchat.navigation.sanitizeInviteCode
+import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.sanitizeChatInviteToken
+import com.maodouchat.core.model.sanitizeInviteCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

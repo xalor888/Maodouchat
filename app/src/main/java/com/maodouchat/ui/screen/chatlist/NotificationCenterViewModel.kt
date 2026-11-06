@@ -6,9 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.data.repository.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.navigation.AppLinkDestination
-import com.maodouchat.navigation.AppLinkRouter
-import com.maodouchat.navigation.parseLegacyCenterDeeplink
+import com.maodouchat.core.model.AppLinkDestination
+import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.parseLegacyCenterDeeplink
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 

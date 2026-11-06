@@ -1,10 +1,5 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.core.model.GroupMutationFeedback
-import com.maodouchat.core.model.GroupMutationFeedbackKind
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
 
 object GroupMutationFeedbackPolicy {
     fun success(action: GroupMutationAction, detail: String? = null) = GroupMutationFeedback(

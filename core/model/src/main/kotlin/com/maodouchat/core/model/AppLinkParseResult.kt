@@ -1,4 +1,4 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 sealed interface AppLinkParseResult {
     data class Accepted(val destination: AppLinkDestination) : AppLinkParseResult

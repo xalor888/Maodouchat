@@ -1,4 +1,4 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 /**
  * P08：深链 / 系统入口在执行业务导航前的认证门闩（纯决策）。

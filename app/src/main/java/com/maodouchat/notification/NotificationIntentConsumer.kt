@@ -5,17 +5,17 @@ import android.content.Intent
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.NotificationIntentPolicy
-import com.maodouchat.navigation.AppLinkAuthGate
-import com.maodouchat.navigation.AppLinkDestination
-import com.maodouchat.navigation.AppLinkParseResult
-import com.maodouchat.navigation.AppLinkRouter
+import com.maodouchat.core.model.AppLinkAuthGate
+import com.maodouchat.core.model.AppLinkDestination
+import com.maodouchat.core.model.AppLinkParseResult
+import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.NotificationTarget
-import com.maodouchat.navigation.parseDeepLink
-import com.maodouchat.navigation.sanitizeCallIdStrict
-import com.maodouchat.navigation.sanitizeChatIdStrict
-import com.maodouchat.navigation.sanitizeMessageIdStrict
-import com.maodouchat.navigation.sanitizePostIdStrict
-import com.maodouchat.navigation.sanitizeUserIdStrict
+import com.maodouchat.core.model.parseDeepLink
+import com.maodouchat.core.model.sanitizeCallIdStrict
+import com.maodouchat.core.model.sanitizeChatIdStrict
+import com.maodouchat.core.model.sanitizeMessageIdStrict
+import com.maodouchat.core.model.sanitizePostIdStrict
+import com.maodouchat.core.model.sanitizeUserIdStrict
 import com.maodouchat.network.TokenManager
 import com.maodouchat.telecom.TelecomHelper
 
