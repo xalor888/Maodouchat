@@ -1,5 +1,11 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ConfirmDeviceRequest
+import com.maodouchat.core.model.DeviceInfoDto
+import com.maodouchat.core.model.DevicePreKeyBundleDto
+import com.maodouchat.core.model.PreKeyBundleDto
+import com.maodouchat.core.model.UpdateDeviceNameRequest
+import com.maodouchat.core.model.UploadKeysRequest
 import com.maodouchat.network.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer

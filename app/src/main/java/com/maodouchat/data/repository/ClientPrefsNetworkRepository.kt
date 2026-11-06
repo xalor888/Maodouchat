@@ -1,8 +1,8 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ClientPrefsDto
-import com.maodouchat.network.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
 
 /**
  * 客户端偏好（跨设备同步的那一份）的**远端**调用（G328c）。

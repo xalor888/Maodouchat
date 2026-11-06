@@ -1,5 +1,12 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ChatFolderDto
+import com.maodouchat.core.model.ChatFoldersSyncRequest
+import com.maodouchat.core.model.ChatFoldersSyncResponse
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.UpdateProfileRequest
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.*
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

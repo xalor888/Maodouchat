@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.R
-import com.maodouchat.network.DeviceInfoDto
+import com.maodouchat.core.model.DeviceInfoDto
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.settings.model.SettingsUiState
 import kotlinx.coroutines.CoroutineScope

@@ -7,8 +7,8 @@ package com.maodouchat.settings.model
  * 顺带说明 `PrivacyField`/`LoadedPrivacy` 从 private 改为 internal——换文件后同一模块内
  * 仍可用，但不对外暴露。
  */
-import com.maodouchat.network.UserDto
-import com.maodouchat.network.DeviceInfoDto
+import com.maodouchat.core.model.UserDto
+import com.maodouchat.core.model.DeviceInfoDto
 
 data class SettingsUiState(
     val userName: String = "",

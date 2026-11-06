@@ -1,5 +1,8 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.SendFriendRequestBody
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.*
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

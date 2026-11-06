@@ -2,10 +2,10 @@ package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.FriendRequestDto
-import com.maodouchat.network.GroupInvitationDto
-import com.maodouchat.network.GroupInviteAcceptResponse
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.core.model.UserDto
 
 /**
  * 联系人（好友）与群邀请的**远端**调用（G328c）。

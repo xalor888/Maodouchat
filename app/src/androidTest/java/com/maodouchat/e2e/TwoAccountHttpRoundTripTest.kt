@@ -42,7 +42,7 @@ import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopePreparer
 import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopeProcessor
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.AuthResponse
+import com.maodouchat.core.model.AuthResponse
 import com.maodouchat.network.ConversationSnapshotV2Dto
 import com.maodouchat.network.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.network.PendingEnvelopeV2Dto

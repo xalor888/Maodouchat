@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.AuthResponse
+import com.maodouchat.core.model.AuthResponse
 
 /**
  * 登录/注册/找回密码的**免鉴权**端点（G328c）。

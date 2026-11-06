@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.security.BackgroundSessionGate

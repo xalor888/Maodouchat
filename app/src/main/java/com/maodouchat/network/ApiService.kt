@@ -37,7 +37,9 @@ import com.maodouchat.network.api.MessagingApiClient
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.AuthResponse
 import com.maodouchat.core.model.RefreshOutcome
+import com.maodouchat.core.model.RefreshTokenRequest
 import com.maodouchat.core.model.apiExceptionForIOException
 
 /**
@@ -244,9 +246,7 @@ object ApiService :
             .url("${ApiConfig.BASE_URL}/api/auth/refresh")
             .post(jsonBody(json.encodeToString(RefreshTokenRequest.serializer(), RefreshTokenRequest(refreshToken))))
             .build()
-        val result = try {
-            executeRequest(request)
-        } catch (error: CancellationException) {
+        val result = try { executeRequest(request) } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
             return@withLock RefreshOutcome.TransientFailure

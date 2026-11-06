@@ -1,8 +1,8 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.CurrentUserPublicResponse
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.UserDto
 
 /**
  * 需要鉴权的用户资料读取（G328c）。

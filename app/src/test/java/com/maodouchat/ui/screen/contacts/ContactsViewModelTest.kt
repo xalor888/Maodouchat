@@ -12,7 +12,7 @@ import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
-import com.maodouchat.network.GroupInviteAcceptResponse
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

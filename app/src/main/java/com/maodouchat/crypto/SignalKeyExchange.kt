@@ -9,8 +9,8 @@ import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.core.crypto.shouldUseLegacyBundleEndpoint
 import com.maodouchat.core.crypto.toExchangeException
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PreKeyDataDto
-import com.maodouchat.network.UploadKeysRequest
+import com.maodouchat.core.model.PreKeyDataDto
+import com.maodouchat.core.model.UploadKeysRequest
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.ecc.Curve
 import org.signal.libsignal.protocol.state.PreKeyBundle

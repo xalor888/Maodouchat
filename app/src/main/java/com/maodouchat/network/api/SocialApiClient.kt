@@ -1,6 +1,10 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.*
 
 object SocialApiClient : SocialApi {

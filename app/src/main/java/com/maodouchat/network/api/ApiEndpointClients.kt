@@ -1,12 +1,25 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.ChatFolderDto
+import com.maodouchat.core.model.ChatFoldersSyncResponse
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.PublicProfileResponse
+import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UpdateModerationRuleRequest
+import com.maodouchat.core.model.UserDto
+import com.maodouchat.core.model.UserPrivacyDto
 internal object ApiEndpointClients : ApiSurface {
 override suspend fun getPublicStatus(): Result<String> = ApiMessagingEndpoints.getPublicStatus()
 override suspend fun deleteChat(token: String, chatId: String): Result<Unit> = ApiMessagingEndpoints.deleteChat(token, chatId)
@@ -30,42 +43,29 @@ override suspend fun getPublicProfile(username: String): Result<PublicProfileRes
 override suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse> = ApiSocialEndpoints.setUsername(token, username)
 override suspend fun clearUsername(token: String): Result<Unit> = ApiSocialEndpoints.clearUsername(token)
 override suspend fun getPrivacy(token: String): Result<UserPrivacyDto> = ApiSocialEndpoints.getPrivacy(token)
-override suspend fun updatePrivacy(
-    token: String,
-    showOnline: Boolean?,
-    showStatus: Boolean?,
-    searchable: Boolean?,
-    defaultPostVisibility: String?, onlineVisibility: String?): Result<UserPrivacyDto> = ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
+override suspend fun updatePrivacy(token: String, showOnline: Boolean?, showStatus: Boolean?, searchable: Boolean?, defaultPostVisibility: String?, onlineVisibility: String?): Result<UserPrivacyDto> =
+    ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
 override suspend fun getPublicUpdates(baseUrl: String): Result<PublicUpdatesDto> = ApiSocialEndpoints.getPublicUpdates(baseUrl)
 override suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse> = ApiSocialEndpoints.getNotificationSettings(token)
 override suspend fun updateNotificationSettings(token: String, request: NotificationSettingsRequest): Result<NotificationSettingsResponse> = ApiSocialEndpoints.updateNotificationSettings(token, request)
-override suspend fun registerPushToken(
-    token: String,
-    deviceId: String,
-    pushToken: String,
-    timezoneOffsetMinutes: Int): Result<Unit> = ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
+override suspend fun registerPushToken(token: String, deviceId: String, pushToken: String, timezoneOffsetMinutes: Int): Result<Unit> =
+    ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
 override suspend fun removePushToken(token: String, deviceId: String): Result<Unit> = ApiSocialEndpoints.removePushToken(token, deviceId)
 override suspend fun blockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.blockUser(token, userId)
 override suspend fun unblockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.unblockUser(token, userId)
 override suspend fun getBlockedUsers(token: String): Result<List<String>> = ApiSocialEndpoints.getBlockedUsers(token)
 override suspend fun getBlockedUserDetails(token: String): Result<List<UserDto>> = ApiSocialEndpoints.getBlockedUserDetails(token)
-override suspend fun getPosts(
-    token: String,
-    limit: Int,
-    before: Long?,
-    beforeId: String?, authorId: String?): Result<List<PostDto>> = ApiSocialContentEndpoints.getPosts(token, limit, before, beforeId, authorId)
+override suspend fun getPosts(token: String, limit: Int, before: Long?, beforeId: String?, authorId: String?): Result<List<PostDto>> =
+    ApiSocialContentEndpoints.getPosts(token, limit, before, beforeId, authorId)
 override suspend fun createPost(token: String, content: String, imageUrls: List<String>, visibility: String?): Result<PostDto> = ApiSocialContentEndpoints.createPost(token, content, imageUrls, visibility)
 override suspend fun getPost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.getPost(token, postId)
 override suspend fun editPost(token: String, postId: String, content: String, visibility: String?): Result<PostDto> = ApiSocialContentEndpoints.editPost(token, postId, content, visibility)
 override suspend fun deletePost(token: String, postId: String): Result<Unit> = ApiSocialContentEndpoints.deletePost(token, postId)
 override suspend fun likePost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.likePost(token, postId)
 override suspend fun unlikePost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.unlikePost(token, postId)
-override suspend fun getPostComments(
-    token: String,
-    postId: String,
-    limit: Int,
-    before: Long?,
-    beforeId: String?): Result<List<PostCommentDto>> = ApiSocialContentEndpoints.getPostComments(token, postId, limit, before, beforeId)
+override suspend fun getPostComments(token: String, postId: String, limit: Int,
+    before: Long?, beforeId: String?): Result<List<PostCommentDto>> =
+    ApiSocialContentEndpoints.getPostComments(token, postId, limit, before, beforeId)
 override suspend fun createPostComment(token: String, postId: String, content: String, replyToId: String?): Result<PostCommentDto> = ApiSocialContentEndpoints.createPostComment(token, postId, content, replyToId)
 override suspend fun editPostComment(token: String, postId: String, commentId: String, content: String): Result<PostCommentDto> = ApiSocialContentEndpoints.editPostComment(token, postId, commentId, content)
 override suspend fun getPostLikers(token: String, postId: String, limit: Int): Result<PostLikersResponse> = ApiSocialContentEndpoints.getPostLikers(token, postId, limit)

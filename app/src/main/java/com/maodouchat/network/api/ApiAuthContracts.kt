@@ -1,5 +1,7 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.AuthResponse
+import com.maodouchat.core.model.DeleteAccountResponse
 import com.maodouchat.network.*
 
 interface AuthApi {

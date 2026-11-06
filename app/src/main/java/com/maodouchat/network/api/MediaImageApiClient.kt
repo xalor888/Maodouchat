@@ -1,5 +1,7 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.AvatarResponse
+import com.maodouchat.core.model.UploadAvatarRequest
 import com.maodouchat.network.*
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request

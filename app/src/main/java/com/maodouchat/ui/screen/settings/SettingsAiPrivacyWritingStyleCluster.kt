@@ -8,7 +8,7 @@ import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot
-import com.maodouchat.network.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock

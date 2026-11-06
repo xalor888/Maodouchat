@@ -29,7 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import com.maodouchat.network.DeviceInfoDto
+import com.maodouchat.core.model.DeviceInfoDto
 import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.OnlineGreen

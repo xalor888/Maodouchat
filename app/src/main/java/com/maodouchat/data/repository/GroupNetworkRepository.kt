@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 
 /**
  * 群成员与群资料编辑的**远端**调用（G328c）。

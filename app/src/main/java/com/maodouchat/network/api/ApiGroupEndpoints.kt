@@ -1,5 +1,7 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.network.*
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
