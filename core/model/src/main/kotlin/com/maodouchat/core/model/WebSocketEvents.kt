@@ -1,9 +1,4 @@
-package com.maodouchat.network
-
-import com.maodouchat.core.model.FriendRequestDto
-import com.maodouchat.core.model.GroupInvitationDto
-import com.maodouchat.core.model.PinnedMessageDto
-import com.maodouchat.core.model.WebSocketErrorKind
+package com.maodouchat.core.model
 
 sealed class WebSocketEvent {
     data class PostDeleted(val postId: String) : WebSocketEvent()
@@ -73,4 +68,3 @@ sealed class WebSocketEvent {
     ) : WebSocketEvent()
     data object Disconnected : WebSocketEvent()
 }
-

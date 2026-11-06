@@ -2,7 +2,7 @@ package com.maodouchat.util
 
 import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.network.TokenManager
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers

@@ -1,6 +1,6 @@
 package com.maodouchat.session
 
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.model.WebSocketEvent
 
 data class RealtimeTransportEvent(
     val connectionGeneration: Long,

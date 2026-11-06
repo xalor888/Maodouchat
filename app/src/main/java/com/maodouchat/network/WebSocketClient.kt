@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.session.TokenManagerSessionContextProvider
@@ -68,8 +69,7 @@ object WebSocketClient {
         @Volatile @Suppress("StaticFieldLeak") // TokenManager 只持有 applicationContext（getInstance 内已转换）
         private var tokenManager: TokenManager? = null
 
-        @Volatile
-        private var manager: RealtimeConnectionManager? = null
+        @Volatile private var manager: RealtimeConnectionManager? = null
 
         fun install(connectionManager: RealtimeConnectionManager) {
             synchronized(this) {

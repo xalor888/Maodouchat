@@ -15,7 +15,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.core.model.MessageReminder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
