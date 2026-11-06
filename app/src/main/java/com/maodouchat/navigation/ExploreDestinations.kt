@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.maodouchat.core.model.AppLinkRouter
 
 /**
  * 动态/联系人域目的地（P08：自 `NavGraph.kt` 迁出的第二个 feature 簇）。

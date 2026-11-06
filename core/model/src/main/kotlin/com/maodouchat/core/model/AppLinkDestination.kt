@@ -1,14 +1,14 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 sealed interface AppLinkDestination {
     /** 是否需要已登录才能执行业务（[ExternalUrl] 除外）。 */
     val requiresAuth: Boolean
 
-    /** 映射到现有 [Routes] 的导航路由字符串（与现有 builder 语义一致）。 */
+    /** 映射到现有 Routes 的导航路由字符串（与现有 builder 语义一致）。 */
     fun toRoute(): String
 
     /**
-     * 用户面 http(s) 外链：非 Compose 路由，由 [AppLinkOpener] 走系统浏览器。
+     * 用户面 http(s) 外链：非 Compose 路由，由 AppLinkOpener 走系统浏览器。
      * 应用内深链仍优先经 [AppLinkRouter.parseDeepLink] 解析为其它目标。
      */
     data class ExternalUrl(val url: String) : AppLinkDestination {

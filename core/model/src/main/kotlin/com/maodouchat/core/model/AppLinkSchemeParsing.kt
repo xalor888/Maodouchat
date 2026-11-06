@@ -1,8 +1,8 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 // ---- 内部解析 ----
 
-internal fun AppLinkRouter.parseMaodouScheme(afterScheme: String): AppLinkParseResult {
+fun AppLinkRouter.parseMaodouScheme(afterScheme: String): AppLinkParseResult {
     val pathAndQuery = afterScheme
     val path = pathAndQuery.substringBefore('?')
     val query = pathAndQuery.substringAfter('?', "")
@@ -43,7 +43,7 @@ internal fun AppLinkRouter.parseMaodouScheme(afterScheme: String): AppLinkParseR
     }
 }
 
-internal fun AppLinkRouter.parseHttpsChatMdou(pathAndQuery: String): AppLinkParseResult {
+fun AppLinkRouter.parseHttpsChatMdou(pathAndQuery: String): AppLinkParseResult {
     val path = pathAndQuery.substringBefore('?')
     val segments = path.split('/').filter { it.isNotEmpty() }
     if (segments.isEmpty()) return AppLinkParseResult.Rejected("empty_path")
@@ -70,7 +70,7 @@ internal fun AppLinkRouter.parseHttpsChatMdou(pathAndQuery: String): AppLinkPars
     }
 }
 
-internal fun AppLinkRouter.parseQueryParam(query: String, key: String): String? {
+fun AppLinkRouter.parseQueryParam(query: String, key: String): String? {
     if (query.isEmpty()) return null
     for (pair in query.split('&')) {
         val eq = pair.indexOf('=')

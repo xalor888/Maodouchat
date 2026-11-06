@@ -1,17 +1,6 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
-/**
- * P08 首切片：应用级统一深链/系统入口路由器（纯 Kotlin，无 Android 依赖）。
- *
- * 现状问题（屎山点）：
- * - 深链解析散落在 [MainActivity.consumeNotificationIntent]（手写字符串截取）、
- *   [MaodouchatNavGraph] 的 navDeepLink pattern、AndroidManifest 三处，规则互相漂移；
- * - 通知/Widget/二维码/邀请/网页链接各走一套跳转逻辑，无统一鉴权与参数校验门。
- *
- * 本文件只做「纯决策」：解析 + 清洗 + 目标建模 + 路由字符串生成。
- * 不触碰 NavController / Activity / Token，保持零行为变更，可被现有调用方渐进接入。
- * 业务执行前必须检查 [AppLinkDestination.requiresAuth] 并完成登录态校验（见 P08 Gate）。
- */
+/** 应用级统一深链/系统入口路由器（纯 Kotlin，无 Android 依赖）：只做纯决策——解析、清洗、目标建模与路由字符串生成，不触碰 NavController / Activity / Token。 */
 
 object AppLinkRouter {
     const val MAX_USERNAME_LENGTH = 64

@@ -49,7 +49,7 @@ import com.maodouchat.navigation.groupPlayDestinations
 import com.maodouchat.navigation.settingsDestinations
 
 /**
- * 导航图（注册装配；路由定义见 `NavRoutes.kt`，深链决策见 `AppLinkRouter`）。
+ * 导航图（注册装配；路由定义见 `NavRoutes.kt`，深链决策见 `com.maodouchat.core.model.AppLinkRouter`）。
  */
 
 /**

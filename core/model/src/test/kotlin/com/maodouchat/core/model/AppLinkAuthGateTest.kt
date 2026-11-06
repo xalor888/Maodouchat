@@ -1,11 +1,8 @@
-package com.maodouchat.ui.navigation
+package com.maodouchat.core.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
-import com.maodouchat.navigation.AppLinkAuthDecision
-import com.maodouchat.navigation.AppLinkAuthGate
-import com.maodouchat.navigation.AppLinkDestination
 
 class AppLinkAuthGateTest {
 

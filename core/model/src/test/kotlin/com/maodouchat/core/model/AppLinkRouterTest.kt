@@ -1,27 +1,10 @@
-package com.maodouchat.ui.navigation
+package com.maodouchat.core.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import com.maodouchat.navigation.AppLinkDestination
-import com.maodouchat.navigation.AppLinkParseResult
-import com.maodouchat.navigation.AppLinkRouter
-import com.maodouchat.core.model.NotificationTarget
-import com.maodouchat.navigation.encodePathSegment
-import com.maodouchat.navigation.parseDeepLink
-import com.maodouchat.navigation.parseLegacyCenterDeeplink
-import com.maodouchat.navigation.parseNotificationExtras
-import com.maodouchat.navigation.resolveUserFacingUrl
-import com.maodouchat.navigation.sanitizeCallIdStrict
-import com.maodouchat.navigation.sanitizeChatIdStrict
-import com.maodouchat.navigation.sanitizeHttpUrl
-import com.maodouchat.navigation.sanitizeMessageIdStrict
-import com.maodouchat.navigation.sanitizePostIdStrict
-import com.maodouchat.navigation.sanitizeUserIdStrict
-import com.maodouchat.navigation.sanitizeUsername
-import com.maodouchat.navigation.toDestination
 
 // NotificationTarget lives in the same package (NavTargets.kt).
 

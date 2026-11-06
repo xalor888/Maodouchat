@@ -1,7 +1,7 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 /** RFC3986 unreserved 保持原样，其余 UTF-8 百分比编码（与 Uri.encode 默认行为对齐）。 */
-internal fun AppLinkRouter.encodePathSegment(raw: String): String {
+fun AppLinkRouter.encodePathSegment(raw: String): String {
     val sb = StringBuilder()
     // 按字符而非字节判断 unreserved，避免多字节字符被误保留。
     for (ch in raw) {
@@ -20,7 +20,7 @@ internal fun AppLinkRouter.encodePathSegment(raw: String): String {
 
 private val HEX = "0123456789ABCDEF".toCharArray()
 
-internal fun AppLinkRouter.decodeComponent(raw: String): String {
+fun AppLinkRouter.decodeComponent(raw: String): String {
     val out = StringBuilder()
     var i = 0
     while (i < raw.length) {

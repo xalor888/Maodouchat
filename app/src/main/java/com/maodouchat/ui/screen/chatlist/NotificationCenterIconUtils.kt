@@ -14,9 +14,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.navigation.AppLinkDestination
-import com.maodouchat.navigation.AppLinkRouter
-import com.maodouchat.navigation.parseLegacyCenterDeeplink
+import com.maodouchat.core.model.AppLinkDestination
+import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.parseLegacyCenterDeeplink
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed

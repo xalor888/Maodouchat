@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.PendingIncomingCall
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.NotificationTarget
@@ -359,7 +360,7 @@ class NotificationIntentConsumerInstrumentedTest {
     @Test
     fun chatInviteColonLinkOpensGroupInviteTarget() {
         val token = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq" // 42 chars，Base64URL 形状
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("${com.maodouchat.navigation.AppLinkRouter.CHAT_INVITE_COLON_PREFIX}$token"))
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("${AppLinkRouter.CHAT_INVITE_COLON_PREFIX}$token"))
 
         consumer.consume(intent, callingPackage = selfPackage, callingActivityPackage = null)
 

@@ -6,12 +6,16 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.AppLinkDestination
+import com.maodouchat.core.model.AppLinkParseResult
+import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.resolveUserFacingUrl
 
 /**
  * P08：用户面链接的 Android 侧打开器。
  *
- * 决策在 [AppLinkRouter.resolveUserFacingUrl]；此处只做 Intent 派发。
- * - [AppLinkDestination.ExternalUrl] → 系统浏览器（不钉包名）
+ * 决策在 [com.maodouchat.core.model.AppLinkRouter.resolveUserFacingUrl]；此处只做 Intent 派发。
+ * - [com.maodouchat.core.model.AppLinkDestination.ExternalUrl] → 系统浏览器（不钉包名）
  * - 其它目标 → 钉本包 `ACTION_VIEW`，走 Manifest 深链 → MainActivity / 认证门闩
  */
 object AppLinkOpener {

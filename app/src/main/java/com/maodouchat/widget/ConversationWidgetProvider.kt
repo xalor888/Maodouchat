@@ -11,10 +11,11 @@ import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.ConversationWidgetContract
+import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.core.model.QuickReplyCommand
 import com.maodouchat.core.model.QuickReplyCommandResult
-import com.maodouchat.navigation.sanitizeChatIdStrict
+import com.maodouchat.core.model.sanitizeChatIdStrict
 import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.core.model.SyncVerdict
@@ -120,7 +121,7 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
         // P08：生产侧清洗——非法 ID 直接走刷新分支，不构造 tap intent
         //（消费侧 MainActivity 同样会拒收；此处前置失败，避免坏 data URI 进 PendingIntent）。
-        val cleanChatId = com.maodouchat.navigation.AppLinkRouter.sanitizeChatIdStrict(chatId)
+        val cleanChatId = AppLinkRouter.sanitizeChatIdStrict(chatId)
         if (cleanChatId != null) {
             // 账号归属校验（与通知点击同一套策略）
             if (!NotificationIntentPolicy.belongsToCurrentAccount(
@@ -157,7 +158,7 @@ class ConversationWidgetProvider : AppWidgetProvider() {
         val chatId = intent.getStringExtra(ConversationWidgetContract.EXTRA_CHAT_ID).orEmpty()
         val ownerUserId = intent.getStringExtra(ConversationWidgetContract.EXTRA_OWNER_USER_ID).orEmpty()
         // P08：生产侧清洗与打开路径同口径。
-        val cleanChatId = com.maodouchat.navigation.AppLinkRouter.sanitizeChatIdStrict(chatId)
+        val cleanChatId = AppLinkRouter.sanitizeChatIdStrict(chatId)
             ?: return
         val app = context.applicationContext as? MaodouchatApp ?: return
         app.applicationScope.launchSafe {

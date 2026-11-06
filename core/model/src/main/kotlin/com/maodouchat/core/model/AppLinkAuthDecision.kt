@@ -1,4 +1,4 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
 /** 深链/系统入口认证门闩的纯决策结果（原 AppLinkAuthGate.Decision，零行为改动搬出）。 */
 sealed interface AppLinkAuthDecision {

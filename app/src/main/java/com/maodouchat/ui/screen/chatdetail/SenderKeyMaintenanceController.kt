@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.group.GroupMutationFeedbackPolicy
+import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.network.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CoroutineScope
