@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
-internal val createDirectChatToolSpec = ToolSpec(
+val createDirectChatToolSpec = ToolSpec(
     name = "create_direct_chat",
     description = "Open or create a 1:1 chat with a user. Requires approval.",
     parameters = mapOf("userId" to Parameter("string", "Peer user id")),
@@ -12,7 +12,7 @@ internal val createDirectChatToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val createGroupToolSpec = ToolSpec(
+val createGroupToolSpec = ToolSpec(
     name = "create_group",
     description = "Create a group with member ids. Requires approval.",
     parameters = mapOf(
@@ -23,7 +23,7 @@ internal val createGroupToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val renameGroupToolSpec = ToolSpec(
+val renameGroupToolSpec = ToolSpec(
     name = "rename_group",
     description = "Rename a group. Requires approval.",
     parameters = mapOf(
@@ -34,7 +34,7 @@ internal val renameGroupToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val updateGroupAnnouncementToolSpec = ToolSpec(
+val updateGroupAnnouncementToolSpec = ToolSpec(
     name = "update_group_announcement",
     description = "Set group announcement. Requires approval.",
     parameters = mapOf(
@@ -45,7 +45,7 @@ internal val updateGroupAnnouncementToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val addGroupMembersToolSpec = ToolSpec(
+val addGroupMembersToolSpec = ToolSpec(
     name = "add_group_members",
     description = "Add members to a group. Requires approval.",
     parameters = mapOf(
@@ -56,7 +56,7 @@ internal val addGroupMembersToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val removeGroupMemberToolSpec = ToolSpec(
+val removeGroupMemberToolSpec = ToolSpec(
     name = "remove_group_member",
     description = "Remove a group member. Requires approval.",
     parameters = mapOf(
@@ -67,7 +67,7 @@ internal val removeGroupMemberToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val muteGroupMemberToolSpec = ToolSpec(
+val muteGroupMemberToolSpec = ToolSpec(
     name = "mute_group_member",
     description = "Mute a group member until unix-millis. 0 unmutes. Requires approval.",
     parameters = mapOf(
@@ -79,7 +79,7 @@ internal val muteGroupMemberToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val deleteChatToolSpec = ToolSpec(
+val deleteChatToolSpec = ToolSpec(
     name = "delete_chat",
     description = "Delete a chat on the server for this account. Requires approval.",
     parameters = mapOf("chatId" to Parameter("string", "Chat id")),

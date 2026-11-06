@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
-internal val sendFriendRequestToolSpec = ToolSpec(
+val sendFriendRequestToolSpec = ToolSpec(
     name = "send_friend_request",
     description = "Send a friend request. Requires approval.",
     parameters = mapOf(
@@ -15,7 +15,7 @@ internal val sendFriendRequestToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val acceptFriendRequestToolSpec = ToolSpec(
+val acceptFriendRequestToolSpec = ToolSpec(
     name = "accept_friend_request",
     description = "Accept an incoming friend request. Requires approval.",
     parameters = mapOf("requestId" to Parameter("string", "Request id")),
@@ -23,7 +23,7 @@ internal val acceptFriendRequestToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val rejectFriendRequestToolSpec = ToolSpec(
+val rejectFriendRequestToolSpec = ToolSpec(
     name = "reject_friend_request",
     description = "Reject an incoming friend request. Requires approval.",
     parameters = mapOf("requestId" to Parameter("string", "Request id")),
@@ -31,7 +31,7 @@ internal val rejectFriendRequestToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val cancelFriendRequestToolSpec = ToolSpec(
+val cancelFriendRequestToolSpec = ToolSpec(
     name = "cancel_friend_request",
     description = "Cancel an outgoing friend request. Requires approval.",
     parameters = mapOf("requestId" to Parameter("string", "Request id")),
@@ -39,7 +39,7 @@ internal val cancelFriendRequestToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val removeFriendToolSpec = ToolSpec(
+val removeFriendToolSpec = ToolSpec(
     name = "remove_friend",
     description = "Remove a friend. Requires approval.",
     parameters = mapOf("userId" to Parameter("string", "Friend user id")),
@@ -47,7 +47,7 @@ internal val removeFriendToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val blockUserToolSpec = ToolSpec(
+val blockUserToolSpec = ToolSpec(
     name = "block_user",
     description = "Block a user. Requires approval.",
     parameters = mapOf("userId" to Parameter("string", "User id")),
@@ -55,7 +55,7 @@ internal val blockUserToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val unblockUserToolSpec = ToolSpec(
+val unblockUserToolSpec = ToolSpec(
     name = "unblock_user",
     description = "Unblock a user. Requires approval.",
     parameters = mapOf("userId" to Parameter("string", "User id")),
