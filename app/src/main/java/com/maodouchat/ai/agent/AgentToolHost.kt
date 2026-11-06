@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.network.TokenManager
 import org.json.JSONObject
 

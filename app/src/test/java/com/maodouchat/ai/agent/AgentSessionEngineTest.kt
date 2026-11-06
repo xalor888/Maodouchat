@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.AgentChatMessage
 import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.flow.take

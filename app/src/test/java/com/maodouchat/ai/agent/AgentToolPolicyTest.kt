@@ -1,5 +1,6 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.Approval
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.agentSystemPrompt
