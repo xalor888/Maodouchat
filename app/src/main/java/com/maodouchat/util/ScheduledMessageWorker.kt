@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
 import android.util.Log

@@ -11,6 +11,7 @@ import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.core.crypto.DeviceSafetyState
 import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.User
@@ -164,7 +165,7 @@ data class ChatDetailUiState(
     val disappearingMessageSeconds: Int = 0,
     val isUpdatingDisappearing: Boolean = false,
     /** 本会话待发的本地定时文本 */
-    val scheduledMessages: List<com.maodouchat.util.ScheduledMessage> = emptyList(),
+    val scheduledMessages: List<ScheduledMessage> = emptyList(),
     val scheduledInfoMessage: String? = null,
     /** 导出聊天结果提示（成功/空/失败） */
     val exportInfoMessage: String? = null,

@@ -1,10 +1,10 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.scheduling.ChatScheduleCommand
+import com.maodouchat.core.model.ChatScheduleCommand
 import com.maodouchat.scheduling.ChatScheduleController
-import com.maodouchat.scheduling.ChatScheduleImmediateOutcome
-import com.maodouchat.scheduling.ChatScheduleMutationOutcome
+import com.maodouchat.core.model.ChatScheduleImmediateOutcome
+import com.maodouchat.core.model.ChatScheduleMutationOutcome
 import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.core.model.ScheduledMessagePolicy
 import kotlinx.coroutines.flow.MutableStateFlow

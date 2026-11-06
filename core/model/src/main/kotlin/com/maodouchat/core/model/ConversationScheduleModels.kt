@@ -1,8 +1,4 @@
-package com.maodouchat.scheduling
-
-import com.maodouchat.core.model.MessageReminder
-import com.maodouchat.core.model.ConversationScheduleFailure
-import com.maodouchat.util.ScheduledMessage
+package com.maodouchat.core.model
 
 data class ScheduledMessageRequest(
     val chatId: String,
@@ -21,7 +17,6 @@ data class MessageReminderRequest(
     val messagePreview: String,
     val remindAtMillis: Long,
 )
-
 
 sealed interface ConversationScheduleResult<out T> {
     data class Success<T>(val value: T) : ConversationScheduleResult<T>

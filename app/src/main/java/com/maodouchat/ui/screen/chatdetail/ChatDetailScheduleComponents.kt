@@ -51,8 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.util.ScheduledMessage
-
+import com.maodouchat.core.model.ScheduledMessage
 internal fun formatScheduleTime(millis: Long): String {
     return scheduleTimeFormat.get().format(java.util.Date(millis))
 }
@@ -63,7 +62,7 @@ private val scheduleTimeFormat: ThreadLocal<java.text.SimpleDateFormat> =
 
 @Composable
 internal fun ScheduledMessagesBanner(
-    items: List<com.maodouchat.util.ScheduledMessage>,
+    items: List<ScheduledMessage>,
     onCancel: (String) -> Unit,
     onReschedule: (String) -> Unit = {},
     onViewAll: () -> Unit = {}
@@ -145,7 +144,7 @@ internal fun ScheduledMessagesBanner(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ScheduledMessagesListSheet(
-    items: List<com.maodouchat.util.ScheduledMessage>,
+    items: List<ScheduledMessage>,
     onCancel: (String) -> Unit,
     onReschedule: (String) -> Unit,
     onSendNow: (String) -> Unit,

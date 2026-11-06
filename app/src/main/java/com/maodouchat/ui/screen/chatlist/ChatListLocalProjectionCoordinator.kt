@@ -6,7 +6,7 @@ import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.util.ScheduledMessage
+import com.maodouchat.core.model.ScheduledMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

@@ -1,8 +1,4 @@
-package com.maodouchat.scheduling
-
-import com.maodouchat.core.model.MessageReminder
-import com.maodouchat.core.model.ChatScheduleRejection
-import com.maodouchat.util.ScheduledMessage
+package com.maodouchat.core.model
 
 data class ChatScheduleCommand(
     val chatId: String,
@@ -16,7 +12,6 @@ data class ChatScheduleCommand(
     val repeatCount: Int = 0,
     val weekdaysOnly: Boolean = false,
 )
-
 
 sealed interface ChatScheduleMutationOutcome {
     data class Applied(

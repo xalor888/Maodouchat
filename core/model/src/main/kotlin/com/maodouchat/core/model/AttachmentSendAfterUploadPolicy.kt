@@ -1,8 +1,4 @@
-package com.maodouchat.attachment
-
-import com.maodouchat.crypto.NoRecipientDevicesException
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
+package com.maodouchat.core.model
 import java.io.IOException
 
 /**

@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.core.model.BotCommandPolicy
+import com.maodouchat.core.model.NoRecipientDevicesException
 import com.maodouchat.core.model.SenderKeyCoveragePendingException
 import com.maodouchat.core.model.SenderKeyDistributionTargetDto
 import com.maodouchat.data.local.dao.SenderKeyRetryDao

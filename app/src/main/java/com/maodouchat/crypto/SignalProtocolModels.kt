@@ -12,8 +12,6 @@ internal object SenderKeyDistributionFailurePolicy {
     }
 }
 
-class NoRecipientDevicesException : IllegalStateException()
-
 class SignalStorePersistenceException(cause: Throwable) :
     java.io.IOException("signal_store_persistence_failed", cause)
 

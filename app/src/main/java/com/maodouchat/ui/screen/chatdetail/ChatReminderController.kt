@@ -2,10 +2,10 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
-import com.maodouchat.scheduling.ChatReminderOutcome
+import com.maodouchat.core.model.ChatReminderOutcome
 import com.maodouchat.scheduling.ChatScheduleController
 import com.maodouchat.core.model.ChatScheduleRejection
-import com.maodouchat.scheduling.MessageReminderRequest
+import com.maodouchat.core.model.MessageReminderRequest
 import com.maodouchat.core.model.MessageReminder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
