@@ -5,7 +5,7 @@ import android.net.Uri
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.core.model.LocalFileMetadata

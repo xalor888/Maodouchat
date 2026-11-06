@@ -1,8 +1,8 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2EventAction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest

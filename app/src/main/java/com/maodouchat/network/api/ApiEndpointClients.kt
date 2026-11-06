@@ -1,5 +1,6 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.*
 import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse
@@ -90,8 +91,7 @@ override suspend fun acceptGroupInvitation(token: String, inviteId: String): Res
 override suspend fun declineGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> = ApiGroupEndpoints.declineGroupInvitation(token, inviteId)
 override suspend fun cancelGroupInvitation(token: String, inviteId: String): Result<Unit> = ApiGroupEndpoints.cancelGroupInvitation(token, inviteId)
 override suspend fun getChatGroupInvitations(token: String, chatId: String): Result<List<GroupInvitationDto>> = ApiGroupEndpoints.getChatGroupInvitations(token, chatId)
-override suspend fun createGroupPoll(token: String, chatId: String, question: String, options: List<String>,
-    multi: Boolean, anonymous: Boolean, closesAt: Long?): Result<String> = ApiGroupEndpoints.createGroupPoll(token, chatId, question, options, multi, anonymous, closesAt)
+override suspend fun createGroupPoll(token: String, chatId: String, question: String, options: List<String>, multi: Boolean, anonymous: Boolean, closesAt: Long?): Result<String> = ApiGroupEndpoints.createGroupPoll(token, chatId, question, options, multi, anonymous, closesAt)
 override suspend fun voteGroupPoll(token: String, pollId: String, optionIndexes: List<Int>): Result<String> = ApiGroupEndpoints.voteGroupPoll(token, pollId, optionIndexes)
 override suspend fun getGroupPoll(token: String, pollId: String): Result<String> = ApiGroupEndpoints.getGroupPoll(token, pollId)
 override suspend fun getChatFolders(token: String): Result<ChatFoldersSyncResponse> = ApiSettingsEndpoints.getChatFolders(token)

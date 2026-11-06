@@ -12,8 +12,8 @@ import com.maodouchat.core.model.CallType
 import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.core.model.MessageReminder
@@ -472,7 +472,7 @@ class ChatDetailViewModel(
     internal fun sendInlineContent(content: String, type: MessageType, preview: String): String? =
         inlineSendController.sendInlineContent(content, type, preview)
 
-    internal fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String =
+    internal fun composeContentWithMeta(text: String, meta: MessageMeta): String =
         // 9.144：委托 JsonFormat 权威实现——本地手写清单漏字段（forwardedFrom 等）曾被静默丢弃
         com.maodouchat.util.JsonFormat.composeContentWithMeta(text, meta)
 

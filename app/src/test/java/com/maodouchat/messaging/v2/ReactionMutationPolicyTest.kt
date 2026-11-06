@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.MessageReaction
+import com.maodouchat.core.model.MessageReaction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

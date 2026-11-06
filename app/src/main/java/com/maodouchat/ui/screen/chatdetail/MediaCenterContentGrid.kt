@@ -38,7 +38,7 @@ import coil.compose.AsyncImage
 import com.maodouchat.R
 import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache

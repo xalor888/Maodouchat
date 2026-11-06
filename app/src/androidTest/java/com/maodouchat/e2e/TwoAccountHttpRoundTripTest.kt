@@ -26,7 +26,7 @@ import androidx.work.testing.TestListenableWorkerBuilder
 import androidx.work.workDataOf
 import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.ChatExport
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind

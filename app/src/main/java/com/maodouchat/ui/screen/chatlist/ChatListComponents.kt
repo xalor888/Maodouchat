@@ -44,7 +44,7 @@ import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.MessageStatusIcon

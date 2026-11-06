@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.data.model.User
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.group.GroupMutationCommit
 
 /**

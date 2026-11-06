@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 internal fun isMessageGestureEligible(type: MessageType): Boolean = type !in setOf(
     MessageType.NUDGE,

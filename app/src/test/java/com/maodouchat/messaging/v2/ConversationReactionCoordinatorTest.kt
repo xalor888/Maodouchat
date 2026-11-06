@@ -2,8 +2,8 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async

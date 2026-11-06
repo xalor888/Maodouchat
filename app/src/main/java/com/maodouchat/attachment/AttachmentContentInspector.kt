@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 internal fun validateAttachmentContent(context: Context, uri: Uri, type: MessageType) {
     if (type == MessageType.FILE) return

@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.DEFAULT_QUICK_REACTION
 import com.maodouchat.ui.screen.chatdetail.isMessageGestureEligible
 import com.maodouchat.ui.screen.chatdetail.isMessageForwardable

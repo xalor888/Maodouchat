@@ -11,7 +11,7 @@ import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
+import com.maodouchat.core.model.MessageReaction
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals

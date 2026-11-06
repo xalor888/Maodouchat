@@ -5,8 +5,8 @@ import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.util.JsonFormat

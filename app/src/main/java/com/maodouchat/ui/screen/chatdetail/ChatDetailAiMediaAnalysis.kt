@@ -7,7 +7,7 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.PreparedAiFile
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers

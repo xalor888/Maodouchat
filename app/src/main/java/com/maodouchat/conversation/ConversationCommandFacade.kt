@@ -10,8 +10,8 @@ import com.maodouchat.core.model.ConversationPrivacyRejection
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome

@@ -4,8 +4,8 @@ import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.core.model.MessageMutationTracker
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.chooseMessageVersion
 import com.maodouchat.ui.screen.chatdetail.higherDeliveryStatus
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions

@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.net.toUri
 import com.maodouchat.core.model.AttachmentTooLargeException
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.domain.messaging.AttachmentPreparationService

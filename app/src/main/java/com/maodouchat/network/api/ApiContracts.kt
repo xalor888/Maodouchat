@@ -2,9 +2,11 @@ package com.maodouchat.network.api
 
 import com.maodouchat.core.model.AttachmentUploadResponse
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.DeviceInfoDto
 import com.maodouchat.core.model.DevicePreKeyBundleDto
 import com.maodouchat.core.model.GroupAuditLogDto
+import com.maodouchat.core.model.GroupInviteResponse
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.IceConfigDto
 import com.maodouchat.core.model.PreKeyBundleDto

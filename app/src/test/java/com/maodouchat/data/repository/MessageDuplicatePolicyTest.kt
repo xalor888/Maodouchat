@@ -2,9 +2,9 @@ package com.maodouchat.data.repository
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

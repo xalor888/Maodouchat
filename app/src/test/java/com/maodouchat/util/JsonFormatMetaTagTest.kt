@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.core.model.MessageMeta
 import org.junit.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals

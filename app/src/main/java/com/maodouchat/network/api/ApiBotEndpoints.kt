@@ -1,5 +1,6 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.*
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

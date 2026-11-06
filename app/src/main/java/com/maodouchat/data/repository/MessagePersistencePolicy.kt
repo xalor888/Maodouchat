@@ -3,7 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 /**
  * Room write-path merge for message rows.

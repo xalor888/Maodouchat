@@ -2,7 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.ChatItem
 import com.maodouchat.ui.screen.chatdetail.buildChatItems
 import org.junit.Assert.assertEquals

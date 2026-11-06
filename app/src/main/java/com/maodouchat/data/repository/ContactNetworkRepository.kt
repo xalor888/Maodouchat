@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse

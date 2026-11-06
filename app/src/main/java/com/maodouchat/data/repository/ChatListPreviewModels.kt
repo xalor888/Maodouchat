@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 data class Preview(
     val text: String,

@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.group.GroupLifecycleCoordinator
 import com.maodouchat.group.GroupLifecycleSessionException
 import kotlinx.coroutines.CancellationException

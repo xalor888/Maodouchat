@@ -2,8 +2,8 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.model.MessageReaction
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

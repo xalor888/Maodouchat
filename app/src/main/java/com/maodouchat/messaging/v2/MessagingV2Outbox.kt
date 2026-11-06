@@ -9,7 +9,7 @@ import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2EventAction
 import kotlinx.serialization.json.Json

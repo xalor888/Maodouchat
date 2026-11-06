@@ -2,8 +2,8 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.data.model.LocationPayload
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.util.LiveLocationPolicy

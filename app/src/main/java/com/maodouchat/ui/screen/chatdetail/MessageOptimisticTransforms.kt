@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 
 internal fun Message.toRevokedPlaceholder(placeholder: String): Message = copy(
     content = placeholder,

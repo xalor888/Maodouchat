@@ -6,7 +6,7 @@ import com.maodouchat.core.realtime.DefaultRealtimeEventDispatcher
 import com.maodouchat.core.realtime.RealtimeConnectionState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.core.model.SessionSnapshot

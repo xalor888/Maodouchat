@@ -11,7 +11,7 @@ import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiTaskEntity
-import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.core.model.MessageMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -242,7 +242,7 @@ fun ChatDetailViewModel.shareGroupAiAnswer() {
         if (!decision.allowed) return
         // Fail-closed: mark shared before send so double-tap cannot enqueue twice.
         _uiState.update { it.copy(groupAiAnswerShared = true) }
-        val meta = com.maodouchat.data.model.MessageMeta(
+        val meta = MessageMeta(
             aiAssisted = GroupAiSharePolicy.shareAiAssistedFlag(),
             aiAssistantMode = GroupAiSharePolicy.shareAssistantMode(state.groupAiMode)
         )

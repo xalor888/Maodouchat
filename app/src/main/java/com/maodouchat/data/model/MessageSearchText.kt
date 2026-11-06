@@ -1,5 +1,7 @@
 package com.maodouchat.data.model
 
+import com.maodouchat.core.model.MessageType
+
 fun Message.semanticSearchText(maxLength: Int = 700): String {
     val metadata = parsedMeta()
     return buildList {

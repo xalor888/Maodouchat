@@ -4,8 +4,7 @@ import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.DisappearingMessagesResponse
 import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatDto
-
+import com.maodouchat.core.model.ChatDto
 /**
  * 需要鉴权的会话读写（远端）（G328c）。
  *

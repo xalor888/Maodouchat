@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 data class OutgoingConversationContext(
     val conversationId: String,

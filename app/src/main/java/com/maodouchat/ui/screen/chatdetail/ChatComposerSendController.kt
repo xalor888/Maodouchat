@@ -5,7 +5,7 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageResult
 import com.maodouchat.util.RuntimeFlags

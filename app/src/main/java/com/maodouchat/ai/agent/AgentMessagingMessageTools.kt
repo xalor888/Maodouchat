@@ -3,9 +3,9 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction

@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import java.util.Calendar
 
 /** Parses encrypted-local message content/meta once per message-list revision, not once per keystroke. */

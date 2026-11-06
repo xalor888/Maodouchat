@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.data.model.Message
 import com.maodouchat.network.ApiService
 import com.maodouchat.util.EncryptedAttachmentCrypto
@@ -62,6 +63,6 @@ object ImageOcrLocalImage {
     }
 
     /** 与 ChatDetailViewModel.composeContentWithMeta 等价：统一委托 JsonFormat 权威实现。 */
-    fun composeContentWithMeta(text: String, meta: com.maodouchat.data.model.MessageMeta): String =
+    fun composeContentWithMeta(text: String, meta: MessageMeta): String =
         com.maodouchat.util.JsonFormat.composeContentWithMeta(text, meta)
 }

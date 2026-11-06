@@ -3,7 +3,7 @@ package com.maodouchat.widget
 import com.maodouchat.core.model.WidgetRow
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 

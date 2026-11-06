@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 /**
  * 剧透媒体（Telegram 式「模糊直到点击」）的类型策略（G154b）。

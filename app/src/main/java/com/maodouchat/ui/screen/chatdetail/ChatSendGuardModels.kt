@@ -3,8 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 
 sealed interface SendDecision {
     /** 放行，附带截断后的文本、组装好的 meta，以及调用方要做的 UI 动作。 */

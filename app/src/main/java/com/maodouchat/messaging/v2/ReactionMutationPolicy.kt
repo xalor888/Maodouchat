@@ -1,7 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.MessageReaction
-
+import com.maodouchat.core.model.MessageReaction
 /** Keeps reaction mutations scoped to the authenticated envelope sender. */
 object ReactionMutationPolicy {
     fun apply(

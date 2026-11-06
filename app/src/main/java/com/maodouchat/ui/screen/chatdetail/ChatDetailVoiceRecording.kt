@@ -4,7 +4,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.VoiceCapturePolicy
 import com.maodouchat.util.VoicePlayer

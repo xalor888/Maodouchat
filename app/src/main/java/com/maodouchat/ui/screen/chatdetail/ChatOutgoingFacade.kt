@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.messaging.v2.OutgoingConversationContext
 import com.maodouchat.messaging.v2.OutgoingConversationErrors
 import com.maodouchat.messaging.v2.OutgoingConversationRequest

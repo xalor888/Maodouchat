@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

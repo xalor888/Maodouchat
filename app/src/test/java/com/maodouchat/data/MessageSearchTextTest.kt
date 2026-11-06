@@ -1,8 +1,8 @@
 package com.maodouchat.data
 
-import com.maodouchat.data.model.LocationPayload
+import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.semanticSearchText
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

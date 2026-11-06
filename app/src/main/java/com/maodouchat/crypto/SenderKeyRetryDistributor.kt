@@ -10,7 +10,7 @@ import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import java.util.UUID

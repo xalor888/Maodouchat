@@ -1,8 +1,8 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.ui.screen.chatlist.ChatListRemoteMergePolicy
 import kotlin.test.Test

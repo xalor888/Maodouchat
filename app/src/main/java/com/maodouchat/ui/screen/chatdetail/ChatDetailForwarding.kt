@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
 import com.maodouchat.forwarding.ConversationForwardCoordinator

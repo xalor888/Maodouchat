@@ -3,7 +3,7 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.ReactionLock
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
