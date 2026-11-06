@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.security.ChatLockSession
 

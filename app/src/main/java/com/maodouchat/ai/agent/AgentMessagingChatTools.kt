@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
 

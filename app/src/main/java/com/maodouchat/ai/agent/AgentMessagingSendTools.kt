@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta

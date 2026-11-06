@@ -1,16 +1,6 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Approval
-import com.maodouchat.core.model.Risk
-import com.maodouchat.core.model.ToolSpec
-
-/**
- * Pure rules for the on-device Maodou assistant.
- *
- * Chat ciphertext never goes to the Maodou server. The model is a user-configured
- * OpenAI-compatible endpoint. Tools read already-decrypted SQLCipher rows and send
- * only through the existing E2EE outbox.
- */
+/** 纯规则：密聊密文不发往 Maodou 服务端；工具只读已解密本地行、只经 E2EE outbox 发送。 */
 object AgentToolPolicy {
     const val MAX_TOOL_ROUNDS = 12
     const val MAX_HISTORY_MESSAGES = 24

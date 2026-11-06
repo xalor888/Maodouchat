@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import androidx.core.graphics.createBitmap
 import com.maodouchat.core.model.FrequencyWatermark
+import com.maodouchat.core.model.ReferenceBlindWatermark
 
 /**
  * 频域盲水印的 Android Bitmap 适配层。
