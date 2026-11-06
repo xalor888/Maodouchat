@@ -6,8 +6,10 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiArchiveSuggestion
 import com.maodouchat.core.model.ArchiveSuggestion
+import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
@@ -24,8 +26,6 @@ import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend

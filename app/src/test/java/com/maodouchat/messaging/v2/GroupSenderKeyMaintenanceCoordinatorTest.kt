@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.network.SenderKeyDistributionStatusDto
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async

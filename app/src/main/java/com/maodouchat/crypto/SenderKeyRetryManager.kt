@@ -4,12 +4,12 @@ import android.content.Context
 import android.util.Log
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.core.model.SenderKeyCoveragePendingException
+import com.maodouchat.core.model.SenderKeyDistributionTargetDto
 import com.maodouchat.core.model.SenderKeyRetryView
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.SenderKeyDistributionTargetDto
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

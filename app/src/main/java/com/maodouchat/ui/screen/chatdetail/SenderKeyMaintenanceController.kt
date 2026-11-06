@@ -1,12 +1,12 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.network.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

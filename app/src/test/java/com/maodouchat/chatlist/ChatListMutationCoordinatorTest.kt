@@ -1,10 +1,10 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalCleanupSession
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.data.model.Chat
-import com.maodouchat.network.ChatSettingsResponse
-import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListMutationCoordinator
