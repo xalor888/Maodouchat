@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 /** Lightweight keyword aliases for emoji panel search (zh/en). */
-internal val EMOJI_SEARCH_ALIASES: Map<String, List<String>> = mapOf<String, List<String>>(
+val EMOJI_SEARCH_ALIASES: Map<String, List<String>> = mapOf<String, List<String>>(
     "😂" to listOf("laugh", "lol", "笑", "哈哈"),
     "🤣" to listOf("rofl", "laugh", "笑"),
     "😍" to listOf("love", "heart eyes", "爱", "喜欢"),
@@ -76,7 +76,7 @@ internal val EMOJI_SEARCH_ALIASES: Map<String, List<String>> = mapOf<String, Lis
 )
 
 
-internal val BUILT_IN_EMOJIS = listOf(
+val BUILT_IN_EMOJIS = listOf(
     "😀", "😃", "😄", "😁", "😆", "😅",
     "😂", "🤣", "🥹", "😊", "😇", "🙂",
     "😉", "😍", "🥰", "😘", "😗", "😙",

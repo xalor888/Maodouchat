@@ -1,5 +1,7 @@
 package com.maodouchat.watermark
 
+import com.maodouchat.core.model.BlindWatermarkBitstream
+
 /**
  * 9.4xx：blind_watermark（github.com/guofei9987/blind_watermark）核心算法的 Kotlin 忠实移植。
  *

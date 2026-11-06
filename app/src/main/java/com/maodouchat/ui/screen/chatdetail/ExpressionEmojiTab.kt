@@ -36,6 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.BUILT_IN_EMOJIS
+import com.maodouchat.core.model.EMOJI_SEARCH_ALIASES
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.Primary

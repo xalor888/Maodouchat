@@ -1,11 +1,11 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import kotlin.math.abs
 
 // 位流<->字节、洗牌与 kmeans：从 ReferenceBlindWatermark 拆出的纯函数簇，零行为改动。
-internal object BlindWatermarkBitstream {
+object BlindWatermarkBitstream {
 
-    internal fun bytesToBits(bytes: ByteArray): BooleanArray {
+    fun bytesToBits(bytes: ByteArray): BooleanArray {
         val bits = BooleanArray(bytes.size * 8)
         for (i in bytes.indices) {
             val v = bytes[i].toInt() and 0xFF
@@ -14,7 +14,7 @@ internal object BlindWatermarkBitstream {
         return bits
     }
 
-    internal fun bitsToBytes(bits: BooleanArray): ByteArray {
+    fun bitsToBytes(bits: BooleanArray): ByteArray {
         require(bits.size % 8 == 0) { "bit length must be multiple of 8" }
         val bytes = ByteArray(bits.size / 8)
         for (i in bytes.indices) {
@@ -26,7 +26,7 @@ internal object BlindWatermarkBitstream {
     }
 
     /** numpy RandomState(seed).shuffle 的等价：返回洗牌后的索引排列（Fisher-Yates）。 */
-    internal fun indexShuffle(n: Int, seed: Long): IntArray {
+    fun indexShuffle(n: Int, seed: Long): IntArray {
         val idx = IntArray(n) { it }
         val rng = java.util.Random(seed)
         for (i in n - 1 downTo 1) {
@@ -36,13 +36,13 @@ internal object BlindWatermarkBitstream {
         return idx
     }
 
-    internal fun shuffleBits(bits: BooleanArray, seed: Long): BooleanArray {
+    fun shuffleBits(bits: BooleanArray, seed: Long): BooleanArray {
         val idx = indexShuffle(bits.size, seed)
         return BooleanArray(bits.size) { bits[idx[it]] }
     }
 
     /** bwm_core.one_dim_kmeans：1 维 2 类 kmeans 阈值二值化；返回 (类别, 两簇中心)。 */
-    internal fun oneDimKmeans(inputs: DoubleArray): Pair<BooleanArray, DoubleArray> {
+    fun oneDimKmeans(inputs: DoubleArray): Pair<BooleanArray, DoubleArray> {
         if (inputs.isEmpty()) return BooleanArray(0) to doubleArrayOf()
         val lo = inputs.minOrNull() ?: 0.0
         val hi = inputs.maxOrNull() ?: 1.0
