@@ -1,7 +1,9 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -39,7 +41,7 @@ class LocalMessageMutationPolicyTest {
     @Test
     fun `revoke wins over edit and clears reactions`() {
         val existing = message(content = "body", editedAt = 30L).copy(
-            reactions = listOf(com.maodouchat.data.model.MessageReaction("bob", "heart", 1L)),
+            reactions = listOf(MessageReaction("bob", "heart", 1L)),
         )
         val revoked = message(
             content = "revoked",
@@ -94,10 +96,10 @@ class LocalMessageMutationPolicyTest {
     @Test
     fun `equal revision and equal content keep the existing row`() {
         val existing = message(content = "same", editedAt = 20L).copy(
-            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r1"),
+            meta = MessageMeta(replyToId = "r1"),
         )
         val candidate = message(content = "same", editedAt = 20L).copy(
-            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r2"),
+            meta = MessageMeta(replyToId = "r2"),
         )
         val applied = applyEditedMessageVersion(existing, candidate)!!
         assertEquals(existing, applied)
@@ -126,10 +128,10 @@ class LocalMessageMutationPolicyTest {
     @Test
     fun `newer edit applies and takes candidate meta`() {
         val existing = message(content = "old", editedAt = 10L).copy(
-            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r1"),
+            meta = MessageMeta(replyToId = "r1"),
         )
         val candidate = message(content = "new", editedAt = 20L).copy(
-            meta = com.maodouchat.data.model.MessageMeta(replyToId = "r2"),
+            meta = MessageMeta(replyToId = "r2"),
         )
         val applied = applyEditedMessageVersion(existing, candidate)!!
         assertEquals("new", applied.content)

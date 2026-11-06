@@ -3,10 +3,11 @@ package com.maodouchat.attachment
 import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentPreparationLease
+import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
@@ -119,13 +120,13 @@ class DefaultAttachmentIntentController(
                 ?: intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         }
         val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
-        val payload = com.maodouchat.data.model.LocationPayload(
+        val payload = LocationPayload(
             latitude = lat,
             longitude = lng,
             capturedAt = System.currentTimeMillis()
         )
         val content = kotlinx.serialization.json.Json.encodeToString(
-            com.maodouchat.data.model.LocationPayload.serializer(),
+            LocationPayload.serializer(),
             payload
         )
         val msg = Message(

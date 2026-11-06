@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

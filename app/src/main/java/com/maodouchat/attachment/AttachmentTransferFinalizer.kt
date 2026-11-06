@@ -4,14 +4,14 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.MessageStatus

@@ -1,5 +1,6 @@
 package com.maodouchat.data.model
 
+import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.Serializable
 
 @Serializable

@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

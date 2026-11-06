@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable

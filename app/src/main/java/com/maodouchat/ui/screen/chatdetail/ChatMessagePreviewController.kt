@@ -7,7 +7,7 @@ import com.maodouchat.core.model.NudgeDisplayPolicy
 import com.maodouchat.core.model.Templates
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 

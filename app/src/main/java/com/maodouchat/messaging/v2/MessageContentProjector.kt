@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache
 
 /** M02：DATA 内容投影——把解码后的 content 与 metadata 投影为本地时间线可展示形式。 */

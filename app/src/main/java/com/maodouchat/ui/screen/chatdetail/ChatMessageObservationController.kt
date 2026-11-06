@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.MessageMutationKind
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
 import com.maodouchat.messaging.v2.MessageMutationProjection

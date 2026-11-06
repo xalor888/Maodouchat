@@ -5,8 +5,8 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.data.model.LocationPayload
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.LiveLocationPolicy
 import com.maodouchat.util.LocationProvider

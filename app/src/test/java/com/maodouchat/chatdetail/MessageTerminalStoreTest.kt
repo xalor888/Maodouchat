@@ -2,8 +2,8 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatdetail.MessageTerminalStore
 import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder
 import kotlinx.coroutines.test.runTest

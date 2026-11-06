@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers

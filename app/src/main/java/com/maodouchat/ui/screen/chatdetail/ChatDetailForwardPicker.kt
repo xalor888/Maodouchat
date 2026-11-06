@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import android.widget.Toast
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.theme.LocalChatPalette

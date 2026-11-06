@@ -1,8 +1,8 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.Serializable
 
 /** Encrypted application payload. Transport metadata is intentionally not duplicated here. */

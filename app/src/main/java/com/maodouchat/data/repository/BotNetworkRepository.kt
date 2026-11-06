@@ -1,8 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatDto
-
+import com.maodouchat.core.model.ChatDto
 /**
  * 机器人管理的**远端**调用（G328c）。
  *

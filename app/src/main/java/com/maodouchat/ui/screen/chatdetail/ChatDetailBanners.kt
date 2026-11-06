@@ -10,7 +10,7 @@ import androidx.compose.animation.shrinkVertically
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.bannerEnter
 import com.maodouchat.ui.theme.composerBarEnter

@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 /**
  * 会话列表预览投影纯函数（ChatList 瘦身第 4 切片）。

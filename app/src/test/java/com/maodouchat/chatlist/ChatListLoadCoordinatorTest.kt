@@ -5,7 +5,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.MissedCall
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLoadCoordinator
 import com.maodouchat.core.model.ChatListReloadPolicy

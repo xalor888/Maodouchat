@@ -11,7 +11,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // 长按弹层的消息管理按钮组：转发/星标/置顶/提醒/重试/回执/编辑/撤回/举报/删除。

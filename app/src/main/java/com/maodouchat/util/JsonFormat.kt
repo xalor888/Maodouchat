@@ -1,7 +1,8 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.InlineKeyboardButton
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
+import com.maodouchat.core.model.MessageMeta
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -171,7 +172,7 @@ object JsonFormat {
                 val d = o["callbackData"]?.asStringOrNull()
                     ?: o["callback_data"]?.asStringOrNull().orEmpty()
                 if (t.isBlank()) null
-                else com.maodouchat.data.model.InlineKeyboardButton(text = t.take(64), callbackData = d.take(128))
+                else InlineKeyboardButton(text = t.take(64), callbackData = d.take(128))
             }.takeIf { it.isNotEmpty() }
         }?.filter { it.isNotEmpty() } ?: emptyList()
         return MessageMeta(

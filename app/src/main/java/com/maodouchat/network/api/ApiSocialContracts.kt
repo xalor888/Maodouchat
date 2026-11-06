@@ -1,5 +1,6 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.*
 import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse

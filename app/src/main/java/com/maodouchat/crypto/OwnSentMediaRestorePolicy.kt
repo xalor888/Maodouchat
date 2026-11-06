@@ -1,6 +1,6 @@
 package com.maodouchat.crypto
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 /**
  * After same-account logout the encrypted DB is kept, but decrypted media files may be

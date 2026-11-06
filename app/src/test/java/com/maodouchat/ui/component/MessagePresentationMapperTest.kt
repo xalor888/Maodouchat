@@ -1,11 +1,11 @@
 package com.maodouchat.ui.component
 
-import com.maodouchat.data.model.InlineKeyboardButton
-import com.maodouchat.data.model.LocationPayload
+import com.maodouchat.core.model.InlineKeyboardButton
+import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.JsonFormat
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

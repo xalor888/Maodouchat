@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatlist.applyPreviewToChats
 import com.maodouchat.ui.screen.chatlist.restoreChatSorted
 import kotlin.test.Test

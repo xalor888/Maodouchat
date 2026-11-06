@@ -7,7 +7,7 @@ import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalCleanupStep
 import com.maodouchat.conversation.conversationLocalCleanupSession
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

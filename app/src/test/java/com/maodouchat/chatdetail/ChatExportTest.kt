@@ -2,8 +2,8 @@ package com.maodouchat.chatdetail
 
 import android.content.Context
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.ChatExport
 import io.mockk.every
 import io.mockk.mockk

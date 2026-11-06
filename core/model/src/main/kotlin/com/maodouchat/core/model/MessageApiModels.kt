@@ -40,3 +40,19 @@ data class MarkReadResponse(val status: String, val updated: Int)
 
 @Serializable
 data class MarkReadRequest(val throughId: String? = null)
+
+@Serializable
+data class MessageDto(
+    val id: String,
+    val chatId: String,
+    val senderId: String,
+    val content: String,
+    val type: String = "TEXT",
+    val timestamp: Long,
+    val status: String = "SENT",
+    val editedAt: Long? = null,
+    val starred: Boolean = false,
+    val reactions: List<MessageReaction> = emptyList(),
+    val expiresAt: Long? = null,
+    val sealedSender: Boolean = false
+)

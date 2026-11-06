@@ -1,5 +1,7 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ChatDto
+import com.maodouchat.core.model.GroupInviteResponse
 import com.maodouchat.network.*
 import com.maodouchat.core.model.CreateChatRequest
 import com.maodouchat.core.model.CreateGroupInviteRequest

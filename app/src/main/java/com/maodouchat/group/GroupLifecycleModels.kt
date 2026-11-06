@@ -1,7 +1,6 @@
 package com.maodouchat.group
 
-import com.maodouchat.network.ChatDto
-
+import com.maodouchat.core.model.ChatDto
 data class GroupMutationCommit(
     val committed: Boolean = true,
     val refreshedChat: ChatDto? = null,

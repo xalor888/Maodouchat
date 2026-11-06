@@ -12,7 +12,7 @@ import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 
 // 长按弹层的复制/分享按钮组：复制、带发送者/时间复制、系统分享、纯文本/名片/翻译/转写/ID 复制。

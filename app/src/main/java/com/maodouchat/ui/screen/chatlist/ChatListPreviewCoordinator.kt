@@ -4,7 +4,7 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.core.model.NudgeDisplayPolicy

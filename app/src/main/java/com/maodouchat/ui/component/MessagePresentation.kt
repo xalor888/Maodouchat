@@ -1,8 +1,8 @@
 package com.maodouchat.ui.component
 
-import com.maodouchat.data.model.LocationPayload
+import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 
 /** Converts domain messages to stable Compose presentation data at the UI boundary. */
 object MessagePresentationMapper {

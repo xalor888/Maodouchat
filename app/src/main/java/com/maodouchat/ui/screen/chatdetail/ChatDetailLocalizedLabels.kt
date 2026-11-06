@@ -6,8 +6,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiSummaryScope
-import com.maodouchat.data.model.MessageMeta
-
+import com.maodouchat.core.model.MessageMeta
 /**
  * 会话详情页的本地化标签（G184 从 ChatDetailRoute.kt 抽出的 4 个顶层声明）。
  *

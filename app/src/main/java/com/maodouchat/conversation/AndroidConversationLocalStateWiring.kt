@@ -7,7 +7,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalStateBackend
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.AiSummaryRepository

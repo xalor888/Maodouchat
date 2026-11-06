@@ -6,7 +6,7 @@ import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.GroupInviteResponse
+import com.maodouchat.core.model.GroupInviteResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

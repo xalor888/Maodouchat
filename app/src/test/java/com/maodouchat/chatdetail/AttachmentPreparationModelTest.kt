@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.attachment.normalizeAttachmentMetadata
 import com.maodouchat.core.model.LocalFileMetadata
 import org.junit.Assert.assertEquals

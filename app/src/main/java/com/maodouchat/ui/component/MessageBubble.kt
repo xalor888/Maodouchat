@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.NudgeDisplayPolicy
 import com.maodouchat.core.model.ReplyPreview
 import com.maodouchat.core.model.Templates

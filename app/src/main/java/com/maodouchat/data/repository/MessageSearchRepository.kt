@@ -7,7 +7,7 @@ import com.maodouchat.data.local.entity.MessageSearchMatchRow
 import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.semanticSearchText
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 import java.security.MessageDigest

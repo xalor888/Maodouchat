@@ -2,10 +2,10 @@ package com.maodouchat.conversation
 
 import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatDto
+import com.maodouchat.core.model.ChatDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
