@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
-internal val getContactsToolSpec = ToolSpec(
+val getContactsToolSpec = ToolSpec(
     name = "get_contacts",
     description = "List local contacts (id, display name, status).",
     parameters = mapOf(
@@ -14,7 +14,7 @@ internal val getContactsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val getMeToolSpec = ToolSpec(
+val getMeToolSpec = ToolSpec(
     name = "get_me",
     description = "Read the signed-in account id and local profile if cached.",
     parameters = emptyMap(),
@@ -22,7 +22,7 @@ internal val getMeToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listFriendRequestsToolSpec = ToolSpec(
+val listFriendRequestsToolSpec = ToolSpec(
     name = "list_friend_requests",
     description = "List incoming or outgoing friend requests.",
     parameters = mapOf(
@@ -32,7 +32,7 @@ internal val listFriendRequestsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listFriendsToolSpec = ToolSpec(
+val listFriendsToolSpec = ToolSpec(
     name = "list_friends",
     description = "List friends from the server.",
     parameters = emptyMap(),
@@ -40,7 +40,7 @@ internal val listFriendsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val searchUsersToolSpec = ToolSpec(
+val searchUsersToolSpec = ToolSpec(
     name = "search_users",
     description = "Search users by name or id (server directory, not a dump).",
     parameters = mapOf(
@@ -51,7 +51,7 @@ internal val searchUsersToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listPostsToolSpec = ToolSpec(
+val listPostsToolSpec = ToolSpec(
     name = "list_posts",
     description = "List Explore feed posts the signed-in account can see.",
     parameters = mapOf("limit" to Parameter("integer", "Max posts, default 20, max 40")),
@@ -59,7 +59,7 @@ internal val listPostsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val getPostToolSpec = ToolSpec(
+val getPostToolSpec = ToolSpec(
     name = "get_post",
     description = "Read one Explore post.",
     parameters = mapOf("postId" to Parameter("string", "Post id")),
@@ -67,7 +67,7 @@ internal val getPostToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listPostCommentsToolSpec = ToolSpec(
+val listPostCommentsToolSpec = ToolSpec(
     name = "list_post_comments",
     description = "List comments on an Explore post.",
     parameters = mapOf(
@@ -78,7 +78,7 @@ internal val listPostCommentsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listBlockedUsersToolSpec = ToolSpec(
+val listBlockedUsersToolSpec = ToolSpec(
     name = "list_blocked_users",
     description = "List blocked user ids.",
     parameters = emptyMap(),

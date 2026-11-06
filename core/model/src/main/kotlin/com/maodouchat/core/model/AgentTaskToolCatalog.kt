@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
-internal val listDraftsToolSpec = ToolSpec(
+val listDraftsToolSpec = ToolSpec(
     name = "list_drafts",
     description = "List this account's unsent chat drafts.",
     parameters = emptyMap(),
@@ -12,7 +12,7 @@ internal val listDraftsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val getDraftToolSpec = ToolSpec(
+val getDraftToolSpec = ToolSpec(
     name = "get_draft",
     description = "Read the unsent draft for one chat.",
     parameters = mapOf("chatId" to Parameter("string", "Local chat id")),
@@ -20,7 +20,7 @@ internal val getDraftToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listLocalTasksToolSpec = ToolSpec(
+val listLocalTasksToolSpec = ToolSpec(
     name = "list_local_tasks",
     description = "List on-device AI task reminders.",
     parameters = mapOf("limit" to Parameter("integer", "Max rows, default 20, max 40")),
@@ -28,7 +28,7 @@ internal val listLocalTasksToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listMissedCallsToolSpec = ToolSpec(
+val listMissedCallsToolSpec = ToolSpec(
     name = "list_missed_calls",
     description = "List recent missed calls stored on this device.",
     parameters = mapOf("limit" to Parameter("integer", "Max rows, default 12, max 30")),
@@ -36,7 +36,7 @@ internal val listMissedCallsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listNotificationsToolSpec = ToolSpec(
+val listNotificationsToolSpec = ToolSpec(
     name = "list_notifications",
     description = "List in-app notification-center items (messages, missed calls, posts, tasks).",
     parameters = mapOf("limit" to Parameter("integer", "Max rows, default 20, max 40")),
@@ -44,7 +44,7 @@ internal val listNotificationsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val createLocalTaskToolSpec = ToolSpec(
+val createLocalTaskToolSpec = ToolSpec(
     name = "create_local_task",
     description = "Create a local AI task reminder (not a chat message).",
     parameters = mapOf(
@@ -56,7 +56,7 @@ internal val createLocalTaskToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val completeLocalTaskToolSpec = ToolSpec(
+val completeLocalTaskToolSpec = ToolSpec(
     name = "complete_local_task",
     description = "Mark a local AI task completed or not. Requires approval.",
     parameters = mapOf(
@@ -67,7 +67,7 @@ internal val completeLocalTaskToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val deleteLocalTaskToolSpec = ToolSpec(
+val deleteLocalTaskToolSpec = ToolSpec(
     name = "delete_local_task",
     description = "Delete a local AI task reminder. Requires approval.",
     parameters = mapOf("taskId" to Parameter("string", "Task id")),

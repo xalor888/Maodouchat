@@ -1,11 +1,11 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
 // 消息工具规格：写操作（发送/会话设置/草稿/消息操作/备注/通知已读）。
-internal val sendTextMessageToolSpec = ToolSpec(
+val sendTextMessageToolSpec = ToolSpec(
     name = "send_text_message",
     description = "Queue a plaintext text message locally; the existing E2EE outbox encrypts and delivers it. Always requires user approval.",
     parameters = mapOf(
@@ -16,7 +16,7 @@ internal val sendTextMessageToolSpec = ToolSpec(
     risk = Risk.SEND
 )
 
-internal val updateChatToolSpec = ToolSpec(
+val updateChatToolSpec = ToolSpec(
     name = "update_chat",
     description = "Pin, mute, archive, or mark unread on a local conversation. Requires approval.",
     parameters = mapOf(
@@ -30,7 +30,7 @@ internal val updateChatToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val setDraftToolSpec = ToolSpec(
+val setDraftToolSpec = ToolSpec(
     name = "set_draft",
     description = "Save or replace the unsent draft for a chat. Empty text clears it. Requires approval.",
     parameters = mapOf(
@@ -41,7 +41,7 @@ internal val setDraftToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val starMessageToolSpec = ToolSpec(
+val starMessageToolSpec = ToolSpec(
     name = "star_message",
     description = "Star or unstar a local message, then sync the star flag. Secret chats are blocked. Requires approval.",
     parameters = mapOf(
@@ -52,7 +52,7 @@ internal val starMessageToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val deleteLocalMessageToolSpec = ToolSpec(
+val deleteLocalMessageToolSpec = ToolSpec(
     name = "delete_local_message",
     description = "Delete a message from this device only (not a server revoke). Requires approval.",
     parameters = mapOf("messageId" to Parameter("string", "Message id")),
@@ -60,7 +60,7 @@ internal val deleteLocalMessageToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val revokeMessageToolSpec = ToolSpec(
+val revokeMessageToolSpec = ToolSpec(
     name = "revoke_message",
     description = "Revoke a message for everyone via the existing server revoke API. Requires approval.",
     parameters = mapOf("messageId" to Parameter("string", "Message id")),
@@ -68,7 +68,7 @@ internal val revokeMessageToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val reactToMessageToolSpec = ToolSpec(
+val reactToMessageToolSpec = ToolSpec(
     name = "react_to_message",
     description = "Add or change an emoji reaction. Requires approval.",
     parameters = mapOf(
@@ -79,7 +79,7 @@ internal val reactToMessageToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val pinMessageToolSpec = ToolSpec(
+val pinMessageToolSpec = ToolSpec(
     name = "pin_message",
     description = "Pin or unpin a chat message via the existing pin API. Requires approval.",
     parameters = mapOf(
@@ -90,7 +90,7 @@ internal val pinMessageToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val setContactNicknameToolSpec = ToolSpec(
+val setContactNicknameToolSpec = ToolSpec(
     name = "set_contact_nickname",
     description = "Set a local contact remark. Does not change the other person's account name. Requires approval.",
     parameters = mapOf(
@@ -101,7 +101,7 @@ internal val setContactNicknameToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val markNotificationReadToolSpec = ToolSpec(
+val markNotificationReadToolSpec = ToolSpec(
     name = "mark_notification_read",
     description = "Mark one in-app notification-center item read. Requires approval.",
     parameters = mapOf("itemId" to Parameter("string", "Notification item id")),

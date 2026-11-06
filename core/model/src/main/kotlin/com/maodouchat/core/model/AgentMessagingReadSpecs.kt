@@ -1,11 +1,11 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
 // 消息工具规格：只读（会话/消息查询与改写）。
-internal val listChatsToolSpec = ToolSpec(
+val listChatsToolSpec = ToolSpec(
     name = "list_chats",
     description = "List local conversations (id, title, last preview). Secret chats are omitted. PIN-locked chats that are not unlocked in this process are omitted.",
     parameters = mapOf(
@@ -15,7 +15,7 @@ internal val listChatsToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val getChatHistoryToolSpec = ToolSpec(
+val getChatHistoryToolSpec = ToolSpec(
     name = "get_chat_history",
     description = "Read already-decrypted local messages for one chat, newest first. Secret chats are never readable. PIN-locked chats must be unlocked.",
     parameters = mapOf(
@@ -26,7 +26,7 @@ internal val getChatHistoryToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val searchMessagesToolSpec = ToolSpec(
+val searchMessagesToolSpec = ToolSpec(
     name = "search_messages",
     description = "Keyword search over the on-device message index. Secret chats are excluded. PIN-locked chats are excluded unless already unlocked.",
     parameters = mapOf(
@@ -37,7 +37,7 @@ internal val searchMessagesToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val getChatToolSpec = ToolSpec(
+val getChatToolSpec = ToolSpec(
     name = "get_chat",
     description = "Read one local conversation: title, mute/pin/archive/unread, last preview. PIN-locked chats must be unlocked.",
     parameters = mapOf("chatId" to Parameter("string", "Local chat id")),
@@ -45,7 +45,7 @@ internal val getChatToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listStarredMessagesToolSpec = ToolSpec(
+val listStarredMessagesToolSpec = ToolSpec(
     name = "list_starred_messages",
     description = "List locally starred messages. Secret chats are excluded.",
     parameters = mapOf("limit" to Parameter("integer", "Max rows, default 20, max 40")),
@@ -53,7 +53,7 @@ internal val listStarredMessagesToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val listPinnedMessagesToolSpec = ToolSpec(
+val listPinnedMessagesToolSpec = ToolSpec(
     name = "list_pinned_messages",
     description = "List pinned messages in a chat via the existing pin API.",
     parameters = mapOf("chatId" to Parameter("string", "Chat id")),
@@ -61,7 +61,7 @@ internal val listPinnedMessagesToolSpec = ToolSpec(
     risk = Risk.READ
 )
 
-internal val rewriteTextToolSpec = ToolSpec(
+val rewriteTextToolSpec = ToolSpec(
     name = "rewrite_text",
     description = "Rewrite the given draft locally using the configured model. Does not send a message.",
     parameters = mapOf(
