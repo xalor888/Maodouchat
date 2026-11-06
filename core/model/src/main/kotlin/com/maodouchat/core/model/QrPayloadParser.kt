@@ -1,8 +1,5 @@
-package com.maodouchat.contacts
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.QrParsedPayload
-import com.maodouchat.core.model.AppLinkRouter
-import com.maodouchat.core.model.sanitizeChatInviteToken
 import java.nio.charset.StandardCharsets
 
 /**

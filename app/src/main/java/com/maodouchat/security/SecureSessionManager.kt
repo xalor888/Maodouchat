@@ -7,6 +7,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferScheduler
+import com.maodouchat.core.model.CallOrchestrator
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.core.session.AccountIsolationPolicy
 import com.maodouchat.core.session.AccountSwitchAction
 import com.maodouchat.core.session.LogoutStorePolicy
@@ -93,7 +95,7 @@ class SecureSessionManager(
             // AI per-chat / global rate windows are process-local; clear so switch doesn't throttle.
             runCatching { com.maodouchat.core.model.AiRetryPolicy.clearSession() }
             // Invalidate buffered group-call / direct-chat navigations from the prior session.
-            runCatching { com.maodouchat.call.CallOrchestrator.invalidateSession() }
+            runCatching { CallOrchestrator.invalidateSession() }
             // Drop ApiService in-memory access token before disk clear (concurrent refresh race).
             runCatching { com.maodouchat.network.ApiService.clearSessionTokens() }
             // Sealed-sender certificates are account/device credentials and must not survive logout.
@@ -164,8 +166,8 @@ class SecureSessionManager(
             // Hang-up is stamped with the CURRENT session generation so the active CallViewModel
             // still accepts it; generation is then bumped so any leftover bus event is stale.
             try {
-                val pendingCallId = com.maodouchat.call.IncomingCallCoordinator.peekPending()?.callId.orEmpty()
-                com.maodouchat.call.IncomingCallCoordinator.clear()
+                val pendingCallId = IncomingCallCoordinator.peekPending()?.callId.orEmpty()
+                IncomingCallCoordinator.clear()
                 val activeCallId = com.maodouchat.service.CallForegroundService.getActiveCallId()
                 if (activeCallId.isNotBlank()) {
                     com.maodouchat.call.CallActionBus.requestHangUp(activeCallId, notifyPeer = false)
@@ -422,12 +424,10 @@ class SecureSessionManager(
         val previousOwner = tokenManager.getLastOwnerUserId() ?: tokenManager.getUserId()
         if (
             AccountIsolationPolicy.onLoginAccount(previousOwner, nextUserId) ==
-            AccountSwitchAction.PURGE_LOCAL_DATA
-        ) {
+            AccountSwitchAction.PURGE_LOCAL_DATA) {
             purgeLocalSession(
                 destroyEncryptedDatabase = LogoutStorePolicy.destroyEncryptedDatabase(
-                    Reason.ACCOUNT_SWITCH
-                )
+                    Reason.ACCOUNT_SWITCH)
             )
         }
     }

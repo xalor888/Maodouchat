@@ -2,6 +2,7 @@ package com.maodouchat.forwarding
 
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationCommandOutcome
+import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
@@ -84,7 +85,7 @@ class ConversationForwardCoordinator(
                 is ConversationCommandOutcome.Rejected -> error("forward_note_rejected:${staged.reason}")
             }
         }
-        val markdown = com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(normalized)
+        val markdown = ChatMarkdown.looksLikeMarkdown(normalized)
         val type = if (markdown) MessageType.MARKDOWN else MessageType.TEXT
         val message = Message(
             id = messageId(),

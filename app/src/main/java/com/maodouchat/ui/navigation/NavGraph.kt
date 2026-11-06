@@ -36,6 +36,7 @@ import androidx.compose.material3.TextButton
 import com.maodouchat.network.PublicUpdatesDto
 import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.core.model.AppUpdatePolicy
+import com.maodouchat.core.model.CallOrchestrator
 import com.maodouchat.update.AppUpdatePromptStore
 import androidx.work.WorkInfo
 import com.maodouchat.navigation.Routes
@@ -185,9 +186,9 @@ fun MaodouchatNavGraph(
 
     // 群通话请求监听：把 ChatDetailViewModel 的"发起群通话"映射到路由跳转 + CallViewModel
     LaunchedEffect(Unit) {
-        com.maodouchat.call.CallOrchestrator.groupCallRequests.collect { req ->
+        CallOrchestrator.groupCallRequests.collect { req ->
             // Drop buffered pre-logout requests after invalidateSession().
-            if (req.sessionGeneration != com.maodouchat.call.CallOrchestrator.currentSessionGeneration()) {
+            if (req.sessionGeneration != CallOrchestrator.currentSessionGeneration()) {
                 return@collect
             }
             // contactId 字段承载 "chatId|memberId1,memberId2,..."
@@ -201,8 +202,8 @@ fun MaodouchatNavGraph(
     // 扫一扫后"和某人创建私聊"
     // U02 延伸：会话门禁/建聊/错误映射已收进非 ui 的 DirectChatRequestHandler。
     LaunchedEffect(Unit) {
-        com.maodouchat.call.CallOrchestrator.directChatRequests.collect { req ->
-            if (req.sessionGeneration != com.maodouchat.call.CallOrchestrator.currentSessionGeneration()) {
+        CallOrchestrator.directChatRequests.collect { req ->
+            if (req.sessionGeneration != CallOrchestrator.currentSessionGeneration()) {
                 return@collect
             }
             when (val outcome = DirectChatRequestHandler.handle(req)) {

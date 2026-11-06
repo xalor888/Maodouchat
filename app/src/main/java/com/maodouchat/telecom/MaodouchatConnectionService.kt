@@ -15,7 +15,7 @@ import android.telecom.TelecomManager
 import android.util.Log
 import com.maodouchat.MainActivity
 import com.maodouchat.call.CallActionBus
-import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.IncomingCallCoordinator
 
 /**
  * 系统级来电接管的 ConnectionService。

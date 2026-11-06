@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import android.content.Context
 import android.util.Log
 import com.maodouchat.R
-import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState

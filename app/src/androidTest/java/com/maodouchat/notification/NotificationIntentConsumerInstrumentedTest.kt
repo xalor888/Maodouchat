@@ -7,7 +7,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.IncomingCallWake
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.PendingIncomingCall
 import com.maodouchat.core.model.CallType

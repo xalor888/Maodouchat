@@ -7,6 +7,7 @@ import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.util.Log
+import com.maodouchat.core.model.IncomingCallCoordinator
 
 /**
  * 注册 PhoneAccount 并触发系统级来电。
@@ -115,7 +116,7 @@ object TelecomHelper {
      */
     fun isTrustedTransport(callId: String): Boolean {
         if (callId.isBlank()) return false
-        return com.maodouchat.call.IncomingCallCoordinator.peekPending()?.callId == callId ||
+        return IncomingCallCoordinator.peekPending()?.callId == callId ||
             com.maodouchat.service.CallForegroundService.getActiveCallId() == callId
     }
 

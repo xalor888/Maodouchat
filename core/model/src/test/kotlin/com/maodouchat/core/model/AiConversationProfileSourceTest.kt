@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConversationProfile
-import com.maodouchat.core.model.LocalStats
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -9,7 +7,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import com.maodouchat.ai.AiConversationProfileSource
 
 /**
  * G73 契约测试：`AiConversationProfileSource` 端口的行为约定。

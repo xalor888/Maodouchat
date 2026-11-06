@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.core.model.SignalingOfferFreshnessPolicy
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

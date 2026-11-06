@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags
@@ -118,7 +119,7 @@ internal fun ChatDetailMessageCopyActions(
                     if (context !is android.app.Activity) fileChooser.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     runCatching { context.startActivity(fileChooser) }
                 } else {
-                    val shareText = com.maodouchat.messaging.ChatMarkdown.toPlainText(contentUri).ifBlank {
+                    val shareText = ChatMarkdown.toPlainText(contentUri).ifBlank {
                         when (message.type) {
                             MessageType.IMAGE -> previewImageLabel
                             MessageType.GIF -> previewGifLabel
@@ -148,7 +149,7 @@ internal fun ChatDetailMessageCopyActions(
                     clipboard.setPrimaryClip(
                         android.content.ClipData.newPlainText(
                             chatClipboardMessageLabel,
-                            com.maodouchat.messaging.ChatMarkdown.toPlainText(message.parsedContent())
+                            ChatMarkdown.toPlainText(message.parsedContent())
                         )
                     )
                     Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
@@ -161,7 +162,7 @@ internal fun ChatDetailMessageCopyActions(
         if (message.parsedContent().contains("[contactUser:")) {
             TextButton(
                 onClick = {
-                    val clean = com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(message.parsedContent()).trim()
+                    val clean = ChatMarkdown.stripContactCardMarker(message.parsedContent()).trim()
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, clean))
                     Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()

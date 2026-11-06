@@ -8,7 +8,7 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.maodouchat.core.model.findUrlRanges
-import com.maodouchat.messaging.ChatMarkdown
+import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface

@@ -1,7 +1,5 @@
-package com.maodouchat.call
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.PendingIncomingCall
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,7 +1,7 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiConversationProfile
-import com.maodouchat.ai.AiConversationProfileSource
+import com.maodouchat.core.model.AiConversationProfileSource
 import com.maodouchat.core.model.ConversationProfile
 
 /**

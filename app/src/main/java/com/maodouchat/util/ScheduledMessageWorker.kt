@@ -13,6 +13,7 @@ import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.ChatGateVerdict
+import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.scheduling.ConversationScheduledMessageDispatcher
 import com.maodouchat.core.model.ScheduledTimeCalculation
@@ -125,7 +126,7 @@ class ScheduledMessageWorker(
         MaodouchatApp.emitMessageSent(
             item.chatId,
             item.text.take(200),
-            if (com.maodouchat.messaging.ChatMarkdown.looksLikeMarkdown(item.text)) "MARKDOWN" else "TEXT",
+            if (ChatMarkdown.looksLikeMarkdown(item.text)) "MARKDOWN" else "TEXT",
         )
         Result.success()
     }

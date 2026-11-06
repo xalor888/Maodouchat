@@ -18,7 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.maodouchat.R
-import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.call.IncomingCallWatcher
 import com.maodouchat.ui.screen.call.CallScreen
 import com.maodouchat.ui.screen.call.CallViewModel

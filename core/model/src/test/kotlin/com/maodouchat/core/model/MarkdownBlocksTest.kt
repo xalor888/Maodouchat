@@ -1,12 +1,9 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.maodouchat.core.model.MdBlock
-import com.maodouchat.core.model.parseMarkdownBlocks
-import com.maodouchat.messaging.ChatMarkdown
 
 /**
  * Markdown 块解析契约测试。9.230 修复两处误解析后锁定行为：
