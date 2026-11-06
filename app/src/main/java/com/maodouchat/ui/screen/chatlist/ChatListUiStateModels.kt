@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatlist
 import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderPolicy
+import com.maodouchat.core.model.Receipt
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.UnreadPriorityPolicy

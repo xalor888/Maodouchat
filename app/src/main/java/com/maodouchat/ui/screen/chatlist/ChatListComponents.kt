@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
@@ -79,9 +80,8 @@ internal fun ChatListItem(
         chat.isGroup -> chat.groupName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_group)
         else -> otherUser?.displayName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_unknown)
     }
-    val displayName = if (isSecret || chat.isSecret) {
-        com.maodouchat.core.session.SecretChatPolicy.mosaicDisplayName(rawDisplayName)
-    } else rawDisplayName
+    val displayName = if (isSecret || chat.isSecret)
+        com.maodouchat.core.session.SecretChatPolicy.mosaicDisplayName(rawDisplayName) else rawDisplayName
     val haptic = LocalHapticFeedback.current
     val hapticContext = LocalContext.current
     val motion = LocalMotionSettings.current

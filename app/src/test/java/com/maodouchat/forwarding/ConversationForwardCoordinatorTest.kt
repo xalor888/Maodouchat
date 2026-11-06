@@ -1,6 +1,7 @@
 package com.maodouchat.forwarding
 
 import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.core.model.ConversationForwardSessionException
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
