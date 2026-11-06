@@ -1,10 +1,5 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.AgentToolCall
-import com.maodouchat.core.model.AgentTurnEvent
-import com.maodouchat.core.model.LocalAiProvider
-import com.maodouchat.core.model.agentSystemPrompt
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter

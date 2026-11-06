@@ -1,10 +1,10 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import kotlin.math.floor
 import kotlin.math.round
 
 // 像素容器与水印核心管线：从 ReferenceBlindWatermark 拆出的类簇，零行为改动。
-internal class ArgbImage(pixels: IntArray, val width: Int, val height: Int) {
+class ArgbImage(pixels: IntArray, val width: Int, val height: Int) {
     /** 每通道平面：B=0, G=1, R=2（原版 BGR 顺序）。 */
     val bgr = Array(3) { FloatArray(width * height) }
     var alpha: FloatArray? = null
@@ -28,7 +28,7 @@ internal class ArgbImage(pixels: IntArray, val width: Int, val height: Int) {
     fun maxBlocks(): Int {
         val caH = (height + 1) / 2
         val caW = (width + 1) / 2
-        return (caH / ReferenceBlindWatermark.BLOCK) * (caW / ReferenceBlindWatermark.BLOCK)
+        return (caH / BlindWatermarkMath.BLOCK) * (caW / BlindWatermarkMath.BLOCK)
     }
 
     fun toPixels(): IntArray {
@@ -44,7 +44,7 @@ internal class ArgbImage(pixels: IntArray, val width: Int, val height: Int) {
     }
 }
 
-internal class WatermarkCore(private val passwordImg: Long) {
+class WatermarkCore(private val passwordImg: Long) {
     lateinit var img: ArgbImage
     var imgH = 0
     var imgW = 0
@@ -91,7 +91,7 @@ internal class WatermarkCore(private val passwordImg: Long) {
         }
         caH = padH / 2
         caW = padW / 2
-        blockNum = (caH / ReferenceBlindWatermark.BLOCK) * (caW / ReferenceBlindWatermark.BLOCK)
+        blockNum = (caH / BlindWatermarkMath.BLOCK) * (caW / BlindWatermarkMath.BLOCK)
 
         // random_strategy1 等价：一次性按块顺序生成 16 个随机数的 argsort 置换
         val rng = java.util.Random(passwordImg)
@@ -109,21 +109,21 @@ internal class WatermarkCore(private val passwordImg: Long) {
         val resultYuv = Array(3) { arrayOf<FloatArray>() }
         for (chIdx in 0 until 3) {
             val cA = ca[chIdx].map { it.copyOf() }.toTypedArray()
-            val blocksX = caW / ReferenceBlindWatermark.BLOCK
+            val blocksX = caW / BlindWatermarkMath.BLOCK
             for (i in 0 until blockNum) {
                 val by = i / blocksX
                 val bx = i % blocksX
-                val block = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
-                for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-                    for (c in 0 until ReferenceBlindWatermark.BLOCK) {
-                        block[r][c] = cA[by * ReferenceBlindWatermark.BLOCK + r][bx * ReferenceBlindWatermark.BLOCK + c]
+                val block = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
+                for (r in 0 until BlindWatermarkMath.BLOCK) {
+                    for (c in 0 until BlindWatermarkMath.BLOCK) {
+                        block[r][c] = cA[by * BlindWatermarkMath.BLOCK + r][bx * BlindWatermarkMath.BLOCK + c]
                     }
                 }
                 val wmBit = if (shuffledWm[i % wmSize]) 1.0 else 0.0
                 val out = blockAddWm(block, idxShuffle[i], wmBit)
-                for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-                    for (c in 0 until ReferenceBlindWatermark.BLOCK) {
-                        cA[by * ReferenceBlindWatermark.BLOCK + r][bx * ReferenceBlindWatermark.BLOCK + c] = out[r][c]
+                for (r in 0 until BlindWatermarkMath.BLOCK) {
+                    for (c in 0 until BlindWatermarkMath.BLOCK) {
+                        cA[by * BlindWatermarkMath.BLOCK + r][bx * BlindWatermarkMath.BLOCK + c] = out[r][c]
                     }
                 }
             }
@@ -150,16 +150,16 @@ internal class WatermarkCore(private val passwordImg: Long) {
     /** extract_raw：每块返回软比特 (3*wm1+wm2)/4。 */
     fun extractRaw(): Array<DoubleArray> {
         val result = Array(3) { DoubleArray(blockNum) }
-        val blocksX = caW / ReferenceBlindWatermark.BLOCK
+        val blocksX = caW / BlindWatermarkMath.BLOCK
         for (chIdx in 0 until 3) {
             val cA = ca[chIdx]
             for (i in 0 until blockNum) {
                 val by = i / blocksX
                 val bx = i % blocksX
-                val block = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
-                for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-                    for (c in 0 until ReferenceBlindWatermark.BLOCK) {
-                        block[r][c] = cA[by * ReferenceBlindWatermark.BLOCK + r][bx * ReferenceBlindWatermark.BLOCK + c]
+                val block = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
+                for (r in 0 until BlindWatermarkMath.BLOCK) {
+                    for (c in 0 until BlindWatermarkMath.BLOCK) {
+                        block[r][c] = cA[by * BlindWatermarkMath.BLOCK + r][bx * BlindWatermarkMath.BLOCK + c]
                     }
                 }
                 result[chIdx][i] = blockGetWm(block, idxShuffle[i])
@@ -172,40 +172,40 @@ internal class WatermarkCore(private val passwordImg: Long) {
 
     private fun blockAddWm(block: Array<FloatArray>, perm: IntArray, wmBit: Double): Array<FloatArray> {
         val dctBlock = BlindWatermarkMath.dct2(block)
-        val shuffled = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
+        val shuffled = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
         for (k in 0 until 16) {
-            shuffled[k / ReferenceBlindWatermark.BLOCK][k % ReferenceBlindWatermark.BLOCK] = dctBlock[perm[k] / ReferenceBlindWatermark.BLOCK][perm[k] % ReferenceBlindWatermark.BLOCK]
+            shuffled[k / BlindWatermarkMath.BLOCK][k % BlindWatermarkMath.BLOCK] = dctBlock[perm[k] / BlindWatermarkMath.BLOCK][perm[k] % BlindWatermarkMath.BLOCK]
         }
         val (u, s, vt) = BlindWatermarkMath.svd(shuffled)
-        s[0] = (floor(s[0] / ReferenceBlindWatermark.D1) + 0.25 + 0.5 * wmBit) * ReferenceBlindWatermark.D1
-        s[1] = (floor(s[1] / ReferenceBlindWatermark.D2) + 0.25 + 0.5 * wmBit) * ReferenceBlindWatermark.D2
-        val rebuilt = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
-        for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-            for (c in 0 until ReferenceBlindWatermark.BLOCK) {
+        s[0] = (floor(s[0] / BlindWatermarkMath.D1) + 0.25 + 0.5 * wmBit) * BlindWatermarkMath.D1
+        s[1] = (floor(s[1] / BlindWatermarkMath.D2) + 0.25 + 0.5 * wmBit) * BlindWatermarkMath.D2
+        val rebuilt = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
+        for (r in 0 until BlindWatermarkMath.BLOCK) {
+            for (c in 0 until BlindWatermarkMath.BLOCK) {
                 var sum = 0.0
-                for (k in 0 until ReferenceBlindWatermark.BLOCK) {
+                for (k in 0 until BlindWatermarkMath.BLOCK) {
                     sum += u[r][k] * s[k] * vt[k][c]
                 }
                 rebuilt[r][c] = sum.toFloat()
             }
         }
         // 逆置换：orig[perm[k]] = rebuilt[k]
-        val unshuffled = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
+        val unshuffled = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
         for (k in 0 until 16) {
-            unshuffled[perm[k] / ReferenceBlindWatermark.BLOCK][perm[k] % ReferenceBlindWatermark.BLOCK] = rebuilt[k / ReferenceBlindWatermark.BLOCK][k % ReferenceBlindWatermark.BLOCK]
+            unshuffled[perm[k] / BlindWatermarkMath.BLOCK][perm[k] % BlindWatermarkMath.BLOCK] = rebuilt[k / BlindWatermarkMath.BLOCK][k % BlindWatermarkMath.BLOCK]
         }
         return BlindWatermarkMath.idct2(unshuffled)
     }
 
     private fun blockGetWm(block: Array<FloatArray>, perm: IntArray): Double {
         val dctBlock = BlindWatermarkMath.dct2(block)
-        val shuffled = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
+        val shuffled = Array(BlindWatermarkMath.BLOCK) { FloatArray(BlindWatermarkMath.BLOCK) }
         for (k in 0 until 16) {
-            shuffled[k / ReferenceBlindWatermark.BLOCK][k % ReferenceBlindWatermark.BLOCK] = dctBlock[perm[k] / ReferenceBlindWatermark.BLOCK][perm[k] % ReferenceBlindWatermark.BLOCK]
+            shuffled[k / BlindWatermarkMath.BLOCK][k % BlindWatermarkMath.BLOCK] = dctBlock[perm[k] / BlindWatermarkMath.BLOCK][perm[k] % BlindWatermarkMath.BLOCK]
         }
         val (_, s, _) = BlindWatermarkMath.svd(shuffled)
-        val wm1 = if (positiveMod(s[0], ReferenceBlindWatermark.D1) > ReferenceBlindWatermark.D1 / 2) 1.0 else 0.0
-        val wm2 = if (positiveMod(s[1], ReferenceBlindWatermark.D2) > ReferenceBlindWatermark.D2 / 2) 1.0 else 0.0
+        val wm1 = if (positiveMod(s[0], BlindWatermarkMath.D1) > BlindWatermarkMath.D1 / 2) 1.0 else 0.0
+        val wm2 = if (positiveMod(s[1], BlindWatermarkMath.D2) > BlindWatermarkMath.D2 / 2) 1.0 else 0.0
         return (wm1 * 3 + wm2) / 4
     }
 

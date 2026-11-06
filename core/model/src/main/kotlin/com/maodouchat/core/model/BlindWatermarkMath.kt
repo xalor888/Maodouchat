@@ -1,18 +1,22 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sqrt
-import com.maodouchat.core.model.Quad
 
 // DWT/DCT/SVD 数学工具：从 ReferenceBlindWatermark 拆出的纯函数簇，零行为改动。
-internal object BlindWatermarkMath {
+object BlindWatermarkMath {
 
     private const val SQRT2 = 1.4142135623730951
 
+    /** 4x4 块边长；D1/D2 为 s[0]/s[1] 的量化步长。 */
+    const val BLOCK = 4
+    const val D1 = 36.0
+    const val D2 = 20.0
+
     /** 2D Haar DWT（1/√2 归一化；输入尺寸必须为偶数）。 */
-    internal fun dwt2(src: Array<FloatArray>): Quad {
+    fun dwt2(src: Array<FloatArray>): Quad {
         val h = src.size
         val w = src[0].size
         val rows = Array(h) { FloatArray(w) }
@@ -46,7 +50,7 @@ internal object BlindWatermarkMath {
     }
 
     /** 2D Haar IDWT（[dwt2] 的逆）。 */
-    internal fun idwt2(ca: Array<FloatArray>, chh: Array<FloatArray>, cvv: Array<FloatArray>, cdd: Array<FloatArray>): Array<FloatArray> {
+    fun idwt2(ca: Array<FloatArray>, chh: Array<FloatArray>, cvv: Array<FloatArray>, cdd: Array<FloatArray>): Array<FloatArray> {
         val halfH = ca.size
         val halfW = ca[0].size
         val h = halfH * 2
@@ -77,42 +81,42 @@ internal object BlindWatermarkMath {
     }
 
     /** 4×4 正交 DCT-II（与 [idct2] 配对）。 */
-    internal fun dct2(block: Array<FloatArray>): Array<FloatArray> {
-        val out = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
-        for (u in 0 until ReferenceBlindWatermark.BLOCK) {
-            for (v in 0 until ReferenceBlindWatermark.BLOCK) {
+    fun dct2(block: Array<FloatArray>): Array<FloatArray> {
+        val out = Array(BLOCK) { FloatArray(BLOCK) }
+        for (u in 0 until BLOCK) {
+            for (v in 0 until BLOCK) {
                 var sum = 0.0
-                for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-                    for (c in 0 until ReferenceBlindWatermark.BLOCK) {
+                for (r in 0 until BLOCK) {
+                    for (c in 0 until BLOCK) {
                         sum += block[r][c] *
-                            cos(PI * (2 * r + 1) * u / (2.0 * ReferenceBlindWatermark.BLOCK)) *
-                            cos(PI * (2 * c + 1) * v / (2.0 * ReferenceBlindWatermark.BLOCK))
+                            cos(PI * (2 * r + 1) * u / (2.0 * BLOCK)) *
+                            cos(PI * (2 * c + 1) * v / (2.0 * BLOCK))
                     }
                 }
                 val cu = if (u == 0) 1.0 / sqrt(2.0) else 1.0
                 val cvv = if (v == 0) 1.0 / sqrt(2.0) else 1.0
-                out[u][v] = (sum * cu * cvv * 2.0 / ReferenceBlindWatermark.BLOCK).toFloat()
+                out[u][v] = (sum * cu * cvv * 2.0 / BLOCK).toFloat()
             }
         }
         return out
     }
 
     /** 4×4 正交 IDCT（[dct2] 的逆）。 */
-    internal fun idct2(block: Array<FloatArray>): Array<FloatArray> {
-        val out = Array(ReferenceBlindWatermark.BLOCK) { FloatArray(ReferenceBlindWatermark.BLOCK) }
-        for (r in 0 until ReferenceBlindWatermark.BLOCK) {
-            for (c in 0 until ReferenceBlindWatermark.BLOCK) {
+    fun idct2(block: Array<FloatArray>): Array<FloatArray> {
+        val out = Array(BLOCK) { FloatArray(BLOCK) }
+        for (r in 0 until BLOCK) {
+            for (c in 0 until BLOCK) {
                 var sum = 0.0
-                for (u in 0 until ReferenceBlindWatermark.BLOCK) {
-                    for (v in 0 until ReferenceBlindWatermark.BLOCK) {
+                for (u in 0 until BLOCK) {
+                    for (v in 0 until BLOCK) {
                         val cu = if (u == 0) 1.0 / sqrt(2.0) else 1.0
                         val cvv = if (v == 0) 1.0 / sqrt(2.0) else 1.0
                         sum += block[u][v] * cu * cvv *
-                            cos(PI * (2 * r + 1) * u / (2.0 * ReferenceBlindWatermark.BLOCK)) *
-                            cos(PI * (2 * c + 1) * v / (2.0 * ReferenceBlindWatermark.BLOCK))
+                            cos(PI * (2 * r + 1) * u / (2.0 * BLOCK)) *
+                            cos(PI * (2 * c + 1) * v / (2.0 * BLOCK))
                     }
                 }
-                out[r][c] = (sum * 2.0 / ReferenceBlindWatermark.BLOCK).toFloat()
+                out[r][c] = (sum * 2.0 / BLOCK).toFloat()
             }
         }
         return out
@@ -122,7 +126,7 @@ internal object BlindWatermarkMath {
      * 4×4 单边 Jacobi SVD：返回 (u, s, vt)，A ≈ u·diag(s)·vt，s 降序
      * （与原版 numpy 行为一致：量化作用于最大/次大奇异值）。
      */
-    internal fun svd(a: Array<FloatArray>): Triple<Array<FloatArray>, DoubleArray, Array<FloatArray>> {
+    fun svd(a: Array<FloatArray>): Triple<Array<FloatArray>, DoubleArray, Array<FloatArray>> {
         val n = a.size
         val b = Array(n) { DoubleArray(n) }
         for (r in 0 until n) for (c in 0 until n) b[r][c] = a[r][c].toDouble()
