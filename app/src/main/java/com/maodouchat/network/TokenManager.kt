@@ -10,6 +10,7 @@ import androidx.security.crypto.MasterKey
 import com.maodouchat.core.model.SyncCursor
 import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.MutableSessionContextProvider
+import com.maodouchat.core.session.Prefs
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionPresencePolicy
 import kotlinx.coroutines.flow.StateFlow

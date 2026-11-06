@@ -1,5 +1,6 @@
 package com.maodouchat.conversation
 
+import com.maodouchat.core.model.ConversationLocalStateCoordinator
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.MaodouchatApp

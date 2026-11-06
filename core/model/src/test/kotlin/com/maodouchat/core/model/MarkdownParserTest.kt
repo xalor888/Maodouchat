@@ -1,4 +1,4 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

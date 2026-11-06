@@ -1,12 +1,12 @@
-package com.maodouchat.ui.component
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.MdBlock
 
 /** Markdown 块级解析：围栏代码块 / 列表 / 段落。（行内扫描器见 MarkdownInlineParser） */
 /** Pre-compiled, hot-path Markdown matchers — avoid recompiling Regex on every message render. */
-internal val MD_ORDERED_LIST_REGEX = Regex("""^\d+\.\s+""")
+val MD_ORDERED_LIST_REGEX = Regex("""^\d+\.\s+""")
 
-internal fun parseMarkdownBlocks(src: String): List<MdBlock> {
+fun parseMarkdownBlocks(src: String): List<MdBlock> {
     val out = mutableListOf<MdBlock>()
     val lines = src.replace("\r\n", "\n").lines()
     var i = 0
@@ -114,7 +114,7 @@ internal fun parseMarkdownBlocks(src: String): List<MdBlock> {
 }
 
 /** 9.230：闭栏判定——纯反引号（可尾随空格）且数量恰等于开栏；```python 属代码内容。 */
-internal fun isClosingFence(line: String, fence: Int): Boolean {
+fun isClosingFence(line: String, fence: Int): Boolean {
     val trimmed = line.trimEnd()
     return trimmed.length == fence && trimmed.all { it == '`' }
 }

@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import com.maodouchat.core.model.MdBlock
+import com.maodouchat.core.model.parseMarkdownBlocks
 import com.maodouchat.messaging.ChatMarkdown
 
 /**

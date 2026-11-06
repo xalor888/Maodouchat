@@ -6,7 +6,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiArchiveSuggestion
 import com.maodouchat.core.model.ArchiveSuggestion
-import com.maodouchat.conversation.ConversationLocalStateCoordinator
+import com.maodouchat.core.model.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.core.realtime.ChatMessageSentEvent
