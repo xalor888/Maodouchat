@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import android.util.Base64
+import com.maodouchat.core.crypto.MultiRecipientCoveragePolicy
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.EncryptedPayload

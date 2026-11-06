@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import com.maodouchat.core.crypto.EnvelopeCodec
+import com.maodouchat.core.crypto.MultiDeviceEnvelopePolicy
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
 

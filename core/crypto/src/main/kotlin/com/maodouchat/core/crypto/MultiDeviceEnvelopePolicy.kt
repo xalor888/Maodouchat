@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.ParsedEntry
 import com.maodouchat.core.model.ParsedEnvelope
@@ -11,15 +11,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 
-/**
- * Live 1:1 multi-device envelopes were encoded with encodeDefaults=false, so
- * version/algorithm (and sometimes recipientDeviceId) are omitted:
- * `{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"..."}]}`
- *
- * kotlinx defaults fill omitted version/algorithm, but a missing required
- * recipientDeviceId used to fail the whole decode — decrypt never ran and the
- * bubble showed raw JSON. Parse leniently so crypto can still run.
- */
+/** 多设备信封的宽松解析：线上信封以 encodeDefaults=false 编码，缺失字段时仍可解密。 */
 object MultiDeviceEnvelopePolicy {
     const val MULTI_DEVICE_ENVELOPE_VERSION = 3
     const val ALGORITHM_SIGNAL_MULTI_DEVICE = "signal-multi-device-v1"

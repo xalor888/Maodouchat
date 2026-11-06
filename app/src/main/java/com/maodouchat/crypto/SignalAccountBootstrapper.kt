@@ -3,7 +3,9 @@ package com.maodouchat.crypto
 import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
+import com.maodouchat.core.crypto.SignalDeviceIdRecoveryPolicy
 import com.maodouchat.core.crypto.SignalInitializationAction
+import com.maodouchat.core.crypto.SignalInitializationPolicy
 import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
 import com.maodouchat.core.model.LikeQueryPolicy
 import kotlinx.coroutines.sync.withLock

@@ -1,13 +1,12 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
-import com.maodouchat.core.crypto.SignalExchangeFailure
 import com.maodouchat.core.model.Target
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 
 /** Pure coverage checks shared by direct multi-device envelopes and their tests. */
-internal object MultiRecipientCoveragePolicy {
+object MultiRecipientCoveragePolicy {
 
     fun normalizeRequiredRecipientId(recipientId: String): String? =
         recipientId.trim().takeIf(String::isNotBlank)
