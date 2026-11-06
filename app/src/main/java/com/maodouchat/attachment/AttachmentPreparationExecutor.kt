@@ -9,6 +9,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.core.model.LocalFileMetadata
+import com.maodouchat.core.model.normalizeAttachmentMetadata
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

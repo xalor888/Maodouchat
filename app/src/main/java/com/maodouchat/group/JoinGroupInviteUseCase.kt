@@ -1,5 +1,6 @@
 package com.maodouchat.group
 
+import com.maodouchat.core.model.JoinGroupInviteResult
 import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
