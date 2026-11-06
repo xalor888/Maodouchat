@@ -4,7 +4,9 @@ import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.DecryptFailurePolicy
 import com.maodouchat.core.crypto.DecryptResult
+import com.maodouchat.core.crypto.EncryptedMessageEnvelope
 import com.maodouchat.core.crypto.MultiDeviceEnvelopePolicy
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.crypto.TrackingAction
 import com.maodouchat.core.model.ParsedEnvelope
 import org.signal.libsignal.protocol.InvalidMessageException

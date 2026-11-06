@@ -7,6 +7,7 @@ import com.maodouchat.core.crypto.SignalDeviceIdRecoveryPolicy
 import com.maodouchat.core.crypto.SignalInitializationPolicy
 import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
 import com.maodouchat.core.crypto.PreKeyPublisher
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable

@@ -5,6 +5,7 @@ import com.maodouchat.core.crypto.ConfirmedDevicePolicy
 import com.maodouchat.core.crypto.DevicePreKeyBundleResponse
 import com.maodouchat.core.crypto.DirectSessionManager
 import com.maodouchat.core.crypto.PreKeyBundleResponse
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.session.SessionCoverage
 import com.maodouchat.core.session.SignalSessionPolicy
 import kotlinx.coroutines.sync.withLock

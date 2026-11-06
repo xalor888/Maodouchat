@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Log
 import com.maodouchat.core.crypto.GroupSenderKeyManager
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.ConversationId
 import com.maodouchat.data.local.entity.SignalKeyEntity
 import kotlinx.serialization.encodeToString
