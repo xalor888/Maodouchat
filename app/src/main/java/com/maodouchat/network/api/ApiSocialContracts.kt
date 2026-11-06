@@ -3,6 +3,10 @@ package com.maodouchat.network.api
 import com.maodouchat.network.*
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
+import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.UpdateModerationRuleRequest
 
 /** Remaining endpoints retained through ApiService during the migration. */
 interface ApiSurface : SocialApi {

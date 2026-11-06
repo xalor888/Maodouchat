@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 // 离线话术：日常事务/生活簇。
-internal object OfflineLifePhrases {
+object OfflineLifePhrases {
     fun match(lower: String, seed: String): List<String>? {
         if (offlineHas(lower, seed, listOf("meeting", "会议", "开会", "sync"))) return listOf(
             "好的，我改一下时间。",

@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 // 离线话术：问候/寒暄/情感簇（含疑问句优先分支）。
-internal object OfflineGreetingPhrases {
+object OfflineGreetingPhrases {
     fun match(lower: String, seed: String): List<String>? {
         if ("?" in seed || "？" in seed || lower.startsWith("why") || lower.startsWith("how") || "吗" in seed || "么" in seed || "呢" in seed) return listOf(
             "好问题，我的想法是……",

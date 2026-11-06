@@ -1,5 +1,6 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.network.*
 
 object SocialApiClient : SocialApi {

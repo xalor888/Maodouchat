@@ -29,8 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.maodouchat.network.RiskEventResponse
-import com.maodouchat.network.ModerationRuleResponse
+import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.ModerationRuleResponse
 import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette

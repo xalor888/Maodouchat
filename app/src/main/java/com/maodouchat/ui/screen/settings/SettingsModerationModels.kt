@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.settings
 
-import com.maodouchat.network.ModerationRuleResponse
-import com.maodouchat.network.ReportResponse
-import com.maodouchat.network.RiskEventResponse
+import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.RiskEventResponse
 
 data class ModerationUiState(
     val isLoading: Boolean = true,
