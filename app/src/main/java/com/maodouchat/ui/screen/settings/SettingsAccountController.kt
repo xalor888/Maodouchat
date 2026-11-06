@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable

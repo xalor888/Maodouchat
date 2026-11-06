@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.maodouchat.settings.repository.SettingsRepository
 import com.maodouchat.settings.repository.AndroidSettingsRepository
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.SettingsUiState
 
 class SettingsViewModel @JvmOverloads constructor(
     application: Application,

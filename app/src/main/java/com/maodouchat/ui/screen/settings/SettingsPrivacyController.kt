@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.R
-import com.maodouchat.settings.model.LoadedPrivacy
-import com.maodouchat.settings.model.PrivacyField
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.LoadedPrivacy
+import com.maodouchat.core.model.PrivacyField
+import com.maodouchat.core.model.SettingsUiState
 import com.maodouchat.core.model.SettingsPrivacyPatch
 import com.maodouchat.settings.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
