@@ -1,6 +1,6 @@
 package com.maodouchat.login
 
-import com.maodouchat.ui.screen.login.LoginUiState
+import com.maodouchat.core.model.LoginUiState
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

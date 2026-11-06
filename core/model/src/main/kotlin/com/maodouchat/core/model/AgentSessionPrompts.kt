@@ -1,7 +1,7 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 // 会话轮次系统提示簇：引擎每轮的 system 消息从这里组装。
-internal fun agentSystemPrompt(nowLabel: String, styleHint: String?): String = buildString {
+fun agentSystemPrompt(nowLabel: String, styleHint: String?): String = buildString {
     appendLine("你是毛豆助手，运行在用户的毛豆聊天 Android 客户端进程里。")
     appendLine("当前时间：$nowLabel（会话锚点，需要实时时间时仍以此时为准）。")
     appendLine("你可以读本机已解密的会话、消息、草稿、星标、联系人、待办、未接来电、通知中心，以及动态/好友申请（走现有 API，不是 SQL dump）。")

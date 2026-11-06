@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.LoginUiState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.core.model.Level

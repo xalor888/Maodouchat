@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.Approval
 import com.maodouchat.core.model.Risk
+import com.maodouchat.core.model.agentSystemPrompt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

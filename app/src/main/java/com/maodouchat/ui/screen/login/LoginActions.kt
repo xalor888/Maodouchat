@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.LoginUiState
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ServerIdentity
 import com.maodouchat.ui.theme.MaodouDimens

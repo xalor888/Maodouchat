@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.login
+package com.maodouchat.core.model
 
 data class LoginUiState(
     val email: String = "",
