@@ -35,6 +35,8 @@ import com.maodouchat.core.model.AiChatClassificationSource
 import com.maodouchat.core.model.AiEmotionReplySource
 import com.maodouchat.core.model.AiWeeklyReportSource
 import com.maodouchat.core.model.ChatDetailDraftBookkeeping
+import com.maodouchat.core.model.ChatDetailLiveLocationBookkeeping
+import com.maodouchat.core.model.ChatDetailReadReceiptBookkeeping
 import com.maodouchat.core.model.DecryptTexts
 import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
@@ -47,8 +49,6 @@ import kotlinx.coroutines.flow.update
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
  *
  * 搬的是什么：88 个仓库 / 控制器 / 协调器的构造（475 行）——它们与行为无关，却占了 VM 近 1/5。
- * 搬出后 VM 里剩下的几乎都是行为，读起来是连续的；而这些「谁依赖谁、按什么顺序构造」的知识
- * 集中在这一处。
  * 依赖方向：`ChatDetailDeps` 持有 [ChatDetailViewModel] 的引用（构造时传入），
  * 在需要读 VM 状态或调用 VM 方法时用 `host.xxx`。反向调用只发生在 lambda / 方法引用里
  * （构造期不触碰），所以运行期不会形成环。本类是 `internal`，不对外暴露。
