@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DirectMessageCipher
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.EncryptedPayload
 import com.maodouchat.core.model.MultiRecipientEnvelopePayload
 import com.maodouchat.core.model.ParsedEnvelope

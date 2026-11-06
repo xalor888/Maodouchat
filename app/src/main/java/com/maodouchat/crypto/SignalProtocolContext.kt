@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.DecryptRetryTracker
 import com.maodouchat.core.crypto.SignalInitializationPolicy
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.core.model.SignalInitializationState
 import com.maodouchat.data.local.dao.IdentityTrustDao

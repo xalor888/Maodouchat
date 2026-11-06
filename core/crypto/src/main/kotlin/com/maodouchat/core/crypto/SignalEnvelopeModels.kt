@@ -1,9 +1,9 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class EncryptedMessageEnvelope(
+data class EncryptedMessageEnvelope(
     val version: Int = SignalProtocolConstants.ENVELOPE_VERSION,
     val algorithm: String = SignalProtocolConstants.ALGORITHM_SIGNAL,
     val senderDeviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID,
@@ -14,7 +14,7 @@ internal data class EncryptedMessageEnvelope(
 )
 
 @Serializable
-internal data class MultiDeviceMessageEnvelope(
+data class MultiDeviceMessageEnvelope(
     val version: Int = SignalProtocolConstants.MULTI_DEVICE_ENVELOPE_VERSION,
     val algorithm: String = SignalProtocolConstants.ALGORITHM_SIGNAL_MULTI_DEVICE,
     val senderDeviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID,
@@ -31,7 +31,7 @@ data class MultiDeviceMessageEntry(
 )
 
 @Serializable
-internal data class SenderKeyDistributionEnvelope(
+data class SenderKeyDistributionEnvelope(
     val version: Int = SignalProtocolConstants.SENDER_KEY_DISTRIBUTION_VERSION,
     val algorithm: String = SignalProtocolConstants.ALGORITHM_SENDER_KEY_DISTRIBUTION,
     val groupId: String,
@@ -42,7 +42,7 @@ internal data class SenderKeyDistributionEnvelope(
 )
 
 @Serializable
-internal data class SenderKeyMessageEnvelope(
+data class SenderKeyMessageEnvelope(
     val version: Int = SignalProtocolConstants.SENDER_KEY_ENVELOPE_VERSION,
     val algorithm: String = SignalProtocolConstants.ALGORITHM_SENDER_KEY,
     val groupId: String,

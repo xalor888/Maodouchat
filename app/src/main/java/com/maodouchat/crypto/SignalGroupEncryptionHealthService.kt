@@ -3,6 +3,7 @@ package com.maodouchat.crypto
 import com.maodouchat.core.crypto.GroupEncryptionHealth
 import com.maodouchat.core.crypto.GroupEncryptionHealthPolicy
 import com.maodouchat.core.crypto.GroupEncryptionHealthService
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.ConversationId
 
 /**

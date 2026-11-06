@@ -1,9 +1,9 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import kotlinx.serialization.json.Json
 import java.security.SecureRandom
 
-internal object SignalProtocolConstants {
+object SignalProtocolConstants {
     const val TAG = "SignalProtocol"
     const val ENVELOPE_VERSION = 2
     const val MULTI_DEVICE_ENVELOPE_VERSION = 3

@@ -5,6 +5,7 @@ import com.maodouchat.core.crypto.IdentityTrustService
 import com.maodouchat.core.crypto.DeviceSafetyState
 import com.maodouchat.core.crypto.IdentityTrustState
 import com.maodouchat.core.crypto.IdentityTrustStateMachine
+import com.maodouchat.core.crypto.SignalProtocolConstants
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.ecc.Curve

@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.MultiDeviceEnvelopePolicy
+import com.maodouchat.core.crypto.MultiDeviceMessageEntry
 import com.maodouchat.data.local.AppDatabase
 import org.junit.After
 import org.junit.Assert.assertEquals
