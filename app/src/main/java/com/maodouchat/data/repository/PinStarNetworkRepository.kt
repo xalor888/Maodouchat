@@ -1,10 +1,10 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PinnedMessagesListResponse
-import com.maodouchat.network.StarMessageResponse
-import com.maodouchat.network.StarredMessageRefDto
-import com.maodouchat.network.TogglePinResponse
+import com.maodouchat.core.model.PinnedMessagesListResponse
+import com.maodouchat.core.model.StarMessageResponse
+import com.maodouchat.core.model.StarredMessageRefDto
+import com.maodouchat.core.model.TogglePinResponse
 
 /**
  * 置顶消息与星标消息的**远端**调用（G328c）。

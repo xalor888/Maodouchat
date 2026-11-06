@@ -4,6 +4,7 @@ import com.maodouchat.network.*
 import com.maodouchat.core.model.AcknowledgeEnvelopesResponseV2
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationSnapshotV2Dto
+import com.maodouchat.core.model.DisappearingMessagesResponse
 import com.maodouchat.core.model.PendingInboxResponseV2
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.core.model.SendMessageResponseV2

@@ -15,6 +15,7 @@ import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.PinnedMessagesListResponse
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostLikersResponse
@@ -23,6 +24,9 @@ import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.RiskEventResponse
 import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.StarMessageResponse
+import com.maodouchat.core.model.StarredMessageRefDto
+import com.maodouchat.core.model.TogglePinResponse
 import com.maodouchat.core.model.UpdateModerationRuleRequest
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.model.UserPrivacyDto
