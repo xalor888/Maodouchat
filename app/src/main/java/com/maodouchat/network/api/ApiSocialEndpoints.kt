@@ -2,6 +2,8 @@ package com.maodouchat.network.api
 
 import com.maodouchat.network.*
 import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.NearbyLocationStatusResponse
+import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.PublicProfileResponse
@@ -10,6 +12,7 @@ import com.maodouchat.core.model.RegisterPushTokenRequest
 import com.maodouchat.core.model.RemovePushTokenRequest
 import com.maodouchat.core.model.SetUsernameRequest
 import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.UpdateNearbyLocationRequest
 import com.maodouchat.core.model.UpdatePrivacyRequest
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.model.UserPrivacyDto

@@ -1,7 +1,15 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.CommentLikeResponse
+import com.maodouchat.core.model.CreateCommentRequest
+import com.maodouchat.core.model.CreatePostRequest
+import com.maodouchat.core.model.EditPostRequest
 import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
+import com.maodouchat.core.model.PostLikersResponse
 import com.maodouchat.core.model.SendFriendRequestBody
+import com.maodouchat.core.model.UpdateCommentRequest
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.*
 import okhttp3.Request

@@ -1,12 +1,12 @@
 package com.maodouchat.explore.usecase
 
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.core.model.PublishPostValidation
 import com.maodouchat.explore.policy.PostVisibilityPolicy
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.MediaUploadQueue
 import com.maodouchat.explore.repository.PostMutationRepository
-import com.maodouchat.network.PostDto
 import com.maodouchat.core.model.ReportResponse
 
 class PublishPostUseCase(

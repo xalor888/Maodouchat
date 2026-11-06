@@ -3,6 +3,8 @@ package com.maodouchat.network.api
 import com.maodouchat.core.model.AvatarResponse
 import com.maodouchat.core.model.UploadAvatarRequest
 import com.maodouchat.network.*
+import com.maodouchat.core.model.UploadPostImageRequest
+import com.maodouchat.core.model.UploadPostImageResponse
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

@@ -1,7 +1,7 @@
 package com.maodouchat.explore.repository
 
-import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
 import java.util.UUID
 
 enum class MutationType {

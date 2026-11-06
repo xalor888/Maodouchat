@@ -5,11 +5,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import com.maodouchat.R
+import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.explore.policy.ExploreFeedPolicy
 import com.maodouchat.core.model.ExplorePaging
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
-import com.maodouchat.network.PostCommentDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

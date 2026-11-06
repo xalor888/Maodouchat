@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.explore
 
 import android.net.Uri
-import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.UserDto
 import java.util.UUID
 

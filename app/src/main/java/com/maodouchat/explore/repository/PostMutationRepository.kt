@@ -1,8 +1,8 @@
 package com.maodouchat.explore.repository
 
 import com.maodouchat.core.model.MutationSessionChangedException
-import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient

@@ -1,8 +1,8 @@
 package com.maodouchat.explore.usecase
 
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.repository.PostMutationRepository
-import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.PostDto
 
 class ToggleLikeUseCase(
     private val mutationRepository: PostMutationRepository

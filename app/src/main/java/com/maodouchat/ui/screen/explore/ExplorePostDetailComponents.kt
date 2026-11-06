@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // 1.97：详情页评论输入条（支持回复目标提示条，复用 sendComment/回复状态）
@@ -30,7 +31,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 internal fun CommentComposerBar(
     text: String,
     isSending: Boolean,
-    replyToComment: com.maodouchat.network.PostCommentDto?,
+    replyToComment: PostCommentDto?,
     onTextChange: (String) -> Unit,
     onSend: () -> Unit,
     onClearReply: () -> Unit

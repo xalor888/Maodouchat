@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.UserDto
 import kotlin.test.Test
 import kotlin.test.assertEquals
