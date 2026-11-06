@@ -9,7 +9,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.util.EncryptedAttachmentReference
+import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap

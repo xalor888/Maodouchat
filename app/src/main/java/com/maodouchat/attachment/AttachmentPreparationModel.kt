@@ -1,7 +1,7 @@
 package com.maodouchat.attachment
 
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.LocalFileMetadata
+import com.maodouchat.core.model.LocalFileMetadata
 
 internal fun normalizeAttachmentMetadata(
     type: MessageType,

@@ -1,5 +1,7 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.AttachmentUploadResponse
+import com.maodouchat.core.model.AttachmentUploadStatusResponse
 import com.maodouchat.core.model.IceConfigDto
 import com.maodouchat.core.model.SignalMessageDto
 import com.maodouchat.network.*

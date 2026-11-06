@@ -4,7 +4,7 @@ import android.content.Context
 import com.maodouchat.data.model.Message
 import com.maodouchat.network.ApiService
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.util.EncryptedAttachmentReference
+import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.util.MediaCache
 
 // 本地图片获取：缓存命中直接返回，否则按密文附件引用下载+解密到缓存。

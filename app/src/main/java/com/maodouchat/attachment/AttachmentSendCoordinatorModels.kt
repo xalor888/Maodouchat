@@ -3,7 +3,7 @@ package com.maodouchat.attachment
 import android.net.Uri
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.util.LocalFileMetadata
+import com.maodouchat.core.model.LocalFileMetadata
 
 internal data class AttachmentSendRequest(
     val messageId: String,

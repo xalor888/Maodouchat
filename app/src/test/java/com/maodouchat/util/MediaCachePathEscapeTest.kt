@@ -15,6 +15,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import androidx.core.net.toUri
+import com.maodouchat.core.model.LocalFileMetadata
 
 /**
  * G203b：`MediaCache` 缓存路径构造的**路径穿越防御**覆盖。

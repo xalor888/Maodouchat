@@ -11,6 +11,7 @@ import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.MediaCache
+import com.maodouchat.core.model.MessagingV2EventAction
 import kotlinx.serialization.json.Json
 import java.util.UUID
 

@@ -4,6 +4,7 @@ import android.app.Application
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.messaging.v2.GroupMessagingCoordinator
+import com.maodouchat.core.model.resolveUserVisibility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ internal class GroupDetailRealtimeObserver(
                                 if (member.userId != event.userId) {
                                     member
                                 } else {
-                                    val visibility = com.maodouchat.network.resolveUserVisibility(
+                                    val visibility = resolveUserVisibility(
                                         currentIsOnline = member.isOnline,
                                         currentStatus = "",
                                         currentLastSeen = 0L,
@@ -74,7 +75,7 @@ internal class GroupDetailRealtimeObserver(
                                 if (candidate.id != event.userId) {
                                     candidate
                                 } else {
-                                    val visibility = com.maodouchat.network.resolveUserVisibility(
+                                    val visibility = resolveUserVisibility(
                                         currentIsOnline = candidate.isOnline,
                                         currentStatus = candidate.status,
                                         currentLastSeen = candidate.lastSeen,

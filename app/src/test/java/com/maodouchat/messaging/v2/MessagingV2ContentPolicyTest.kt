@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.data.model.MessageReaction
+import com.maodouchat.core.model.MessagingV2EventAction
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

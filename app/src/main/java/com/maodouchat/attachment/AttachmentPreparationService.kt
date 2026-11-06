@@ -10,7 +10,7 @@ import com.maodouchat.domain.messaging.AttachmentPreparationService
 import com.maodouchat.domain.messaging.PreparedAttachmentResult
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
-import com.maodouchat.util.LocalFileMetadata
+import com.maodouchat.core.model.LocalFileMetadata
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -7,6 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.core.model.EncryptedAttachmentReference
 
 /**
  * G202b：`MediaCache` 的附件引用校验与文件名消毒。

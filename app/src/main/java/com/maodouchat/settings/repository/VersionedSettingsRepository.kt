@@ -13,7 +13,7 @@ import com.maodouchat.core.model.ConflictResolutionResult
 import com.maodouchat.core.model.LocalDevicePreferences
 import com.maodouchat.core.model.MultiDevicePreferences
 import com.maodouchat.core.model.PreferencesPatch
-import com.maodouchat.settings.policy.PreferenceConflictPolicy
+import com.maodouchat.core.model.PreferenceConflictPolicy
 import com.maodouchat.core.session.ServerSwitchResult
 import com.maodouchat.settings.server.ServerSwitchTransaction
 import com.maodouchat.core.model.SecurityPreferences

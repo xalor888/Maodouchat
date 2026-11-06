@@ -1,20 +1,10 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import kotlin.math.cos
 import kotlin.math.PI
 
-/**
- * 纯 Kotlin 8x8 二维 DCT-II / IDCT-II 实现（JPEG 同款块尺寸）。
- *
- * 使用正交归一化基矩阵 M（M^T = M^{-1}），因此：
- *   正变换 F = M · X · Mᵀ
- *   反变换 X = Mᵀ · F · M
- *
- * 不依赖任何 Android / 第三方库，可在 JVM 单元测试中直接验证往返精度。
- * 这是频域盲水印的数学底座：把图像分块做 DCT，在中频系数上做 QIM 嵌入，
- * 再 IDCT 还原——对 JPEG 重编码、缩放、裁剪有较好鲁棒性，且人眼不可见。
- */
-internal object Dct8 {
+// 纯 Kotlin 8x8 二维 DCT-II / IDCT-II（JPEG 同款块尺寸），正交归一化基矩阵。
+object Dct8 {
     const val N = 8
     const val BLOCK = N * N
 

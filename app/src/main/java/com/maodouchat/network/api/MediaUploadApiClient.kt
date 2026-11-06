@@ -12,6 +12,9 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.AttachmentUploadResponse
+import com.maodouchat.core.model.AttachmentUploadSessionRequest
+import com.maodouchat.core.model.AttachmentUploadStatusResponse
 
 internal object MediaUploadApiClient : MediaUploadApi {
 private val json get() = ApiService.json
