@@ -1,12 +1,6 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ExplorePublishErrorKind
-import com.maodouchat.core.model.ApiException
-
-/**
- * Map explore publish/upload failures to UI kinds (no Android resources here).
- * Aligns with server rejectIfPostRestricted / rejectIfMessageRestricted copy.
- */
+// 探索发布失败按服务端限制文案分类到 UI kind。
 object ExplorePublishErrorPolicy {
 
     fun classify(error: Throwable): ExplorePublishErrorKind {
@@ -35,10 +29,7 @@ object ExplorePublishErrorPolicy {
         return ExplorePublishErrorKind.FALLBACK
     }
 
-    /**
-     * Prefer server detail when present for restriction kinds (includes until timestamp);
-     * fall back to localized string supplied by the caller.
-     */
+    // 限制类优先取服务端详情（含解封时间），否则用调用方文案。
     fun displayMessage(error: Throwable, fallback: String): String {
         val kind = classify(error)
         val server = (error as? ApiException)?.serverMessage?.trim().orEmpty()

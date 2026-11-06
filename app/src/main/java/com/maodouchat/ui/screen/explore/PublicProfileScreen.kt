@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
+import com.maodouchat.core.model.ExplorePublicProfilePolicy
 import com.maodouchat.core.model.PublicProfileData
 import com.maodouchat.data.repository.PublicServerInfoRepository
 import com.maodouchat.ui.theme.LocalChatPalette
