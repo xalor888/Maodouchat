@@ -4,7 +4,7 @@ import com.maodouchat.core.model.DecryptTexts
 
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.messaging.DecryptEnvelopeGate
+import com.maodouchat.core.crypto.DecryptEnvelopeGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

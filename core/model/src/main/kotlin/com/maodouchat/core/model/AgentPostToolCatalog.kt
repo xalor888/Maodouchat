@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Parameter
 import com.maodouchat.core.model.Risk
 import com.maodouchat.core.model.ToolSpec
 
-internal val createTextPostToolSpec = ToolSpec(
+val createTextPostToolSpec = ToolSpec(
     name = "create_text_post",
     description = "Create a text Explore post (no images). Requires approval.",
     parameters = mapOf(
@@ -15,7 +15,7 @@ internal val createTextPostToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val likePostToolSpec = ToolSpec(
+val likePostToolSpec = ToolSpec(
     name = "like_post",
     description = "Like or unlike an Explore post. Requires approval.",
     parameters = mapOf(
@@ -26,7 +26,7 @@ internal val likePostToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val commentOnPostToolSpec = ToolSpec(
+val commentOnPostToolSpec = ToolSpec(
     name = "comment_on_post",
     description = "Comment on an Explore post. Requires approval.",
     parameters = mapOf(
@@ -37,7 +37,7 @@ internal val commentOnPostToolSpec = ToolSpec(
     risk = Risk.WRITE
 )
 
-internal val deletePostToolSpec = ToolSpec(
+val deletePostToolSpec = ToolSpec(
     name = "delete_post",
     description = "Delete an Explore post you own. Requires approval.",
     parameters = mapOf("postId" to Parameter("string", "Post id")),

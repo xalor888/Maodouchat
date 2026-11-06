@@ -1,9 +1,9 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 import java.util.concurrent.atomic.AtomicLong
 
 /** Rejects callbacks from cancelled or superseded AI requests. */
-internal class AiRequestGenerationGate {
+class AiRequestGenerationGate {
     private val generation = AtomicLong(0L)
 
     fun next(): Long = generation.incrementAndGet()

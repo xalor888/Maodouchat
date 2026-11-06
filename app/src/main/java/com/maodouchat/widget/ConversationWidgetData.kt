@@ -11,6 +11,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.WidgetConfig
 import com.maodouchat.core.model.WidgetRow
 import com.maodouchat.core.model.WidgetSnapshot

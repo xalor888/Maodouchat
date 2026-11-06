@@ -1,10 +1,10 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.core.model.MessageMutationTicket
 
 /** Single-flight and authoritative-terminal tracking for optimistic message mutations. */
-internal class MessageMutationTracker {
+class MessageMutationTracker {
     private var generation = 0L
     private val pending = mutableMapOf<String, MessageMutationTicket>()
     private val deleted = mutableSetOf<String>()

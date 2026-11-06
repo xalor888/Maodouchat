@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
@@ -11,7 +11,7 @@ import com.maodouchat.core.model.ApiFailureKind
  * non-ApiException, NETWORK, TIMEOUT, HTTP 408/504/5xx.
  * Business 4xx (except 404 terminal helper) remains definitive failure.
  */
-internal fun isAmbiguousTransportFailure(error: Throwable?): Boolean {
+fun isAmbiguousTransportFailure(error: Throwable?): Boolean {
     if (error !is ApiException) return true
     return when (error.kind) {
         ApiFailureKind.NETWORK,
@@ -28,5 +28,5 @@ internal fun isAmbiguousTransportFailure(error: Throwable?): Boolean {
 }
 
 /** HTTP 404 on delete/revoke: server already terminal — treat as success, never resurrect. */
-internal fun isAlreadyTerminalMutation(error: Throwable?): Boolean =
+fun isAlreadyTerminalMutation(error: Throwable?): Boolean =
     error is ApiException && error.kind == ApiFailureKind.HTTP && error.statusCode == 404

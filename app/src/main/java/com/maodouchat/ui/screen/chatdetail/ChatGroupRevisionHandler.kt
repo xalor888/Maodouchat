@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.conversation.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.conversationLocalCleanupSession
+import com.maodouchat.core.model.AiRequestGenerationGate
 import com.maodouchat.core.model.GroupRevisionImpact
 import com.maodouchat.core.model.groupRevisionImpact
 import com.maodouchat.core.model.shouldInvalidateGroupKey

@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
+import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.WidgetConfig
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.network.TokenManager

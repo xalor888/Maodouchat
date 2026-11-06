@@ -1,6 +1,10 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.ToolSpec
+import com.maodouchat.core.model.commentOnPostToolSpec
+import com.maodouchat.core.model.createTextPostToolSpec
+import com.maodouchat.core.model.deletePostToolSpec
+import com.maodouchat.core.model.likePostToolSpec
 
 internal val agentToolCatalog: List<ToolSpec> = listOf(
     listChatsToolSpec,

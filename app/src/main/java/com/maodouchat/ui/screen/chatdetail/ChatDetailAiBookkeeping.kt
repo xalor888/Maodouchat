@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.AiRequestGenerationGate
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.Json
 
