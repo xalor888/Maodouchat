@@ -45,6 +45,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
+import com.maodouchat.core.model.UserDto
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -53,7 +54,7 @@ import androidx.compose.runtime.setValue
 @OptIn(ExperimentalMaterial3Api::class)
 fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
-    val blocked = remember { mutableStateOf<List<com.maodouchat.network.UserDto>>(emptyList()) }
+    val blocked = remember { mutableStateOf<List<UserDto>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val unblockingIds = remember { mutableStateOf<Set<String>>(emptySet()) }

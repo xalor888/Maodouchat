@@ -30,7 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize

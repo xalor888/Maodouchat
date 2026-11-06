@@ -1,5 +1,15 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.AuthResponse
+import com.maodouchat.core.model.ChangePasswordRequest
+import com.maodouchat.core.model.DeleteAccountRequest
+import com.maodouchat.core.model.DeleteAccountResponse
+import com.maodouchat.core.model.LoginRequest
+import com.maodouchat.core.model.RefreshTokenRequest
+import com.maodouchat.core.model.RegisterRequest
+import com.maodouchat.core.model.RegisterWithCodeRequest
+import com.maodouchat.core.model.ResetPasswordRequest
+import com.maodouchat.core.model.SendCodeRequest
 import com.maodouchat.network.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.serializer

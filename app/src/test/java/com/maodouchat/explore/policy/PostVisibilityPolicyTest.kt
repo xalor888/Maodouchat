@@ -2,7 +2,7 @@ package com.maodouchat.explore.policy
 
 import com.maodouchat.core.model.PostVisibilityTier
 import com.maodouchat.network.PostDto
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

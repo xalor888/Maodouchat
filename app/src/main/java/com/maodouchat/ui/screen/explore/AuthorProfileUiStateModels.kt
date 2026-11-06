@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.network.PostDto
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 
 data class AuthorProfileUiState(
     val currentUserId: String = "",

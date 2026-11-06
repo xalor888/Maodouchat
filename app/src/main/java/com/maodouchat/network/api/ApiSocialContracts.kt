@@ -1,12 +1,25 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.ChatFolderDto
+import com.maodouchat.core.model.ChatFoldersSyncResponse
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.PublicProfileResponse
+import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UpdateModerationRuleRequest
+import com.maodouchat.core.model.UserDto
+import com.maodouchat.core.model.UserPrivacyDto
 
 /** Remaining endpoints retained through ApiService during the migration. */
 interface ApiSurface : SocialApi {

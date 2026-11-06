@@ -1,8 +1,8 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ChatFolderDto
-import com.maodouchat.network.ChatFoldersSyncResponse
+import com.maodouchat.core.model.ChatFolderDto
+import com.maodouchat.core.model.ChatFoldersSyncResponse
 
 /**
  * 会话分组（文件夹）的**远端**调用（G328c）。

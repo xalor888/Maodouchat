@@ -24,7 +24,7 @@ import com.maodouchat.contacts.usecase.FriendRequestUseCase
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.User
-import com.maodouchat.network.GroupInviteAcceptResponse
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

@@ -18,8 +18,8 @@ import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.NotificationCenterItem
-import com.maodouchat.network.GroupInvitationDto
-import com.maodouchat.network.GroupInviteAcceptResponse
+import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -1,11 +1,12 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.CurrentUserPublicResponse
-import com.maodouchat.network.DeleteAccountResponse
-import com.maodouchat.network.DeviceInfoDto
-import com.maodouchat.network.SetUsernameResponse
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.DeleteAccountResponse
+import com.maodouchat.core.model.DeviceInfoDto
+import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.UserDto
+import com.maodouchat.core.model.UserPrivacyDto
 
 /**
  * 账号与设备安全相关的**远端**调用（G328c）。
@@ -48,9 +49,9 @@ internal class AccountSecurityNetworkRepository(
         { token -> ApiService.getBlockedUserDetails(token) },
     private val unblockApi: suspend (String, String) -> Result<Unit> =
         { token, userId -> ApiService.unblockUser(token, userId) },
-    private val privacyApi: suspend (String) -> Result<com.maodouchat.network.UserPrivacyDto> =
+    private val privacyApi: suspend (String) -> Result<UserPrivacyDto> =
         { token -> ApiService.getPrivacy(token) },
-    private val updatePrivacyApi: suspend (String, String?) -> Result<com.maodouchat.network.UserPrivacyDto> =
+    private val updatePrivacyApi: suspend (String, String?) -> Result<UserPrivacyDto> =
         { token, defaultPostVisibility -> ApiService.updatePrivacy(token, defaultPostVisibility = defaultPostVisibility) },
     private val changePasswordApi: suspend (String, String, String) -> Result<Unit> =
         { token, oldPassword, newPassword -> ApiService.changePassword(token, oldPassword, newPassword) },
@@ -126,11 +127,11 @@ internal class AccountSecurityNetworkRepository(
      * 目前只有「动态默认可见性」在客户端有入口，其余由服务端/其他端维护。
      * 把 5 个都透传会让调用方以为能改别的，其实是给了一个改不动的旋钮。
      */
-    suspend fun privacy(token: String? = null): Result<com.maodouchat.network.UserPrivacyDto> =
+    suspend fun privacy(token: String? = null): Result<UserPrivacyDto> =
         privacyApi(token ?: currentAccessToken())
 
     suspend fun updateDefaultPostVisibility(
         token: String,
         defaultPostVisibility: String?,
-    ): Result<com.maodouchat.network.UserPrivacyDto> = updatePrivacyApi(token, defaultPostVisibility)
+    ): Result<UserPrivacyDto> = updatePrivacyApi(token, defaultPostVisibility)
 }

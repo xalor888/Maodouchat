@@ -1,7 +1,8 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PublicUpdatesDto
+import com.maodouchat.core.model.PublicProfileResponse
+import com.maodouchat.core.model.PublicUpdatesDto
 
 /**
  * 免鉴权的服务端公共信息（G328c）。
@@ -17,7 +18,7 @@ import com.maodouchat.network.PublicUpdatesDto
 internal class PublicServerInfoRepository(
     private val fetchStatus: suspend () -> Result<String> = { ApiService.getPublicStatus() },
     private val fetchUpdates: suspend (String) -> Result<PublicUpdatesDto> = { baseUrl -> ApiService.getPublicUpdates(baseUrl) },
-    private val fetchProfile: suspend (String) -> Result<com.maodouchat.network.PublicProfileResponse> = { username ->
+    private val fetchProfile: suspend (String) -> Result<PublicProfileResponse> = { username ->
         ApiService.getPublicProfile(username)
     },
 ) {
@@ -30,6 +31,6 @@ internal class PublicServerInfoRepository(
     /**
      * 公开主页资料（未登录/陌生人也能看）。`ok=false` 表示「查无此人」，由调用方决定文案。
      */
-    suspend fun publicProfile(username: String): Result<com.maodouchat.network.PublicProfileResponse> =
+    suspend fun publicProfile(username: String): Result<PublicProfileResponse> =
         fetchProfile(username)
 }

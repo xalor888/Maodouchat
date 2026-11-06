@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.ai.AiWritingStylePreferences
+import com.maodouchat.core.model.ClientPrefsDto
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -78,7 +79,7 @@ internal fun AiPrivacySettingsViewModel.refresh() {
     }
 }
 
-internal fun AiPrivacySettingsViewModel.applyRemoteWritingStyle(remote: com.maodouchat.network.ClientPrefsDto) {
+internal fun AiPrivacySettingsViewModel.applyRemoteWritingStyle(remote: ClientPrefsDto) {
     val app = getApplication<Application>()
     AiWritingStylePreferences.save(
         app,

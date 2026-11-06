@@ -11,7 +11,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import org.junit.Rule

@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.maodouchat.network.PublicUpdatesDto
+import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.update.AppUpdateDownloadScheduler
 import com.maodouchat.core.model.AppUpdatePolicy
 import com.maodouchat.core.model.CallOrchestrator

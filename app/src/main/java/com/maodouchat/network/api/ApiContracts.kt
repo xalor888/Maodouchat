@@ -2,8 +2,12 @@ package com.maodouchat.network.api
 
 import com.maodouchat.core.model.AttachmentUploadResponse
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
+import com.maodouchat.core.model.DeviceInfoDto
+import com.maodouchat.core.model.DevicePreKeyBundleDto
 import com.maodouchat.core.model.IceConfigDto
+import com.maodouchat.core.model.PreKeyBundleDto
 import com.maodouchat.core.model.SignalMessageDto
+import com.maodouchat.core.model.UploadKeysRequest
 import com.maodouchat.network.*
 import java.io.File
 

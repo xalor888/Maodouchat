@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.PostDto
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -4,7 +4,8 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.repository.ClientPrefsNetworkRepository
-import com.maodouchat.network.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
 import com.maodouchat.util.AppLocaleManager
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -44,7 +45,7 @@ internal fun GeneralSettingsViewModel.pullClientPrefsFromCloud() {
     }
 }
 
-internal fun GeneralSettingsViewModel.applyRemotePrefs(remote: com.maodouchat.network.ClientPrefsDto) {
+internal fun GeneralSettingsViewModel.applyRemotePrefs(remote: ClientPrefsDto) {
     val context = getApplication<Application>()
     com.maodouchat.util.ClientPrefsSync.apply(context, remote)
     val theme = com.maodouchat.util.ThemePreferences.normalize(remote.themeMode)

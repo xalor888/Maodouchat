@@ -2,16 +2,16 @@ package com.maodouchat.explore.repository
 
 import com.maodouchat.core.model.MutationSessionChangedException
 import com.maodouchat.network.CommentLikeResponse
-import com.maodouchat.network.CurrentUserPublicResponse
+import com.maodouchat.core.model.CurrentUserPublicResponse
 import com.maodouchat.network.NearbyLocationStatusResponse
 import com.maodouchat.network.NearbyUserResponse
 import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.PostLikersResponse
-import com.maodouchat.network.PublicProfileResponse
+import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
-import com.maodouchat.network.SetUsernameResponse
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.api.SocialApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest

@@ -1,5 +1,7 @@
 package com.maodouchat.security.totp
 
+import com.maodouchat.core.model.AuthResponse
+import com.maodouchat.core.model.DeleteAccountResponse
 import com.maodouchat.core.session.TotpState
 import com.maodouchat.network.api.AuthApi
 import kotlinx.coroutines.runBlocking
@@ -162,14 +164,14 @@ class TotpCoordinatorTest {
 
         override suspend fun regenerateTotpCodes(token: String, code: String): Result<List<String>> = regenerateResult
 
-        override suspend fun login(email: String, password: String, totpCode: String): Result<com.maodouchat.network.AuthResponse> = Result.failure(NotImplementedError())
-        override suspend fun register(name: String, email: String, password: String): Result<com.maodouchat.network.AuthResponse> = Result.failure(NotImplementedError())
+        override suspend fun login(email: String, password: String, totpCode: String): Result<AuthResponse> = Result.failure(NotImplementedError())
+        override suspend fun register(name: String, email: String, password: String): Result<AuthResponse> = Result.failure(NotImplementedError())
         override suspend fun logout(refreshToken: String, accessToken: String?, deviceId: String): Result<Unit> = Result.success(Unit)
         override suspend fun logoutAll(token: String): Result<Unit> = Result.success(Unit)
         override suspend fun sendVerificationCode(email: String, purpose: String): Result<Unit> = Result.success(Unit)
-        override suspend fun registerWithCode(name: String, email: String, password: String, code: String): Result<com.maodouchat.network.AuthResponse> = Result.failure(NotImplementedError())
+        override suspend fun registerWithCode(name: String, email: String, password: String, code: String): Result<AuthResponse> = Result.failure(NotImplementedError())
         override suspend fun resetPassword(email: String, code: String, newPassword: String): Result<Unit> = Result.success(Unit)
         override suspend fun changePassword(token: String, oldPassword: String, newPassword: String): Result<Unit> = Result.success(Unit)
-        override suspend fun deleteAccount(token: String, password: String): Result<com.maodouchat.network.DeleteAccountResponse> = Result.failure(NotImplementedError())
+        override suspend fun deleteAccount(token: String, password: String): Result<DeleteAccountResponse> = Result.failure(NotImplementedError())
     }
 }

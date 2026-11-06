@@ -2,7 +2,7 @@ package com.maodouchat.contacts.usecase
 
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.FriendRequestDto
+import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import java.util.Collections

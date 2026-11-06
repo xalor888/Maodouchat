@@ -4,7 +4,7 @@ import android.content.Context
 import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderPolicy
 import com.maodouchat.data.repository.ChatFolderNetworkRepository
-import com.maodouchat.network.ChatFolderDto
+import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.ChatFolderPreferences
 import com.maodouchat.util.RuntimeFlags

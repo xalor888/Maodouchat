@@ -1,5 +1,7 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.GroupInvitationDto
 import kotlinx.serialization.Serializable
 
 @Serializable

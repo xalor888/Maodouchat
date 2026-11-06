@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ClientPrefsDto
-import com.maodouchat.network.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.ClientPrefsDto
+import com.maodouchat.core.model.ClientPrefsUpdateRequest
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.ConflictResolutionResult

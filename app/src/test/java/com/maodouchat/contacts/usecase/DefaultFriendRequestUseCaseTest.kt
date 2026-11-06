@@ -1,7 +1,7 @@
 package com.maodouchat.contacts.usecase
 
-import com.maodouchat.network.FriendRequestDto
-import com.maodouchat.network.UserDto
+import com.maodouchat.core.model.FriendRequestDto
+import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking

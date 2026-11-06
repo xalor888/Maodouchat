@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import android.app.Application
+import com.maodouchat.core.model.UserDto
 import com.maodouchat.data.model.User
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
@@ -136,7 +137,7 @@ internal class AndroidContactsRepository(
     }
 }
 
-private fun com.maodouchat.network.UserDto.toContactUser(): User = User(
+private fun UserDto.toContactUser(): User = User(
     id = id,
     name = name,
     avatar = avatar,
