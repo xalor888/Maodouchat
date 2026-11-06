@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import android.app.Application
 import android.util.Log
 import com.maodouchat.R
-import com.maodouchat.call.CallSignalingAdmissionPolicy
+import com.maodouchat.core.session.CallSignalingAdmissionPolicy
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.Decision
 import com.maodouchat.call.IncomingCallCoordinator
@@ -12,7 +12,7 @@ import com.maodouchat.core.model.MissedCallTimeoutPolicy
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
-import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState

@@ -5,7 +5,7 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallUiState

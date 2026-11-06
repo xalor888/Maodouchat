@@ -2,10 +2,10 @@ package com.maodouchat.ui.screen.call
 
 import com.maodouchat.R
 import com.maodouchat.core.session.CallSessionMachine
-import com.maodouchat.webrtc.CallReliabilityPolicy
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallReliabilityPolicy
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
-import com.maodouchat.webrtc.GroupCallPolicy
+import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi

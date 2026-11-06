@@ -5,7 +5,7 @@ import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.telecom.MaodouchatConnectionService
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.NetworkQuality
 import com.maodouchat.core.model.State

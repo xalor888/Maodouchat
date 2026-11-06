@@ -1,8 +1,5 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
-import com.maodouchat.core.session.Cursor
-import com.maodouchat.core.session.Decision
-import com.maodouchat.core.session.Feature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
@@ -1179,8 +1180,7 @@ class WebRTCManager(
     // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽到 WebRTCConnectionStats.kt。
     private val statsCollector = WebRTCConnectionStatsCollector(
         directConnection = { peerConnection },
-        groupConnections = { peerConnections.values },
-        isReleased = { released },
+        groupConnections = { peerConnections.values }, isReleased = { released },
     )
 
     /** 当前主链路的连接统计快照。实现见 [WebRTCConnectionStatsCollector]。 */

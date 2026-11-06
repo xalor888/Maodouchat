@@ -5,8 +5,8 @@ import com.maodouchat.core.model.NetworkQuality
 import com.maodouchat.core.model.CallIceServer
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallUiState
-import com.maodouchat.webrtc.CallNetworkQualityPolicy
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallNetworkQualityPolicy
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CoroutineScope

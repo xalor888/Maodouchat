@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import com.maodouchat.call.CallActionBus
 import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.session.AppRuntime
-import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallUiState
 import kotlinx.coroutines.CoroutineScope

@@ -9,6 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.data.model.Message
 
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
@@ -316,7 +317,7 @@ internal fun ChatDetailUpperDialogHost(
         onPick = { type ->
             groupCall.showGroupCallTypeDialog = false
             val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
-            if (candidates.size <= com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1) {
+            if (candidates.size <= GroupCallPolicy.MAX_MESH_MEMBERS - 1) {
                 viewModel.startGroupCallFromChat(type)
             } else {
                 // 超过 mesh 上限：进入选成员（第二步）。五步复位收在持有类里，避免只清一半。

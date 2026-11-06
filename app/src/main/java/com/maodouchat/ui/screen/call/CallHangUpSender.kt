@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.call
 
-import com.maodouchat.call.CallSignalingOutboundCursor
+import com.maodouchat.core.session.CallSignalingOutboundCursor
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.launch
