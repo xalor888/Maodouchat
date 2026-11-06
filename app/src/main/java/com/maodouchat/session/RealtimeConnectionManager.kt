@@ -3,6 +3,7 @@ package com.maodouchat.session
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.core.model.WebSocketEvent
+import com.maodouchat.core.realtime.RealtimeTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,17 +28,6 @@ interface RealtimeConnectionManager {
     fun sendRaw(owner: SessionContext, text: String): Boolean
     fun sendTyping(owner: SessionContext, chatId: String, isTyping: Boolean): Boolean
     fun sendPresence(owner: SessionContext, foreground: Boolean): Boolean
-}
-
-interface RealtimeTransport {
-    val events: SharedFlow<RealtimeTransportEvent>
-
-    fun open(serverUrl: String, accessToken: String, reconnect: Boolean): Long?
-    fun disconnect()
-    fun isConnected(): Boolean
-    fun sendRaw(text: String): Boolean
-    fun sendTyping(chatId: String, isTyping: Boolean): Boolean
-    fun sendPresence(foreground: Boolean): Boolean
 }
 
 class AccountScopedRealtimeConnectionManager(
