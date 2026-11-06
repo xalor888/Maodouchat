@@ -1,11 +1,11 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.AcknowledgeEnvelopesResponseV2
+import com.maodouchat.core.model.PendingEnvelopeV2Dto
+import com.maodouchat.core.model.PendingInboxResponseV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.network.AcknowledgeEnvelopesResponseV2
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PendingEnvelopeV2Dto
-import com.maodouchat.network.PendingInboxResponseV2
 import com.maodouchat.network.toEntity
 import io.mockk.coEvery
 import io.mockk.coVerify
