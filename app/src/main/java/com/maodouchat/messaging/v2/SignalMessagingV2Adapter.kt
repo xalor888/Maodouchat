@@ -3,6 +3,8 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
+import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.core.model.MessagingV2ContentPolicy
 import com.maodouchat.core.model.MessagingV2ConversationSnapshot
 import com.maodouchat.core.model.MessagingV2DeviceTarget
 import com.maodouchat.core.model.MessagingV2GroupControlPolicy

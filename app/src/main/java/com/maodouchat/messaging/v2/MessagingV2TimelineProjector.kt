@@ -3,6 +3,8 @@ package com.maodouchat.messaging.v2
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.MessagingV2ArrivalPolicy
+import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.model.Message

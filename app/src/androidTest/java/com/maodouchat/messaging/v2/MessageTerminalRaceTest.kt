@@ -13,6 +13,7 @@ import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
 import kotlinx.coroutines.runBlocking
 import org.junit.After

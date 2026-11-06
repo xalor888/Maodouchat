@@ -1,8 +1,5 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageReaction
-import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.Serializable
 
 /** Encrypted application payload. Transport metadata is intentionally not duplicated here. */
@@ -60,4 +57,4 @@ data class MessagingV2Event(
     val throughMessageId: String? = null,
 )
 
-internal data class LegacyBody(val body: String, val metadata: MessageMeta)
+data class LegacyBody(val body: String, val metadata: MessageMeta)

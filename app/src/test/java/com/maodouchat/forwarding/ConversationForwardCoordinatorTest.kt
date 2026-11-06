@@ -3,7 +3,7 @@ package com.maodouchat.forwarding
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.core.model.ConversationForwardSessionException
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.messaging.v2.DecodedContentPayload
+import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.data.model.Chat
