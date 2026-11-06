@@ -1,15 +1,15 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
+import com.maodouchat.core.model.SendMessageRequestV2
+import com.maodouchat.core.model.SendMessageResponseV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.network.SendMessageRequestV2
-import com.maodouchat.network.SendMessageResponseV2
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

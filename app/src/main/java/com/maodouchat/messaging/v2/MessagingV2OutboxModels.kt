@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
-import com.maodouchat.network.EncryptedDeviceEnvelopeRequestV2
 
 data class PreparedMessageV2(
     val groupRevision: Long?,

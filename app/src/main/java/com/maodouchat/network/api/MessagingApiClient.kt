@@ -1,6 +1,12 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.AcknowledgeEnvelopesRequestV2
+import com.maodouchat.core.model.AcknowledgeEnvelopesResponseV2
+import com.maodouchat.core.model.ConversationSnapshotV2Dto
+import com.maodouchat.core.model.PendingInboxResponseV2
+import com.maodouchat.core.model.SendMessageRequestV2
+import com.maodouchat.core.model.SendMessageResponseV2
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

@@ -7,6 +7,10 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.ConversationSnapshotV2Dto
+import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
+import com.maodouchat.core.model.PendingEnvelopeV2Dto
+import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.crypto.SignalKeyExchange
 import com.maodouchat.core.model.EncryptedAttachmentReference
 import org.signal.libsignal.protocol.ecc.Curve
@@ -43,10 +47,6 @@ import com.maodouchat.messaging.v2.SignalMessagingV2EnvelopeProcessor
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.AuthResponse
-import com.maodouchat.network.ConversationSnapshotV2Dto
-import com.maodouchat.network.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.network.PendingEnvelopeV2Dto
-import com.maodouchat.network.SendMessageRequestV2
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.api.AuthApiClient
 import com.maodouchat.network.api.ConversationApiClient
