@@ -2,6 +2,8 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AttachmentPreparationLease
+import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus

@@ -1,6 +1,7 @@
 package com.maodouchat.attachment
 
 import android.content.Context
+import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.repository.LocalMessageStore

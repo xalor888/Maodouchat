@@ -44,6 +44,7 @@ import com.maodouchat.core.model.ChainEntryItem
 import com.maodouchat.core.model.ChainListItem
 import com.maodouchat.core.model.GroupChainDetailState
 import com.maodouchat.core.model.GroupChainUiState
+import com.maodouchat.core.model.GroupPlayJson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

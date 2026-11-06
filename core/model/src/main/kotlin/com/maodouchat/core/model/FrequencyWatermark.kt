@@ -1,31 +1,15 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import kotlin.math.abs
 import kotlin.math.round
 import kotlin.math.roundToInt
-import com.maodouchat.core.model.Dct8
 
 /**
- * 频域盲水印引擎：在 8x8 DCT 中频系数上做 QIM（Quantization Index Modulation）嵌入，
- * 配合 8x8 平铺循环重复编码 + **二维**同步字相位搜索，实现对 JPEG 重编码、加性噪声、
- * 中心裁剪的鲁棒提取，且对人眼基本不可见（只改亮度中频，色度不变）。
- *
- * 纯 Kotlin，无 Android 依赖，可在 JVM 单测验证：往返、嵌入->提取、鲁棒性、PSNR。
- *
- * 载荷：6 字节 = 48 位（FNV-1a 48 位哈希，足以归因泄露者）。
- * 帧结构：SYNC(16) ++ PAYLOAD(48) = 64 位，按 8x8 tile 平铺循环重复。
- *
- * 鲁棒性设计要点：
- * - Q = 32：量化步长足以抵抗 ±8 像素噪声（DCT 域噪声 RMS ≈ 0.6，远小于 Q/4 = 8）。
- * - MID_BAND 选取 JPEG 标准亮度量化表 base ≤ 16 的中频位置：Q=32 与 base=16 的
- *   量化步长互为整数倍（32 = 2×16），JPEG q50 重编码后格点完全保持；base < 16
- *   的位置偏移 ≤ Q/2 的子格距离，均在 Q/4 容差内。
- * - 8x8 平铺：块 (bx,by) 承载 frame[(by%8)*8 + (bx%8)]，任意 ≥ 8×8 块的连续子区域
- *   含完整 64 位帧；裁剪只改变块栅格起点，等效于 tile 域二维循环移位。
- * - **二维**同步字搜索：穷举 8×8 = 64 个 (dy,dx) 位移，对 16 位 SYNC 做 Hamming
- *   匹配，正确处理裁剪导致的二维旋转（一维搜索无法对齐）。
+ * 频域盲水印：8x8 DCT 中频 QIM 嵌入，8x8 平铺循环重复编码 + 二维同步字相位搜索，
+ * 抗 JPEG 重编码/加性噪声/中心裁剪，只改亮度中频。载荷 6 字节（FNV-1a 48 位哈希）。
+ * Q=32 与 JPEG q50 base=16 量化格点对齐；帧 SYNC(16) ++ PAYLOAD(48) = 64 位。
  */
-internal object FrequencyWatermark {
+object FrequencyWatermark {
     const val PAYLOAD_BYTES = 6
     const val PAYLOAD_BITS = PAYLOAD_BYTES * 8          // 48
     private const val SYNC_BITS = 16

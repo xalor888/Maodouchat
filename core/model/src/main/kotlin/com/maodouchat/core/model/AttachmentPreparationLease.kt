@@ -1,9 +1,9 @@
-package com.maodouchat.attachment
+package com.maodouchat.core.model
 
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Owns preparation resources until an AttachmentTransferEntity is durably handed off. */
-internal class AttachmentPreparationLease(
+class AttachmentPreparationLease(
     private val originalSourceUri: String,
     private val deleteEncryptedFile: (String) -> Unit,
     private val deletePreparedSource: (String) -> Unit,

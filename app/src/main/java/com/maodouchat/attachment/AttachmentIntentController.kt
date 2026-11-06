@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta

@@ -3,7 +3,7 @@ package com.maodouchat.ui.component
 import android.content.Context
 import coil.request.ImageRequest
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.watermark.FrequencyWatermark
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.watermark.SecretWatermarkTransformation
 

@@ -3,6 +3,7 @@ package com.maodouchat.watermark
 import android.graphics.Bitmap
 import coil.size.Size
 import coil.transform.Transformation
+import com.maodouchat.core.model.FrequencyWatermark
 
 /**
  * Coil 频域盲水印 Transformation：在解码后的 Bitmap 上注入不可见 DCT-QIM 水印。

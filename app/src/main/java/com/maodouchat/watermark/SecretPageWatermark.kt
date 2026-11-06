@@ -1,5 +1,6 @@
 package com.maodouchat.watermark
 
+import com.maodouchat.core.model.FrequencyWatermark
 import kotlin.math.cos
 import kotlin.math.sin
 
