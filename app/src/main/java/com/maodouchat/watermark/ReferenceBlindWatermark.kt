@@ -1,6 +1,9 @@
 package com.maodouchat.watermark
 
+import com.maodouchat.core.model.ArgbImage
 import com.maodouchat.core.model.BlindWatermarkBitstream
+import com.maodouchat.core.model.BlindWatermarkMath
+import com.maodouchat.core.model.WatermarkCore
 
 /**
  * 9.4xx：blind_watermark（github.com/guofei9987/blind_watermark）核心算法的 Kotlin 忠实移植。
@@ -17,9 +20,9 @@ import com.maodouchat.core.model.BlindWatermarkBitstream
  * RNG 用 java.util.Random（同一 seed 两侧一致即可）。
  */
 object ReferenceBlindWatermark {
-    const val BLOCK = 4
-    const val D1 = 36.0
-    const val D2 = 20.0
+    const val BLOCK = BlindWatermarkMath.BLOCK
+    const val D1 = BlindWatermarkMath.D1
+    const val D2 = BlindWatermarkMath.D2
 
     // 公开 API：只留调度，实现已搬入 BlindWatermarkBitstream/BlindWatermarkPixels。
 
