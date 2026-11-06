@@ -29,6 +29,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReplyPreview
 
 /**

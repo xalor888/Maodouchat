@@ -1,8 +1,8 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
-
-// ApiSurface 的薄复合门面：各领域实现已按主题拆到簇对象，这里只做转发。
+import com.maodouchat.core.model.NotificationSettingsRequest
+import com.maodouchat.core.model.NotificationSettingsResponse
 internal object ApiEndpointClients : ApiSurface {
 override suspend fun getPublicStatus(): Result<String> = ApiMessagingEndpoints.getPublicStatus()
 override suspend fun deleteChat(token: String, chatId: String): Result<Unit> = ApiMessagingEndpoints.deleteChat(token, chatId)

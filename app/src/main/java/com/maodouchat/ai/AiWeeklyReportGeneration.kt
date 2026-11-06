@@ -7,7 +7,7 @@ import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiProfileRepository
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

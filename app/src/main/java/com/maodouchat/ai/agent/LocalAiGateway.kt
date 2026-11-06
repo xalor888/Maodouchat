@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 
 // 本机模型统一入口：薄门面，公开 API 不动，任务实现已按簇搬到 LocalAiTextTasks / LocalAiFileTasks / LocalAiLocalRanking。
 object LocalAiGateway {

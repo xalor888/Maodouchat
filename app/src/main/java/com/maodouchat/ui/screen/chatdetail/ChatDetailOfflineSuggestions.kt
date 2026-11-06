@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
@@ -107,7 +107,7 @@ internal fun ChatDetailViewModel.generateAiSuggestions(tone: String = "friendly"
 
 /** Local, privacy-preserving reply chips when cloud AI is unavailable. */
 private fun ChatDetailViewModel.buildOfflineAiSuggestions(
-    contextMessages: List<com.maodouchat.network.AiContextMessage>,
+    contextMessages: List<AiContextMessage>,
     tone: String
 ): List<String> {
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) return emptyList()

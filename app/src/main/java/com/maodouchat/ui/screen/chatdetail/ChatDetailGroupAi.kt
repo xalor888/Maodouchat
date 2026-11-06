@@ -2,9 +2,10 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.core.model.AiGroupTask
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.network.AiSemanticSearchCandidate
+import com.maodouchat.core.model.AiSemanticSearchCandidate
 import com.maodouchat.data.model.semanticSearchText
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
@@ -79,7 +80,7 @@ internal fun ChatDetailViewModel.groupAssistant(query: String, mode: String) {
                             .filter { it.isNotBlank() }
                             .take(30)
                             .map { line ->
-                                com.maodouchat.network.AiGroupTask(title = line.take(300))
+                                AiGroupTask(title = line.take(300))
                             }
                             .toList()
                     } else emptyList()

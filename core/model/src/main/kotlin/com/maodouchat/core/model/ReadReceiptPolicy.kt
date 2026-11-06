@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.PrefetchMessage
-import com.maodouchat.core.model.ReadCountUi
 
 /**
  * Read-receipt visibility: sender always; group OWNER/ADMIN may inspect any message.

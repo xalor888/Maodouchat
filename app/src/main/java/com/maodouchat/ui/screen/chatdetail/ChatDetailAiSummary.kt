@@ -5,7 +5,7 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.model.Message
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

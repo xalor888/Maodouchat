@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.core.session.SignalingOfferFreshnessPolicy
+import com.maodouchat.core.model.SignalingOfferFreshnessPolicy
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

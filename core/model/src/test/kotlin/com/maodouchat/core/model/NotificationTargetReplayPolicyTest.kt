@@ -1,13 +1,10 @@
-package com.maodouchat.ui.navigation
+package com.maodouchat.core.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
-import com.maodouchat.core.model.NotificationTargetReplayDecision
-import com.maodouchat.navigation.NotificationTarget
-import com.maodouchat.navigation.NotificationTargetReplayPolicy
 
 class NotificationTargetReplayPolicyTest {
 

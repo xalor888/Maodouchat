@@ -1,9 +1,5 @@
-package com.maodouchat.call
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.MissedRecordParams
-import com.maodouchat.core.model.PendingIncomingCall
-import com.maodouchat.core.model.SignalMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -160,7 +156,7 @@ class PolledIncomingBatchPolicyTest {
     fun `stale offers are dropped and cannot ring`() {
         val decision = decide(
             messages = listOf(
-                msg(type = "offer", callId = "c1", timestamp = nowMs - IncomingCallCoordinator.STALE_MS - 1L),
+                msg(type = "offer", callId = "c1", timestamp = nowMs - SignalingOfferFreshnessPolicy.DEFAULT_MAX_AGE_MS - 1L),
             ),
             preferCallId = "c1",
         )
@@ -451,7 +447,7 @@ class PolledIncomingBatchPolicyTest {
     fun `a stale first offer is filtered and the fresh second offer becomes primary`() {
         val decision = decide(
             messages = listOf(
-                msg(id = "m1", type = "offer", callId = "c1", timestamp = nowMs - IncomingCallCoordinator.STALE_MS - 1L),
+                msg(id = "m1", type = "offer", callId = "c1", timestamp = nowMs - SignalingOfferFreshnessPolicy.DEFAULT_MAX_AGE_MS - 1L),
                 msg(id = "m2", type = "offer", callId = "c2"),
             ),
         )

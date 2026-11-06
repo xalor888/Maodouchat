@@ -1,6 +1,8 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.NotificationSettingsRequest
+import com.maodouchat.core.model.NotificationSettingsResponse
 
 /** Remaining endpoints retained through ApiService during the migration. */
 interface ApiSurface : SocialApi {
