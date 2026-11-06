@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.core.model.ChatSettingsResponse
+import com.maodouchat.core.model.DisappearingMessagesResponse
 import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
@@ -21,7 +22,7 @@ internal class ChatNetworkRepository(
     private val getChatsApi: suspend (String) -> Result<List<ChatDto>> = { token -> ApiService.getChats(token) },
     private val updateChatSettingsApi: suspend (String, String, UpdateChatSettingsRequest) -> Result<ChatSettingsResponse> =
         { token, chatId, request -> ApiService.updateChatSettings(token, chatId, request) },
-    private val updateDisappearingApi: suspend (String, String, Int) -> Result<com.maodouchat.network.DisappearingMessagesResponse> =
+    private val updateDisappearingApi: suspend (String, String, Int) -> Result<DisappearingMessagesResponse> =
         { token, chatId, seconds -> ApiService.updateDisappearingMessages(token, chatId, seconds) },
     private val deleteChatApi: suspend (String, String) -> Result<Unit> =
         { token, chatId -> ApiService.deleteChat(token, chatId) },
@@ -48,7 +49,7 @@ internal class ChatNetworkRepository(
         token: String? = null,
         chatId: String,
         seconds: Int,
-    ): Result<com.maodouchat.network.DisappearingMessagesResponse> =
+    ): Result<DisappearingMessagesResponse> =
         updateDisappearingApi(token ?: currentAccessToken(), chatId, seconds)
 
     suspend fun deleteChat(token: String? = null, chatId: String): Result<Unit> =

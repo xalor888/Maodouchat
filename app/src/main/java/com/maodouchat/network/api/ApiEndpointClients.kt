@@ -15,6 +15,7 @@ import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.PinnedMessagesListResponse
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostLikersResponse
@@ -23,6 +24,9 @@ import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.RiskEventResponse
 import com.maodouchat.core.model.SetUsernameResponse
+import com.maodouchat.core.model.StarMessageResponse
+import com.maodouchat.core.model.StarredMessageRefDto
+import com.maodouchat.core.model.TogglePinResponse
 import com.maodouchat.core.model.UpdateModerationRuleRequest
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.model.UserPrivacyDto
@@ -34,9 +38,7 @@ override suspend fun getPinnedMessages(token: String, chatId: String): Result<Pi
 override suspend fun togglePinnedMessage(token: String, chatId: String, messageId: String): Result<TogglePinResponse> = ApiMessagingEndpoints.togglePinnedMessage(token, chatId, messageId)
 override suspend fun getStarredMessages(token: String, chatId: String?): Result<List<StarredMessageRefDto>> = ApiMessagingEndpoints.getStarredMessages(token, chatId)
 override suspend fun getUsers(token: String, limit: Int, offset: Int): Result<List<UserDto>> = ApiSocialEndpoints.getUsers(token, limit, offset)
-override suspend fun getAllSearchableUsers(
-    token: String,
-    pageSize: Int, maxUsers: Int): Result<List<UserDto>> = ApiSocialEndpoints.getAllSearchableUsers(token, pageSize, maxUsers)
+override suspend fun getAllSearchableUsers(token: String, pageSize: Int, maxUsers: Int): Result<List<UserDto>> = ApiSocialEndpoints.getAllSearchableUsers(token, pageSize, maxUsers)
 override suspend fun getUser(token: String, userId: String): Result<UserDto> = ApiSocialEndpoints.getUser(token, userId)
 override suspend fun getNearbyLocationStatus(token: String): Result<NearbyLocationStatusResponse> = ApiSocialEndpoints.getNearbyLocationStatus(token)
 override suspend fun updateNearbyLocation(token: String, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse> = ApiSocialEndpoints.updateNearbyLocation(token, latitude, longitude)
@@ -49,13 +51,11 @@ override suspend fun getPublicProfile(username: String): Result<PublicProfileRes
 override suspend fun setUsername(token: String, username: String): Result<SetUsernameResponse> = ApiSocialEndpoints.setUsername(token, username)
 override suspend fun clearUsername(token: String): Result<Unit> = ApiSocialEndpoints.clearUsername(token)
 override suspend fun getPrivacy(token: String): Result<UserPrivacyDto> = ApiSocialEndpoints.getPrivacy(token)
-override suspend fun updatePrivacy(token: String, showOnline: Boolean?, showStatus: Boolean?, searchable: Boolean?, defaultPostVisibility: String?, onlineVisibility: String?): Result<UserPrivacyDto> =
-    ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
+override suspend fun updatePrivacy(token: String, showOnline: Boolean?, showStatus: Boolean?, searchable: Boolean?, defaultPostVisibility: String?, onlineVisibility: String?): Result<UserPrivacyDto> = ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
 override suspend fun getPublicUpdates(baseUrl: String): Result<PublicUpdatesDto> = ApiSocialEndpoints.getPublicUpdates(baseUrl)
 override suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse> = ApiSocialEndpoints.getNotificationSettings(token)
 override suspend fun updateNotificationSettings(token: String, request: NotificationSettingsRequest): Result<NotificationSettingsResponse> = ApiSocialEndpoints.updateNotificationSettings(token, request)
-override suspend fun registerPushToken(token: String, deviceId: String, pushToken: String, timezoneOffsetMinutes: Int): Result<Unit> =
-    ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
+override suspend fun registerPushToken(token: String, deviceId: String, pushToken: String, timezoneOffsetMinutes: Int): Result<Unit> = ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
 override suspend fun removePushToken(token: String, deviceId: String): Result<Unit> = ApiSocialEndpoints.removePushToken(token, deviceId)
 override suspend fun blockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.blockUser(token, userId)
 override suspend fun unblockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.unblockUser(token, userId)

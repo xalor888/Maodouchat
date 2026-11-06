@@ -1,6 +1,10 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.PinnedMessagesListResponse
+import com.maodouchat.core.model.StarMessageResponse
+import com.maodouchat.core.model.StarredMessageRefDto
+import com.maodouchat.core.model.TogglePinResponse
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import kotlinx.serialization.builtins.ListSerializer
