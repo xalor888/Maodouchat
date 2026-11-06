@@ -1,14 +1,9 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-/**
- * Normalize public-profile usernames from nav args / deep links, and map load
- * failures so network errors are not shown as "user not found".
- */
+// 公开资料用户名归一化与加载失败文案映射。
 object ExplorePublicProfilePolicy {
 
     fun normalizeUsername(raw: String?): String {
