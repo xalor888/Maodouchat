@@ -7,6 +7,7 @@ import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.SendSignalRequest
 import com.maodouchat.core.model.SignalMessage
+import com.maodouchat.core.model.WsMessage
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.WebSocketClient
 import kotlinx.serialization.json.Json
@@ -42,8 +43,8 @@ object WebRTCSignaling {
         )
         val signalPayload = json.encodeToString(SendSignalRequest.serializer(), request)
         val wsMsg = json.encodeToString(
-            com.maodouchat.network.WsMessage.serializer(),
-            com.maodouchat.network.WsMessage("SIGNALING", signalPayload)
+            WsMessage.serializer(),
+            WsMessage("SIGNALING", signalPayload)
         )
         return WebSocketClient.sendRaw(wsMsg)
     }

@@ -2,6 +2,7 @@ package com.maodouchat.network
 
 import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.core.model.GroupInvitationDto
+import com.maodouchat.core.model.PinnedMessageDto
 import com.maodouchat.core.model.WebSocketErrorKind
 
 sealed class WebSocketEvent {

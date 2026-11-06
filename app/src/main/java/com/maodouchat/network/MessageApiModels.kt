@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.PinnedMessageDto
 import kotlinx.serialization.Serializable
 import com.maodouchat.data.model.MessageReaction
 
@@ -27,14 +28,6 @@ data class StarredMessageRefDto(
     val messageId: String,
     val chatId: String,
     val starredAt: Long,
-)
-
-@Serializable
-data class PinnedMessageDto(
-    val chatId: String,
-    val messageId: String,
-    val pinnedBy: String,
-    val pinnedAt: Long
 )
 
 @Serializable

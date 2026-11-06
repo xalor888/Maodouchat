@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiOperationUi
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.PinnedMessageDto
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.core.crypto.DeviceSafetyState
@@ -14,7 +15,6 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.PinnedMessageDto
 import com.maodouchat.core.model.AiGroupTask
 
 /**
