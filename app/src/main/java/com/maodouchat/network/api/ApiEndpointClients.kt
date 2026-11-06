@@ -3,6 +3,10 @@ package com.maodouchat.network.api
 import com.maodouchat.network.*
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
+import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.UpdateModerationRuleRequest
 internal object ApiEndpointClients : ApiSurface {
 override suspend fun getPublicStatus(): Result<String> = ApiMessagingEndpoints.getPublicStatus()
 override suspend fun deleteChat(token: String, chatId: String): Result<Unit> = ApiMessagingEndpoints.deleteChat(token, chatId)
@@ -13,8 +17,7 @@ override suspend fun getStarredMessages(token: String, chatId: String?): Result<
 override suspend fun getUsers(token: String, limit: Int, offset: Int): Result<List<UserDto>> = ApiSocialEndpoints.getUsers(token, limit, offset)
 override suspend fun getAllSearchableUsers(
     token: String,
-    pageSize: Int,
-    maxUsers: Int): Result<List<UserDto>> = ApiSocialEndpoints.getAllSearchableUsers(token, pageSize, maxUsers)
+    pageSize: Int, maxUsers: Int): Result<List<UserDto>> = ApiSocialEndpoints.getAllSearchableUsers(token, pageSize, maxUsers)
 override suspend fun getUser(token: String, userId: String): Result<UserDto> = ApiSocialEndpoints.getUser(token, userId)
 override suspend fun getNearbyLocationStatus(token: String): Result<NearbyLocationStatusResponse> = ApiSocialEndpoints.getNearbyLocationStatus(token)
 override suspend fun updateNearbyLocation(token: String, latitude: Double, longitude: Double): Result<NearbyLocationStatusResponse> = ApiSocialEndpoints.updateNearbyLocation(token, latitude, longitude)
@@ -32,8 +35,7 @@ override suspend fun updatePrivacy(
     showOnline: Boolean?,
     showStatus: Boolean?,
     searchable: Boolean?,
-    defaultPostVisibility: String?,
-    onlineVisibility: String?): Result<UserPrivacyDto> = ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
+    defaultPostVisibility: String?, onlineVisibility: String?): Result<UserPrivacyDto> = ApiSocialEndpoints.updatePrivacy(token, showOnline, showStatus, searchable, defaultPostVisibility, onlineVisibility)
 override suspend fun getPublicUpdates(baseUrl: String): Result<PublicUpdatesDto> = ApiSocialEndpoints.getPublicUpdates(baseUrl)
 override suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse> = ApiSocialEndpoints.getNotificationSettings(token)
 override suspend fun updateNotificationSettings(token: String, request: NotificationSettingsRequest): Result<NotificationSettingsResponse> = ApiSocialEndpoints.updateNotificationSettings(token, request)
@@ -41,8 +43,7 @@ override suspend fun registerPushToken(
     token: String,
     deviceId: String,
     pushToken: String,
-    timezoneOffsetMinutes: Int
-): Result<Unit> = ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
+    timezoneOffsetMinutes: Int): Result<Unit> = ApiSocialEndpoints.registerPushToken(token, deviceId, pushToken, timezoneOffsetMinutes)
 override suspend fun removePushToken(token: String, deviceId: String): Result<Unit> = ApiSocialEndpoints.removePushToken(token, deviceId)
 override suspend fun blockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.blockUser(token, userId)
 override suspend fun unblockUser(token: String, userId: String): Result<Unit> = ApiSocialEndpoints.unblockUser(token, userId)
@@ -52,8 +53,7 @@ override suspend fun getPosts(
     token: String,
     limit: Int,
     before: Long?,
-    beforeId: String?,
-    authorId: String?): Result<List<PostDto>> = ApiSocialContentEndpoints.getPosts(token, limit, before, beforeId, authorId)
+    beforeId: String?, authorId: String?): Result<List<PostDto>> = ApiSocialContentEndpoints.getPosts(token, limit, before, beforeId, authorId)
 override suspend fun createPost(token: String, content: String, imageUrls: List<String>, visibility: String?): Result<PostDto> = ApiSocialContentEndpoints.createPost(token, content, imageUrls, visibility)
 override suspend fun getPost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.getPost(token, postId)
 override suspend fun editPost(token: String, postId: String, content: String, visibility: String?): Result<PostDto> = ApiSocialContentEndpoints.editPost(token, postId, content, visibility)

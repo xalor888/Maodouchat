@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 // 离线话术：群玩/应用功能簇。
-internal object OfflinePlayPhrases {
+object OfflinePlayPhrases {
     fun match(lower: String, seed: String): List<String>? {
         if (offlineHas(lower, seed, listOf("backup", "备份", "导出聊天", "export chat"))) return listOf(
             "密聊内容不建议明文导出。",

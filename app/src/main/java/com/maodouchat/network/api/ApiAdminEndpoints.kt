@@ -1,5 +1,12 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.ApplyReportActionRequest
+import com.maodouchat.core.model.CreateReportRequest
+import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.UpdateModerationRuleRequest
+import com.maodouchat.core.model.UpdateReportStatusRequest
 import com.maodouchat.network.*
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

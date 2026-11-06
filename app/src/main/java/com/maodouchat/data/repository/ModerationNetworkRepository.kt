@@ -1,10 +1,10 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.ModerationRuleResponse
-import com.maodouchat.network.ReportResponse
-import com.maodouchat.network.RiskEventResponse
-import com.maodouchat.network.UpdateModerationRuleRequest
+import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.RiskEventResponse
+import com.maodouchat.core.model.UpdateModerationRuleRequest
 
 /**
  * 举报 / 审核 / 风控的**远端**调用（G328c）。

@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 // 离线建议话术库：纯关键词匹配，无 VM / 网络依赖。簇已按主题拆出同包三文件。
-internal object OfflineSuggestionPhrases {
+object OfflineSuggestionPhrases {
 
     fun suggest(lower: String, seed: String, tone: String): List<String> {
         val base = OfflineGreetingPhrases.match(lower, seed)
@@ -26,5 +26,5 @@ internal object OfflineSuggestionPhrases {
 }
 
 // 共享关键词匹配：lower 做大小写不敏感包含，seed 原样包含。
-internal fun offlineHas(lower: String, seed: String, keys: List<String>): Boolean =
+fun offlineHas(lower: String, seed: String, keys: List<String>): Boolean =
     keys.any { key -> key.lowercase() in lower || key in seed }

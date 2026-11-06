@@ -2,7 +2,7 @@ package com.maodouchat.explore.usecase
 
 import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.ReportResponse
+import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 

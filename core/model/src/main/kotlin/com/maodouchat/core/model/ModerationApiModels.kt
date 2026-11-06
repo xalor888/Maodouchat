@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
 import kotlinx.serialization.Serializable
 

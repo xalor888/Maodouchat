@@ -42,8 +42,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.maodouchat.network.ReportResponse
-import com.maodouchat.network.ModerationRuleResponse
+import com.maodouchat.core.model.ReportResponse
+import com.maodouchat.core.model.ModerationRuleResponse
 import com.maodouchat.R
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -7,7 +7,7 @@ import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.MediaUploadQueue
 import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.network.PostDto
-import com.maodouchat.network.ReportResponse
+import com.maodouchat.core.model.ReportResponse
 
 class PublishPostUseCase(
     private val mutationRepository: PostMutationRepository,

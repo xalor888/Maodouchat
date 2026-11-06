@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
+import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.ui.theme.LocalChatPalette
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,7 +55,7 @@ import kotlinx.coroutines.launch
 fun MyReportsScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val reports = remember { mutableStateOf<List<com.maodouchat.network.ReportResponse>>(emptyList()) }
+    val reports = remember { mutableStateOf<List<ReportResponse>>(emptyList()) }
     val isLoading = remember { mutableStateOf(true) }
     val error = remember { mutableStateOf<String?>(null) }
     val loadFailedText = stringResource(com.maodouchat.R.string.my_reports_load_failed)
@@ -104,7 +105,7 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
 }
 
 @Composable
-private fun MyReportCard(report: com.maodouchat.network.ReportResponse) {
+private fun MyReportCard(report: ReportResponse) {
     val targetLabel = when (report.targetType) {
         "MESSAGE" -> stringResource(com.maodouchat.R.string.my_reports_target_message)
         "POST" -> stringResource(com.maodouchat.R.string.my_reports_target_post)

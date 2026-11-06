@@ -16,7 +16,7 @@ import com.maodouchat.network.PostCommentDto
 import com.maodouchat.network.PostDto
 import com.maodouchat.network.PostLikersResponse
 import com.maodouchat.network.PublicProfileResponse
-import com.maodouchat.network.ReportResponse
+import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.network.SetUsernameResponse
 import com.maodouchat.network.UserDto
 import com.maodouchat.network.api.SocialApi
