@@ -6,6 +6,7 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
 import com.maodouchat.core.model.ScheduledMessagePolicy

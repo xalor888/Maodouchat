@@ -3,6 +3,7 @@ package com.maodouchat.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.maodouchat.core.model.ScheduledMessage
 
 @Entity(
     tableName = "scheduled_messages",
@@ -34,7 +35,7 @@ data class ScheduledMessageEntity(
     val idempotencyKey: String,
 )
 
-fun ScheduledMessageEntity.toModel(): com.maodouchat.util.ScheduledMessage = com.maodouchat.util.ScheduledMessage(
+fun ScheduledMessageEntity.toModel(): ScheduledMessage = ScheduledMessage(
     id = id,
     chatId = chatId,
     peerUserId = peerUserId,
@@ -53,7 +54,7 @@ fun ScheduledMessageEntity.toModel(): com.maodouchat.util.ScheduledMessage = com
     idempotencyKey = idempotencyKey,
 )
 
-fun com.maodouchat.util.ScheduledMessage.toEntity(): ScheduledMessageEntity = ScheduledMessageEntity(
+fun ScheduledMessage.toEntity(): ScheduledMessageEntity = ScheduledMessageEntity(
     id = id,
     ownerUserId = ownerUserId,
     chatId = chatId,

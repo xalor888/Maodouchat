@@ -1,10 +1,17 @@
 package com.maodouchat.scheduling
 
+import com.maodouchat.core.model.ChatReminderOutcome
+import com.maodouchat.core.model.ChatScheduleCommand
+import com.maodouchat.core.model.ChatScheduleImmediateOutcome
+import com.maodouchat.core.model.ChatScheduleMutationOutcome
+import com.maodouchat.core.model.ConversationScheduleResult
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.core.model.ConversationScheduleFailure
-import com.maodouchat.util.ScheduledMessage
+import com.maodouchat.core.model.MessageReminderRequest
+import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.core.model.ScheduledMessagePolicy
+import com.maodouchat.core.model.ScheduledMessageRequest
 
 /**
  * Screen-independent application controller for scheduled messages and reminders.

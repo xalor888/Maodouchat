@@ -1,6 +1,7 @@
 package com.maodouchat.attachment
 
-import com.maodouchat.crypto.NoRecipientDevicesException
+import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
+import com.maodouchat.core.model.NoRecipientDevicesException
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import java.io.IOException

@@ -7,7 +7,7 @@ import com.maodouchat.data.model.Chat
 import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
-import com.maodouchat.util.ScheduledMessage
+import com.maodouchat.core.model.ScheduledMessage
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

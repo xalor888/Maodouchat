@@ -1,5 +1,6 @@
 package com.maodouchat.chatlist
 
+import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListLocalProjectionCoordinator
@@ -153,7 +154,7 @@ class ChatListLocalProjectionCoordinatorTest {
     @Test
     fun refreshScheduledCountsAggregatesByChatId() = runTest(dispatcher) {
         val uiState = MutableStateFlow(ChatListUiState())
-        fun scheduled(chatId: String) = com.maodouchat.util.ScheduledMessage(
+        fun scheduled(chatId: String) = ScheduledMessage(
             id = "s-$chatId-${kotlin.random.Random.nextInt()}",
             chatId = chatId,
             peerUserId = "peer",
