@@ -3,7 +3,7 @@ package com.maodouchat.explore.repository
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.maodouchat.core.model.ExploreDraft
-import com.maodouchat.explore.policy.ExploreDraftPolicy
+import com.maodouchat.core.model.ExploreDraftPolicy
 
 interface DraftRepository {
     fun getDraft(ownerUserId: String, defaultVisibility: String? = null): ExploreDraft

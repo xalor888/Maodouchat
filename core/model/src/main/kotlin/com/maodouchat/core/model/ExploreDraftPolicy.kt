@@ -1,4 +1,4 @@
-package com.maodouchat.explore.policy
+package com.maodouchat.core.model
 
 /**
  * Account-scoped keys for Explore composer drafts so account A cannot reopen
@@ -18,5 +18,5 @@ object ExploreDraftPolicy {
      * 这处分歧待决策，见 G179 台账条目。
      */
     fun normalizeVisibility(value: String): String =
-        com.maodouchat.settings.normalizeVisibility(value, "PRIVATE")
+        normalizeVisibility(value, "PRIVATE")
 }

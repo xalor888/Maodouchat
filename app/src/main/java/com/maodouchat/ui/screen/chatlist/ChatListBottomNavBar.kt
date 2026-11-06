@@ -16,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.ExploreBadgeStore
+import com.maodouchat.core.model.UnreadBadgeStore
 import com.maodouchat.ui.component.AnimatedBottomNav
 import com.maodouchat.ui.component.BottomNavItem
 import com.maodouchat.ui.component.LiquidBottomTabItem

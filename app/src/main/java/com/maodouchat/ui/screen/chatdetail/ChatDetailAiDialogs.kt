@@ -16,6 +16,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.CategoryCount
+import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.data.model.Message
@@ -46,7 +47,7 @@ internal fun ChatDetailAiDialogs(
     onDismissAiSummaryScope: () -> Unit,
     showConversationProfile: Boolean,
     onDismissConversationProfile: () -> Unit,
-    conversationProfile: com.maodouchat.ai.ConversationProfile?,
+    conversationProfile: ConversationProfile?,
     conversationProfileLoading: Boolean,
     conversationProfileFailed: Boolean,
     showWeeklyReport: Boolean,

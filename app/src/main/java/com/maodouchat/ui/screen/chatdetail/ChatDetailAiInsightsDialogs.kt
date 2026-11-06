@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CategoryCount
+import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.WeeklyReport
 
 /** AI 画像与洞察对话框：会话画像、周报、消息分类。所需输入全经参数传入。 */
@@ -35,7 +36,7 @@ import com.maodouchat.core.model.WeeklyReport
 @Composable
 internal fun ConversationProfileDialog(
     loading: Boolean,
-    profile: com.maodouchat.ai.ConversationProfile?,
+    profile: ConversationProfile?,
     failed: Boolean,
     onDismiss: () -> Unit,
     // 1.317：复制会话画像
@@ -112,7 +113,7 @@ internal fun ConversationProfileDialog(
 }
 
 /** 1.317：将会话画像序列化为纯文本（复制用）。 */
-internal fun profileText(context: android.content.Context, profile: com.maodouchat.ai.ConversationProfile): String = buildString {
+internal fun profileText(context: android.content.Context, profile: ConversationProfile): String = buildString {
     val ctx = context
     append(
         ctx.getString(

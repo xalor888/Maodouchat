@@ -1,6 +1,8 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.ConversationProfile
+import com.maodouchat.core.model.LocalStats
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.AiProfileRepository
 import kotlinx.coroutines.Dispatchers

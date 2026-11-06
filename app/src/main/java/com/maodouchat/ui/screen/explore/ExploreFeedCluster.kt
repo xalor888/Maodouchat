@@ -8,7 +8,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
-import com.maodouchat.explore.policy.ExploreDraftPolicy
+import com.maodouchat.core.model.ExploreDraftPolicy
 import com.maodouchat.core.model.ExplorePaging
 
 // 信息流加载一族：刷新/加载更多/隐私默认可见性。纯搬移，调用点与协程语义不变。

@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.ExploreBadgeStore
 import com.maodouchat.core.model.NotificationCenterType
+import com.maodouchat.core.model.UnreadBadgeStore
 import com.maodouchat.core.session.SessionUiResetEvent
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.security.SecureSessionAccess

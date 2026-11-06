@@ -1,7 +1,7 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.core.model
 
-import com.maodouchat.settings.VISIBILITY_VALUES
-import com.maodouchat.settings.normalizeVisibility
+import com.maodouchat.core.model.VISIBILITY_VALUES
+import com.maodouchat.core.model.normalizeVisibility
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

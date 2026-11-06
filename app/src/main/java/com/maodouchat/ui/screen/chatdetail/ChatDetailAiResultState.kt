@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.maodouchat.ai.ConversationProfile
+import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.WeeklyReport
 
