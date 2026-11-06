@@ -1,6 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
+import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.data.local.AppDatabase
 
 // 会话画像装配门面：生成簇 + 缓存簇的统一入口，全部透传。

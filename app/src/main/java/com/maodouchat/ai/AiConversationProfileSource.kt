@@ -1,5 +1,6 @@
 package com.maodouchat.ai
 
+import com.maodouchat.core.model.ConversationProfile
 
 /**
  * 「会话画像」AI 能力的读取端口（G73）。

@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.ai.ConversationProfile
-import com.maodouchat.ai.LocalStats
+import com.maodouchat.core.model.ConversationProfile
+import com.maodouchat.core.model.LocalStats
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

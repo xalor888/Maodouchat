@@ -1,4 +1,4 @@
-package com.maodouchat.settings
+package com.maodouchat.core.model
 
 
 /**
@@ -19,5 +19,5 @@ package com.maodouchat.settings
 val VISIBILITY_VALUES: Set<String> = setOf("PUBLIC", "CONTACTS", "PRIVATE")
 
 /** 只认 [VISIBILITY_VALUES] 里的值；其余（含空串）回落调用方给的 [fallback]。 */
-internal fun normalizeVisibility(value: String, fallback: String): String =
+fun normalizeVisibility(value: String, fallback: String): String =
     value.takeIf { it in VISIBILITY_VALUES } ?: fallback

@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
 /** 1.54：底部导航「会话」未读角标总计数（ChatListViewModel 推送，BottomNavBar 订阅）。 */
 object UnreadBadgeStore {

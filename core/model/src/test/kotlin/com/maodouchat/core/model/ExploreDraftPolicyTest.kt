@@ -1,10 +1,10 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import com.maodouchat.explore.policy.ExploreDraftPolicy
+import com.maodouchat.core.model.ExploreDraftPolicy
 
 class ExploreDraftPolicyTest {
     @Test

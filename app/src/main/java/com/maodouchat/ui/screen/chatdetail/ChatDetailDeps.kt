@@ -34,6 +34,7 @@ import com.maodouchat.util.VoiceRecorder
 import com.maodouchat.core.model.AiChatClassificationSource
 import com.maodouchat.core.model.AiEmotionReplySource
 import com.maodouchat.core.model.AiWeeklyReportSource
+import com.maodouchat.core.model.ChatDetailDraftBookkeeping
 import com.maodouchat.core.model.DecryptTexts
 import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
@@ -553,7 +554,6 @@ internal class ChatDetailDeps(
         completions = inlineSendCompletions,
         outgoingFacade = outgoingFacade,
     )
-    // G382：`sendContactCard()` 名片发送抽到 ChatContactCardController——VM 侧只留同签名委托。
     internal val contactCardController = ChatContactCardController(
         getApplication = { host.getApplication<android.app.Application>() },
         textProvider = host::text,

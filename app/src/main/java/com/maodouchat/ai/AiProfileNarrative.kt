@@ -2,6 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.core.model.AiPromptSafetyPolicy
+import com.maodouchat.core.model.LocalStats
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.network.AiContextMessage

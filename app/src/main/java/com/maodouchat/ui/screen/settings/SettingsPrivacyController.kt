@@ -29,7 +29,7 @@ internal class SettingsPrivacyController(
     private var loadedPrivacy: LoadedPrivacy? = null
     private val dirtyPrivacyFields = mutableSetOf<PrivacyField>()
 
-    private fun normalizeVisibility(value: String): String = com.maodouchat.settings.normalizeVisibility(value, "PUBLIC")
+    private fun normalizeVisibility(value: String): String = com.maodouchat.core.model.normalizeVisibility(value, "PUBLIC")
 
     /**
      * 隐私开关公共骨架：保存中直接忽略；与已加载值比对决定脏位增减；
