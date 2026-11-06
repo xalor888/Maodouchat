@@ -2,7 +2,8 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import com.maodouchat.core.crypto.IdentityTrustService
-import com.maodouchat.core.crypto.IdentityTrustState as CoreIdentityTrustState
+import com.maodouchat.core.crypto.DeviceSafetyState
+import com.maodouchat.core.crypto.IdentityTrustState
 import com.maodouchat.core.crypto.IdentityTrustStateMachine
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.SignalProtocolAddress
@@ -27,21 +28,15 @@ internal class SignalIdentityTrustService(
     fun getLocalIdentityFingerprint(): String =
         identityFingerprint(context.identityKeyPair.publicKey.serialize())
 
-    override fun stateFor(peerAccountId: String, deviceId: Int): CoreIdentityTrustState {
-        val legacy = getIdentityTrustState(peerAccountId, deviceId)
-        return when (legacy) {
-            IdentityTrustState.VERIFIED -> CoreIdentityTrustState.VERIFIED
-            IdentityTrustState.CHANGED -> CoreIdentityTrustState.CHANGED
-            else -> CoreIdentityTrustState.UNKNOWN
-        }
-    }
+    override fun stateFor(peerAccountId: String, deviceId: Int): IdentityTrustState =
+        getIdentityTrustState(peerAccountId, deviceId)
 
-    override fun markVerified(peerAccountId: String, deviceId: Int): CoreIdentityTrustState {
+    override fun markVerified(peerAccountId: String, deviceId: Int): IdentityTrustState {
         val ok = markIdentityVerified(peerAccountId, deviceId)
-        return if (ok) CoreIdentityTrustState.VERIFIED else stateFor(peerAccountId, deviceId)
+        return if (ok) IdentityTrustState.VERIFIED else stateFor(peerAccountId, deviceId)
     }
 
-    override fun onIdentityKeyChanged(peerAccountId: String, deviceId: Int): CoreIdentityTrustState {
+    override fun onIdentityKeyChanged(peerAccountId: String, deviceId: Int): IdentityTrustState {
         val accountId = context.currentUserId ?: SignalProtocolConstants.ANONYMOUS_ACCOUNT_ID
         val existing = (context.protocolStore as? PersistentSignalProtocolStore)?.getIdentityTrust(peerAccountId, deviceId)
         if (existing != null) {
@@ -54,10 +49,10 @@ internal class SignalIdentityTrustService(
             )
             context.protocolStore.deleteSession(SignalProtocolAddress(peerAccountId, deviceId))
         }
-        return CoreIdentityTrustState.CHANGED
+        return IdentityTrustState.CHANGED
     }
 
-    override fun reset(peerAccountId: String, deviceId: Int): CoreIdentityTrustState {
+    override fun reset(peerAccountId: String, deviceId: Int): IdentityTrustState {
         val accountId = context.currentUserId ?: SignalProtocolConstants.ANONYMOUS_ACCOUNT_ID
         context.identityTrustDao.deleteTrustBlocking(accountId, peerAccountId, deviceId)
         context.protocolStore.deleteSession(SignalProtocolAddress(peerAccountId, deviceId))

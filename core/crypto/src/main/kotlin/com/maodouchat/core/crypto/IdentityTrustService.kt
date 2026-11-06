@@ -1,7 +1,7 @@
 package com.maodouchat.core.crypto
 
-/** 身份信任状态（M03）：UNKNOWN 未验证 / VERIFIED 已验证安全码 / CHANGED 对方身份密钥已变更。 */
-enum class IdentityTrustState { UNKNOWN, VERIFIED, CHANGED }
+/** 身份信任状态（M03）：UNKNOWN 未验证 / TRUSTED 已建会话但未核对安全码 / VERIFIED 已验证安全码 / CHANGED 对方身份密钥已变更。 */
+enum class IdentityTrustState { UNKNOWN, TRUSTED, VERIFIED, CHANGED }
 
 /**
  * 身份信任状态机（纯逻辑，无 libsignal / Android 依赖）。

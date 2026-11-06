@@ -1,17 +1,10 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.WarningKind
 
-/**
- * Multi-device identity aggregation for chat safety UI (M2-9 / §6 extract).
- * Pure decisions only — no Android / network.
- */
 object IdentitySafetyPolicy {
 
-    /**
-     * Worst-wins across devices: CHANGED > UNKNOWN > TRUSTED > VERIFIED.
-     * Empty list is UNKNOWN (no session yet).
-     */
+    // 最坏者胜：CHANGED > UNKNOWN > TRUSTED > VERIFIED；空列表视为 UNKNOWN。
     fun aggregateTrust(
         states: List<DeviceSafetyState>
     ): IdentityTrustState {
@@ -28,7 +21,6 @@ object IdentitySafetyPolicy {
         return IdentityTrustState.TRUSTED
     }
 
-    /** Prefer device #1 when present; otherwise first listed device. */
     fun primaryDevice(
         states: List<DeviceSafetyState>
     ): DeviceSafetyState? =
@@ -40,7 +32,6 @@ object IdentitySafetyPolicy {
                 state.trustState != IdentityTrustState.VERIFIED
         }
 
-    /** Banner / dialog should stay prominent until user re-verifies. */
     fun isStickyWarning(trust: IdentityTrustState): Boolean =
         SafetyCodePolicy.isStickyIdentityWarning(trust)
 

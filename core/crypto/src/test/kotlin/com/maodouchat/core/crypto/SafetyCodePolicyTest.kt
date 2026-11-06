@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

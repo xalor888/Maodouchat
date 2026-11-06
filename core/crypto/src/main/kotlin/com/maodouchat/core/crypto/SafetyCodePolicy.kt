@@ -1,24 +1,17 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
-/**
- * Safety-number presentation helpers (M2-9).
- * Codes are already produced as 5-digit groups separated by spaces; this policy
- * normalizes display/copy and decides when identity-change warnings stay sticky.
- */
 object SafetyCodePolicy {
     private val digitsOnly = Regex("[^0-9]")
 
     fun digitsOnly(code: String?): String =
         code.orEmpty().replace(digitsOnly, "")
 
-    /** Normalize to groups of 5 digits separated by a single space for visual compare. */
     fun formatForDisplay(code: String?): String? {
         val digits = digitsOnly(code)
         if (digits.isEmpty()) return null
         return digits.chunked(5).joinToString(" ")
     }
 
-    /** Clipboard form: same as display (spaces kept for human paste/compare). */
     fun formatForCopy(code: String?): String? = formatForDisplay(code)
 
     fun codesMatch(local: String?, remote: String?): Boolean {
@@ -27,10 +20,7 @@ object SafetyCodePolicy {
         return a.isNotEmpty() && a == b
     }
 
-    /**
-     * CHANGED identity warnings must not be dismissed without verification.
-     * UNKNOWN/TRUSTED may show a softer banner that still routes into the dialog.
-     */
+// 只有 CHANGED 必须置顶到重新核对；UNKNOWN/TRUSTED 只显示可点进对话框的弱横幅。
     fun isStickyIdentityWarning(trustState: IdentityTrustState): Boolean =
         trustState == IdentityTrustState.CHANGED
 }

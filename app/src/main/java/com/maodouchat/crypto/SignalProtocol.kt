@@ -3,6 +3,7 @@ package com.maodouchat.crypto
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DeviceIdMigrationCoordinator
+import com.maodouchat.core.crypto.DeviceSafetyState
 import com.maodouchat.core.crypto.DirectMessageCipher
 import com.maodouchat.core.crypto.DirectSessionManager
 import com.maodouchat.core.crypto.EnvelopeCodec
@@ -11,6 +12,7 @@ import com.maodouchat.core.crypto.GroupEncryptionHealthService
 import com.maodouchat.core.crypto.GroupMessageCipher
 import com.maodouchat.core.crypto.GroupSenderKeyManager
 import com.maodouchat.core.crypto.IdentityTrustService
+import com.maodouchat.core.crypto.IdentityTrustState
 import com.maodouchat.core.crypto.PreKeyInventory
 import com.maodouchat.core.crypto.PreKeyPublisher
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
@@ -280,16 +282,16 @@ class SignalProtocol(
     // IdentityTrustService
     // ==========================================
 
-    override fun stateFor(peerAccountId: String, deviceId: Int): com.maodouchat.core.crypto.IdentityTrustState =
+    override fun stateFor(peerAccountId: String, deviceId: Int): IdentityTrustState =
         identityTrustService.stateFor(peerAccountId, deviceId)
 
-    override fun markVerified(peerAccountId: String, deviceId: Int): com.maodouchat.core.crypto.IdentityTrustState =
+    override fun markVerified(peerAccountId: String, deviceId: Int): IdentityTrustState =
         identityTrustService.markVerified(peerAccountId, deviceId)
 
-    override fun onIdentityKeyChanged(peerAccountId: String, deviceId: Int): com.maodouchat.core.crypto.IdentityTrustState =
+    override fun onIdentityKeyChanged(peerAccountId: String, deviceId: Int): IdentityTrustState =
         identityTrustService.onIdentityKeyChanged(peerAccountId, deviceId)
 
-    override fun reset(peerAccountId: String, deviceId: Int): com.maodouchat.core.crypto.IdentityTrustState =
+    override fun reset(peerAccountId: String, deviceId: Int): IdentityTrustState =
         identityTrustService.reset(peerAccountId, deviceId)
 
     fun getIdentityPublicKey(): IdentityKey =

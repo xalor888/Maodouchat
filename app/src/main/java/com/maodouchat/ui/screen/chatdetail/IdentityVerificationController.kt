@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.core.model.WarningKind
-import com.maodouchat.crypto.IdentitySafetyPolicy
+import com.maodouchat.core.crypto.IdentitySafetyPolicy
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.RuntimeFlags

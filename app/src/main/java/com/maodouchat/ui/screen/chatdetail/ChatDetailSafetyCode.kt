@@ -43,8 +43,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.crypto.DeviceSafetyState
-import com.maodouchat.crypto.IdentityTrustState
+import com.maodouchat.core.crypto.DeviceSafetyState
+import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.crypto.SafetyCodePolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -84,8 +85,8 @@ internal fun SafetyCodeDialog(
     onVerifyDevice: (Int) -> Unit
 ) {
     val context = LocalContext.current
-    val sticky = com.maodouchat.crypto.SafetyCodePolicy.isStickyIdentityWarning(trustState)
-    val displayCode = com.maodouchat.crypto.SafetyCodePolicy.formatForDisplay(safetyCode)
+    val sticky = SafetyCodePolicy.isStickyIdentityWarning(trustState)
+    val displayCode = SafetyCodePolicy.formatForDisplay(safetyCode)
     AlertDialog(
         // CHANGED identity: back/outside dismiss still allowed, but primary path forces verify dialog content.
         onDismissRequest = onDismiss,
@@ -138,7 +139,7 @@ internal fun SafetyCodeDialog(
                                 clipboard.setPrimaryClip(
                                     android.content.ClipData.newPlainText(
                                         context.getString(R.string.chat_safety_code),
-                                        com.maodouchat.crypto.SafetyCodePolicy.formatForCopy(code).orEmpty()
+                                        SafetyCodePolicy.formatForCopy(code).orEmpty()
                                     )
                                 )
                                 Toast.makeText(context, context.getString(R.string.chat_safety_code_copied), Toast.LENGTH_SHORT).show()
@@ -238,7 +239,7 @@ internal fun DeviceSafetyRow(
     onVerify: () -> Unit
 ) {
     val context = LocalContext.current
-    val displayCode = com.maodouchat.crypto.SafetyCodePolicy.formatForDisplay(device.safetyCode)
+    val displayCode = SafetyCodePolicy.formatForDisplay(device.safetyCode)
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier
@@ -269,7 +270,7 @@ internal fun DeviceSafetyRow(
                     clipboard.setPrimaryClip(
                         android.content.ClipData.newPlainText(
                             context.getString(R.string.chat_safety_code),
-                            com.maodouchat.crypto.SafetyCodePolicy.formatForCopy(displayCode).orEmpty()
+                            SafetyCodePolicy.formatForCopy(displayCode).orEmpty()
                         )
                     )
                     Toast.makeText(context, context.getString(R.string.chat_safety_code_copied), Toast.LENGTH_SHORT).show()

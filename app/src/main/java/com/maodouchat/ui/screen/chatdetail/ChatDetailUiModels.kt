@@ -8,8 +8,8 @@ import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptUi
-import com.maodouchat.crypto.DeviceSafetyState
-import com.maodouchat.crypto.IdentityTrustState
+import com.maodouchat.core.crypto.DeviceSafetyState
+import com.maodouchat.core.crypto.IdentityTrustState
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User

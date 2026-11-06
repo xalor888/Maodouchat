@@ -19,6 +19,10 @@ class IdentityTrustStateMachineTest {
             IdentityTrustState.VERIFIED,
             IdentityTrustStateMachine.onVerification(IdentityTrustState.VERIFIED),
         )
+        assertEquals(
+            IdentityTrustState.VERIFIED,
+            IdentityTrustStateMachine.onVerification(IdentityTrustState.TRUSTED),
+        )
     }
 
     @Test
@@ -34,6 +38,10 @@ class IdentityTrustStateMachineTest {
         assertEquals(
             IdentityTrustState.CHANGED,
             IdentityTrustStateMachine.onIdentityKeyChange(IdentityTrustState.CHANGED),
+        )
+        assertEquals(
+            IdentityTrustState.TRUSTED,
+            IdentityTrustStateMachine.onIdentityKeyChange(IdentityTrustState.TRUSTED),
         )
     }
 

@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.WarningKind
 import org.junit.Assert.assertEquals
