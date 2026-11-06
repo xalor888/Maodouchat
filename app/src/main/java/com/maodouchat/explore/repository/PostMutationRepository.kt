@@ -1,8 +1,13 @@
 package com.maodouchat.explore.repository
 
+import com.maodouchat.core.model.InMemoryPostMutationJournal
+import com.maodouchat.core.model.JournalEntry
 import com.maodouchat.core.model.MutationSessionChangedException
+import com.maodouchat.core.model.MutationSnapshot
+import com.maodouchat.core.model.MutationType
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.PostDto
+import com.maodouchat.core.model.PostMutationJournal
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient

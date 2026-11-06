@@ -1,7 +1,7 @@
 package com.maodouchat.explore.usecase
 
 import com.maodouchat.core.model.PostDto
-import com.maodouchat.explore.policy.Cursor
+import com.maodouchat.core.model.Cursor
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient

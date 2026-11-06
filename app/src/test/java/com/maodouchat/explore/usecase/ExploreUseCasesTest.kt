@@ -6,12 +6,12 @@ import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostLikersResponse
-import com.maodouchat.explore.policy.Cursor
+import com.maodouchat.core.model.Cursor
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.core.model.ExploreDraft
 import com.maodouchat.explore.repository.MediaUploadQueue
-import com.maodouchat.explore.repository.PostMutationJournal
+import com.maodouchat.core.model.PostMutationJournal
 import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.core.model.UploadItem
 import com.maodouchat.core.model.CurrentUserPublicResponse
@@ -270,7 +270,7 @@ class ExploreUseCasesTest {
         var editCalls = 0
         var publishFailure: Throwable? = null
         var publishThrow: Throwable? = null
-        override val journal: PostMutationJournal = com.maodouchat.explore.repository.InMemoryPostMutationJournal()
+        override val journal: PostMutationJournal = com.maodouchat.core.model.InMemoryPostMutationJournal()
 
         override suspend fun togglePostLike(ownerUserId: String, token: String, post: PostDto, onOptimisticUpdate: (PostDto) -> Unit) =
             Result.success(post.copy(likedByMe = !post.likedByMe))

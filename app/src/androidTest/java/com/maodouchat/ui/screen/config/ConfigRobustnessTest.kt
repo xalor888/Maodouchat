@@ -11,7 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
-import com.maodouchat.explore.policy.Cursor
+import com.maodouchat.core.model.Cursor
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 import com.maodouchat.ui.screen.chatlist.ChatListViewModel
 import com.maodouchat.ui.screen.settings.SecurityCoordinator

@@ -66,7 +66,7 @@ import com.maodouchat.ui.component.AvatarSize
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.core.model.ExploreFeedPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
