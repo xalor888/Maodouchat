@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
@@ -8,7 +9,6 @@ import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2EventAction

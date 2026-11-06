@@ -1,9 +1,9 @@
 package com.maodouchat.data
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.mergeDeliveryStatusForPersistence
 import com.maodouchat.data.repository.mergeLocalMediaMetaForPersistence

@@ -1,9 +1,9 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.core.model.MessagingV2EventAction
 import kotlin.test.Test

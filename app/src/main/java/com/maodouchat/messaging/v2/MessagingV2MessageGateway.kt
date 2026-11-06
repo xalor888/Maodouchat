@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
@@ -77,7 +78,7 @@ class MessagingV2MessageGateway(
         return database.withTransaction {
             val cancelled = database.messagingV2Dao().cancelOutboxMessage(owner, messageId)
             if (cancelled > 0) {
-                database.messageDao().updateMessageStatus(messageId, com.maodouchat.data.model.MessageStatus.FAILED.name)
+                database.messageDao().updateMessageStatus(messageId, MessageStatus.FAILED.name)
                 true
             } else {
                 false

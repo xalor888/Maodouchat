@@ -5,7 +5,6 @@ import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
@@ -15,6 +14,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.EncryptedAttachmentReference
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException

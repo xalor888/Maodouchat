@@ -1,10 +1,10 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import kotlin.test.Test

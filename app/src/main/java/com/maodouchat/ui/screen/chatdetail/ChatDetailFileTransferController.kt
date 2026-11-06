@@ -5,10 +5,10 @@ import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.crypto.AttachmentErrorUiPolicy
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.util.MediaCache

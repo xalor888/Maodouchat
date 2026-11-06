@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Plan
 import com.maodouchat.core.model.SeenSet
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 
 /** 已读回执判定：哪些消息算新未读、水印选哪条。纯函数，无协程/Room/网络。 */

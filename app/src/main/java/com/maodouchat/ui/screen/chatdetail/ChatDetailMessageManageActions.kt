@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
@@ -79,7 +80,7 @@ internal fun ChatDetailMessageManageActions(
         },
         modifier = Modifier.fillMaxWidth()
     ) { Text(stringResource(R.string.message_reminder_menu), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
-    if (isOwn && message.status == com.maodouchat.data.model.MessageStatus.FAILED) {
+    if (isOwn && message.status == MessageStatus.FAILED) {
         TextButton(
             onClick = {
                 viewModel.retrySendMessage(message.id)

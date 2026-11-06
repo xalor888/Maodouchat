@@ -2,7 +2,7 @@ package com.maodouchat.messaging.v2
 
 import android.util.Log
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.data.model.MessageStatus
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient

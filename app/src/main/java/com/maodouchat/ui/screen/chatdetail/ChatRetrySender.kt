@@ -4,9 +4,9 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageResult

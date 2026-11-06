@@ -1,13 +1,13 @@
 package com.maodouchat.forwarding
 
 import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.messaging.v2.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController

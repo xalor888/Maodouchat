@@ -3,10 +3,10 @@ package com.maodouchat.forwarding
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController

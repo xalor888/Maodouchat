@@ -1,8 +1,8 @@
 package com.maodouchat.ui.component
 
 import androidx.compose.runtime.Immutable
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.data.model.MessageStatus
 
 /** Render-ready message data. Renderers must not decode message bodies or metadata. */
 @Immutable

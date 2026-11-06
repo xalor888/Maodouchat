@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 
 /**
  * Telegram-style list ticks: only when the list tail is our own outgoing message.

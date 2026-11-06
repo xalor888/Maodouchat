@@ -1,6 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -10,6 +9,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.conversation.ReadReceiptSource
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.PrefetchMessage
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptPolicy

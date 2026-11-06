@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +23,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import com.maodouchat.conversation.ReadReceiptSource
+import com.maodouchat.core.model.MessageStatus
 
 /**
  * G64 安全网：`ChatReadReceiptCoordinator` 的行为契约。
