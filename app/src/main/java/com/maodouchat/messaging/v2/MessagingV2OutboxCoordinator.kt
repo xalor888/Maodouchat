@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
+import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2GroupControlPolicy
 import com.maodouchat.core.model.MessagingV2RetryPolicy
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException

@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache

@@ -2,6 +2,7 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.model.Message
