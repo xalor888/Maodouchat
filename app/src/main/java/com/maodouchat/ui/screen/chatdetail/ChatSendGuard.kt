@@ -4,9 +4,9 @@ import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.core.model.MessageStatus
 
 /**
  * 发送/重试的**准入判定**（G66，从 `ChatDetailViewModel.sendMessage()` 90 行与

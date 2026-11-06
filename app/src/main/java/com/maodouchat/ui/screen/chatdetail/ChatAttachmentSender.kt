@@ -2,9 +2,9 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.net.Uri
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController

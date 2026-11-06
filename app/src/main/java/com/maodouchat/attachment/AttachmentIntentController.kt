@@ -6,7 +6,6 @@ import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AttachmentIntent
@@ -24,6 +23,7 @@ import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.util.StickerPreferences
 import com.maodouchat.util.ViewOncePolicy
 import kotlinx.coroutines.CancellationException

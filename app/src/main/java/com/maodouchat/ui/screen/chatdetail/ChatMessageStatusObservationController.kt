@@ -3,9 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import android.util.Log
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.chatdetail.ChatDetailDataAccess
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SeenSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

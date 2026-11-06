@@ -1,7 +1,7 @@
 package com.maodouchat.data
 
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.mergeMessageForPersistence
 import org.junit.Assert.assertEquals

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
@@ -283,7 +284,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                 onToggleSelection(toggleMessageSelection(selectedMessageIds, it.id))
             },
             onLongPress = {
-                if (it.status == com.maodouchat.data.model.MessageStatus.FAILED && isOwn) onRetryMessage(message)
+                if (it.status == MessageStatus.FAILED && isOwn) onRetryMessage(message)
                 else onMessageActions(message)
             },
             // 1.17：点击消息内名片 → 打开对方资料（未接线时提示）

@@ -3,6 +3,7 @@ package com.maodouchat.messaging.v2
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
@@ -10,7 +11,6 @@ import com.maodouchat.data.local.entity.MessagingV2InboxState
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.model.MessagingV2EventAction

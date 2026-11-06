@@ -3,6 +3,7 @@ package com.maodouchat.data.repository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AiOperationState
@@ -11,7 +12,6 @@ import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageStatus
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals

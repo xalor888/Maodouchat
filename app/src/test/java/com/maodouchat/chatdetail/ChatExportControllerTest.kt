@@ -2,9 +2,9 @@ package com.maodouchat.chatdetail
 
 import android.content.Context
 import com.maodouchat.R
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
@@ -260,7 +260,7 @@ class ChatExportControllerTest {
                     content = "hello",
                     type = MessageType.TEXT,
                     timestamp = 12345L,
-                    status = com.maodouchat.data.model.MessageStatus.READ,
+                    status = MessageStatus.READ,
                 ),
                 Message(
                     id = "m2",
@@ -622,7 +622,7 @@ class ChatExportControllerTest {
             messages = listOf(
                 Message(
                     id = "m1", chatId = "c1", senderId = "user_me", content = "clip", type = MessageType.VIDEO,
-                    timestamp = 777L, status = com.maodouchat.data.model.MessageStatus.FAILED,
+                    timestamp = 777L, status = MessageStatus.FAILED,
                 ),
             ),
         )

@@ -4,11 +4,11 @@ import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageReaction
-import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.MessageMutationTracker
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.isAlreadyTerminalMutation
 import com.maodouchat.core.model.isAmbiguousTransportFailure
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions

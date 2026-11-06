@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.util.RuntimeFlags
@@ -61,7 +62,7 @@ internal fun ChatDetailSelectionToolbar(
                 // 8.53：排除在途消息（SENDING）与附件仍在上传准备中的消息——
                 // 删了会与服务端 404 竞态，outbox flusher 仍可能把消息发出去
                 .filter {
-                    it.status != com.maodouchat.data.model.MessageStatus.SENDING &&
+                    it.status != MessageStatus.SENDING &&
                         it.id !in preparingAttachmentMessageIds
                 }
                 .map { it.id }
