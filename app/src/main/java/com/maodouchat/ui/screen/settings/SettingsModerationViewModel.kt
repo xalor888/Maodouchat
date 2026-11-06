@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.core.model.ModerationUiState
 import com.maodouchat.core.model.UpdateModerationRuleRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
