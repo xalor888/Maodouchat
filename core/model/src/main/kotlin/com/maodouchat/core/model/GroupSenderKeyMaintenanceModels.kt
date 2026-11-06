@@ -1,5 +1,4 @@
-package com.maodouchat.messaging.v2
-import com.maodouchat.core.model.SenderKeyDistributionStatusDto
+package com.maodouchat.core.model
 
 
 sealed interface GroupSenderKeyMaintenanceOutcome {

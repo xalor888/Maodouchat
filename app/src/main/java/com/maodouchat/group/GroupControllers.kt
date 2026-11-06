@@ -2,9 +2,9 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.GroupAuditLogDto
 import com.maodouchat.core.model.GroupOwnedBotUi
+import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceCoordinator
-import com.maodouchat.messaging.v2.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.GroupInviteResponse
 import kotlinx.coroutines.Dispatchers
