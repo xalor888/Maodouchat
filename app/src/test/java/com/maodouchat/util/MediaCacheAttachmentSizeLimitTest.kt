@@ -9,6 +9,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
+import com.maodouchat.core.model.LocalFileMetadata
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

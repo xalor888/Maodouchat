@@ -13,6 +13,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.core.model.MessagingV2EventAction
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertFalse

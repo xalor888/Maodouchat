@@ -14,7 +14,7 @@ import com.maodouchat.core.model.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.TokenManager
-import com.maodouchat.util.EncryptedAttachmentReference
+import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.util.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException

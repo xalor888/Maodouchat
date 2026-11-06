@@ -1,23 +1,9 @@
-package com.maodouchat.settings.policy
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConflictResolutionResult
-import com.maodouchat.core.model.MultiDevicePreferences
-import com.maodouchat.core.model.PreferencesPatch
-
-/**
- * Pure domain policy governing multi-device roaming preferences versioning and conflict resolution.
- */
+// 多设备漫游偏好版本与冲突消解的纯策略。
 object PreferenceConflictPolicy {
 
-    /**
-     * Resolves differences between current local preferences and incoming remote preferences.
-     *
-     * @param sessionOwnerUserId The authenticated user ID for the current active session.
-     * @param local Current local versioned preferences.
-     * @param remote Incoming remote versioned preferences from server.
-     * @param pendingLocalPatch Optional uncommitted local user edits not yet pushed to the server.
-     * @param currentTimestampMs Current clock epoch milliseconds.
-     */
+    // 按会话归属、版本号与本地待提交补丁做字段级合并。
     fun resolve(
         sessionOwnerUserId: String,
         local: MultiDevicePreferences,

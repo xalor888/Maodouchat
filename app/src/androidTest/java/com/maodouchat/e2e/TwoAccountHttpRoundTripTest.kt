@@ -8,14 +8,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.crypto.SignalKeyExchange
-import com.maodouchat.util.EncryptedAttachmentReference
+import com.maodouchat.core.model.EncryptedAttachmentReference
 import org.signal.libsignal.protocol.ecc.Curve
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.messaging.v2.MessagingV2Content
 import com.maodouchat.messaging.v2.MessagingV2Event
-import com.maodouchat.messaging.v2.MessagingV2EventAction
+import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink
 import androidx.work.ListenableWorker
 import androidx.work.testing.TestListenableWorkerBuilder

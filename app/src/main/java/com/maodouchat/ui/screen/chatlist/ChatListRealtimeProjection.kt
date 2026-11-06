@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.resolveUserVisibility
 
 /**
  * 会话列表实时投影纯函数（ChatList 瘦身第 3 切片）。
@@ -33,7 +34,7 @@ fun applyPresenceProjection(
     chat.copy(
         participants = chat.participants.map { p ->
             if (p.id != userId) return@map p
-            val visibility = com.maodouchat.network.resolveUserVisibility(
+            val visibility = resolveUserVisibility(
                 currentIsOnline = p.isOnline,
                 currentStatus = p.status,
                 currentLastSeen = p.lastSeen,

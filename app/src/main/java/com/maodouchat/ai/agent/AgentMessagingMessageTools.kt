@@ -8,7 +8,7 @@ import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2Event
-import com.maodouchat.messaging.v2.MessagingV2EventAction
+import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 

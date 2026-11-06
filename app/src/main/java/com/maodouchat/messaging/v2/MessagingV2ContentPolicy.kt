@@ -1,5 +1,7 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessagingV2EventAction
+
 /** Binds untrusted transport metadata to the authenticated encrypted application payload. */
 internal object MessagingV2ContentPolicy {
     fun accepts(kind: String, content: MessagingV2Content): Boolean {

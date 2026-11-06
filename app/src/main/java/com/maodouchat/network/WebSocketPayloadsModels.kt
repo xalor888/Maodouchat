@@ -2,12 +2,6 @@ package com.maodouchat.network
 
 import kotlinx.serialization.Serializable
 
-internal data class ResolvedUserVisibility(
-    val isOnline: Boolean,
-    val status: String,
-    val lastSeen: Long
-)
-
 @Serializable
 internal data class WsMessage(val type: String, val payload: String)
 

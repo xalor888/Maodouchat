@@ -12,7 +12,7 @@ import com.maodouchat.core.model.WebSocketErrorKind
 import com.maodouchat.network.WebSocketEvent
 import com.maodouchat.network.WebSocketTransport
 import com.maodouchat.core.realtime.resolveTypingSignalAction
-import com.maodouchat.network.resolveUserVisibility
+import com.maodouchat.core.model.resolveUserVisibility
 import com.maodouchat.session.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.RealtimeConnectionManager
 import com.maodouchat.core.model.DisappearingMessagePolicy

@@ -3,6 +3,7 @@ package com.maodouchat.watermark
 import kotlin.math.abs
 import kotlin.math.round
 import kotlin.math.roundToInt
+import com.maodouchat.core.model.Dct8
 
 /**
  * 频域盲水印引擎：在 8x8 DCT 中频系数上做 QIM（Quantization Index Modulation）嵌入，

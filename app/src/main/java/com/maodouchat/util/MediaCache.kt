@@ -8,6 +8,8 @@ import android.util.Log
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.data.model.MessageType
+import com.maodouchat.core.model.EncryptedAttachmentReference
+import com.maodouchat.core.model.LocalFileMetadata
 import androidx.core.net.toUri
 import java.io.File
 import kotlinx.serialization.json.Json

@@ -11,6 +11,7 @@ import org.junit.rules.TemporaryFolder
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.core.crypto.EncryptedFile
+import com.maodouchat.core.model.EncryptedAttachmentReference
 import java.io.File
 import java.io.RandomAccessFile
 import java.util.Base64

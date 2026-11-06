@@ -5,6 +5,8 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.core.model.MessagingV2MutationAuthority
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
