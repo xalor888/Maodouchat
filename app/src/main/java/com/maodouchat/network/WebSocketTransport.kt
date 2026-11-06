@@ -2,9 +2,9 @@ package com.maodouchat.network
 
 import com.maodouchat.core.model.*
 import com.maodouchat.core.realtime.NonReplayingEventBus
+import com.maodouchat.core.realtime.RealtimeTransport
+import com.maodouchat.core.realtime.RealtimeTransportEvent
 import com.maodouchat.core.realtime.WebSocketSessionGate
-import com.maodouchat.session.RealtimeTransport
-import com.maodouchat.session.RealtimeTransportEvent
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
