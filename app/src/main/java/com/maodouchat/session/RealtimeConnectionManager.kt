@@ -2,7 +2,7 @@ package com.maodouchat.session
 
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionContextProvider
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted

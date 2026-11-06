@@ -9,7 +9,7 @@ import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.TypingSignalAction
 import com.maodouchat.core.model.WebSocketErrorKind
-import com.maodouchat.network.WebSocketEvent
+import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.network.WebSocketTransport
 import com.maodouchat.core.realtime.resolveTypingSignalAction
 import com.maodouchat.core.model.resolveUserVisibility
