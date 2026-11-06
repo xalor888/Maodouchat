@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
-import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.core.crypto.Reason

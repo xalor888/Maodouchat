@@ -27,7 +27,7 @@ import androidx.compose.ui.window.Dialog
 import com.maodouchat.R
 import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
-import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.core.model.GroupMutePolicy
 import com.maodouchat.core.model.GroupMutePreset
 import com.maodouchat.core.model.GroupMutationFeedbackKind

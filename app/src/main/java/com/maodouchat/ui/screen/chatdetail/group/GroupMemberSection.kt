@@ -39,7 +39,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 import java.text.SimpleDateFormat

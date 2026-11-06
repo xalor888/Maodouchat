@@ -6,7 +6,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.core.model.GroupMemberUi
 
 // 群详情页的对话框/搜索/展开交互状态簇：原在 GroupDetailScreen 内联声明，纯搬移不改判断。
 // 调用方用 `var x by interaction.x` 本地委托接线（ExpressionStickerState 同款），下游读写零改动。

@@ -1,5 +1,4 @@
-package com.maodouchat.group
-import com.maodouchat.core.model.GroupMemberDto
+package com.maodouchat.core.model
 
 
 data class GroupMemberUi(

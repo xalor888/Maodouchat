@@ -9,7 +9,7 @@ import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.data.model.User
 import com.maodouchat.core.model.GroupOwnedBotUi
-import com.maodouchat.group.GroupMemberUi
+import com.maodouchat.core.model.GroupMemberUi
 
 /** 群机器人条目在 UI 侧的短别名（`GroupOwnedBotUi` 的同名引用点较多，保留别名以免大面积改签名）。 */
 typealias OwnedBotUi = GroupOwnedBotUi
