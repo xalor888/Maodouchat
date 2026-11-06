@@ -15,6 +15,7 @@ import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AttachmentUploadResponse
 import com.maodouchat.core.model.AttachmentUploadSessionRequest
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
+import com.maodouchat.core.model.sha256Hex
 
 internal object MediaUploadApiClient : MediaUploadApi {
 private val json get() = ApiService.json

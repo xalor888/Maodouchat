@@ -1,10 +1,10 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 // 本地语义排序簇：不走模型，按分词命中计分。函数体从 LocalAiGateway 逐字搬出。
-internal object LocalAiLocalRanking {
+object LocalAiLocalRanking {
     // 查询分词正则放对象级复用，避免每次调用重复编译。
     private val queryTokenSplitRegex = Regex("\\s+")
 

@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.ai.AiPrivacyPreferences
+import com.maodouchat.core.model.AiPrivacySettingsUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
