@@ -1,6 +1,12 @@
 package com.maodouchat.network.api
 
+import com.maodouchat.core.model.CommentLikeResponse
 import com.maodouchat.core.model.CurrentUserPublicResponse
+import com.maodouchat.core.model.NearbyLocationStatusResponse
+import com.maodouchat.core.model.NearbyUserResponse
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
+import com.maodouchat.core.model.PostLikersResponse
 import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.SetUsernameResponse

@@ -3,9 +3,9 @@ package com.maodouchat.explore.repository
 import android.app.Application
 import com.maodouchat.core.model.FeedSession
 import com.maodouchat.core.model.FeedSessionChangedException
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PostDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.data.repository.PostNetworkRepository
 

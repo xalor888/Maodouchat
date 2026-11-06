@@ -9,8 +9,8 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.policy.Cursor
-import com.maodouchat.network.PostDto
 import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

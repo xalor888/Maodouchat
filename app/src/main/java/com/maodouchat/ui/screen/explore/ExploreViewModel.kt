@@ -3,8 +3,8 @@ package com.maodouchat.ui.screen.explore
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
-import com.maodouchat.network.PostCommentDto
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import com.maodouchat.explore.repository.AndroidFeedRepository

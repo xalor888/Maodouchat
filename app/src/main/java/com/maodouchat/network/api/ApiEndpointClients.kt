@@ -5,13 +5,19 @@ import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse
 import com.maodouchat.core.model.ClientPrefsDto
 import com.maodouchat.core.model.ClientPrefsUpdateRequest
+import com.maodouchat.core.model.CommentLikeResponse
 import com.maodouchat.core.model.CurrentUserPublicResponse
 import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.core.model.NearbyLocationStatusResponse
+import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.core.model.ModerationRuleResponse
+import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.core.model.PostDto
+import com.maodouchat.core.model.PostLikersResponse
 import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.PublicUpdatesDto
 import com.maodouchat.core.model.ReportResponse
@@ -63,8 +69,7 @@ override suspend fun editPost(token: String, postId: String, content: String, vi
 override suspend fun deletePost(token: String, postId: String): Result<Unit> = ApiSocialContentEndpoints.deletePost(token, postId)
 override suspend fun likePost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.likePost(token, postId)
 override suspend fun unlikePost(token: String, postId: String): Result<PostDto> = ApiSocialContentEndpoints.unlikePost(token, postId)
-override suspend fun getPostComments(token: String, postId: String, limit: Int,
-    before: Long?, beforeId: String?): Result<List<PostCommentDto>> =
+override suspend fun getPostComments(token: String, postId: String, limit: Int, before: Long?, beforeId: String?): Result<List<PostCommentDto>> =
     ApiSocialContentEndpoints.getPostComments(token, postId, limit, before, beforeId)
 override suspend fun createPostComment(token: String, postId: String, content: String, replyToId: String?): Result<PostCommentDto> = ApiSocialContentEndpoints.createPostComment(token, postId, content, replyToId)
 override suspend fun editPostComment(token: String, postId: String, commentId: String, content: String): Result<PostCommentDto> = ApiSocialContentEndpoints.editPostComment(token, postId, commentId, content)
@@ -85,14 +90,8 @@ override suspend fun acceptGroupInvitation(token: String, inviteId: String): Res
 override suspend fun declineGroupInvitation(token: String, inviteId: String): Result<GroupInviteAcceptResponse> = ApiGroupEndpoints.declineGroupInvitation(token, inviteId)
 override suspend fun cancelGroupInvitation(token: String, inviteId: String): Result<Unit> = ApiGroupEndpoints.cancelGroupInvitation(token, inviteId)
 override suspend fun getChatGroupInvitations(token: String, chatId: String): Result<List<GroupInvitationDto>> = ApiGroupEndpoints.getChatGroupInvitations(token, chatId)
-override suspend fun createGroupPoll(
-    token: String,
-    chatId: String,
-    question: String,
-    options: List<String>,
-    multi: Boolean,
-    anonymous: Boolean,
-    closesAt: Long?): Result<String> = ApiGroupEndpoints.createGroupPoll(token, chatId, question, options, multi, anonymous, closesAt)
+override suspend fun createGroupPoll(token: String, chatId: String, question: String, options: List<String>,
+    multi: Boolean, anonymous: Boolean, closesAt: Long?): Result<String> = ApiGroupEndpoints.createGroupPoll(token, chatId, question, options, multi, anonymous, closesAt)
 override suspend fun voteGroupPoll(token: String, pollId: String, optionIndexes: List<Int>): Result<String> = ApiGroupEndpoints.voteGroupPoll(token, pollId, optionIndexes)
 override suspend fun getGroupPoll(token: String, pollId: String): Result<String> = ApiGroupEndpoints.getGroupPoll(token, pollId)
 override suspend fun getChatFolders(token: String): Result<ChatFoldersSyncResponse> = ApiSettingsEndpoints.getChatFolders(token)

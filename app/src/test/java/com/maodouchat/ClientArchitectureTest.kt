@@ -627,7 +627,8 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 335,
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
+        // 2026-11-06：SocialApiModels 迁入 :core:model，+6 import 由 createGroupPoll/getPostComments 并行对冲 -7 行（139 → 138），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 138,
         // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
         // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；
@@ -883,7 +884,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsScreen.kt" to 335,
         // 2026-10-10：ApiEndpointClients 按领域拆出 7 个簇文件（692 → 139 纯搬移；
         // 新文件最大 199 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/network/api/ApiEndpointClients.kt" to 139,
+        "com/maodouchat/network/api/ApiEndpointClients.kt" to 138,
         // 2026-10-17：尾部对话框簇抽出 AccountSecurityDialogs（868 → 737 纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-19：应用锁分区抽出 AccountSecurityAppLockSection、B2 密聊安全分区抽出
         // AccountSecuritySecretSection（737 → 346 纯搬移+14 闲置 import；appLockEnabled 留母文件走参数；

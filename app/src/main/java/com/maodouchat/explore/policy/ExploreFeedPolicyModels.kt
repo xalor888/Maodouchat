@@ -1,6 +1,6 @@
 package com.maodouchat.explore.policy
+import com.maodouchat.core.model.PostDto
 
-import com.maodouchat.network.PostDto
 
 data class Cursor(val createdAt: Long, val postId: String)
 

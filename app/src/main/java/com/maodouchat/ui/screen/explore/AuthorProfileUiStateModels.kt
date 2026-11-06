@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
-import com.maodouchat.network.PostDto
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.UserDto
 
 data class AuthorProfileUiState(

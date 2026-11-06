@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.ui.screen.chatlist.ChatListScreen
 import com.maodouchat.ui.screen.chatlist.ChatListViewModel
@@ -30,7 +31,6 @@ import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.ui.screen.explore.ExploreOrchestrator
 import com.maodouchat.core.model.FeedSession
-import com.maodouchat.network.PostDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.test.onNodeWithContentDescription

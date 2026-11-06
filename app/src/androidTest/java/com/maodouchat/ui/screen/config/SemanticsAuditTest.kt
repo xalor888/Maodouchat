@@ -14,6 +14,7 @@ import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.policy.Cursor
 import com.maodouchat.core.model.SecurityPreferences
 import com.maodouchat.core.model.SecurityPreferencesPatch
@@ -28,7 +29,6 @@ import com.maodouchat.ui.screen.settings.SettingsViewModel
 import com.maodouchat.explore.repository.FeedController
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.core.model.FeedSession
-import com.maodouchat.network.PostDto
 import com.maodouchat.ui.screen.explore.ExploreOrchestrator
 import com.maodouchat.ui.screen.explore.ExploreScreen
 import com.maodouchat.ui.screen.explore.ExploreViewModel

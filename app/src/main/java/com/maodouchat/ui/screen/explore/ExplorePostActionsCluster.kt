@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.R
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
-import com.maodouchat.network.PostDto
 import com.maodouchat.network.api.SocialApiClient
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

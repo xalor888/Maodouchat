@@ -1,6 +1,5 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.UserDto
 import kotlinx.serialization.Serializable
 
 @Serializable

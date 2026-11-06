@@ -1,8 +1,8 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.model.NearbyLocationStatusResponse
+import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.NearbyLocationStatusResponse
-import com.maodouchat.network.NearbyUserResponse
 
 /**
  * 「附近的人」的**远端**调用（G328c）。

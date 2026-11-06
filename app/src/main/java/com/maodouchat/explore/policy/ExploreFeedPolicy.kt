@@ -1,6 +1,6 @@
 package com.maodouchat.explore.policy
+import com.maodouchat.core.model.PostDto
 
-import com.maodouchat.network.PostDto
 
 /**
  * W3-02: pure optimistic feed mutations with rollback-friendly snapshots.

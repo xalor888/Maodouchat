@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.PostDto
 
 /**
  * 动态（帖子）的**远端**读取与点赞（G328c）。

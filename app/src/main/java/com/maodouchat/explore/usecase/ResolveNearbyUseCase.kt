@@ -1,7 +1,7 @@
 package com.maodouchat.explore.usecase
 
-import com.maodouchat.network.NearbyLocationStatusResponse
-import com.maodouchat.network.NearbyUserResponse
+import com.maodouchat.core.model.NearbyLocationStatusResponse
+import com.maodouchat.core.model.NearbyUserResponse
 import com.maodouchat.network.api.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 

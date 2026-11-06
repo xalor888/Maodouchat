@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
+import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.notification.SocialNotificationService
 import android.annotation.SuppressLint
 import android.widget.Toast
@@ -116,9 +117,9 @@ fun PostDetailScreen(
     val commentTargetHandled = androidx.compose.runtime.remember(initialCommentId) { mutableStateOf(false) }
     var highlightedCommentId by androidx.compose.runtime.remember(initialCommentId) { mutableStateOf<String?>(null) }
     // 1.247：评论长按操作菜单（回复/复制/举报/删除）
-    var commentMenuFor by androidx.compose.runtime.remember { mutableStateOf<com.maodouchat.network.PostCommentDto?>(null) }
+    var commentMenuFor by androidx.compose.runtime.remember { mutableStateOf<PostCommentDto?>(null) }
     // 评论编辑弹窗（1.xx：编辑自己的评论）
-    var editingCommentFor by androidx.compose.runtime.remember { mutableStateOf<com.maodouchat.network.PostCommentDto?>(null) }
+    var editingCommentFor by androidx.compose.runtime.remember { mutableStateOf<PostCommentDto?>(null) }
     var editingCommentText by androidx.compose.runtime.remember { mutableStateOf("") }
     androidx.compose.runtime.LaunchedEffect(state.comments.map { it.id }, commentTargetHandled.value) {
         if (!commentTargetHandled.value && !initialCommentId.isNullOrBlank()) {
@@ -330,8 +331,7 @@ fun PostDetailScreen(
                 }
             }
             HorizontalDivider(color = LocalChatPalette.current.textHint, thickness = 0.5.dp)
-            Text(
-                stringResource(R.string.explore_comments_count, post?.commentCount ?: comments.size),
+            Text(stringResource(R.string.explore_comments_count, post?.commentCount ?: comments.size),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(16.dp, 12.dp, 16.dp, 4.dp)

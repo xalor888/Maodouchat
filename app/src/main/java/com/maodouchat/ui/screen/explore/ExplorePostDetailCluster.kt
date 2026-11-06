@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.R
-import com.maodouchat.network.PostCommentDto
+import com.maodouchat.core.model.PostCommentDto
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 

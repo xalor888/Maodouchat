@@ -1,7 +1,7 @@
 package com.maodouchat.explore
 
+import com.maodouchat.core.model.PostDto
 import com.maodouchat.explore.policy.Cursor
-import com.maodouchat.network.PostDto
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.explore.policy.ExploreFeedPolicy
 import org.junit.Assert.assertEquals
