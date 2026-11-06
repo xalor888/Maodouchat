@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.R
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.data.model.Chat
 import com.maodouchat.core.model.ChatSettingsToggle
-import com.maodouchat.network.UpdateChatSettingsRequest
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import kotlinx.coroutines.flow.MutableStateFlow

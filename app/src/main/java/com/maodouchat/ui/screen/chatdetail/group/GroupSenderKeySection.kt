@@ -25,7 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
-import com.maodouchat.network.SenderKeyDistributionStatusDto
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.group.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed

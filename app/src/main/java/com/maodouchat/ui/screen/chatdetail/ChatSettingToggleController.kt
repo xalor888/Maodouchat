@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import com.maodouchat.R
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
@@ -37,7 +38,7 @@ internal class ChatSettingToggleController(
                 ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId(),
-                    com.maodouchat.network.UpdateChatSettingsRequest(markedUnread = next)
+                    UpdateChatSettingsRequest(markedUnread = next)
                 ).onFailure {
                     updateState { state -> state.copy(chat = state.chat?.copy(markedUnread = chat.markedUnread)) }
                 }
@@ -72,7 +73,7 @@ internal class ChatSettingToggleController(
                 ChatNetworkRepository().updateChatSettings(
                     liveToken,
                     chatId(),
-                    com.maodouchat.network.UpdateChatSettingsRequest(pinned = !wasPinned)
+                    UpdateChatSettingsRequest(pinned = !wasPinned)
                 ).onFailure {
                     updateState { state -> state.copy(chat = state.chat?.copy(pinnedAt = chat.pinnedAt)) }
                 }

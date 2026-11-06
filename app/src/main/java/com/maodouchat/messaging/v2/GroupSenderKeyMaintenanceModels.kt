@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 
-import com.maodouchat.network.SenderKeyDistributionStatusDto
 
 sealed interface GroupSenderKeyMaintenanceOutcome {
     data object Skipped : GroupSenderKeyMaintenanceOutcome

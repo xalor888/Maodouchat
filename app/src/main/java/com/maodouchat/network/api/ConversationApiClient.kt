@@ -1,6 +1,9 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.ChatSettingsResponse
+import com.maodouchat.core.model.CreateChatRequest
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request

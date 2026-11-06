@@ -21,7 +21,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.network.GroupAuditLogDto
+import com.maodouchat.core.model.GroupAuditLogDto
 import com.maodouchat.ui.theme.LocalChatPalette
 import java.text.SimpleDateFormat
 import java.util.Date

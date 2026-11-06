@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
+import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.network.ChatDto
-import com.maodouchat.network.ChatSettingsResponse
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.util.RuntimeFlags
 import io.mockk.mockk

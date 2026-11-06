@@ -1,6 +1,8 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.ChatSettingsResponse
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 
 interface MessagingApi {
     suspend fun sendMessageV2(

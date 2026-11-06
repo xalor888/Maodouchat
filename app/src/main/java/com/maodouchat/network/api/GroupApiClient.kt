@@ -1,6 +1,18 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.CreateChatRequest
+import com.maodouchat.core.model.CreateGroupInviteRequest
+import com.maodouchat.core.model.GroupAuditLogDto
+import com.maodouchat.core.model.GroupMemberDto
+import com.maodouchat.core.model.GroupMembersRequest
+import com.maodouchat.core.model.JoinGroupInviteRequest
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
+import com.maodouchat.core.model.UpdateGroupAnnouncementRequest
+import com.maodouchat.core.model.UpdateGroupNicknameRequest
+import com.maodouchat.core.model.UpdateMemberMuteRequest
+import com.maodouchat.core.model.UpdateMemberRoleRequest
+import com.maodouchat.core.model.UpdateMemberTitleRequest
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
