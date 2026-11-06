@@ -1,4 +1,4 @@
-package com.maodouchat.push
+package com.maodouchat.core.model
 
 /**
  * 保活启停纯门闩：登出 / MODE_OFF / 无 token 时禁止 daemon 复活与后台 FGS。
@@ -8,19 +8,33 @@ package com.maodouchat.push
  */
 object PushKeepAlivePolicy {
 
+    const val MODE_OFF = "off"
+    const val MODE_FOREGROUND = "foreground"
+
+    /** 遗留偏好键：仍可读，运行时归一为 [MODE_FOREGROUND]。 */
+    const val MODE_MEDIA = "media"
+
+    /** 遗留偏好键：仍可读，运行时归一为 [MODE_FOREGROUND]。 */
+    const val MODE_CALL = "call"
+
+    val ALL_MODES = listOf(MODE_OFF, MODE_FOREGROUND, MODE_MEDIA, MODE_CALL)
+
+    /** UI / 新写入只应暴露仍有效的模式。 */
+    val SUPPORTED_RUNTIME_MODES = listOf(MODE_OFF, MODE_FOREGROUND)
+
     fun isEnabled(mode: String): Boolean =
-        mode != PushKeepAliveModeStore.MODE_OFF && mode in PushKeepAliveModeStore.ALL_MODES
+        mode != MODE_OFF && mode in ALL_MODES
 
     /**
      * 偏好字符串 → 实际执行模式。
      * media/call 遗留值映射为 foreground；非法值视为 off。
      */
     fun effectiveMode(storedMode: String): String = when (storedMode) {
-        PushKeepAliveModeStore.MODE_OFF -> PushKeepAliveModeStore.MODE_OFF
-        PushKeepAliveModeStore.MODE_FOREGROUND,
-        PushKeepAliveModeStore.MODE_MEDIA,
-        PushKeepAliveModeStore.MODE_CALL -> PushKeepAliveModeStore.MODE_FOREGROUND
-        else -> PushKeepAliveModeStore.MODE_OFF
+        MODE_OFF -> MODE_OFF
+        MODE_FOREGROUND,
+        MODE_MEDIA,
+        MODE_CALL -> MODE_FOREGROUND
+        else -> MODE_OFF
     }
 
     /** 允许拉起前台保活服务。 */

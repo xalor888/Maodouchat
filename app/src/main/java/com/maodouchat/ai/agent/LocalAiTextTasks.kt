@@ -7,7 +7,7 @@ import com.maodouchat.core.model.agentRewriteInstruction
 import com.maodouchat.core.model.agentSuggestInstruction
 import com.maodouchat.core.model.agentSummarizeInstruction
 import com.maodouchat.core.model.agentTranslateInstruction
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 
 // 本机模型文本任务簇：改写、翻译、回复建议、摘要、群助手。函数体从 LocalAiGateway 逐字搬出。
 internal object LocalAiTextTasks {

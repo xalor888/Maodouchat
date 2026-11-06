@@ -15,7 +15,7 @@ import com.maodouchat.data.model.MessageType
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ChatDto
 import com.maodouchat.network.PinnedMessageDto
-import com.maodouchat.network.AiGroupTask
+import com.maodouchat.core.model.AiGroupTask
 
 /**
  * 从 ChatDetailViewModel.kt 拆分的顶层常量、数据类、枚举和 UI 状态。

@@ -1,6 +1,5 @@
-package com.maodouchat.navigation
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.NotificationTargetReplayDecision
 
 /**
  * P08：通知 / 深链待办目标在 NavHost 就绪前的回放门闩（纯决策）。

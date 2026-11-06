@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

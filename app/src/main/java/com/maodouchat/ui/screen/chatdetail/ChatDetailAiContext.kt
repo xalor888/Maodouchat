@@ -6,7 +6,7 @@ import com.maodouchat.core.model.AiContextSenders
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.isAmbiguousTransportFailure
 import kotlinx.coroutines.flow.update

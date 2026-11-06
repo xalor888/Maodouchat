@@ -14,7 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.maodouchat.network.AiAuditLogResponse
+import com.maodouchat.core.model.AiAuditLogResponse
 import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import androidx.compose.ui.graphics.Color

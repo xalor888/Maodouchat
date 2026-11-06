@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 import com.maodouchat.navigation.AppLinkDestination
 import com.maodouchat.navigation.AppLinkParseResult
 import com.maodouchat.navigation.AppLinkRouter
-import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.core.model.NotificationTarget
 import com.maodouchat.navigation.encodePathSegment
 import com.maodouchat.navigation.parseDeepLink
 import com.maodouchat.navigation.parseLegacyCenterDeeplink

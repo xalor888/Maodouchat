@@ -10,7 +10,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.call.IncomingCallCoordinator
 import com.maodouchat.core.model.PendingIncomingCall
 import com.maodouchat.core.model.CallType
-import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.core.model.NotificationTarget
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.telecom.TelecomHelper

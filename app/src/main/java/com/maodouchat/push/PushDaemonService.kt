@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import com.maodouchat.core.model.PushKeepAlivePolicy
 
 /**
  * 9.3xx：保活守护服务（Ideaura RemoteDaemonService 同款）——独立进程 `:pushdaemon`，

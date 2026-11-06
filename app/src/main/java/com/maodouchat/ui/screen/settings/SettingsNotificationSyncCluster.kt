@@ -5,8 +5,8 @@ import com.maodouchat.data.repository.NotificationSettingsNetworkRepository
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.network.NotificationSettingsRequest
-import com.maodouchat.network.NotificationSettingsResponse
+import com.maodouchat.core.model.NotificationSettingsRequest
+import com.maodouchat.core.model.NotificationSettingsResponse
 import com.maodouchat.notification.NotificationPreferences
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

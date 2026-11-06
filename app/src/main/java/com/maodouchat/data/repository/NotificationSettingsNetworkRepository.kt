@@ -1,8 +1,8 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.network.ApiService
-import com.maodouchat.network.NotificationSettingsRequest
-import com.maodouchat.network.NotificationSettingsResponse
+import com.maodouchat.core.model.NotificationSettingsRequest
+import com.maodouchat.core.model.NotificationSettingsResponse
 
 /**
  * 通知设置的**远端**对账（G328c）。

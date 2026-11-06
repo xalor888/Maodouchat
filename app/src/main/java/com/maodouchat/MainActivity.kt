@@ -1,7 +1,7 @@
 package com.maodouchat
 
 import com.maodouchat.notification.NotificationIntentConsumer
-import com.maodouchat.navigation.NotificationTarget
+import com.maodouchat.core.model.NotificationTarget
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -26,7 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.fragment.app.FragmentActivity
 import androidx.navigation.compose.rememberNavController
 import com.maodouchat.core.model.NotificationTargetReplayDecision
-import com.maodouchat.navigation.NotificationTargetReplayPolicy
+import com.maodouchat.core.model.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
 import com.maodouchat.navigation.toDestination
 import com.maodouchat.ui.theme.MaodouchatTheme

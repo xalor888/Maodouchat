@@ -1,6 +1,10 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.network.*
+import com.maodouchat.core.model.NotificationSettingsRequest
+import com.maodouchat.core.model.NotificationSettingsResponse
+import com.maodouchat.core.model.RegisterPushTokenRequest
+import com.maodouchat.core.model.RemovePushTokenRequest
 import com.maodouchat.BuildConfig
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

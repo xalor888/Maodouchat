@@ -4,7 +4,7 @@ import com.maodouchat.core.model.AiContextSenders
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 
 internal fun buildPlainAiContextMessages(
     messages: List<Message>,

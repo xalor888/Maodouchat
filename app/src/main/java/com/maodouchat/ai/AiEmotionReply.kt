@@ -7,7 +7,7 @@ import com.maodouchat.core.model.Emotion
 import com.maodouchat.core.model.EmotionResult
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.network.AiContextMessage
+import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
