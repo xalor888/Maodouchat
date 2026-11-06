@@ -9,7 +9,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.watermark.FrequencyWatermark
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.watermark.SecretPageWatermark
 import com.maodouchat.watermark.SecretWatermarkPolicy
 

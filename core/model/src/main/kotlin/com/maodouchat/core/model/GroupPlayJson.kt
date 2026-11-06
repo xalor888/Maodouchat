@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.groupplay
+package com.maodouchat.core.model
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -10,7 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * 群玩法客户端 JSON 兜底：列表端点偶发对象包装、失败体是 `{error}`，
  * 硬 `JSONArray(text)` 会把整页打成空白。
  */
-internal object GroupPlayJson {
+object GroupPlayJson {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     fun errorMessage(body: String): String? {

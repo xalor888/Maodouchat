@@ -23,5 +23,3 @@ internal sealed interface AttachmentSendWorkflowResult {
     data class Existing(val message: Message) : AttachmentSendWorkflowResult
     data class Queued(val message: Message) : AttachmentSendWorkflowResult
 }
-
-internal class AttachmentTooLargeException : IllegalStateException("attachment_too_large")

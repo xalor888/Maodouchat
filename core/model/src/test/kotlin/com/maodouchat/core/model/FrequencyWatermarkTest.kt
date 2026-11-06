@@ -1,4 +1,4 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -8,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.log10
 import kotlin.math.roundToInt
-import com.maodouchat.core.model.Dct8
 
 class FrequencyWatermarkTest {
 

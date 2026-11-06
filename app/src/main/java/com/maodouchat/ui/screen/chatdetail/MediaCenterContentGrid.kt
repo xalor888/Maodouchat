@@ -36,6 +36,7 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.maodouchat.R
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.ui.component.OwnerScopedImageKeys
@@ -60,7 +61,7 @@ internal fun MediaGrid(
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
             val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-            com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
+            FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }
     LazyVerticalGrid(

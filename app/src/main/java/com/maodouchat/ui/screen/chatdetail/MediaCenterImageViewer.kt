@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.maodouchat.R
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.component.ZoomableAsyncImage
@@ -52,7 +53,7 @@ internal fun MediaCenterImageViewer(
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
             val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-            com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
+            FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }
 

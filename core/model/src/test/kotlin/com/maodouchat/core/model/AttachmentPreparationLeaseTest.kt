@@ -1,6 +1,5 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.attachment.AttachmentPreparationLease
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows

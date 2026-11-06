@@ -1,5 +1,6 @@
 package com.maodouchat.ui.component
 
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.util.RuntimeFlags
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -162,7 +163,7 @@ internal fun ImageBubble(
                     if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
                     else {
                         val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-                        com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
+                        FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
                     }
                 }
                 AsyncImage(

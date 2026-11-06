@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.core.model.AttachmentErrorKind
+import com.maodouchat.core.crypto.AttachmentErrorUiPolicy
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.data.model.Message
@@ -213,7 +214,7 @@ internal class ChatDetailFileTransferController(
         }
     }
     internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
-        when (com.maodouchat.attachment.AttachmentErrorUiPolicy.classify(error)) {
+        when (AttachmentErrorUiPolicy.classify(error)) {
             AttachmentErrorKind.TOO_LARGE ->
                 text(R.string.chat_attachment_file_too_large)
             AttachmentErrorKind.INVALID_REFERENCE ->

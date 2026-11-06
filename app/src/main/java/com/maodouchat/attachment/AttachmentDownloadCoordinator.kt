@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import android.net.Uri
+import com.maodouchat.core.model.AttachmentReferenceInvalidException
 import com.maodouchat.core.model.LockRef
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
@@ -112,8 +113,6 @@ internal class AttachmentDownloadCoordinator(
         }
     }
 }
-
-internal class AttachmentReferenceInvalidException : IllegalStateException("attachment_reference_invalid")
 
 private fun Message.toEncryptedAttachmentReference(): EncryptedAttachmentReference? {
     val metadata = parsedMeta()

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.maodouchat.R
+import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -92,7 +93,7 @@ internal fun VideoBubble(
         if (secretChatId.isNullOrBlank() || !RuntimeFlags.isEnabled(context, RuntimeFlags.BLIND_WATERMARK)) null
         else {
             val dh = com.maodouchat.watermark.DeviceHint.androidId(context)
-            com.maodouchat.watermark.FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
+            FrequencyWatermark.buildPayload(currentUserId, secretChatId, dh)
         }
     }
     Row(
