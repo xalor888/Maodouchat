@@ -3,6 +3,8 @@ package com.maodouchat.crypto
 import android.util.Base64
 import android.util.Log
 import com.maodouchat.core.crypto.PreKeyInventory
+import com.maodouchat.core.crypto.SignalDeviceIdRecoveryPolicy
+import com.maodouchat.core.crypto.SignalInitializationPolicy
 import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
 import com.maodouchat.core.crypto.PreKeyPublisher
 import com.maodouchat.data.local.entity.SignalKeyEntity

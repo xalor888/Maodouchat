@@ -1,4 +1,4 @@
-package com.maodouchat.crypto
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.IdentityRecoveryFailedException
 
@@ -9,7 +9,7 @@ import com.maodouchat.core.model.IdentityRecoveryFailedException
  * [SignalExchangeException], so callers must inspect the preserved server code rather
  * than rely on the exception class alone.
  */
-internal object SignalDeviceIdRecoveryPolicy {
+object SignalDeviceIdRecoveryPolicy {
     const val DEVICE_ID_CONFLICT_CODE = "DEVICE_ID_CONFLICT"
     const val DEVICE_IDENTITY_MISMATCH_CODE = "DEVICE_IDENTITY_MISMATCH"
     const val DEVICE_SESSION_CONFLICT_CODE = "DEVICE_SESSION_CONFLICT"

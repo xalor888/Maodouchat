@@ -1,9 +1,13 @@
 package com.maodouchat.crypto
 
 import android.os.Build
+import com.maodouchat.core.crypto.DeviceInfoResponse
+import com.maodouchat.core.crypto.DevicePreKeyBundleResponse
+import com.maodouchat.core.crypto.PreKeyBundleResponse
+import com.maodouchat.core.crypto.SignalExchangeException
 import com.maodouchat.core.crypto.SignalExchangeFailure
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.crypto.shouldUseLegacyBundleEndpoint
+import com.maodouchat.core.crypto.toExchangeException
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.PreKeyDataDto
 import com.maodouchat.network.UploadKeysRequest
@@ -53,31 +57,7 @@ object SignalKeyExchange {
         )
     }
 
-    internal fun Throwable.toExchangeException(): SignalExchangeException = when (this) {
-        is SignalExchangeException -> this
-        is ApiException -> SignalExchangeException(
-            failure = when (kind) {
-                ApiFailureKind.HTTP -> SignalExchangeFailure.HTTP
-                ApiFailureKind.TIMEOUT -> SignalExchangeFailure.TIMEOUT
-                ApiFailureKind.NETWORK -> SignalExchangeFailure.NETWORK
-                ApiFailureKind.INVALID_RESPONSE -> SignalExchangeFailure.INVALID_RESPONSE
-                ApiFailureKind.UNEXPECTED -> SignalExchangeFailure.UNEXPECTED
-            },
-            statusCode = statusCode,
-            serverMessage = serverMessage,
-            serverCode = serverCode,
-            cause = this
-        )
-        is java.net.SocketTimeoutException -> SignalExchangeException(SignalExchangeFailure.TIMEOUT, cause = this)
-        is java.io.IOException -> SignalExchangeException(SignalExchangeFailure.NETWORK, cause = this)
-        is kotlinx.serialization.SerializationException,
-        is IllegalArgumentException -> SignalExchangeException(SignalExchangeFailure.INVALID_RESPONSE, cause = this)
-        else -> SignalExchangeException(SignalExchangeFailure.UNEXPECTED, cause = this)
-    }
-
-    /** Exposed to crypto policy tests without making the transport mapper public API. */
-    internal fun mapFailure(error: Throwable): SignalExchangeException = error.toExchangeException()
-
+    /** Transport failure mapping now lives in :core:crypto ([toExchangeException]). */
     private fun <T> Result<T>.mapApiFailure(): Result<T> =
         fold(
             onSuccess = { Result.success(it) },
@@ -211,10 +191,8 @@ object SignalKeyExchange {
             .mapApiFailure()
 
     /** Only an absent multi-device endpoint may fall back to the legacy single-bundle API. */
-    internal fun shouldUseLegacyBundleEndpoint(error: Throwable): Boolean {
-        val exchange = error.toExchangeException()
-        return exchange.failure == SignalExchangeFailure.HTTP && exchange.statusCode == 404
-    }
+    internal fun shouldUseLegacyBundleEndpoint(error: Throwable): Boolean =
+        error.shouldUseLegacyBundleEndpoint()
 
     /**
      * Discover confirmed devices on current servers while retaining interoperability with a
