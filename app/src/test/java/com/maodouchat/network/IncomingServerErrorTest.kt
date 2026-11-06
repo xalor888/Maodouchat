@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.IncomingServerError
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

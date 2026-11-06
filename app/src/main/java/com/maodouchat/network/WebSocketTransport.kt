@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.*
 import com.maodouchat.core.realtime.NonReplayingEventBus
 import com.maodouchat.core.realtime.WebSocketSessionGate
 import com.maodouchat.session.RealtimeTransport
@@ -21,7 +22,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import com.maodouchat.core.model.WebSocketErrorKind
 
 /**
  * WebSocket 客户端（单例 + 自动重连）

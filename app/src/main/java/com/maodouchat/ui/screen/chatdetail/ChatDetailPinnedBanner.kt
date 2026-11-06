@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.PinnedMessageDto
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
@@ -33,7 +34,7 @@ import androidx.compose.runtime.setValue
 
 @Composable
 internal fun PinnedMessagesBanner(
-    pins: List<com.maodouchat.network.PinnedMessageDto>,
+    pins: List<PinnedMessageDto>,
     messages: List<Message>,
     canManage: Boolean,
     onOpen: (String) -> Unit,

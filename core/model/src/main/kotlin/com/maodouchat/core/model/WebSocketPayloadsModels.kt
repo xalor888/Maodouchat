@@ -1,17 +1,15 @@
-package com.maodouchat.network
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.FriendRequestDto
-import com.maodouchat.core.model.GroupInvitationDto
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class WsMessage(val type: String, val payload: String)
+data class WsMessage(val type: String, val payload: String)
 
 @Serializable
-internal data class TypingPayload(val userId: String, val chatId: String, val isTyping: Boolean)
+data class TypingPayload(val userId: String, val chatId: String, val isTyping: Boolean)
 
 @Serializable
-internal data class AdminBroadcastPayload(
+data class AdminBroadcastPayload(
     val title: String = "System",
     val text: String = "",
     val actorId: String = "",
@@ -19,7 +17,7 @@ internal data class AdminBroadcastPayload(
 )
 
 @Serializable
-internal data class IncomingUserStatus(
+data class IncomingUserStatus(
     val userId: String,
     val isOnline: Boolean,
     val lastSeen: Long = 0,
@@ -28,7 +26,7 @@ internal data class IncomingUserStatus(
 )
 
 @Serializable
-internal data class IncomingSignaling(
+data class IncomingSignaling(
     val fromUserId: String,
     val type: String,
     val payload: String,
@@ -42,49 +40,57 @@ internal data class IncomingSignaling(
 )
 
 @Serializable
-internal data class IncomingServerError(
+data class IncomingServerError(
     val error: String = "",
     val code: String? = null,
     val retryAfterSeconds: Long? = null,
 )
 
 @Serializable
-internal data class IncomingPostDeleted(val postId: String)
+data class IncomingPostDeleted(val postId: String)
 
 @Serializable
-internal data class IncomingPinnedMessagesUpdated(
+data class IncomingPinnedMessagesUpdated(
     val chatId: String,
     val actorId: String = "",
     val pins: List<PinnedMessageDto> = emptyList()
 )
 
 @Serializable
-internal data class IncomingDisappearingMessagesUpdated(
+data class IncomingDisappearingMessagesUpdated(
     val chatId: String,
     val seconds: Int = 0,
     val updatedAt: Long = 0
 )
 
 @Serializable
-internal data class IncomingTyping(val userId: String, val chatId: String, val isTyping: Boolean)
+data class IncomingTyping(val userId: String, val chatId: String, val isTyping: Boolean)
 
 @Serializable
-internal data class IncomingFriendRequestEvent(
+data class IncomingFriendRequestEvent(
     val action: String,
     val request: FriendRequestDto
 )
 
 @Serializable
-internal data class IncomingGroupInviteEvent(
+data class IncomingGroupInviteEvent(
     val action: String,
     val invite: GroupInvitationDto
 )
 
 @Serializable
-internal data class IncomingGroupRevisionChanged(
+data class IncomingGroupRevisionChanged(
     val chatId: String,
     val memberRevision: Long,
     val reason: String,
     val actorId: String? = null,
     val targetUserId: String? = null
+)
+
+@Serializable
+data class PinnedMessageDto(
+    val chatId: String,
+    val messageId: String,
+    val pinnedBy: String,
+    val pinnedAt: Long
 )
