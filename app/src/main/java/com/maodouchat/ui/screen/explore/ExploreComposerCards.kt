@@ -46,7 +46,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.maodouchat.R
 import com.maodouchat.data.repository.MediaDownloadNetworkRepository
-import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.theme.LocalChatPalette
 import kotlinx.coroutines.launch

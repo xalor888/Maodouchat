@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.R
-import com.maodouchat.explore.policy.Cursor
+import com.maodouchat.core.model.Cursor
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.update

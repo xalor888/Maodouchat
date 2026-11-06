@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import com.maodouchat.explore.policy.ExploreFeedPolicy
+import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.data.repository.ModerationNetworkRepository
 import com.maodouchat.data.repository.PostNetworkRepository

@@ -15,7 +15,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.core.model.PostDto
-import com.maodouchat.explore.policy.Cursor
+import com.maodouchat.core.model.Cursor
 import com.maodouchat.core.model.SecurityPreferences
 import com.maodouchat.core.model.SecurityPreferencesPatch
 import com.maodouchat.core.model.SettingsPrivacy

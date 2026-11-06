@@ -1,7 +1,4 @@
-package com.maodouchat.explore.policy
-
-import com.maodouchat.core.model.PostDto
-import com.maodouchat.core.model.PostVisibilityTier
+package com.maodouchat.core.model
 
 object PostVisibilityPolicy {
 
