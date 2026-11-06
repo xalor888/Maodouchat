@@ -7,7 +7,7 @@ import android.net.Uri
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.GroupMutationFeedbackKind
-import com.maodouchat.group.GroupMutationCommit
+import com.maodouchat.core.model.GroupMutationCommit
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

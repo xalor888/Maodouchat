@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.Receipt
 import com.maodouchat.data.model.Message
 
 /**

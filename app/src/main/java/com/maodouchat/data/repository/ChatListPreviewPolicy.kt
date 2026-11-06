@@ -1,6 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
+import com.maodouchat.core.model.ChatListPreview
 import com.maodouchat.core.model.ChatTextDisplayPolicy
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
@@ -25,7 +26,7 @@ object ChatListPreviewPolicy {
         revokedPlaceholder: String,
         /** Optional POV rewrite for NUDGE (server stores sender-centric body). */
         nudgeText: ((Message) -> String)? = null
-    ): Preview {
+    ): ChatListPreview {
         val head = candidatesNewestFirst.firstOrNull { candidate ->
             !isListPreviewNoise(candidate.type) && !isUnreadableListHead(candidate)
         }
@@ -39,9 +40,9 @@ object ChatListPreviewPolicy {
         revokedPlaceholder: String,
         /** Optional POV rewrite for NUDGE (server stores sender-centric body). */
         nudgeText: ((Message) -> String)? = null
-    ): Preview {
+    ): ChatListPreview {
         if (latest == null || isListPreviewNoise(latest.type)) {
-            return Preview(text = "", type = MessageType.TEXT, timestamp = 0L)
+            return ChatListPreview(text = "", type = MessageType.TEXT, timestamp = 0L)
         }
         val text = when (latest.type) {
             MessageType.IMAGE,
@@ -59,7 +60,7 @@ object ChatListPreviewPolicy {
                 listVisibleText(latest.content, encryptedPlaceholder)
             }
         }
-        return Preview(
+        return ChatListPreview(
             text = text,
             type = latest.type,
             timestamp = latest.timestamp

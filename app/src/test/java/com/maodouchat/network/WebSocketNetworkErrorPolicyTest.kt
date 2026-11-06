@@ -1,5 +1,6 @@
 package com.maodouchat.network
 
+import com.maodouchat.core.model.isNonRecoverableWebSocketNetworkError
 import java.io.IOException
 import java.io.InterruptedIOException
 import java.net.ConnectException

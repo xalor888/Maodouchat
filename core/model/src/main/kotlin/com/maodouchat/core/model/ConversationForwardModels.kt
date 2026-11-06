@@ -1,6 +1,4 @@
-package com.maodouchat.forwarding
-
-import com.maodouchat.core.model.MessageType
+package com.maodouchat.core.model
 
 data class ForwardBatchResult(
     val forwardedCount: Int,

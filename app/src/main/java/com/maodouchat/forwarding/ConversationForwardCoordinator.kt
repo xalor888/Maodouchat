@@ -3,6 +3,9 @@ package com.maodouchat.forwarding
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.core.model.ConversationForwardSessionException
+import com.maodouchat.core.model.ConversationForwardUnsupportedException
+import com.maodouchat.core.model.ForwardBatchResult
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.model.Message
