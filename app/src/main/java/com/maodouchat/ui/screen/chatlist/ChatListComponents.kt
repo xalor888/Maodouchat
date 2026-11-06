@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.model.Chat
@@ -111,12 +112,11 @@ internal fun ChatListItem(
         MessageType.NUDGE -> stringResource(R.string.message_preview_nudge)
         else -> {
             val placeholder = stringResource(R.string.message_preview_encrypted)
-            val stripped = com.maodouchat.data.repository.ChatListPreviewPolicy.listVisibleText(
-                chat.lastMessage,
-                placeholder
-            )
+            val stripped = com.maodouchat.data.repository.ChatListPreviewPolicy
+                .listVisibleText(
+                    chat.lastMessage, placeholder)
             if (stripped == placeholder) placeholder
-            else com.maodouchat.messaging.ChatMarkdown.stripContactCardMarker(stripped)
+            else ChatMarkdown.stripContactCardMarker(stripped)
         }
     }
     // 1.103：对端正在输入 → 预览最优先（锁/密聊不泄露输入状态）

@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.CallOrchestrator
 import com.maodouchat.core.model.CallType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -49,6 +50,6 @@ internal class ChatGroupCallController(
             return
         }
         // 委派给 CallViewModel 处理（CallViewModel 需通过 NavGraph 注入；这里用单例 fallback）
-        com.maodouchat.call.CallOrchestrator.requestGroupCall(chat.id, memberIds, callType)
+        CallOrchestrator.requestGroupCall(chat.id, memberIds, callType)
     }
 }

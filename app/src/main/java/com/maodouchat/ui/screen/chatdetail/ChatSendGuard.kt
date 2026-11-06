@@ -6,7 +6,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageMeta
 import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
-import com.maodouchat.messaging.ChatMarkdown
+import com.maodouchat.core.model.ChatMarkdown
 
 /**
  * 发送/重试的**准入判定**（G66，从 `ChatDetailViewModel.sendMessage()` 90 行与

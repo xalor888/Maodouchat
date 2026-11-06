@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.maodouchat.core.model.AppLinkRouter
+import com.maodouchat.core.model.CallOrchestrator
 
 /**
  * 动态/联系人域目的地（P08：自 `NavGraph.kt` 迁出的第二个 feature 簇）。
@@ -24,7 +25,7 @@ fun NavGraphBuilder.exploreDestinations(navController: NavHostController) {
         com.maodouchat.ui.screen.contacts.ScanScreen(
             onBack = { navController.popBackStack() },
             onAddContact = { user ->
-                com.maodouchat.call.CallOrchestrator.requestDirectChat(user.id, user.name)
+                CallOrchestrator.requestDirectChat(user.id, user.name)
             },
             onOpenChat = { chatId ->
                 navController.navigate(Routes.chatDetail(chatId)) {
@@ -72,7 +73,7 @@ fun NavGraphBuilder.exploreDestinations(navController: NavHostController) {
         com.maodouchat.ui.screen.explore.AuthorProfileScreen(
             authorId = authorId,
             onBack = { navController.popBackStack() },
-            onOpenChat = { id -> com.maodouchat.call.CallOrchestrator.requestDirectChat(id, "") },
+            onOpenChat = { id -> CallOrchestrator.requestDirectChat(id, "") },
             onOpenPost = { postId -> navController.navigate(Routes.postDetail(postId)) }
         )
     }
@@ -108,7 +109,7 @@ fun NavGraphBuilder.exploreDestinations(navController: NavHostController) {
                 username = username,
                 onBack = { navController.popBackStack() },
                 onStartChat = { userId ->
-                    com.maodouchat.call.CallOrchestrator.requestDirectChat(userId, "")
+                    CallOrchestrator.requestDirectChat(userId, "")
                     navController.popBackStack()
                 }
             )

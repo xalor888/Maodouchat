@@ -61,7 +61,7 @@ import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.navigation.AppLinkOpener
-import com.maodouchat.messaging.ChatMarkdown
+import com.maodouchat.core.model.ChatMarkdown
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域

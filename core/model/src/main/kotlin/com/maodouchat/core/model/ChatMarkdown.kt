@@ -1,4 +1,4 @@
-package com.maodouchat.messaging
+package com.maodouchat.core.model
 
 /**
  * 聊天 Markdown 子集的**纯文本处理**（剥名片标记、判定、转纯文本）。

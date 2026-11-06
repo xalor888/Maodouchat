@@ -5,6 +5,7 @@ import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
 import com.maodouchat.core.model.QrParsedPayload
+import com.maodouchat.core.model.QrPayloadParser
 import com.maodouchat.core.model.QrTarget
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -59,7 +60,7 @@ object QrCodeGenerator {
     ).joinToString(":")
 
     fun parsePayload(text: String): QrTarget? {
-        return when (val parsed = com.maodouchat.contacts.QrPayloadParser.parse(text)) {
+        return when (val parsed = QrPayloadParser.parse(text)) {
             is QrParsedPayload.User -> QrTarget.User(parsed.userId)
             is QrParsedPayload.Chat -> QrTarget.Chat(parsed.chatId)
             is QrParsedPayload.ChatInvite -> QrTarget.ChatInvite(parsed.token)

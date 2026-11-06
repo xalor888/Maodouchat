@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.ai.AiConversationProfileSource
+import com.maodouchat.core.model.AiConversationProfileSource
 import com.maodouchat.attachment.AttachmentDownloadCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.attachment.DefaultAttachmentIntentController

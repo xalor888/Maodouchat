@@ -3,6 +3,7 @@ package com.maodouchat.call
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.network.ChatDto
 import com.maodouchat.session.CurrentSession
+import com.maodouchat.core.model.DirectChatRequest
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.session.Outcome
 import io.mockk.coEvery

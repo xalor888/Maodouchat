@@ -6,7 +6,7 @@ import com.maodouchat.R
 import com.maodouchat.core.session.CallSignalingAdmissionPolicy
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.Decision
-import com.maodouchat.call.IncomingCallCoordinator
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.core.model.MissedCallTimeoutPolicy
 import com.maodouchat.core.realtime.RealtimeDomainEvent

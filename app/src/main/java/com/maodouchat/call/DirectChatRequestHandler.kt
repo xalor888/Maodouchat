@@ -1,5 +1,6 @@
 package com.maodouchat.call
 
+import com.maodouchat.core.model.DirectChatRequest
 import com.maodouchat.core.session.Outcome
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
