@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Preset
-import com.maodouchat.core.model.AiAuditLogResponse
 
 /** 「AI 与隐私」设置页的 UI 状态。 */
 data class AiPrivacySettingsUiState(
