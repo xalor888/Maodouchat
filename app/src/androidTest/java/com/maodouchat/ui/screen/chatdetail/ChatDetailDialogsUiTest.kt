@@ -11,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
 import com.maodouchat.core.model.CallType
+import com.maodouchat.core.model.GroupCallPolicy
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -169,13 +170,13 @@ class ChatDetailDialogsUiTest {
     fun groupCallUnderMeshLimitOmitsTheMemberPickerHint() {
         var dismiss = 0
         val picked = mutableListOf<CallType>()
-        val under = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
+        val under = GroupCallPolicy.MAX_MESH_MEMBERS - 1
         setGroupCallDialog(candidateCount = under, onPick = { picked += it }, onDismiss = { dismiss++ })
 
         // 未超限：只显示上限说明，**不**显示「需要选人」
         compose.onNodeWithText(
             InstrumentationRegistry.getInstrumentation().targetContext
-                .getString(R.string.call_group_mesh_limit, com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS)
+                .getString(R.string.call_group_mesh_limit, GroupCallPolicy.MAX_MESH_MEMBERS)
         ).assertIsDisplayed()
         check(!hasNode(str(R.string.call_select_members_needed_hint))) { "未超限时不该出现选人提示" }
 
@@ -190,7 +191,7 @@ class ChatDetailDialogsUiTest {
     @Test
     fun groupCallOverMeshLimitShowsTheHintAndStillOnlyReportsTheType() {
         val picked = mutableListOf<CallType>()
-        val over = com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS + 1
+        val over = GroupCallPolicy.MAX_MESH_MEMBERS + 1
         setGroupCallDialog(candidateCount = over, onPick = { picked += it })
 
         // 超限：出现选人提示

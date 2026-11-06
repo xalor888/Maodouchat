@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import com.maodouchat.core.session.CallSessionMachine
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.webrtc.WebRTCManager
 import java.util.UUID
 

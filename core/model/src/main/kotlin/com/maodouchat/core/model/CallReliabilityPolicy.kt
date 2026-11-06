@@ -1,10 +1,5 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.CallMediaPermission
-import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupPeerConnectionState
-import com.maodouchat.core.model.IceReconnectAction
-import com.maodouchat.core.model.NetworkQuality
 import java.util.concurrent.atomic.AtomicLong
 
 object CallReliabilityPolicy {
@@ -75,7 +70,7 @@ object CallNetworkQualityPolicy {
 }
 
 /** Rejects native callbacks and asynchronous failures from a released call generation. */
-internal class CallSessionGate {
+class CallSessionGate {
     private val generation = AtomicLong(0L)
 
     fun begin(): Long = generation.incrementAndGet()

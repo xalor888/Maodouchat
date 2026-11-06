@@ -1,7 +1,6 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
-import com.maodouchat.core.session.Ticket
-import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.core.model.CallReliabilityPolicy
 import java.util.concurrent.atomic.AtomicLong
 
 /**

@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.CallType
+import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 会话详情的「群组与实时功能」对话框：位置分享时长、群公告、群通话类型选择（从 ChatDetailDialogs 按专题拆出，零行为改动）。 */
@@ -115,7 +116,7 @@ internal fun GroupCallTypeDialog(
     onDismiss: () -> Unit,
 ) {
     if (!visible) return
-    val needsMemberPick = candidateCount > com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS - 1
+    val needsMemberPick = candidateCount > GroupCallPolicy.MAX_MESH_MEMBERS - 1
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_group_call)) },
@@ -124,7 +125,7 @@ internal fun GroupCallTypeDialog(
                 Text(
                     stringResource(
                         R.string.call_group_mesh_limit,
-                        com.maodouchat.webrtc.GroupCallPolicy.MAX_MESH_MEMBERS
+                        GroupCallPolicy.MAX_MESH_MEMBERS
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalChatPalette.current.textSecondary

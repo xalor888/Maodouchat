@@ -1,7 +1,6 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
-import com.maodouchat.core.session.Feature
-import com.maodouchat.webrtc.GroupCallPolicy
+import com.maodouchat.core.model.GroupCallPolicy
 
 /**
  * P03：群通话能力边界。Mesh 上限与 [GroupCallPolicy.MAX_MESH_MEMBERS] 对齐；

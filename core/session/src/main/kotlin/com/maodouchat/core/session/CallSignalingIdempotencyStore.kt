@@ -1,6 +1,6 @@
-package com.maodouchat.call
+package com.maodouchat.core.session
 
-import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.core.model.CallReliabilityPolicy
 
 /**
  * P03：通话信令幂等记忆（有界）。优先用服务端/客户端 idempotencyKey；

@@ -4,12 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.call.CallSignalingIdempotencyStore
+import com.maodouchat.core.session.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
-import com.maodouchat.call.CallSignalingOutboundCursor
+import com.maodouchat.core.session.CallSignalingOutboundCursor
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.core.model.CallType
-import com.maodouchat.webrtc.CallSessionGate
+import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.webrtc.WebRTCManager

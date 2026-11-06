@@ -1,6 +1,5 @@
-package com.maodouchat.webrtc
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.IceReconnectAction
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallMediaPermission
-import com.maodouchat.webrtc.CallReliabilityPolicy
+import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallType
 
 /**

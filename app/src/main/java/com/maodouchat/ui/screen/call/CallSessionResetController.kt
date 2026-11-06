@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.call
 
-import com.maodouchat.call.GroupCallCapabilities
+import com.maodouchat.core.session.GroupCallCapabilities
 import com.maodouchat.core.model.GroupCallParticipantUi
 
 // 会话重置簇：从 CallViewModel 纯搬移——呼出/呼入前重置 VM 状态的四个

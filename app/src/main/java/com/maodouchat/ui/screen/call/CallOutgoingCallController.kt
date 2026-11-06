@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.call.GroupCallCapabilities
+import com.maodouchat.core.session.GroupCallCapabilities
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
