@@ -1,4 +1,4 @@
-package com.maodouchat.widget
+package com.maodouchat.core.model
 
 /**
  * B5 主屏小组件 · 组件间契约（intent 协议 / extras / 常量）。

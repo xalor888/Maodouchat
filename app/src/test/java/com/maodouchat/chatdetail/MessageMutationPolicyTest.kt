@@ -8,9 +8,9 @@ import com.maodouchat.data.model.MessageStatus
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.messaging.v2.MessageMutationTracker
-import com.maodouchat.ui.screen.chatdetail.isAlreadyTerminalMutation
-import com.maodouchat.ui.screen.chatdetail.isAmbiguousTransportFailure
+import com.maodouchat.core.model.MessageMutationTracker
+import com.maodouchat.core.model.isAlreadyTerminalMutation
+import com.maodouchat.core.model.isAmbiguousTransportFailure
 import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
 import com.maodouchat.ui.screen.chatdetail.toOptimisticEdit
 import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder

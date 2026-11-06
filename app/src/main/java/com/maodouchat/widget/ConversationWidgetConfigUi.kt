@@ -31,6 +31,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.WidgetConfig
 import com.maodouchat.data.model.Chat
 import com.maodouchat.data.repository.ChatRepository

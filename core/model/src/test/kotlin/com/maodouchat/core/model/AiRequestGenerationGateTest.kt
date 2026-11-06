@@ -1,6 +1,6 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.ui.screen.chatdetail.AiRequestGenerationGate
+import com.maodouchat.core.model.AiRequestGenerationGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals

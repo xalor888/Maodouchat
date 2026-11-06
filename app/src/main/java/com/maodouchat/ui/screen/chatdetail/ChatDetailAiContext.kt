@@ -8,6 +8,7 @@ import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageType
 import com.maodouchat.network.AiContextMessage
 import androidx.lifecycle.viewModelScope
+import com.maodouchat.core.model.isAmbiguousTransportFailure
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

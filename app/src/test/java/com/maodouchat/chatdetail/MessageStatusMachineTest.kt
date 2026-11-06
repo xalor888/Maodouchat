@@ -1,6 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessageMutationTracker
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.model.MessageReaction
 import com.maodouchat.data.model.MessageStatus
@@ -75,7 +76,7 @@ class MessageStatusMachineTest {
 
     @Test
     fun `delete ticket still blocks concurrent edit begin`() {
-        val tracker = com.maodouchat.messaging.v2.MessageMutationTracker()
+        val tracker = MessageMutationTracker()
         assertTrue(tracker.begin("m9", MessageMutationKind.DELETE) != null)
         assertEquals(null, tracker.begin("m9", MessageMutationKind.EDIT))
     }

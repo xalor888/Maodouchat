@@ -10,6 +10,7 @@ import androidx.core.app.RemoteInput
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.core.model.QuickReplyCommand
 import com.maodouchat.core.model.QuickReplyCommandResult

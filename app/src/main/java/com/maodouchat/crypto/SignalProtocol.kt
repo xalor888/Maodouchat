@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.crypto.CryptoAccountBootstrapper
+import com.maodouchat.core.crypto.DecryptEnvelopeGate
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DeviceIdMigrationCoordinator
 import com.maodouchat.core.crypto.DeviceSafetyState
@@ -22,7 +23,6 @@ import com.maodouchat.core.model.MultiRecipientEnvelopePayload
 import com.maodouchat.core.session.SessionCoverage
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao
-import com.maodouchat.messaging.DecryptEnvelopeGate
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage
 import org.signal.libsignal.protocol.state.PreKeyBundle
