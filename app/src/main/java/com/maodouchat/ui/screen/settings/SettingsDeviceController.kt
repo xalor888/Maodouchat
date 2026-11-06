@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.settings
 import com.maodouchat.R
 import com.maodouchat.core.model.DeviceInfoDto
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

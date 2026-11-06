@@ -5,7 +5,7 @@ import android.net.Uri
 import com.maodouchat.R
 import com.maodouchat.core.model.CustomStatusPolicy
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.SettingsUiState
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

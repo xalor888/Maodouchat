@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.explore
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.UserDto

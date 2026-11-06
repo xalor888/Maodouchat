@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.session.SensitiveAction
 import com.maodouchat.security.SensitiveActionGate
-import com.maodouchat.settings.model.SettingsUiState
+import com.maodouchat.core.model.SettingsUiState
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 账号安全屏尾部对话框簇：改密码 / 退出全部设备 / 删除账号 / 移除设备 / 重命名设备（从 SettingsAccountSecurityScreen.kt 纯搬移）。 */
