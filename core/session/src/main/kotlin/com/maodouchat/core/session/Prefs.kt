@@ -1,4 +1,4 @@
-package com.maodouchat.network
+package com.maodouchat.core.session
 
 // Token 存储 Key
 object Prefs {

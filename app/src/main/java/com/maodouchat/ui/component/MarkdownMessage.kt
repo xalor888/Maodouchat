@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.core.model.MdBlock
+import com.maodouchat.core.model.parseMarkdownBlocks
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.OnSurface
 
@@ -27,7 +28,6 @@ import com.maodouchat.ui.theme.OnSurface
  * headings, bold, italic, strike, inline code, fenced code, links, lists, quotes.
  * No HTML. Safe for E2EE plaintext after local decrypt.
  */
-
 @Composable
 fun MarkdownMessageContent(
     text: String,

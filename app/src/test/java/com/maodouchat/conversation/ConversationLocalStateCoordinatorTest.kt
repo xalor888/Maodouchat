@@ -4,6 +4,7 @@ import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalCleanupStep
 import com.maodouchat.core.model.ConversationLocalStateBackend
+import com.maodouchat.core.model.ConversationLocalStateCoordinator
 
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

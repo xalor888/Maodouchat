@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ConversationLocalCleanupFailure
 import com.maodouchat.core.model.ConversationLocalCleanupMode
@@ -11,7 +11,7 @@ import com.maodouchat.core.model.ConversationLocalStateBackend
  * Owns destructive local conversation convergence after a user command or authoritative leave.
  * Every step is isolated so one damaged cache cannot prevent the remaining private state cleanup.
  */
-internal class ConversationLocalStateCoordinator(
+class ConversationLocalStateCoordinator(
     private val currentSession: () -> ConversationLocalCleanupSession?,
     private val backend: ConversationLocalStateBackend,
 ) {
