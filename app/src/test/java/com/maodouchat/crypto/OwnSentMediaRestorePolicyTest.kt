@@ -1,6 +1,7 @@
 package com.maodouchat.crypto
 
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.OwnSentMediaRestorePolicy
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

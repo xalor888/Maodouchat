@@ -1,9 +1,9 @@
-package com.maodouchat.attachment
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.LocalFileMetadata
 
-internal fun normalizeAttachmentMetadata(
+fun normalizeAttachmentMetadata(
     type: MessageType,
     metadata: LocalFileMetadata
 ): LocalFileMetadata {
@@ -23,7 +23,7 @@ internal fun normalizeAttachmentMetadata(
     }
 }
 
-internal fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): LocalFileMetadata {
+fun normalizeVideoMetadata(fileName: String, declaredMimeType: String, sizeBytes: Long): LocalFileMetadata {
     val declaredMime = normalizeMimeType(declaredMimeType)
     val declaredExtension = VIDEO_MIME_TO_EXTENSION[declaredMime]
     val existingExtension = fileName.substringAfterLast('.', "").lowercase()
