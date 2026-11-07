@@ -37,6 +37,7 @@ import com.maodouchat.core.model.AiWeeklyReportSource
 import com.maodouchat.core.model.ChatDetailDraftBookkeeping
 import com.maodouchat.core.model.ChatDetailLiveLocationBookkeeping
 import com.maodouchat.core.model.ChatDetailReadReceiptBookkeeping
+import com.maodouchat.core.crypto.ChatDetailDecryptStatus
 import com.maodouchat.core.model.DecryptTexts
 import com.maodouchat.core.model.ReactionMutationPolicy
 import com.maodouchat.core.model.VoiceRecordingWaveform
@@ -45,7 +46,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
-
 /**
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
  *

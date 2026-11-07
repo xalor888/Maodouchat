@@ -1,10 +1,9 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.DecryptTexts
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.crypto.DecryptEnvelopeGate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
