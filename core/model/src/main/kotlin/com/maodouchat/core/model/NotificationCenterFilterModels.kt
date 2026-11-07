@@ -1,9 +1,6 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.NotificationCenterType
-import com.maodouchat.core.model.NotificationCenterItem
-
-internal enum class NotifFilter {
+enum class NotifFilter {
     ALL,
     UNREAD,
     MESSAGE,
