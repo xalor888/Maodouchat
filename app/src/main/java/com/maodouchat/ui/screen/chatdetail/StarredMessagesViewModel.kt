@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.StarredMessagesUiState
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
 import kotlinx.coroutines.Dispatchers

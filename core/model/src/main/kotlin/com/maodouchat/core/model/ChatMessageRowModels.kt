@@ -1,10 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ReadCountUi
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.ReplyPreview
-
-internal data class ChatMessageRowState(
+data class ChatMessageRowState(
     val message: Message,
     val isOwn: Boolean,
     val showAvatar: Boolean,

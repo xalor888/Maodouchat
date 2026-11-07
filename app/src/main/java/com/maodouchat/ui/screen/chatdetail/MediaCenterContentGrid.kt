@@ -37,6 +37,7 @@ import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.maodouchat.R
 import com.maodouchat.core.model.FrequencyWatermark
+import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.OwnerScopedImageKeys

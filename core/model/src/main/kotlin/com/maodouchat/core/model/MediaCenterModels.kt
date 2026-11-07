@@ -1,8 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MediaCenterCategory
+package com.maodouchat.core.model
 
 data class MediaCenterItem(
     val message: Message,
@@ -13,7 +9,7 @@ data class MediaCenterItem(
 private val webUrlRegex = Regex("https?://[^\\s<>]+", RegexOption.IGNORE_CASE)
 private val trailingUrlPunctuation = setOf('.', ',', '!', '?', ';', ':', ')', ']', '}', '。', '，', '！', '？', '；', '：')
 
-internal fun buildMediaCenterItems(messages: List<Message>): List<MediaCenterItem> =
+fun buildMediaCenterItems(messages: List<Message>): List<MediaCenterItem> =
     messages.flatMap { message ->
         when (message.type) {
             MessageType.IMAGE, MessageType.GIF, MessageType.VIDEO, MessageType.STICKER ->
@@ -32,3 +28,12 @@ internal fun buildMediaCenterItems(messages: List<Message>): List<MediaCenterIte
             else -> emptyList()
         }
     }.sortedByDescending { it.message.timestamp }
+
+data class MediaCenterUiState(
+    val items: List<MediaCenterItem> = emptyList(),
+    val isLoading: Boolean = true,
+    /** null while checking lock; true when PIN required and process not unlocked */
+    val isChatLocked: Boolean? = null,
+    val chatName: String = "",
+    val isSecretChat: Boolean = false,
+)
