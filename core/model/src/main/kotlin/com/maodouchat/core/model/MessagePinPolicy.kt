@@ -1,12 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.PreviewKind
-import com.maodouchat.core.model.MessageType
-
-/**
- * 会话消息置顶权限与预览（纯逻辑，单测友好）。
- * 服务端再校验一次；客户端用于菜单显隐与本地预览文案。
- */
+/** 消息置顶权限与预览；服务端再校验一次。 */
 object MessagePinPolicy {
     const val MAX_PINS = 20
 

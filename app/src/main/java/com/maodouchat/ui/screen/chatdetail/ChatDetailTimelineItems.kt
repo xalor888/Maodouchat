@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
+import com.maodouchat.core.model.DEFAULT_QUICK_REACTION
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.model.Message
@@ -32,6 +33,7 @@ import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReplyPreview
+import com.maodouchat.core.model.toggleMessageSelection
 
 /**
  * 主时间线的**单条 item** 渲染（G85 从 `ChatDetailRoute.kt` 拆出，原 231 行）。

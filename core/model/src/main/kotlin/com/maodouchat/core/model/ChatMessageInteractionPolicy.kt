@@ -1,8 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageType
-
-internal fun isMessageGestureEligible(type: MessageType): Boolean = type !in setOf(
+fun isMessageGestureEligible(type: MessageType): Boolean = type !in setOf(
     MessageType.NUDGE,
     MessageType.SK_DIST,
     MessageType.SYSTEM,
@@ -10,7 +8,7 @@ internal fun isMessageGestureEligible(type: MessageType): Boolean = type !in set
 )
 
 /** Forward/share eligibility. Secret chats block forward when runtime forward-block is on. */
-internal fun isMessageForwardable(
+fun isMessageForwardable(
     type: MessageType,
     isSecretChat: Boolean = false,
     forwardBlockEnabled: Boolean = true
@@ -20,7 +18,7 @@ internal fun isMessageForwardable(
 }
 
 /** Copy text out of secret chats is blocked to reduce plain-text exfiltration. */
-internal fun isMessageCopyable(
+fun isMessageCopyable(
     type: MessageType,
     isSecretChat: Boolean = false,
     copyBlockEnabled: Boolean = true
@@ -30,12 +28,12 @@ internal fun isMessageCopyable(
 }
 
 /** 可回复的消息类型：与左滑回复手势一致。 */
-internal fun isMessageReplyable(type: MessageType): Boolean = isMessageGestureEligible(type)
+fun isMessageReplyable(type: MessageType): Boolean = isMessageGestureEligible(type)
 
-internal fun shouldTriggerSwipeReply(offsetPx: Float, thresholdPx: Float): Boolean =
+fun shouldTriggerSwipeReply(offsetPx: Float, thresholdPx: Float): Boolean =
     thresholdPx > 0f && offsetPx <= -thresholdPx
 
-internal fun toggleMessageSelection(selectedIds: Set<String>, messageId: String): Set<String> =
+fun toggleMessageSelection(selectedIds: Set<String>, messageId: String): Set<String> =
     if (messageId in selectedIds) selectedIds - messageId else selectedIds + messageId
 
-internal const val DEFAULT_QUICK_REACTION = "❤️"
+const val DEFAULT_QUICK_REACTION = "❤️"

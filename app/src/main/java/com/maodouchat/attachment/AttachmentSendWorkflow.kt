@@ -8,6 +8,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -77,7 +78,7 @@ internal class AttachmentSendWorkflow(
             viewOnce = command.viewOnce &&
                 com.maodouchat.util.ViewOncePolicy.supports(command.type),
             spoilerMedia = command.spoilerMedia && !command.viewOnce &&
-                com.maodouchat.util.SpoilerMediaPolicy.supports(command.type),
+                SpoilerMediaPolicy.supports(command.type),
         )
         val optimistic = command.existingMessage?.copy(
             chatId = command.chatId,

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.MessagePinPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.data.model.Message
