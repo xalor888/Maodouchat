@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.NotificationCenterItemEntity
 import com.maodouchat.data.local.entity.toEntity

@@ -2,6 +2,7 @@ package com.maodouchat.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toEntity

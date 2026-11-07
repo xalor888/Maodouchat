@@ -18,7 +18,7 @@ import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.messaging.v2.MessagingV2Runtime
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
