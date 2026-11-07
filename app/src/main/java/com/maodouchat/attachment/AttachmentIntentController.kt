@@ -5,7 +5,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore

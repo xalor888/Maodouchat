@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiOperationUi
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.PinnedMessageDto
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptUi
@@ -46,7 +47,7 @@ data class ChatDetailUiState(
     val contact: User = User("", ""),
     val chat: Chat? = null,
     val chatIsGroup: Boolean = false,
-    val messages: List<com.maodouchat.data.model.Message> = emptyList(),
+    val messages: List<Message> = emptyList(),
     /** 1.03：进入聊天时未读起点消息 id（渲染「以下为未读消息」分隔线）。 */
     val unreadSeparatorId: String? = null,
     val isLoadingOlderMessages: Boolean = false,

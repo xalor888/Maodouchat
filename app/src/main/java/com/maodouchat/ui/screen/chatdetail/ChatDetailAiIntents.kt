@@ -8,7 +8,7 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first

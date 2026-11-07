@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest

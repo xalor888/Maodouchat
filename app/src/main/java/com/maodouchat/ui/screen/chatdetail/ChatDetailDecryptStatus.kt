@@ -4,7 +4,7 @@ import com.maodouchat.core.model.DecryptTexts
 
 import com.maodouchat.core.crypto.DecryptEnvelopeGate
 import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
 

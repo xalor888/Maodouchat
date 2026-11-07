@@ -5,7 +5,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.SpoilerMediaPolicy

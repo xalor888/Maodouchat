@@ -1,6 +1,6 @@
 package com.maodouchat
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 data class AttachmentFinalizedEvent(
     val message: Message,

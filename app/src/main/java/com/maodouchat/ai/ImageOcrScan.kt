@@ -3,7 +3,7 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

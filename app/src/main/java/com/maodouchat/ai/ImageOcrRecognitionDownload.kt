@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import androidx.core.net.toUri
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

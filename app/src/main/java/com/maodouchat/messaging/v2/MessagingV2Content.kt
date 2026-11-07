@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.ChatTextDisplayPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.LegacyBody
 import com.maodouchat.core.model.MessageMeta

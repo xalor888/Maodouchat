@@ -5,7 +5,7 @@ import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
 import com.maodouchat.core.model.User
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.core.model.Chat
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.ChatRepository

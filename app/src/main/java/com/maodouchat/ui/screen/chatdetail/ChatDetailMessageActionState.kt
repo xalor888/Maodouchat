@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 /**
  * G335：`ChatDetailRoute` 里**「当前哪条消息正被某个弹层操作」**这一族状态的持有者。

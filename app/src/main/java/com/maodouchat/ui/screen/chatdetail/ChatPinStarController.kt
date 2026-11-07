@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.data.repository.PinStarNetworkRepository
 import android.app.Application
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.MessagePinPolicy

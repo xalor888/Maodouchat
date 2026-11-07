@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import com.maodouchat.data.local.AppDatabase
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.AiMessageResultStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

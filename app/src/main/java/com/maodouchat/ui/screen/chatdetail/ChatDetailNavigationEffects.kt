@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.perf.CoalescedScroller
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。

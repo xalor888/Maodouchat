@@ -7,7 +7,7 @@ import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
 import com.maodouchat.core.model.Chat
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent

@@ -133,9 +133,10 @@ internal suspend fun ChatDetailViewModel.armSecretDisappearing(targetChatId: Str
 internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, expiresAt: Long) {
     if (messageId.isBlank() || expiresAt <= 0L) return
     val existing = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) } ?: return
-    if (existing.expiresAt != null && existing.expiresAt > 0L) {
+    val existingExpiresAt = existing.expiresAt
+    if (existingExpiresAt != null && existingExpiresAt > 0L) {
         // 已有截止时间不延长
-        if (existing.expiresAt <= expiresAt) return
+        if (existingExpiresAt <= expiresAt) return
     }
     val updated = existing.copy(expiresAt = expiresAt)
     withContext(Dispatchers.IO) { messageRepo.insertMessage(updated) }
@@ -151,9 +152,15 @@ internal suspend fun ChatDetailViewModel.purgeExpiredLocalMessages(nowMs: Long =
     com.maodouchat.security.SecretConversationActions.purgeExpiredMessages(nowMs)
     _uiState.update { s ->
         s.copy(
-            messages = s.messages.filter { it.expiresAt == null || it.expiresAt <= 0L || it.expiresAt > nowMs },
+            messages = s.messages.filter {
+                val expiresAt = it.expiresAt
+                expiresAt == null || expiresAt <= 0L || expiresAt > nowMs
+            },
             pinnedMessages = s.pinnedMessages.filter { pin ->
-                s.messages.none { it.id == pin.messageId && it.expiresAt != null && it.expiresAt > 0L && it.expiresAt <= nowMs }
+                s.messages.none {
+                    val expiresAt = it.expiresAt
+                    it.id == pin.messageId && expiresAt != null && expiresAt > 0L && expiresAt <= nowMs
+                }
             }
         )
     }

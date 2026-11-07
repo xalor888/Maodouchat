@@ -1,5 +1,6 @@
 package com.maodouchat
 
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.WebSocketEventBridge
@@ -607,7 +608,7 @@ class MaodouchatApp : Application() {
         private val _attachmentFinalizedEvents =
             kotlinx.coroutines.flow.MutableSharedFlow<AttachmentFinalizedEvent>(extraBufferCapacity = 16)
         val attachmentFinalizedEvents = _attachmentFinalizedEvents.asSharedFlow()
-        fun emitAttachmentFinalized(message: com.maodouchat.data.model.Message) {
+        fun emitAttachmentFinalized(message: Message) {
             _attachmentFinalizedEvents.tryEmit(
                 AttachmentFinalizedEvent(message = message, sessionGeneration = sessionGeneration)
             )

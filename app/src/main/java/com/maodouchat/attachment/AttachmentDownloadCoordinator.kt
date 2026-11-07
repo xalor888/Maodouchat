@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.maodouchat.core.model.AttachmentReferenceInvalidException
 import com.maodouchat.core.model.LockRef
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager

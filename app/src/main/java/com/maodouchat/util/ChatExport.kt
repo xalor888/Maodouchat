@@ -3,7 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import java.io.File
 import java.text.SimpleDateFormat

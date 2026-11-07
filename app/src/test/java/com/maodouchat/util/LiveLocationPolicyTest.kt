@@ -1,7 +1,7 @@
 package com.maodouchat.util
 
 import com.maodouchat.core.model.LocationPayload
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals

@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.isMessageForwardable
 import com.maodouchat.core.model.isMessageReplyable
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
 

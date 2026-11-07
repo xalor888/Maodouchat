@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal class ChatDetailMessageTargetState {
     /** 当前回复引用的消息（null = 不在引用任何消息）。 */

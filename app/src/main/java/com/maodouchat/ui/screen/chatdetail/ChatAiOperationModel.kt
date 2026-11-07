@@ -4,7 +4,7 @@ import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationType
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AiClassifiedError

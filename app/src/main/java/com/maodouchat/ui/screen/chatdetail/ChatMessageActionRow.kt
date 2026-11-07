@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.ChatListReceiptPolicy
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.MessageStatusIcon
 

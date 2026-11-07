@@ -5,7 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.builtins.ListSerializer

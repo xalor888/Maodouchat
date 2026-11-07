@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 sealed interface MessagingV2MessageGatewayOutcome {
     data class Staged(val message: Message) : MessagingV2MessageGatewayOutcome

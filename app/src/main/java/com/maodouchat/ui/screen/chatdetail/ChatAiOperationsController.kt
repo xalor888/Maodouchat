@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiOperationUi
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.AiOperationRepository
 import com.maodouchat.data.repository.AiSummaryRepository

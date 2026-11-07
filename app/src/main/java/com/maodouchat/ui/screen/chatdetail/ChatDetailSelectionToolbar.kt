@@ -5,7 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.core.model.MessagePinPolicy
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.core.model.isMessageForwardable

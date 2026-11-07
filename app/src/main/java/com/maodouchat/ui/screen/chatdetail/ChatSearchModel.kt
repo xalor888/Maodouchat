@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.core.model.ChatSearchWindow
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MentionPolicy
 import java.util.Calendar

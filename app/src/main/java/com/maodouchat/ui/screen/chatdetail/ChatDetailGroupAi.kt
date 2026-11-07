@@ -6,7 +6,7 @@ import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.core.model.AiGroupTask
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.AiSemanticSearchCandidate
-import com.maodouchat.data.model.semanticSearchText
+import com.maodouchat.core.model.semanticSearchText
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

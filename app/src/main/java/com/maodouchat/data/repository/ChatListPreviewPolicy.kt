@@ -3,7 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.core.model.ChatListPreview
 import com.maodouchat.core.model.ChatTextDisplayPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.MediaCache
 
@@ -104,7 +104,7 @@ object ChatListPreviewPolicy {
      * after cache wipe. Room `lastMessage` historically stored composeContentWithMeta.
      */
     fun visiblePreviewText(raw: String): String {
-        val withoutMeta = raw.lastIndexOf(com.maodouchat.data.model.Message.META_TAG_PREFIX).let { idx ->
+        val withoutMeta = raw.lastIndexOf(Message.META_TAG_PREFIX).let { idx ->
             if (idx < 0) raw else raw.substring(0, idx)
         }.trim()
         if (withoutMeta.isBlank()) return ""

@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.core.model.MessageType

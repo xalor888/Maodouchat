@@ -1,6 +1,6 @@
 package com.maodouchat.attachment
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 sealed interface AttachmentFinalizeOutcome {
     data class Sent(val message: Message) : AttachmentFinalizeOutcome

@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessageMutationKind
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal data class MessagingV2AuthoritativeMutation(
     val conversationId: String,

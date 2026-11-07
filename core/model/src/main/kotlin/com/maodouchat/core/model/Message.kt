@@ -1,4 +1,4 @@
-package com.maodouchat.data.model
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ChatTextDisplayPolicy
 import com.maodouchat.core.model.LocationPayload
@@ -38,12 +38,12 @@ data class Message(
         if (idx < 0) return meta
         val json = content.substring(idx + META_TAG_PREFIX.length).substringBefore("</meta>")
         return runCatching {
-            com.maodouchat.util.JsonFormat.fromJsonString(json)
+            MessageMetaJson.fromJsonString(json)
         }.getOrDefault(meta)
     }
 
     fun withEncodedMeta(updatedMeta: MessageMeta): Message {
-        val encoded = com.maodouchat.util.JsonFormat.encodeMessageMeta(updatedMeta)
+        val encoded = MessageMetaJson.encodeMessageMeta(updatedMeta)
         return copy(
             content = parsedContent() + META_TAG_PREFIX + encoded + "</meta>",
             meta = updatedMeta

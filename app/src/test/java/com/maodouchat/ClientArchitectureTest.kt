@@ -630,7 +630,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 274,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/MaodouchatApp.kt" to 700,
+        // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
+        // （700 → 701，纯接线），上限按实测同步上调（两份 map 一起改）。
+        "com/maodouchat/MaodouchatApp.kt" to 701,
         // 2026-10-08：SettingsScreen 拆小（936→398）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,
@@ -882,7 +884,9 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 274,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
-        "com/maodouchat/MaodouchatApp.kt" to 700,
+        // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
+        // （700 → 701，纯接线），上限按实测同步上调（两份 map 一起改）。
+        "com/maodouchat/MaodouchatApp.kt" to 701,
         // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,

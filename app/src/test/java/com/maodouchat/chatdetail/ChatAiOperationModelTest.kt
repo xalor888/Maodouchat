@@ -3,7 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationType
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
 import com.maodouchat.core.model.AiSummaryScope

@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import org.junit.Assert.assertEquals

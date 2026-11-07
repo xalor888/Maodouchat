@@ -7,7 +7,7 @@ import com.maodouchat.core.model.MessagingV2ArrivalPolicy
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 
 /** Commits decrypted v2 content into the local timeline and applies encrypted domain events. */
