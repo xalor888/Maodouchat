@@ -2,7 +2,7 @@ package com.maodouchat.explore.repository
 
 import com.maodouchat.core.model.UploadItem
 import com.maodouchat.core.model.UploadStatus
-import com.maodouchat.network.api.MediaApi
+import com.maodouchat.core.network.MediaApi
 import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException

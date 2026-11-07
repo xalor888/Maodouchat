@@ -3,7 +3,7 @@ package com.maodouchat.explore.repository
 import com.maodouchat.core.model.UploadStatus
 import com.maodouchat.core.model.AttachmentUploadResponse
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
-import com.maodouchat.network.api.MediaApi
+import com.maodouchat.core.network.MediaApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi

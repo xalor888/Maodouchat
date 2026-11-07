@@ -5,6 +5,7 @@ import com.maodouchat.core.model.UploadAvatarRequest
 import com.maodouchat.network.*
 import com.maodouchat.core.model.UploadPostImageRequest
 import com.maodouchat.core.model.UploadPostImageResponse
+import com.maodouchat.core.network.MediaImageApi
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

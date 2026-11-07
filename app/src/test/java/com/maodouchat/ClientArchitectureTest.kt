@@ -1045,7 +1045,6 @@ class ClientArchitectureTest {
     private val coreModulesWithZeroProductionUse: Set<String> = setOf(
         "util",
         "serialization",
-        "network",
     )
 
     @Test

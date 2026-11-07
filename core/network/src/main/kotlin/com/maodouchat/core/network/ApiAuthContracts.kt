@@ -1,8 +1,7 @@
-package com.maodouchat.network.api
+package com.maodouchat.core.network
 
 import com.maodouchat.core.model.AuthResponse
 import com.maodouchat.core.model.DeleteAccountResponse
-import com.maodouchat.network.*
 
 interface AuthApi {
     suspend fun getTotpStatus(token: String): Result<String>

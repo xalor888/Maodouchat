@@ -10,6 +10,7 @@ import com.maodouchat.core.model.RegisterRequest
 import com.maodouchat.core.model.RegisterWithCodeRequest
 import com.maodouchat.core.model.ResetPasswordRequest
 import com.maodouchat.core.model.SendCodeRequest
+import com.maodouchat.core.network.AuthApi
 import com.maodouchat.network.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.serializer

@@ -7,6 +7,7 @@ import com.maodouchat.core.model.ConversationSnapshotV2Dto
 import com.maodouchat.core.model.PendingInboxResponseV2
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.core.model.SendMessageResponseV2
+import com.maodouchat.core.network.MessagingApi
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
