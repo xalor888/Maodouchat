@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatListReceiptPolicy
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.formatChatTime
@@ -125,9 +126,8 @@ internal fun ChatListItem(
         ?: if (!draftText.isNullOrBlank()) stringResource(R.string.chat_draft_prefix) + draftText
         else messagePreview
     // 1.146：待发送定时消息提示（最优先于草稿/消息预览）
-    val scheduledLabel = if (scheduledCount > 0 && !isLocked) {
-        stringResource(R.string.chat_scheduled_list_preview, scheduledCount)
-    } else null
+    val scheduledLabel = if (scheduledCount > 0 && !isLocked)
+        stringResource(R.string.chat_scheduled_list_preview, scheduledCount) else null
     val finalPreview = scheduledLabel ?: preview
 
     Row(

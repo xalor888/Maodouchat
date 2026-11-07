@@ -1,9 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,7 +12,7 @@ class ChatListReceiptPolicyTest {
     @Test
     fun outgoingTailShowsReceipt() {
         val receipt = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.READ),
+            senderId = "me", status = MessageStatus.READ, isHidden = false,
             currentUserId = "me",
         )
         assertNotNull(receipt)
@@ -28,7 +24,7 @@ class ChatListReceiptPolicyTest {
     fun inboundTailHidesTicks() {
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "peer", status = MessageStatus.DELIVERED),
+                senderId = "peer", status = MessageStatus.DELIVERED, isHidden = false,
                 currentUserId = "me",
             )
         )
@@ -36,10 +32,10 @@ class ChatListReceiptPolicyTest {
 
     @Test
     fun blankOwnerOrNullMessageHidesTicks() {
-        assertNull(ChatListReceiptPolicy.fromLatest(latest = null, currentUserId = "me"))
+        assertNull(ChatListReceiptPolicy.fromLatest(senderId = null, status = null, isHidden = false, currentUserId = "me"))
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "me", status = MessageStatus.SENT),
+                senderId = "me", status = MessageStatus.SENT, isHidden = false,
                 currentUserId = "",
             )
         )
@@ -49,7 +45,7 @@ class ChatListReceiptPolicyTest {
     fun hiddenSenderKeyDoesNotShowTicks() {
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "me", type = MessageType.SK_DIST, status = MessageStatus.SENT),
+                senderId = "me", status = MessageStatus.SENT, isHidden = true,
                 currentUserId = "me",
             )
         )
@@ -58,7 +54,7 @@ class ChatListReceiptPolicyTest {
     @Test
     fun groupDeliveredShowsAsSentSingleCheck() {
         val receipt = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.DELIVERED),
+            senderId = "me", status = MessageStatus.DELIVERED, isHidden = false,
             currentUserId = "me",
             isGroup = true,
         )
@@ -91,7 +87,7 @@ class ChatListReceiptPolicyTest {
     @Test
     fun sendingTailShowsSendingReceipt() {
         val receipt = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.SENDING),
+            senderId = "me", status = MessageStatus.SENDING, isHidden = false,
             currentUserId = "me",
         )
         assertNotNull(receipt)
@@ -102,14 +98,14 @@ class ChatListReceiptPolicyTest {
     @Test
     fun groupReadKeepsDoubleCheck() {
         val readReceipt = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.READ),
+            senderId = "me", status = MessageStatus.READ, isHidden = false,
             currentUserId = "me",
             isGroup = true,
         )
         assertNotNull(readReceipt)
         assertEquals(MessageStatus.READ, readReceipt.status)
         val sentReceipt = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.SENT),
+            senderId = "me", status = MessageStatus.SENT, isHidden = false,
             currentUserId = "me",
             isGroup = true,
         )
@@ -121,13 +117,13 @@ class ChatListReceiptPolicyTest {
     fun whitespaceOwnerAndCaseSensitiveSenderHideTicks() {
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "me", status = MessageStatus.SENT),
+                senderId = "me", status = MessageStatus.SENT, isHidden = false,
                 currentUserId = " ",
             )
         )
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "ME", status = MessageStatus.SENT),
+                senderId = "ME", status = MessageStatus.SENT, isHidden = false,
                 currentUserId = "me",
             )
         )
@@ -136,14 +132,14 @@ class ChatListReceiptPolicyTest {
     @Test
     fun failedTailKeepsFailedReceiptInBothChatKinds() {
         val direct = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.FAILED),
+            senderId = "me", status = MessageStatus.FAILED, isHidden = false,
             currentUserId = "me",
         )
         assertNotNull(direct)
         assertTrue(direct.fromMe)
         assertEquals(MessageStatus.FAILED, direct.status)
         val group = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", status = MessageStatus.FAILED),
+            senderId = "me", status = MessageStatus.FAILED, isHidden = false,
             currentUserId = "me",
             isGroup = true,
         )
@@ -170,12 +166,12 @@ class ChatListReceiptPolicyTest {
     fun blankSenderHidesTicksWhileSystemTypeShowsReceipt() {
         assertNull(
             ChatListReceiptPolicy.fromLatest(
-                latest = message(senderId = "", status = MessageStatus.SENT),
+                senderId = "", status = MessageStatus.SENT, isHidden = false,
                 currentUserId = "me",
             )
         )
         val system = ChatListReceiptPolicy.fromLatest(
-            latest = message(senderId = "me", type = MessageType.SYSTEM, status = MessageStatus.SENT),
+            senderId = "me", status = MessageStatus.SENT, isHidden = false,
             currentUserId = "me",
         )
         assertNotNull(system)
@@ -196,17 +192,4 @@ class ChatListReceiptPolicyTest {
         assertEquals("99+", ChatListReceiptPolicy.unreadBadgeText(120, markedUnread = false))
         assertFalse(ChatListReceiptPolicy.showUnreadBadge(0, markedUnread = false))
     }
-
-    private fun message(
-        senderId: String,
-        status: MessageStatus,
-        type: MessageType = MessageType.TEXT,
-    ) = Message(
-        id = "m1",
-        chatId = "c1",
-        senderId = senderId,
-        content = "hi",
-        type = type,
-        status = status,
-    )
 }
