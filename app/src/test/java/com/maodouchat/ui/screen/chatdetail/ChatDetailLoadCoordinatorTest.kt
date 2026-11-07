@@ -5,6 +5,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatLoadEffect
+import com.maodouchat.core.model.ChatLoadInput
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
