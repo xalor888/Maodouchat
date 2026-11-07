@@ -1,23 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.RetryRejectReason
-import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageType
-
-sealed interface SendDecision {
-    /** 放行，附带截断后的文本、组装好的 meta，以及调用方要做的 UI 动作。 */
-    data class Allow(
-        val text: String,
-        val meta: MessageMeta,
-        val messageType: MessageType,
-        val clearDraft: Boolean,
-        val consumeSilent: Boolean,
-    ) : SendDecision
-
-    data class Reject(val reason: SendRejectReason) : SendDecision
-}
 
 sealed interface RetryDecision {
     data class Allow(val message: Message) : RetryDecision
