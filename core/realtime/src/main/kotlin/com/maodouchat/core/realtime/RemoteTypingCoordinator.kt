@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.realtime
 
-import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
-import com.maodouchat.core.realtime.shouldApplyTypingEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -9,7 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Maintains an independent lease per remote typing user and publishes the most recent one. */
-internal class RemoteTypingCoordinator(
+class RemoteTypingCoordinator(
     private val scope: CoroutineScope,
     private val timeoutMs: Long = REMOTE_TYPING_TIMEOUT_MS,
     private val onTypingUserChanged: (String?) -> Unit

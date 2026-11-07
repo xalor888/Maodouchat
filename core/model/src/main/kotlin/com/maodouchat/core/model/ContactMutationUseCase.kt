@@ -1,4 +1,4 @@
-package com.maodouchat.contacts.usecase
+package com.maodouchat.core.model
 
 /**
  * 联系人关系与属性变更用例契约

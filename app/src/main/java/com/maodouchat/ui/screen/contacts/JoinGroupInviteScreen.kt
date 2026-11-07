@@ -23,7 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.JoinGroupInviteResult
-import com.maodouchat.group.JoinGroupInviteUseCase
+import com.maodouchat.core.model.JoinGroupInviteUseCase
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
