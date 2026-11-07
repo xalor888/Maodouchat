@@ -1,9 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.DecryptTexts
 
-import com.maodouchat.core.crypto.DecryptEnvelopeGate
-import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
@@ -16,7 +14,7 @@ import com.maodouchat.core.model.MessageType
  * 把真正的失败判成普通消息则会让失败被当成内容渲染出去。原先它们埋在 3071 行的
  * ViewModel 里且无法单测，抽出来之后这些边界才有测试钉住。
  */
-internal class ChatDetailDecryptStatus(
+class ChatDetailDecryptStatus(
     private val gate: DecryptEnvelopeGate,
     private val texts: DecryptTexts,
 ) {
