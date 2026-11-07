@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.isMessageForwardable
+import com.maodouchat.core.model.isMessageReplyable
 import com.maodouchat.data.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
@@ -27,8 +29,6 @@ import com.maodouchat.util.RuntimeFlags
  * 长按消息的「操作」底部弹层（G328c 从 `ChatDetailRoute.kt` 的
  * `messageToActions?.let { ... }` 整块搬出，**纯搬移不改判断**）。
  *
- * 为什么值得先搬它：它是该文件里最大的自包含块（450 行），而 `ChatDetailRoute` 是
- * 3432 行的单体 composable——热点棘轮真正想压的就是这个。搬它的代价是 14 个
  * 「要写回 Route 的状态」变成回调（[onMessageToActions] 等），换来的是一处能独立读、
  * 独立审的 UI 单元。块内的局部状态（`cursor`/`busy`/`copied` 这类瞬时态）随块留在这里。
  */

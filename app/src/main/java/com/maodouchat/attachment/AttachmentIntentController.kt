@@ -25,6 +25,7 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.util.StickerPreferences
 import com.maodouchat.util.ViewOncePolicy
 import kotlinx.coroutines.CancellationException
@@ -229,7 +230,7 @@ class DefaultAttachmentIntentController(
                 voiceDurationMs = prepared.durationMs,
                 viewOnce = intent.viewOnce && ViewOncePolicy.supports(msgType),
                 spoilerMedia = intent.spoilerMedia && !intent.viewOnce &&
-                    com.maodouchat.util.SpoilerMediaPolicy.supports(msgType),
+                    SpoilerMediaPolicy.supports(msgType),
             )
 
             val optimisticMessage = Message(

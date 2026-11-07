@@ -6,6 +6,7 @@ import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
+import com.maodouchat.core.model.MessagePinPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

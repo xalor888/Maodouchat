@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ParticleAction
+import com.maodouchat.core.model.isMessageForwardable
 
 import android.widget.Toast
 import androidx.compose.runtime.Composable
