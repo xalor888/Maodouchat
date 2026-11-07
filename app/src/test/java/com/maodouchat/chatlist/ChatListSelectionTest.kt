@@ -1,9 +1,9 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.ui.screen.chatlist.ChatListSelection
-import com.maodouchat.ui.screen.chatlist.ChatListSelectionEvent
-import com.maodouchat.ui.screen.chatlist.UnreadBatchTargets
+import com.maodouchat.core.model.ChatListSelection
+import com.maodouchat.core.model.ChatListSelectionEvent
+import com.maodouchat.core.model.UnreadBatchTargets
 import com.maodouchat.ui.screen.chatlist.reduceSelection
 import com.maodouchat.ui.screen.chatlist.selectUnreadBatchTargets
 import kotlin.test.Test

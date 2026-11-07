@@ -12,6 +12,7 @@ import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.ContactsIndexPolicy
+import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.AppRepositories

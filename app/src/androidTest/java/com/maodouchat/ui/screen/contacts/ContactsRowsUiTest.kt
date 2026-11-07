@@ -11,7 +11,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
-import com.maodouchat.contacts.usecase.FriendRequestItem
+import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.core.model.User
 import org.junit.Rule
 import org.junit.Test

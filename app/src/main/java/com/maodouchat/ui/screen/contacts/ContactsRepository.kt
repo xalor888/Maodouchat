@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.contacts
 
 import android.app.Application
+import com.maodouchat.core.model.ContactsLoadResult
+import com.maodouchat.core.model.ContactsSession
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.FriendCacheStore

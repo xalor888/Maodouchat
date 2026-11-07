@@ -17,8 +17,10 @@ import com.maodouchat.R
 import com.maodouchat.conversation.ConversationCreationPort
 import com.maodouchat.contacts.sync.ContactSyncEvent
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
-import com.maodouchat.contacts.usecase.FriendRequestsSnapshot
-import com.maodouchat.contacts.usecase.FriendRequestItem
+import com.maodouchat.core.model.ContactsLoadResult
+import com.maodouchat.core.model.ContactsSession
+import com.maodouchat.core.model.FriendRequestsSnapshot
+import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.contacts.usecase.FriendRequestUseCase
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.model.Chat

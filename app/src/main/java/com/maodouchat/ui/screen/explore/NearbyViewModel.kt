@@ -2,6 +2,8 @@ package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.core.model.LocationException
 import com.maodouchat.core.model.LocationFailure
+import com.maodouchat.core.model.NearbyPerson
+import com.maodouchat.core.model.NearbyUiState
 import com.maodouchat.data.repository.NearbyNetworkRepository
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application

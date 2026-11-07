@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ContactsUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

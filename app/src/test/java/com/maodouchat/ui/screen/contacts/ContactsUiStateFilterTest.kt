@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.contacts
 
+import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Test

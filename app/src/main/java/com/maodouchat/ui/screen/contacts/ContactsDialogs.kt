@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User
 import com.maodouchat.ui.theme.LocalChatPalette
 
