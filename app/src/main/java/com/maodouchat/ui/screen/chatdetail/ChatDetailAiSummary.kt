@@ -8,6 +8,9 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.SEVEN_DAYS_MS
 import com.maodouchat.core.model.THIRTY_DAYS_MS
 import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
+import com.maodouchat.core.model.aiSummaryContextText
+import com.maodouchat.core.model.buildSummaryAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
