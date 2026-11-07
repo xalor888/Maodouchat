@@ -1,6 +1,6 @@
 package com.maodouchat.navigation
 
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.NotificationCenterOpenOutcome
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

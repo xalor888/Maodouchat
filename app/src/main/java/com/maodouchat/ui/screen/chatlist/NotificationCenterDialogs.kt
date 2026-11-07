@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 
 /** 通知中心对话框簇：清空全部确认 / 清除会话通知 / 长按操作菜单（从 NotificationCenterScreen 尾部纯搬移）。 */
 @Composable

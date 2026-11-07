@@ -12,7 +12,7 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.ui.graphics.Color
 import com.maodouchat.core.model.NotificationCenterType
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
