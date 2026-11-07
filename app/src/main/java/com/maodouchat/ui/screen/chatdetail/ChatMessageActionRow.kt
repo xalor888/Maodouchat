@@ -18,12 +18,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.maodouchat.core.model.ChatListReceiptPolicy
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.R
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.MessageStatusIcon
-import com.maodouchat.ui.screen.chatlist.ChatListReceiptPolicy
 
 @Composable
 internal fun MessageActionRow(

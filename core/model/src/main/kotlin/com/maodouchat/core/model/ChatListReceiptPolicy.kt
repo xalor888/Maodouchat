@@ -1,8 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
-
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Receipt
-import com.maodouchat.data.model.Message
+package com.maodouchat.core.model
 
 /**
  * Telegram-style list ticks: only when the list tail is our own outgoing message.
@@ -10,11 +6,19 @@ import com.maodouchat.data.model.Message
  */
 object ChatListReceiptPolicy {
 
-    fun fromLatest(latest: Message?, currentUserId: String, isGroup: Boolean = false): Receipt? {
-        if (latest == null || currentUserId.isBlank()) return null
-        if (latest.senderId != currentUserId) return null
-        if (latest.type.isHidden) return null
-        return Receipt(fromMe = true, status = displayStatus(latest.status, isGroup))
+    // Takes the tail message's fields instead of the app-side Message row, so the
+    // policy can live in :core:model; null sender/status means "no tail message".
+    fun fromLatest(
+        senderId: String?,
+        status: MessageStatus?,
+        isHidden: Boolean,
+        currentUserId: String,
+        isGroup: Boolean = false,
+    ): Receipt? {
+        if (senderId == null || status == null || currentUserId.isBlank()) return null
+        if (senderId != currentUserId) return null
+        if (isHidden) return null
+        return Receipt(fromMe = true, status = displayStatus(status, isGroup))
     }
 
     /**
