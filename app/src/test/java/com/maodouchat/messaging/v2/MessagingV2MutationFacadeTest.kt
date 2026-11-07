@@ -5,6 +5,7 @@ import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.core.model.MessagingV2EventOutbox
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

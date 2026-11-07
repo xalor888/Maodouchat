@@ -4,6 +4,7 @@ import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2Event
+import com.maodouchat.core.model.MessagingV2EventOutbox
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async

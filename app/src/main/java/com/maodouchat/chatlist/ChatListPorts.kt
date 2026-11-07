@@ -29,7 +29,7 @@ import com.maodouchat.core.model.ChatDto
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
-import com.maodouchat.scheduling.ConversationScheduleCoordinator
+import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.sync.BacklogSyncWorker
 import com.maodouchat.util.PushVerifyPrefs

@@ -15,7 +15,7 @@ import com.maodouchat.data.repository.AiTaskRepository
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
-import com.maodouchat.scheduling.ConversationScheduleCoordinator
+import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.core.model.ConversationScheduleResult
 import com.maodouchat.security.ChatLockSession
 import com.maodouchat.security.SecretChatSession
