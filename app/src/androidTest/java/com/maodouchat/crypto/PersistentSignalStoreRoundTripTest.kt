@@ -3,6 +3,7 @@ package com.maodouchat.crypto
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.maodouchat.core.crypto.SignalStorePersistenceException
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao

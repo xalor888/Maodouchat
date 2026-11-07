@@ -1,6 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.security.BackgroundSessionGate
+package com.maodouchat.core.session
 
 /**
  * Whether this process may emit typing start/stop for [ownerUserId].
@@ -10,14 +8,16 @@ object TypingSessionPolicy {
     fun mayEmit(
         ownerUserId: String?,
         liveToken: String?,
-        liveUserId: String?
+        liveUserId: String?,
+        purgeInProgress: Boolean,
     ): Boolean {
         val owner = ownerUserId?.trim().orEmpty()
         if (owner.isBlank() || owner == "me") return false
-        return BackgroundSessionGate.mayContinue(
+        return BackgroundSessionGatePolicy.mayContinue(
             expectedUserId = owner,
             liveToken = liveToken,
-            liveUserId = liveUserId
+            liveUserId = liveUserId,
+            purgeInProgress = purgeInProgress,
         )
     }
 

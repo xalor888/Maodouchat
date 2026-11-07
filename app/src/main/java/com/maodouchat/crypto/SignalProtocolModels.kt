@@ -12,9 +12,6 @@ internal object SenderKeyDistributionFailurePolicy {
     }
 }
 
-class SignalStorePersistenceException(cause: Throwable) :
-    java.io.IOException("signal_store_persistence_failed", cause)
-
 data class SenderKeyDistributionPayload(
     val distributionId: String,
     val message: SenderKeyDistributionMessage,

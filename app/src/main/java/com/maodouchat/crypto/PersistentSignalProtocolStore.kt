@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import android.util.Log
+import com.maodouchat.core.crypto.SignalStorePersistenceException
 import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.core.session.SignalStoreLoadPolicy
 import com.maodouchat.data.local.dao.IdentityTrustDao
