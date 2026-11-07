@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ReadCountUi
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ReplyPreview
 
 internal data class ChatMessageRowState(

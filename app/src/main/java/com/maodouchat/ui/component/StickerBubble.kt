@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // ─── StickerBubble ───

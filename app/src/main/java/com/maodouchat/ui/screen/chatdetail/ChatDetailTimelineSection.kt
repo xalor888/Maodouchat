@@ -39,7 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.perf.CoalescedScroller
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType

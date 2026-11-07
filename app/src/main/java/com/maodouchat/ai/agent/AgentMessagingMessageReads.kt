@@ -4,7 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession

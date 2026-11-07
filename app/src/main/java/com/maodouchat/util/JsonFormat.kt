@@ -1,7 +1,7 @@
 package com.maodouchat.util
 
 import com.maodouchat.core.model.MessageMetaJson
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement

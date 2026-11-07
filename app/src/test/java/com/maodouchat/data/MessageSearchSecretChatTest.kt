@@ -4,7 +4,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.MessageSearchRepository
 import io.mockk.coEvery

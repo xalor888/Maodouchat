@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 // 长按弹层的 AI 场景入口：翻译/转写/图片与文件分析（密聊不展示）。
 @Composable

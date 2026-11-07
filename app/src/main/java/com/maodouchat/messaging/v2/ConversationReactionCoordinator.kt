@@ -2,7 +2,7 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.ReactionLock
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ReactionMutationPolicy
 import kotlinx.coroutines.CancellationException

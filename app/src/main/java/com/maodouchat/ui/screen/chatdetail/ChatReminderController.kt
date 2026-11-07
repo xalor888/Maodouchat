@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ChatReminderOutcome
 import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ChatScheduleRejection

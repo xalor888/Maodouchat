@@ -19,7 +19,7 @@ import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.WeeklyReport
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 /**
  * 聊天页的 **AI 相关对话框簇**（G74 从 `ChatDetailRoute.kt` 拆出）。

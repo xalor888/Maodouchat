@@ -30,7 +30,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.maodouchat.R
 import com.maodouchat.core.model.FrequencyWatermark
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.util.RuntimeFlags

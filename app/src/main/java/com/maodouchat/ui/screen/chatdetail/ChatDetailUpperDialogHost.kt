@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupCallPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
 @Composable

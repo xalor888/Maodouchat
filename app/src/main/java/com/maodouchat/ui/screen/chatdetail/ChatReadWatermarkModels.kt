@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal data class Input(
     val messages: List<Message>,

@@ -14,7 +14,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatSearchMode
 import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.core.model.ChatSearchWindow
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 @Composable
 internal fun ChatDetailSearchSection(

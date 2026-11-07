@@ -11,7 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatMarkdown
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.util.RuntimeFlags

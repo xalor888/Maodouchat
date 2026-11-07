@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
 import com.maodouchat.core.model.Chat
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CoroutineScope

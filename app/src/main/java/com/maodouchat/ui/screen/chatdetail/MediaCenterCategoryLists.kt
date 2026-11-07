@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache

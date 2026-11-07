@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 /**
  * 本地消息去重：同 id 无变化则跳过写入；不同 id 但同一投递（同会话/发送者/时间戳/正文）

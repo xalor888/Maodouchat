@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
 /** Deterministic local conflict rules shared by own-device and linked-device projections. */

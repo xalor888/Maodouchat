@@ -4,7 +4,7 @@ import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.core.model.MessagingV2EventOutbox
 import com.maodouchat.core.model.MessagingV2MutationCommit
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageReaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

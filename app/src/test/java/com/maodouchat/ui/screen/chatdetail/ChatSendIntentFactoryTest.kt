@@ -4,7 +4,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.NudgeDecision
 import com.maodouchat.core.model.NudgeRejectReason
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User

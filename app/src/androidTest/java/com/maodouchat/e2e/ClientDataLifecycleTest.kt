@@ -6,7 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.ChatEntity
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason

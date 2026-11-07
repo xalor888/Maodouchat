@@ -5,7 +5,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 
 /** M02：RECEIPT 投影——把送达/已读回执落库并推进消息状态，与 DATA/EVENT 投影解耦。 */

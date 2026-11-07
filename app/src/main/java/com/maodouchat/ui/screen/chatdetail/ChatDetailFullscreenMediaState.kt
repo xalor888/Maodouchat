@@ -5,7 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal class ChatDetailFullscreenMediaState {
     /** 当前全屏查看的图片消息；为 null 时图片对话框不展示。 */

@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.maodouchat.core.model.ChatSearchMode
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 // 搜索派生量族：消息文档、本地关键词结果、语义候选与最终合并结果。
 // 原在 ChatDetailRoute 内联声明，纯搬移不改判断。

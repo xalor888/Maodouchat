@@ -3,7 +3,7 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatQuietHoursPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.notification.ChatQuietHoursStore
 import com.maodouchat.core.model.LocalNotificationSuppressPolicy

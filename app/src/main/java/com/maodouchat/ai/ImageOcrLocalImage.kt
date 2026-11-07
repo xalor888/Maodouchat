@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.network.ApiService
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.core.model.EncryptedAttachmentReference

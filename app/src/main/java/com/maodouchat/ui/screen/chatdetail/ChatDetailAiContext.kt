@@ -4,7 +4,7 @@ import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.core.model.AiContextSenders
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope

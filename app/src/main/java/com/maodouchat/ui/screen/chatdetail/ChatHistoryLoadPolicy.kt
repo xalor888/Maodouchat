@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.HistoryLoadPlan
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 /**
  * 历史页装载后的收尾判定（G70，从 `ChatDetailViewModel.loadChat()` 的 IO 块里抽出）。

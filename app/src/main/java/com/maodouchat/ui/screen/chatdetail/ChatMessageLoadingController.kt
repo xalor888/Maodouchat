@@ -5,7 +5,7 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.core.model.OwnSentMediaRestorePolicy
 import com.maodouchat.core.model.Chat
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.ChatRepository

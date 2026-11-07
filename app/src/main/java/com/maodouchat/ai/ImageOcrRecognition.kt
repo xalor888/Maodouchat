@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.data.local.AppDatabase
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 // 单张图片 OCR 门面：下载识别→落库两阶段的统一入口，全部透传。
 object ImageOcrRecognition {

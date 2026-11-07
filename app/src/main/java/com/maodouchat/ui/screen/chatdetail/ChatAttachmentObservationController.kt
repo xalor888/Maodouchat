@@ -5,7 +5,7 @@ import com.maodouchat.attachment.AttachmentTransferScheduler
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.chatdetail.ChatDetailDataAccess
 import com.maodouchat.data.local.entity.AttachmentTransferState
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn

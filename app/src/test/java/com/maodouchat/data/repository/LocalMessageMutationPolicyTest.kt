@@ -2,7 +2,7 @@ package com.maodouchat.data.repository
 
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageReaction
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals

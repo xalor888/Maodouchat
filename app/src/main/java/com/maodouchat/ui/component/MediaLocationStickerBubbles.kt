@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 import com.maodouchat.ui.theme.LocalBubbleShapes
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette

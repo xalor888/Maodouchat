@@ -4,7 +4,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationEntity
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal sealed class PendingAiAction {
     data class Rewrite(val mode: String, val targetLanguage: String? = null) : PendingAiAction()

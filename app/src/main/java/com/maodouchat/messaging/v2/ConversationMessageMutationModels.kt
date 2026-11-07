@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.Message
+import com.maodouchat.core.model.Message
 
 internal sealed interface MessageMutationProjection {
     data class Remove(val messageId: String) : MessageMutationProjection
