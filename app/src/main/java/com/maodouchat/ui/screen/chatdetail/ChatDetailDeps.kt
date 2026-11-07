@@ -26,7 +26,7 @@ import com.maodouchat.messaging.v2.OutgoingConversationErrors
 import com.maodouchat.messaging.v2.OutgoingConversationRequest
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
-import com.maodouchat.scheduling.ChatScheduleController
+import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags

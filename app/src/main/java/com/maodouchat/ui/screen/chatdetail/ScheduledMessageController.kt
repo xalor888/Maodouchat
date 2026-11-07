@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatScheduleCommand
-import com.maodouchat.scheduling.ChatScheduleController
+import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ChatScheduleImmediateOutcome
 import com.maodouchat.core.model.ChatScheduleMutationOutcome
 import com.maodouchat.core.model.ChatScheduleRejection
