@@ -7,6 +7,7 @@ import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.core.session.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.CallSignalingOutboundCursor
+import com.maodouchat.core.session.CallSessionResetController
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallSessionGate
@@ -175,7 +176,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
             text = errorMessages::text,
-            // 会话重置簇已搬入 CallSessionResetController；此处只留方法引用。
             resetForNewOutgoingCall = sessionResetController::resetForNewOutgoingCall,
             resetForNewGroupCall = sessionResetController::resetForNewGroupCall,
             groupMemberIds = { activeGroupMemberIds },
@@ -327,6 +327,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             setGroupMemberIds = { activeGroupMemberIds = it },
             setPendingOfferSdp = { pendingOfferSdp = it },
             setCallLogOwnerUserId = { callLogOwnerUserId = it },
+            ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         )
     }
 
@@ -353,7 +354,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         lifecycleController.onStart()
     }
 
-    // 会话簇已搬入 CallSessionController；此处只留同签名委托，各 controller 接线不变。
     private fun beginCallSession(peerId: String, incoming: Boolean = false): Long =
         sessionController.beginCallSession(peerId, incoming)
 
