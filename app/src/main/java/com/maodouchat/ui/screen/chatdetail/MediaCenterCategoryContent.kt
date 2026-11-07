@@ -1,6 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.MediaCenterCategory
+import com.maodouchat.core.model.MediaCenterItem
+import com.maodouchat.core.model.MediaCenterUiState
 import com.maodouchat.core.model.MediaExportResult
 
 import android.widget.Toast
@@ -55,8 +57,6 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.theme.LocalChatPalette
 
-/** 媒体中心的分类内容区：按分类（图片/语音/位置/链接/文件）展示条目，
-含搜索、预览、导出；网格与图片预览已拆到同包 MediaCenterContentGrid / MediaCenterImageViewer。 */
 @Composable
 internal fun MediaCenterCategoryContent(
     category: MediaCenterCategory,

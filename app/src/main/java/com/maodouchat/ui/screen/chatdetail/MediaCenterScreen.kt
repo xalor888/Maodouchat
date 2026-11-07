@@ -1,8 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.MediaCenterCategory
+import com.maodouchat.core.model.MediaCenterUiState
 import com.maodouchat.core.model.MediaExportResult
-
+import com.maodouchat.core.model.buildMediaCenterItems
 import android.app.Application
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -299,7 +300,6 @@ fun MediaCenterScreen(
             modifier = Modifier.fillMaxSize().padding(padding)
         )
     }
-
-    } // secret watermark Box
-    } // unlocked branch
+    }
+    }
 }
