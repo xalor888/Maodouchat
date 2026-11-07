@@ -2,7 +2,7 @@ package com.maodouchat.conversation
 
 import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.ConversationPrivacyContext
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType

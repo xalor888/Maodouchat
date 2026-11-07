@@ -2,8 +2,9 @@ package com.maodouchat.attachment
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
+import com.maodouchat.core.model.User
 import com.maodouchat.data.local.entity.hasCompletedUpload
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
@@ -194,7 +195,7 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
     private fun ChatDto.toDomainChat(): Chat = Chat(
         id = id,
         participants = participants.map {
-            com.maodouchat.data.model.User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status)
+            User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status)
         },
         lastMessage = lastMessage,
         lastMessageType = MessageType.fromWire(lastMessageType),

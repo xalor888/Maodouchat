@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.contacts
 
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals

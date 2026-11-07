@@ -1,8 +1,9 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.core.model.ScheduledMessage
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.SessionSnapshot
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.chatlist.ChatListLocalProjectionCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import io.mockk.every
@@ -127,7 +128,7 @@ class ChatListLocalProjectionCoordinatorTest {
     fun refreshIdentityWarningsProjectsChangedPeers() = runTest(dispatcher) {
         // 这一例的 owner 是 "owner-1"：门禁要看到同一个账号，否则会被判为「切了号」提前返回。
         com.maodouchat.session.CurrentSession.override = { SessionSnapshot("tok", "owner-1") }
-        val peer = com.maodouchat.data.model.User(id = "peer", name = "Peer")
+        val peer = User(id = "peer", name = "Peer")
         val uiState = MutableStateFlow(
             ChatListUiState(chats = listOf(Chat(id = "c1", isGroup = false, participants = listOf(peer))))
         )

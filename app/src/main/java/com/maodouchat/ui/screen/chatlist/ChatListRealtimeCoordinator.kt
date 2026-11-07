@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.realtime.RealtimeConnectionState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy

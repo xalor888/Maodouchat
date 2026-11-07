@@ -56,7 +56,7 @@ import com.maodouchat.ui.component.secretPageBlindWatermark
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.Avatar

@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.theme.MaodouchatTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

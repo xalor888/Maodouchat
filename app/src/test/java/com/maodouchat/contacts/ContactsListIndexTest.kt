@@ -1,6 +1,6 @@
 package com.maodouchat.contacts
 
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.contacts.findLetterIndex
 import org.junit.Assert.assertEquals
 import org.junit.Test

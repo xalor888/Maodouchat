@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.NearbyPolicy
 import kotlinx.coroutines.launch
 

@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /** 通讯录屏尾部对话框簇：通知/建群/建频道/长按操作/拉黑确认/删好友确认/改备注/好友申请（从 ContactsListScreen.kt 纯搬移）。 */

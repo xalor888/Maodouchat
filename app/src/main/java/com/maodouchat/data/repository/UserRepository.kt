@@ -4,7 +4,7 @@ import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 

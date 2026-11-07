@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.ui.screen.chatlist.ChatListSelection
 import com.maodouchat.ui.screen.chatlist.ChatListSelectionEvent
 import com.maodouchat.ui.screen.chatlist.UnreadBatchTargets

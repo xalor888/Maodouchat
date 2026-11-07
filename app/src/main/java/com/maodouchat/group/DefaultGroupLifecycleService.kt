@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.toUi
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.GroupLifecycleCoordinator

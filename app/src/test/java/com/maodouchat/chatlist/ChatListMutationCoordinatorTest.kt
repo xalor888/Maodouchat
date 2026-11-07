@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.UpdateChatSettingsRequest
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListMutationCoordinator

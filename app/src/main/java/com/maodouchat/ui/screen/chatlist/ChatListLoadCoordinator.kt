@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import android.util.Log
 import com.maodouchat.core.model.ConversationLocalCleanupSession
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MissedCall
 import com.maodouchat.core.model.ChatListReloadPolicy
 import com.maodouchat.core.model.Trigger

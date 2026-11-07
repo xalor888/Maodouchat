@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 
 /**
  * 会话列表多选纯状态机（U05 瘦身第 1 切片）。

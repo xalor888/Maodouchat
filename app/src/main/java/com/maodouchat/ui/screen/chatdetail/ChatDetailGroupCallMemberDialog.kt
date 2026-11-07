@@ -25,7 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette

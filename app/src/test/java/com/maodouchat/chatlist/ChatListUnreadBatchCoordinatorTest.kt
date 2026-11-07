@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.session.OwnerSessionSnapshot

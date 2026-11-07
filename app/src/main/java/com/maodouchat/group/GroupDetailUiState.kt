@@ -7,7 +7,7 @@ package com.maodouchat.group
 import com.maodouchat.core.model.GroupAuditLogDto
 import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.GroupOwnedBotUi
 import com.maodouchat.core.model.GroupMemberUi
 

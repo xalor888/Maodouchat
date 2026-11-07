@@ -6,7 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository

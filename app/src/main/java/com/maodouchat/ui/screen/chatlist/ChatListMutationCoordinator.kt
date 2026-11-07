@@ -6,9 +6,9 @@ import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.core.session.SecretChatPolicy
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException

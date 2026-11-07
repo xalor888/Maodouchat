@@ -1,6 +1,6 @@
 package com.maodouchat.conversation
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 
 /**
  * 会话创建统一端口 (Conversation Creation Port)

@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.core.model.MyQrCodeDecision
 import com.maodouchat.core.model.RejectReason
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 
 /**
  * 「我的二维码」页的加载判定（G72，从 `MyQrCodeViewModel.load()` 里抽出）。

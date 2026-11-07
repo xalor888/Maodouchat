@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.MessageSafetyScanner
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import java.util.Calendar
 import java.util.Date

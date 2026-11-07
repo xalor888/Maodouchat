@@ -1,9 +1,9 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.core.model.ArchiveSuggestion
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListArchiveSuggestionCoordinator

@@ -2,9 +2,9 @@ package com.maodouchat.ui.screen.chatdetail
 
 import java.util.Calendar
 import java.util.TimeZone
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import io.mockk.every
 import io.mockk.mockk

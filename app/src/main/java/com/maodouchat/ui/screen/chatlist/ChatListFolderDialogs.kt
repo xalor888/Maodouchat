@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.core.model.CallLogRow
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

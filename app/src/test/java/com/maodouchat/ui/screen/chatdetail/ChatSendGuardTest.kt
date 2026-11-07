@@ -1,12 +1,13 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -44,7 +45,7 @@ class ChatSendGuardTest {
         chatIsGroup = chatIsGroup,
         myMemberRole = myMemberRole,
         silentSend = silentSend,
-        chat = com.maodouchat.data.model.Chat(
+        chat = Chat(
             id = "c1",
             participants = participants,
             isGroup = chatIsGroup,
