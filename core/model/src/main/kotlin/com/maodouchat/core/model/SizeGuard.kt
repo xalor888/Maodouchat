@@ -1,24 +1,13 @@
-package com.maodouchat.slim
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ApkReport
-import com.maodouchat.core.model.SizeBucket
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 /**
- * 构建期体积统计辅助（B1 区块 · 包体瘦身与构建基线，2026-08-01）。
- *
- * 纯 JVM 实现（不依赖 Android），读取 Release APK 输出文件并打印体积分解：
- * dex / 原生 .so / 资源 / assets / META-INF 各占多少字节与百分比，便于定位膨胀来源。
- *
- * 用法（由 Gradle 任务 `:app:verifyReleaseSize` 包装，主控重建后直接调用）：
- * ```
- * java -cp <app-classes>:<deps> com.maodouchat.slim.SizeGuard <apk目录> [基线字节数]
- * ```
- * - 第 1 个参数：APK 所在目录（默认取 build/outputs/apk/release）。
- * - 第 2 个参数（可选）：体积基线字节数（默认 10MB = 10 * 1024 * 1024）。
- * - 超过基线时打印分解表并以非零退出码结束（供 CI/护栏阻断发版）。
+ * 构建期体积统计辅助（B1 包体瘦身基线）：纯 JVM，读 Release APK 分解 dex/.so/资源占比。
+ * 由 Gradle 任务 `:app:verifyReleaseSize` 包装调用：`SizeGuard <apk 目录> [基线字节数]`，
+ * 超过基线打印分解表并以非零退出码阻断发版。
  */
 object SizeGuard {
 
