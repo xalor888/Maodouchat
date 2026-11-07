@@ -1,9 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatlist.applyPreviewToChats
-import com.maodouchat.ui.screen.chatlist.restoreChatSorted
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

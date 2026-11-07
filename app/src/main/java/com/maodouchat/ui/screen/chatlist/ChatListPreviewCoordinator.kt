@@ -9,6 +9,8 @@ import com.maodouchat.data.repository.ChatListPreviewPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.core.model.NudgeDisplayPolicy
 import com.maodouchat.core.model.Templates
+import com.maodouchat.core.model.applyPreviewToChats
+import com.maodouchat.core.model.listSenderLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow

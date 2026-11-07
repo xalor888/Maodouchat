@@ -81,11 +81,8 @@ internal fun resolveChatDetailSenderName(
     groupMemberLabel = groupMemberLabel,
 )
 
-internal fun truncatedSenderId(senderId: String): String? {
-    val id = senderId.trim()
-    if (id.isEmpty()) return null
-    return if (id.length <= 8) id else id.take(8)
-}
+internal fun truncatedSenderId(senderId: String): String? =
+    com.maodouchat.core.model.truncatedSenderId(senderId)
 
 private fun firstNonBlank(vararg values: String?): String? {
     for (value in values) {
