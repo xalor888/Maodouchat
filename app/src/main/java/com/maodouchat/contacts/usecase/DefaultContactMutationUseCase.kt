@@ -1,5 +1,6 @@
 package com.maodouchat.contacts.usecase
 
+import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException

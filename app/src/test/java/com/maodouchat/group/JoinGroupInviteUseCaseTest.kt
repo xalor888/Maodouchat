@@ -9,6 +9,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 import com.maodouchat.core.model.JoinGroupInviteResult
+import com.maodouchat.core.model.JoinGroupInviteUseCase
 import com.maodouchat.core.model.Kind
 
 class JoinGroupInviteUseCaseTest {
