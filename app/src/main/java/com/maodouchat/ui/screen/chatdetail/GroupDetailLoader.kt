@@ -9,7 +9,7 @@ import com.maodouchat.group.GroupLifecycleService
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
-import com.maodouchat.messaging.v2.GroupMessagingCoordinator
+import com.maodouchat.core.model.GroupMessagingCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

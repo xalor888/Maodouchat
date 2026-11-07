@@ -1,7 +1,5 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
-import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 
 /** Owns manual/automatic Sender Key coverage retries without UI-held epoch state. */
@@ -118,7 +116,7 @@ class GroupSenderKeyMaintenanceCoordinator(
     }
 
     companion object {
-        internal fun coverageComplete(
+        fun coverageComplete(
             status: SenderKeyDistributionStatusDto?,
             expectedEpoch: Long,
             localHasSenderKey: Boolean,

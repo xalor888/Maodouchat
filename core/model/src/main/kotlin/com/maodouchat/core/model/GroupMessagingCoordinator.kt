@@ -1,7 +1,5 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupMessagingSession
-import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 
 /**

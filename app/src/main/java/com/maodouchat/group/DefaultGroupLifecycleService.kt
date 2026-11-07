@@ -5,7 +5,8 @@ import com.maodouchat.core.model.toUi
 import com.maodouchat.data.model.User
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.group.GroupLifecycleCoordinator
+import com.maodouchat.core.model.GroupLifecycleCoordinator
+import com.maodouchat.core.model.GroupMembershipStore
 import com.maodouchat.core.model.GroupMutationCommit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

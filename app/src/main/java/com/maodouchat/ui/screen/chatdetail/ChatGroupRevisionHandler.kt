@@ -9,7 +9,7 @@ import com.maodouchat.core.model.AiRequestGenerationGate
 import com.maodouchat.core.model.GroupRevisionImpact
 import com.maodouchat.core.model.groupRevisionImpact
 import com.maodouchat.core.model.shouldInvalidateGroupKey
-import com.maodouchat.messaging.v2.GroupMessagingCoordinator
+import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
