@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.maodouchat.R
 import com.maodouchat.core.session.SessionContextProvider
+import com.maodouchat.core.session.TypingSessionPolicy
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
@@ -17,6 +18,7 @@ import com.maodouchat.core.model.resolveUserVisibility
 import com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager
 import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.isActiveChatEvent
@@ -264,7 +266,7 @@ internal class ChatRealtimeController(
         if (!TypingSessionPolicy.shouldAnnounceStart(activeChatId(), announcedTypingChatId)) return
         val targetChatId = activeChatId()
         val owner = ownerUserId()
-        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId())) return
+        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = SecureSessionManager.isPurgeInProgress())) return
         announcedTypingChatId?.let { sendTyping(it, false) }
         if (sendTyping(targetChatId, true)) announcedTypingChatId = targetChatId
     }
@@ -274,7 +276,7 @@ internal class ChatRealtimeController(
         val targetChatId = announcedTypingChatId ?: return
         announcedTypingChatId = null
         val owner = ownerUserId()
-        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId())) return
+        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = SecureSessionManager.isPurgeInProgress())) return
         sendTyping(targetChatId, false)
     }
 

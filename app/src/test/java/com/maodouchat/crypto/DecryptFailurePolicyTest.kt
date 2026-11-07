@@ -5,6 +5,7 @@ import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DecryptRetryTracker
 import com.maodouchat.core.crypto.Disposition
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
+import com.maodouchat.core.crypto.SignalStorePersistenceException
 import com.maodouchat.core.crypto.TrackingAction
 import com.maodouchat.core.model.NoRecipientDevicesException
 import org.junit.Assert.assertEquals
