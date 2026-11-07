@@ -1,11 +1,11 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ChatSettingsToggle
-import com.maodouchat.ui.screen.chatlist.applyConfirmedSettings
-import com.maodouchat.ui.screen.chatlist.buildSettingsToggle
-import com.maodouchat.ui.screen.chatlist.bumpOptimisticSettingsClock
+import com.maodouchat.core.model.applyConfirmedSettings
+import com.maodouchat.core.model.buildSettingsToggle
+import com.maodouchat.core.model.bumpOptimisticSettingsClock
 import com.maodouchat.core.model.selectUnreadBatchTargets
 import kotlin.test.Test
 import kotlin.test.assertEquals
