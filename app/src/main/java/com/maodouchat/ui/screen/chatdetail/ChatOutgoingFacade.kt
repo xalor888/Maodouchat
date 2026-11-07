@@ -3,13 +3,13 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.messaging.v2.OutgoingConversationContext
+import com.maodouchat.core.model.OutgoingConversationContext
 import com.maodouchat.core.model.OutgoingConversationErrors
 import com.maodouchat.core.model.OutgoingConversationRequest
+import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.messaging.v2.OutgoingConversationResolver
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
 import com.maodouchat.messaging.v2.OutgoingMessageCoordinator
-import com.maodouchat.messaging.v2.OutgoingMessageResult
 import kotlinx.coroutines.CancellationException
 
 internal data class ResolvedOutgoingChat(

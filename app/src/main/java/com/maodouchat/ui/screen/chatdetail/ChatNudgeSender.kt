@@ -5,8 +5,8 @@ import com.maodouchat.core.model.NudgeDecision
 import com.maodouchat.core.model.NudgeRejectReason
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageResult
+import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

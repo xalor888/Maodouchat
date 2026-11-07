@@ -5,8 +5,8 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageResult
+import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

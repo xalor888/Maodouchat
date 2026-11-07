@@ -28,3 +28,10 @@ sealed interface SendDecision {
 
     data class Reject(val reason: SendRejectReason) : SendDecision
 }
+
+sealed interface ChatRetryDecision {
+    data class Allow(val message: Message) : ChatRetryDecision
+    /** 附件型失败消息：必须走附件重试，不能当文本重发。 */
+    data class NeedsAttachmentRetry(val message: Message) : ChatRetryDecision
+    data class Reject(val reason: RetryRejectReason) : ChatRetryDecision
+}

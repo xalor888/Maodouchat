@@ -1,5 +1,6 @@
 package com.maodouchat.messaging.v2
 
+import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 

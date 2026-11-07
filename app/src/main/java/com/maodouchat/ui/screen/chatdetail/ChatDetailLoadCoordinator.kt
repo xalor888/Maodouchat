@@ -1,10 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.core.model.ChatLoadInput
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 
 /**
@@ -122,17 +120,4 @@ internal object ChatDetailLoadCoordinator {
         formatError: () -> String,
     ): ChatDetailUiState = currentState.copy(isLoading = false, initialLoadError = formatError())
 
-    /**
-     * 「以下为未读消息」分隔线落在哪条消息上。
-     *
-     * 规则：未读数必须**大于 0 且小于**非控制消息条数，才取「倒数第 unreadCount 条」的首条；
-     * 否则返回 null（没有未读、或整屏都是未读时分隔线没有意义）。
-     * `SK_DIST` 等控制消息不参与分母——否则用户明明只缺 1 条，分隔线却标到很前面。
-     */
-    fun unreadSeparatorId(unreadCount: Int, messages: List<Message>): String? {
-        if (unreadCount <= 0) return null
-        val nonControl = messages.filter { it.type != MessageType.SK_DIST }
-        if (unreadCount >= nonControl.size) return null
-        return nonControl.takeLast(unreadCount).firstOrNull()?.id
-    }
 }

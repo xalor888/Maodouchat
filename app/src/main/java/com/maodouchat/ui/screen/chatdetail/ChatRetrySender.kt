@@ -4,12 +4,13 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.net.toUri
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageResult
+import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -37,7 +38,7 @@ internal class ChatRetrySender(
         // G66：重试准入同样走纯函数（归属、状态、类型三条一起判）
         val retryOwnerUserId = ownerUserId()
         val decision = ChatSendGuard.checkRetry(currentState(), messageId, retryOwnerUserId, token())
-        if (decision is RetryDecision.NeedsAttachmentRetry) {
+        if (decision is ChatRetryDecision.NeedsAttachmentRetry) {
             return sendAttachmentRetry(
                 decision.message.parsedContent().toUri(),
                 decision.message.type,
@@ -45,7 +46,7 @@ internal class ChatRetrySender(
                 decision.message,
             )
         }
-        if (decision is RetryDecision.Reject) {
+        if (decision is ChatRetryDecision.Reject) {
             if (decision.reason == RetryRejectReason.NO_SESSION) {
                 updateState { it.copy(groupEncryptionWarning = string(R.string.error_session_expired)) }
             }

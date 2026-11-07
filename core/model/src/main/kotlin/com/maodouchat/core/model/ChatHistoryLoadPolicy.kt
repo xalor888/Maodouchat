@@ -1,19 +1,10 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.model.HistoryLoadPlan
-import com.maodouchat.core.model.Message
+package com.maodouchat.core.model
 
 /**
- * 历史页装载后的收尾判定（G70，从 `ChatDetailViewModel.loadChat()` 的 IO 块里抽出）。
- *
- * **为什么抽它**：这段判定决定三件用户可见的事，而它此前**一个用例都没有**：
- * - 未读分隔线标在哪（标错 → 用户以为看全了，实际漏看）；
- * - 密聊**绝不**发已读回执（发了 → 对方知道你在看，密聊的隐私承诺破功）；
- * - 回执带不带 `groupRevision`（不带 → 服务端按错误 epoch 记账）。
- *
- * 本对象是纯函数：无 Coroutine / Room / ApiService / Android 资源。
+ * 历史页装载后的收尾判定：未读分隔线、密聊不发回执、回执带不带 groupRevision。
+ * 纯函数，不碰 Coroutine / Room / ApiService / Android 资源。
  */
-internal object ChatHistoryLoadPolicy {
+object ChatHistoryLoadPolicy {
 
     /**
      * @param readBoundaryMessageId 最新一条**来电**消息 id（`getLatestIncomingMessage`）；
@@ -27,7 +18,7 @@ internal object ChatHistoryLoadPolicy {
         readBoundaryMessageId: String?,
         groupRevision: Long?,
     ): HistoryLoadPlan {
-        val separatorId = ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount, messages)
+        val separatorId = unreadSeparatorId(unreadCount, messages)
 
         // 密聊：只武装阅后即焚，绝不发回执。这条优先于一切「有未读就发」的便利判断。
         if (isSecretChat) {
@@ -50,4 +41,18 @@ internal object ChatHistoryLoadPolicy {
             readReceiptGroupRevision = groupRevision.takeIf { shouldReceipt },
         )
     }
+}
+
+/**
+ * 「以下为未读消息」分隔线落在哪条消息上。
+ *
+ * 规则：未读数必须**大于 0 且小于**非控制消息条数，才取「倒数第 unreadCount 条」的首条；
+ * 否则返回 null（没有未读、或整屏都是未读时分隔线没有意义）。
+ * `SK_DIST` 等控制消息不参与分母——否则用户明明只缺 1 条，分隔线却标到很前面。
+ */
+fun unreadSeparatorId(unreadCount: Int, messages: List<Message>): String? {
+    if (unreadCount <= 0) return null
+    val nonControl = messages.filter { it.type != MessageType.SK_DIST }
+    if (unreadCount >= nonControl.size) return null
+    return nonControl.takeLast(unreadCount).firstOrNull()?.id
 }

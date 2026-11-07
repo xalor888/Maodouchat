@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
@@ -289,13 +290,13 @@ class ChatSendGuardTest {
     fun `retry only accepts my own failed message`() {
         val mine = msg("m1", senderId = "me", status = MessageStatus.FAILED)
         val ok = ChatSendGuard.checkRetry(state(messages = listOf(mine)), messageId = "m1", ownerUserId = "me", token = "tok")
-        assertIs<RetryDecision.Allow>(ok)
+        assertIs<ChatRetryDecision.Allow>(ok)
         assertEquals(mine, ok.message)
 
         // 别人的失败消息
         val theirs = msg("m2", senderId = "u2", status = MessageStatus.FAILED)
         val notMine = ChatSendGuard.checkRetry(state(messages = listOf(theirs)), messageId = "m2", ownerUserId = "me", token = "tok")
-        assertIs<RetryDecision.Reject>(notMine)
+        assertIs<ChatRetryDecision.Reject>(notMine)
         assertEquals(RetryRejectReason.NOT_MY_MESSAGE, notMine.reason)
 
         // 已发送的消息不得重试
@@ -303,12 +304,12 @@ class ChatSendGuardTest {
         val notFailed = ChatSendGuard.checkRetry(state(messages = listOf(sent)), messageId = "m3", ownerUserId = "me", token = "tok")
         assertEquals(
             RetryRejectReason.NOT_FAILED,
-            (notFailed as RetryDecision.Reject).reason,
+            (notFailed as ChatRetryDecision.Reject).reason,
         )
 
         // 不存在的消息
         val missing = ChatSendGuard.checkRetry(state(), messageId = "nope", ownerUserId = "me", token = "tok")
-        assertEquals(RetryRejectReason.NOT_FOUND, (missing as RetryDecision.Reject).reason)
+        assertEquals(RetryRejectReason.NOT_FOUND, (missing as ChatRetryDecision.Reject).reason)
     }
 
     @Test
@@ -316,7 +317,7 @@ class ChatSendGuardTest {
         val image = msg("m4", type = MessageType.IMAGE, status = MessageStatus.FAILED)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(image)), messageId = "m4", ownerUserId = "me", token = "tok")
 
-        assertIs<RetryDecision.NeedsAttachmentRetry>(result)
+        assertIs<ChatRetryDecision.NeedsAttachmentRetry>(result)
         assertEquals(image, result.message)
     }
 
@@ -324,7 +325,7 @@ class ChatSendGuardTest {
     fun `retry rejects a missing session`() {
         val mine = msg("m5")
         val result = ChatSendGuard.checkRetry(state(messages = listOf(mine)), messageId = "m5", ownerUserId = "me", token = "")
-        assertIs<RetryDecision.Reject>(result)
+        assertIs<ChatRetryDecision.Reject>(result)
         assertEquals(RetryRejectReason.NO_SESSION, result.reason)
     }
 
@@ -332,7 +333,7 @@ class ChatSendGuardTest {
     fun `retry rejects an unsupported message type instead of crashing`() {
         val weird = msg("m6", type = MessageType.SK_DIST, status = MessageStatus.FAILED)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(weird)), messageId = "m6", ownerUserId = "me", token = "tok")
-        assertIs<RetryDecision.Reject>(result)
+        assertIs<ChatRetryDecision.Reject>(result)
         assertEquals(RetryRejectReason.UNSUPPORTED_TYPE, result.reason)
     }
 
@@ -342,7 +343,7 @@ class ChatSendGuardTest {
             .forEach { type ->
                 val m = msg("m-${type.name}", type = type)
                 val result = ChatSendGuard.checkRetry(state(messages = listOf(m)), messageId = m.id, ownerUserId = "me", token = "tok")
-                assertIs<RetryDecision.Allow>(result, "$type 应当走文本重试路径")
+                assertIs<ChatRetryDecision.Allow>(result, "$type 应当走文本重试路径")
             }
     }
 
@@ -428,7 +429,7 @@ class ChatSendGuardTest {
     fun `retry checks ownership before session`() {
         val theirs = msg("m7", senderId = "u2", status = MessageStatus.FAILED)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(theirs)), messageId = "m7", ownerUserId = "me", token = "")
-        assertIs<RetryDecision.Reject>(result)
+        assertIs<ChatRetryDecision.Reject>(result)
         assertEquals(RetryRejectReason.NOT_MY_MESSAGE, result.reason, "归属判定排在会话判定之前")
     }
 
@@ -436,7 +437,7 @@ class ChatSendGuardTest {
     fun `a message that is still sending cannot be retried`() {
         val sending = msg("m8", senderId = "me", status = MessageStatus.SENDING)
         val result = ChatSendGuard.checkRetry(state(messages = listOf(sending)), messageId = "m8", ownerUserId = "me", token = "tok")
-        assertIs<RetryDecision.Reject>(result)
+        assertIs<ChatRetryDecision.Reject>(result)
         assertEquals(RetryRejectReason.NOT_FAILED, result.reason, "只有 FAILED 才允许重试")
     }
 }
