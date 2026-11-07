@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.RetryRejectReason
+import com.maodouchat.core.model.SendDecision
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta

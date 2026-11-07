@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.ChatLoadEffect
+import com.maodouchat.core.model.ChatLoadInput
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 
@@ -41,9 +42,10 @@ internal object ChatDetailLoadCoordinator {
         val chat = input.chat
         // 群成员 revision 上升 = 有新成员加入/退出 → 群 Sender Key 必须失效重排。
         // 仅在「有基线」且「严格上升」时成立：不变/下降/首见都不该触发。
+        val previousRevision = input.previousRevision
         val shouldInvalidateSenderKey = chat.isGroup &&
-            input.previousRevision != null &&
-            chat.memberRevision > input.previousRevision
+            previousRevision != null &&
+            chat.memberRevision > previousRevision
         val revisionWarning = if (shouldInvalidateSenderKey) formatRevisionWarning() else null
 
         val base = currentState.copy(isLoading = false, initialLoadError = null)
