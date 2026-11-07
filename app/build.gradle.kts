@@ -220,7 +220,7 @@ android {
 
 // B1 体积护栏：重建 Release APK 后统计体积分解并校验 ≤ 基线（默认 14MB），超限任务失败（阻断发版）。
 // 用法：./gradlew.bat :app:verifyReleaseSize -PMAODOU_RELEASE_API_BASE_URL=https://... -PMAODOU_RELEASE_WS_URL=wss://...
-// 统计逻辑见 com.maodouchat.slim.SizeGuard（纯 JVM，读 APK 分解 dex/.so/资源占比）。
+// 统计逻辑见 com.maodouchat.core.model.SizeGuard（纯 JVM，读 APK 分解 dex/.so/资源占比）。
 // B1 体积护栏专用运行时 classpath。
 //
 // 此前 verifyReleaseSize 直接把 Android 的 `releaseRuntimeClasspath` 塞进纯 JVM JavaExec 的
@@ -232,8 +232,8 @@ android {
 // 后果是 `:app:assembleRelease :app:verifyReleaseSize`（CI 的 release dry-run 与 release.yml
 // 都在跑的同一条命令）直接失败——体积护栏把发布路径锁死了。
 //
-// SizeGuard 只 import java.io/java.util.zip，是纯 JVM main；它需要的只有应用自身的 class、
-// :core:model 的编译产物（ApkReport / SizeBucket 已迁入该模块）与 Kotlin 运行时，
+// SizeGuard 只 import java.io/java.util.zip，是纯 JVM main；它与 ApkReport / SizeBucket
+// 同在 :core:model，只需该模块的编译产物与 Kotlin 运行时，
 // 因此用一条独立、可解析、与 Android 变体解析无关的配置。
 val sizeGuardRuntime: Configuration by configurations.creating {
     isCanBeConsumed = false
@@ -267,11 +267,11 @@ tasks.register<JavaExec>("verifyReleaseSize") {
     classpath = files(
         layout.buildDirectory.dir("intermediates/javac/release/classes"),
         layout.buildDirectory.dir("tmp/kotlin-classes/release"),
-        // ApkReport / SizeBucket 已迁入 :core:model（纯 JVM 模块），SizeGuard 运行时需要它的编译产物。
+        // SizeGuard 已迁入 :core:model（纯 JVM 模块），运行时需要它的编译产物。
         project(":core:model").layout.buildDirectory.dir("classes/kotlin/main"),
         sizeGuardRuntime
     )
-    mainClass.set("com.maodouchat.slim.SizeGuard")
+    mainClass.set("com.maodouchat.core.model.SizeGuard")
     args(
         layout.buildDirectory.dir("outputs/apk/release").get().asFile.absolutePath,
         slimBaselineBytes.toString()
