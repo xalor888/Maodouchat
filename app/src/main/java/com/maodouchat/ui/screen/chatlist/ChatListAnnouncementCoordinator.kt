@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.notification.AnnouncementPolicy
+import com.maodouchat.core.model.AnnouncementPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
