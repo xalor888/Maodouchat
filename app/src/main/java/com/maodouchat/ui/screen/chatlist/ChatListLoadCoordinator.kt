@@ -9,6 +9,7 @@ import com.maodouchat.core.model.Trigger
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.security.BackgroundSessionGate
+import com.maodouchat.core.model.ChatListRemoteMergePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

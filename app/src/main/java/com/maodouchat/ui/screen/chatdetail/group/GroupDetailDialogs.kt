@@ -32,8 +32,8 @@ import com.maodouchat.core.model.GroupMutePolicy
 import com.maodouchat.core.model.GroupMutePreset
 import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.group.GroupDetailUiState
-import com.maodouchat.group.OwnedBotUi
+import com.maodouchat.core.model.GroupDetailUiState
+import com.maodouchat.core.model.OwnedBotUi
 
 @Composable
 fun GroupAvatarPreview(avatarUrl: String, groupName: String, onDismiss: () -> Unit) {

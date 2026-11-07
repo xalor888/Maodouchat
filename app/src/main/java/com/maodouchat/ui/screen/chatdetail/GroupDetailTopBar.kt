@@ -19,7 +19,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // 群详情页顶栏：原在 GroupDetailScreen 的 Scaffold topBar 内联 lambda，纯搬移不改判断。

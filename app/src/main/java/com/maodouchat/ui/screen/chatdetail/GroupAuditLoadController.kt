@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.group.GroupAuditController
-import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.core.model.GroupDetailUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

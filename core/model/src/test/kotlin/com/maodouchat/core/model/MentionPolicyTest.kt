@@ -1,9 +1,5 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ActiveQuery
-import com.maodouchat.core.model.InsertResult
-import com.maodouchat.core.model.User
-import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

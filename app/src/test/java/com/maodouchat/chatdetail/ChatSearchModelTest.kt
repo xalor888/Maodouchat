@@ -6,7 +6,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.ui.screen.chatdetail.MentionPolicy
+import com.maodouchat.core.model.MentionPolicy
 import com.maodouchat.ui.screen.chatdetail.buildChatSearchDocuments
 import com.maodouchat.ui.screen.chatdetail.searchChatDocuments
 import com.maodouchat.ui.screen.chatdetail.semanticSearchCandidates

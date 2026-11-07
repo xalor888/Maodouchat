@@ -1,15 +1,9 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
 /**
  * 群详情页界面状态（从 `ui/screen/chatdetail/GroupDetailViewModel.kt` 抽出）。
  * 与该 ViewModel 的其它 1000 行逻辑分开：状态模型是纯数据，改它不需要读懂整个 VM。
  */
-import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.core.model.GroupMutationFeedback
-import com.maodouchat.core.model.SenderKeyDistributionStatusDto
-import com.maodouchat.core.model.User
-import com.maodouchat.core.model.GroupOwnedBotUi
-import com.maodouchat.core.model.GroupMemberUi
 
 /** 群机器人条目在 UI 侧的短别名（`GroupOwnedBotUi` 的同名引用点较多，保留别名以免大面积改签名）。 */
 typealias OwnedBotUi = GroupOwnedBotUi
