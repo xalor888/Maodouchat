@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 群玩法经典游戏只读数据表（从 GroupPlayData.kt 拆出，纯数据，无逻辑）。

@@ -1,7 +1,12 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import org.json.JSONObject
 import kotlin.random.Random
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
 
 /**
  * Group play helpers (polls, dice, check-in) — pure/local formatting.
@@ -25,7 +30,7 @@ object GroupPlayPolicy {
     fun parseDice(content: String): Pair<Int, Int>? {
         if (!content.startsWith(DICE_PREFIX)) return null
         val body = content.removePrefix(DICE_PREFIX)
-        val head = com.maodouchat.core.model.GroupPlayFieldEscape.unesc(body.substringBefore('|'))
+        val head = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val parts = head.split(':')
         if (parts.size < 2) return null
         val sides = parts[0].toIntOrNull() ?: return null
@@ -34,7 +39,7 @@ object GroupPlayPolicy {
     }
 
     fun formatCheckIn(dayStreak: Int, userLabel: String): String =
-        com.maodouchat.core.model.GroupCheckinPolicy.formatCheckIn(dayStreak, userLabel)
+        GroupCheckinPolicy.formatCheckIn(dayStreak, userLabel)
 
     fun buildPollPayload(
         pollId: String,
@@ -42,19 +47,30 @@ object GroupPlayPolicy {
         options: List<String>,
         multi: Boolean,
         anonymous: Boolean
-    ): String = com.maodouchat.group.play.GroupPollPolicy.buildPollPayload(pollId, question, options, multi, anonymous)
+    ): String {
+        val payload = buildJsonObject {
+            put("id", JsonPrimitive(pollId))
+            put("q", JsonPrimitive(question.take(200)))
+            put("options", JsonArray(options.map { JsonPrimitive(it.take(80)) }))
+            put("multi", JsonPrimitive(multi))
+            put("anonymous", JsonPrimitive(anonymous))
+        }
+        return POLL_PREFIX + Json.encodeToString(JsonObject.serializer(), payload)
+    }
 
-    fun parsePoll(content: String): JSONObject? =
-        com.maodouchat.group.play.GroupPollPolicy.parsePoll(content)
+    fun parsePoll(content: String): JsonObject? {
+        if (!content.startsWith(POLL_PREFIX)) return null
+        return runCatching { Json.parseToJsonElement(content.removePrefix(POLL_PREFIX)).jsonObject }.getOrNull()
+    }
 
     fun formatLuckyDraw(pickerName: String, targetName: String): String {
-        return "LUCKY:${com.maodouchat.core.model.GroupPlayFieldEscape.esc(pickerName)}|$targetName"
+        return "LUCKY:${GroupPlayFieldEscape.esc(pickerName)}|$targetName"
     }
 
     fun parseLuckyDraw(content: String): Pair<String, String>? {
         if (!content.startsWith("LUCKY:")) return null
         val body = content.removePrefix("LUCKY:")
-        val a = com.maodouchat.core.model.GroupPlayFieldEscape.unesc(body.substringBefore('|'))
+        val a = GroupPlayFieldEscape.unesc(body.substringBefore('|'))
         val b = body.substringAfter('|', "")
         if (a.isBlank() || b.isBlank()) return null
         return a to b

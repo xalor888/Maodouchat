@@ -1,6 +1,5 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupPlayFieldEscape
 
 // 媒体类（照片/视频/语音玩法）：编解码实现（从 GroupPlayModePolicy 逐字搬出，零行为改动）。
 internal object GroupPlayModeMedia {

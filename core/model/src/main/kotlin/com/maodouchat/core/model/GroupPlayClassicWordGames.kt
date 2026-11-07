@@ -1,6 +1,5 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupPlayFieldEscape
 
 // 文字游戏类（文字玩法/接龙/字谜等）：编解码实现（从 GroupPlayClassicQuiz 逐字搬出，零行为改动）。
 internal object GroupPlayClassicWordGames {

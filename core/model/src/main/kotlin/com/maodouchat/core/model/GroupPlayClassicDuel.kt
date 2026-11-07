@@ -1,34 +1,33 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupPlayFieldEscape
 
 // 对决竞技类（RPS/数字炸弹/反应竞速等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
 internal object GroupPlayClassicDuel {
 
-    fun rollRps(): String = com.maodouchat.core.model.GroupPkPolicy.rollRps()
+    fun rollRps(): String = GroupPkPolicy.rollRps()
 
     fun formatRps(choice: String, userLabel: String): String =
-        com.maodouchat.core.model.GroupPkPolicy.formatRps(choice, userLabel)
+        GroupPkPolicy.formatRps(choice, userLabel)
 
     fun parseRps(content: String): String? =
-        com.maodouchat.core.model.GroupPkPolicy.parseRps(content)
+        GroupPkPolicy.parseRps(content)
 
     fun rollNumberBomb(max: Int = 100): Pair<Int, Int> =
-        com.maodouchat.core.model.GroupPkPolicy.rollNumberBomb(max)
+        GroupPkPolicy.rollNumberBomb(max)
 
     fun formatNumberBomb(secret: Int, max: Int, hostLabel: String): String =
-        com.maodouchat.core.model.GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
+        GroupPkPolicy.formatNumberBomb(secret, max, hostLabel)
 
     fun parseNumberBomb(content: String): Triple<Int, Int, String>? =
-        com.maodouchat.core.model.GroupPkPolicy.parseNumberBomb(content)
+        GroupPkPolicy.parseNumberBomb(content)
 
-    fun randomRaceToken(): String = com.maodouchat.core.model.GroupPkPolicy.randomRaceToken()
+    fun randomRaceToken(): String = GroupPkPolicy.randomRaceToken()
 
     fun formatReactionRace(token: String, hostLabel: String): String =
-        com.maodouchat.core.model.GroupPkPolicy.formatReactionRace(token, hostLabel)
+        GroupPkPolicy.formatReactionRace(token, hostLabel)
 
     fun parseReactionRace(content: String): Pair<String, String>? =
-        com.maodouchat.core.model.GroupPkPolicy.parseReactionRace(content)
+        GroupPkPolicy.parseReactionRace(content)
 
     fun spinWheel(): String = spinOptions.random()
 

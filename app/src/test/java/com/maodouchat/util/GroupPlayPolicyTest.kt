@@ -1,5 +1,6 @@
 package com.maodouchat.util
 
+import com.maodouchat.core.model.GroupPlayPolicy
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -170,7 +171,7 @@ class GroupPlayPolicyTest {
      */
     @Test
     fun `unreferenced members only shrink`() {
-        val source = File(TEST_SOURCE_ROOT, "app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt")
+        val source = File(TEST_SOURCE_ROOT, "core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt")
         assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
         val policyText = stripComments(source.readText())
         val members = Regex("""^    (?:internal |private )?(?:suspend )?fun (\w+)\(""", RegexOption.MULTILINE)
@@ -258,7 +259,7 @@ class GroupPlayPolicyTest {
      */
     @Test
     fun `unreferenced vals only shrink`() {
-        val source = File(TEST_SOURCE_ROOT, "app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt")
+        val source = File(TEST_SOURCE_ROOT, "core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt")
         assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
         val policyText = stripComments(source.readText())
         val allSources = sourcesOutsideCluster()
@@ -717,8 +718,13 @@ class GroupPlayPolicyTest {
          * （`randomMemoryBoard` / `randomEmojiDuel` / `randomChainSeed` / `randomHideEmoji`）
          * 不再被误认为「有人用」——它们本来就是传递性死代码。
          * 棘轮方向不变：从这里开始只许降。
+         *
+         * 2026-11-07（§4.1 续拆，GroupPlayPolicy 迁入 :core:model）：14 → 15。
+         * 不是新增死代码——`buildPollPayload` 在 main 上就是转调 `GroupPollPolicy.buildPollPayload`
+         * 的薄壳，全仓无调用方；它此前不算「零引用」，只因被删的 app 侧 GroupPollPolicy.kt
+         * 里有个同名定义，文本上被当成族外引用。文件删了，遮掩也没了。
          */
-        const val UNREFERENCED_BASELINE = 14
+        const val UNREFERENCED_BASELINE = 15
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。
@@ -734,8 +740,12 @@ class GroupPlayPolicyTest {
      * 而 173 这个数被写进文档、又被审计当成「173 个 val 100% 死」引用过。
      * 修好正则 + 统一为族外零引用口径后，真实值是 163 —— 仍有 10 个前缀常量有族外引用
      * （`TextMessageBubble` 用全限定名读了 `WORD_PREFIX` / `EMOJI_RAIN_PREFIX` / `QUIZ_PREFIX` 等）。
+     *
+     * 2026-11-07（§4.1 续拆）：163 → 164，与 fun 那条同根因——`POLL_PREFIX` 的唯一
+     * 族外文本出现也在被删的 app 侧 GroupPollPolicy.kt（同名定义）；它只被 `parsePoll`
+     * 在族内使用，main 上同样无族外调用方。
      */
-    const val UNREFERENCED_VAL_BASELINE = 163
+    const val UNREFERENCED_VAL_BASELINE = 164
 
         /** 仓库根（测试的 user.dir 可能是模块目录，向上找到 settings.gradle.kts + app）。 */
         val TEST_SOURCE_ROOT: File = run {

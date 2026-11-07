@@ -40,6 +40,11 @@ import com.maodouchat.ui.theme.TextHint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * 交互卡片（G129 从 `MediaMessageBubbles.kt` 拆出，原 185 行）。
@@ -54,19 +59,18 @@ import kotlinx.coroutines.withContext
 // ─── InteractivePollCard ───
 @Composable
 internal fun InteractivePollCard(
-    pollJson: org.json.JSONObject,
+    pollJson: JsonObject,
     isOwnMessage: Boolean,
     onVote: ((String, Int) -> Unit)?
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val pollId = pollJson.optString("id")
-    val question = pollJson.optString("q")
-    val opts = pollJson.optJSONArray("options")
-    val optionList = remember(pollJson.toString()) {
+    val pollId = (pollJson["id"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val question = (pollJson["q"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val optionList = remember(Json.encodeToString(JsonObject.serializer(), pollJson)) {
         buildList {
-            if (opts != null) {
-                for (i in 0 until opts.length()) add(opts.optString(i))
+            (pollJson["options"] as? JsonArray)?.forEach { element ->
+                add((element as? JsonPrimitive)?.contentOrNull.orEmpty())
             }
         }
     }

@@ -436,19 +436,6 @@ class ClientArchitectureTest {
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
         // 2026-10-17：删闲置 import（265 → 264 纯删行），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 264,
-        // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
-        // GroupPlayModeDelegates（206），父对象只留骰子/投票/签到/抽奖实现 +
-        // 同名一行委托（858 → 601；GroupPlayModeDelegates（206）未进前 20 不纳管；
-        // GroupPlayClassicDelegates（605）当时未进窗口，见下条补纳管）。
-        // 2026-10-17：删 org.json.JSONArray 闲置 import（601 → 600），两处上限同步收紧。
-        "com/maodouchat/util/GroupPlayPolicy.kt" to 600,
-        // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
-        // 滑进前 20——按判据纳入监管（两份 map 一起加）。
-        "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
-        // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
-        // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
-        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
-        "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
@@ -665,6 +652,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
+        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（443）/
+        // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
+        // 与之并列 435 行的 CallViewModel 早已在表内）。
+        "com/maodouchat/util/VoicePlayer.kt" to 443,
+        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 435,
     )
 
     @Test
@@ -735,16 +728,6 @@ class ClientArchitectureTest {
         // 另修 CI：拆分时两段 import 头被直接拼接，合并去重 318 → 293），上限同步收紧。
         // 2026-10-17：删闲置 import（265 → 264 纯删行），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 264,
-            // 本轮：经典/模式委托墙按目标拆出 GroupPlayClassicDelegates（605）/
-            // GroupPlayModeDelegates（206），父对象只留同名一行委托（858 → 601）。
-            "com/maodouchat/util/GroupPlayPolicy.kt" to 600,
-            // 2026-10-10：ApiEndpointClients（692 → 139）拆出后 GroupPlayClassicDelegates（605）
-            // 滑进前 20——按判据纳入监管（两份 map 一起加）。
-            "com/maodouchat/util/GroupPlayClassicDelegates.kt" to 605,
-        // G328c：G328c 把模式编解码按族搬到 GroupPlayClassicPolicy / GroupPlayModePolicy，
-        // 父对象只留同名委托 —— 1945 → 858。新文件进了前 20，同样纳管。
-        "com/maodouchat/util/GroupPlayClassicPolicy.kt" to 700,
-        "com/maodouchat/util/GroupPlayModePolicy.kt" to 408,
             // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
@@ -921,6 +904,12 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
+        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（443）/
+        // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
+        // 与之并列 435 行的 CallViewModel 早已在表内）。
+        "com/maodouchat/util/VoicePlayer.kt" to 443,
+        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 435,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
@@ -1172,7 +1161,7 @@ class ClientArchitectureTest {
             .map { it.relativeTo(repoRoot).path }
             .toList()
         assertEquals(
-            listOf("app/src/main/java/com/maodouchat/util/GroupPlayPolicy.kt"),
+            listOf("core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt"),
             matches.sorted(),
             "GroupPlayPolicy 出现同名重复文件——这个债必须只有一个",
         )
