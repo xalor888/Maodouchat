@@ -1,6 +1,13 @@
-package com.maodouchat.notification
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AnnouncementData
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.longOrNull
 
 /**
  * 系统公告展示策略（客户端）。
@@ -56,6 +63,8 @@ object AnnouncementPolicy {
             a.level == "EMERGENCY" || a.level == "MAINTENANCE"
         }
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     /** 公告数据模型见 [AnnouncementData]（与服务端 AnnouncementDto 对齐的字段子集，客户端只消费这些）。 */
     /**
      * 解析 `/api/announcements/active` JSON 载荷并做展示过滤。
@@ -64,25 +73,41 @@ object AnnouncementPolicy {
     fun parseAndFilterActivePayload(raw: String, nowMs: Long = System.currentTimeMillis()): List<AnnouncementData> {
         if (raw.isBlank()) return emptyList()
         return runCatching {
-            val arr = org.json.JSONObject(raw).optJSONArray("announcements") ?: org.json.JSONArray()
-            fun safeOpt(o: org.json.JSONObject, key: String): String =
-                if (o.has(key)) o.optString(key).takeIf { it != "null" }.orEmpty() else ""
-            val items = (0 until arr.length()).mapNotNull { i ->
-                val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                val id = safeOpt(o, "id")
+            val root = json.parseToJsonElement(raw).jsonObject
+            val arr = root["announcements"] as? JsonArray ?: return@runCatching emptyList()
+            val items = arr.mapNotNull { element ->
+                val o = element as? JsonObject ?: return@mapNotNull null
+                val id = o.safeString("id")
                 if (id.isBlank()) return@mapNotNull null
                 AnnouncementData(
                     id = id,
-                    title = safeOpt(o, "title"),
-                    content = safeOpt(o, "content"),
-                    level = safeOpt(o, "level"),
-                    startsAt = o.optLong("startsAt", 0L),
-                    expiresAt = o.optLong("expiresAt", 0L),
-                    status = safeOpt(o, "status"),
-                    acked = o.optBoolean("acked", false),
+                    title = o.safeString("title"),
+                    content = o.safeString("content"),
+                    level = o.safeString("level"),
+                    startsAt = o.safeLong("startsAt"),
+                    expiresAt = o.safeLong("expiresAt"),
+                    status = o.safeString("status"),
+                    acked = o.safeBoolean("acked"),
                 )
             }
             filterForDisplay(items, nowMs)
         }.getOrNull().orEmpty()
+    }
+
+    private fun JsonObject.safeString(key: String): String {
+        val element = this[key] ?: return ""
+        if (element is JsonNull) return ""
+        if (element is JsonPrimitive) return element.content.takeIf { it != "null" }.orEmpty()
+        return element.toString()
+    }
+
+    private fun JsonObject.safeLong(key: String): Long {
+        val primitive = this[key] as? JsonPrimitive ?: return 0L
+        return primitive.longOrNull ?: 0L
+    }
+
+    private fun JsonObject.safeBoolean(key: String): Boolean {
+        val primitive = this[key] as? JsonPrimitive ?: return false
+        return primitive.booleanOrNull ?: false
     }
 }
