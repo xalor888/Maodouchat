@@ -32,7 +32,7 @@ data class NotificationCenterItemEntity(
     val updatedAt: Long,
 )
 
-fun com.maodouchat.data.repository.NotificationCenterItem.toEntity(ownerUserId: String): NotificationCenterItemEntity {
+fun com.maodouchat.core.model.NotificationCenterItem.toEntity(ownerUserId: String): NotificationCenterItemEntity {
     val extraJson = org.json.JSONObject()
     extra.forEach { (k, v) -> extraJson.put(k, v) }
     return NotificationCenterItemEntity(
@@ -52,11 +52,11 @@ fun com.maodouchat.data.repository.NotificationCenterItem.toEntity(ownerUserId: 
     )
 }
 
-fun NotificationCenterItemEntity.toModel(): com.maodouchat.data.repository.NotificationCenterItem {
+fun NotificationCenterItemEntity.toModel(): com.maodouchat.core.model.NotificationCenterItem {
     val extraJson = runCatching { org.json.JSONObject(extraJson) }.getOrNull()
     val extraMap = if (extraJson == null) emptyMap()
     else extraJson.keys().asSequence().associateWith { extraJson.optString(it) }
-    return com.maodouchat.data.repository.NotificationCenterItem(
+    return com.maodouchat.core.model.NotificationCenterItem(
         id = id,
         type = type,
         mergeKey = mergeKey,

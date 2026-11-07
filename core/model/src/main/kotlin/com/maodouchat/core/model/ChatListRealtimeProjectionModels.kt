@@ -1,6 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
-
-import com.maodouchat.data.repository.NotificationCenterItem
+package com.maodouchat.core.model
 
 data class AdminBroadcastProjection(
     val item: NotificationCenterItem,

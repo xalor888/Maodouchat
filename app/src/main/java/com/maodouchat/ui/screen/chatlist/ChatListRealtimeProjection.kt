@@ -1,7 +1,8 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.AdminBroadcastProjection
 import com.maodouchat.core.model.Chat
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.resolveUserVisibility
 
 /**

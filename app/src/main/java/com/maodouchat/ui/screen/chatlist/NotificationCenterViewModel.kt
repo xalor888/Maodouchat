@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.NotificationCenterReadPolicy
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkRouter

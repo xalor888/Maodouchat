@@ -13,7 +13,7 @@ import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.maodouchat.core.model.NotificationCenterType
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.parseLegacyCenterDeeplink

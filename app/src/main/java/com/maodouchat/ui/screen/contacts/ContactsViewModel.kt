@@ -18,7 +18,7 @@ import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.data.repository.FriendCacheStore
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.util.RuntimeFlags

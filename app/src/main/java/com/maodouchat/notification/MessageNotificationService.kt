@@ -13,7 +13,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.model.NotificationSlotPolicy
 import com.maodouchat.core.model.NotificationSoundPolicy
-import com.maodouchat.data.repository.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.network.TokenManager
 
