@@ -1,6 +1,5 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupPlaySealPolicy
 
 /**
  * 玩法模式/封印类在 GroupPlayPolicy 上的同名委托：实现在 GroupPlayModePolicy /

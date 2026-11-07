@@ -14,11 +14,9 @@ package com.maodouchat.core.model
 /**
  * 群投票的**校验 / 快捷指令 / 分享文案**策略（U06 解耦后遗留的门面）。
  *
- * 注意不要与 `com.maodouchat.group.play.GroupPollPolicy` 混淆：那个只管
- * **payload 的构建与解析**（`POLL:` 前缀 + JSON 编解码），本对象在这里把
- * `buildPollPayload`/`parsePoll` 转调过去，自己负责校验、投票/打卡/接龙/PK 的快捷指令
- * 与分享文案。两者是**分工**而不是重复实现——审计把「两个 GroupPollPolicy」列为重复，
- * 实际是同一个名字在两个包里的两个职责。合并的前提是先把快捷指令那部分也搬进 group/play。
+ * 投票 payload 的构建与解析（`POLL:` 前缀 + JSON 编解码）现由
+ * `GroupPlayPolicy.buildPollPayload` / `parsePoll` 负责（kotlinx.serialization-json），
+ * 本对象只负责校验、投票/打卡/接龙/PK 的快捷指令与分享文案。
  */
 object GroupPollPolicy {
 

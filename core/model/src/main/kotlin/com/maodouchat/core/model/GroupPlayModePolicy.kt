@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 /**
  * 媒体 / 系统 / 隐私类群玩法模式的编解码门面：实现已按族拆到

@@ -1,7 +1,5 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupPlayFieldEscape
-import com.maodouchat.core.model.GroupPlaySealPolicy
 
 // 隐私安全类（导出锁/封印/遮罩等）：编解码实现（从 GroupPlayModePolicy 逐字搬出，零行为改动）。
 internal object GroupPlayModePrivacy {
