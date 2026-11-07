@@ -23,7 +23,7 @@ import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
 import com.maodouchat.network.WebSocketTransport
-import com.maodouchat.session.AccountScopedRealtimeConnectionManager
+import com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager
 import com.maodouchat.session.TokenManagerSessionContextProvider
 import com.maodouchat.push.PushRegistrationManager
 import com.maodouchat.util.AppLocaleManager
