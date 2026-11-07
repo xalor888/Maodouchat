@@ -14,7 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
-import com.maodouchat.conversation.ConversationCreationPort
+import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.contacts.sync.ContactSyncEvent
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.core.model.ContactsLoadResult
