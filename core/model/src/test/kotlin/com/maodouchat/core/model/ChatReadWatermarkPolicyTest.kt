@@ -1,10 +1,10 @@
 package com.maodouchat.core.model
 
-import org.junit.Test
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** 已读水印判定契约：新未读筛选与水印选择。 */
 class ChatReadWatermarkPolicyTest {
