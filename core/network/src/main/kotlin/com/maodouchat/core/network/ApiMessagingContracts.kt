@@ -1,7 +1,6 @@
-package com.maodouchat.network.api
+package com.maodouchat.core.network
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.network.*
 import com.maodouchat.core.model.AcknowledgeEnvelopesResponseV2
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationSnapshotV2Dto

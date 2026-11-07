@@ -15,6 +15,7 @@ import com.maodouchat.core.model.UpdateGroupNicknameRequest
 import com.maodouchat.core.model.UpdateMemberMuteRequest
 import com.maodouchat.core.model.UpdateMemberRoleRequest
 import com.maodouchat.core.model.UpdateMemberTitleRequest
+import com.maodouchat.core.network.GroupApi
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request

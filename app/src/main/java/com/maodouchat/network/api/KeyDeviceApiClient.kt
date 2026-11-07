@@ -6,6 +6,7 @@ import com.maodouchat.core.model.DevicePreKeyBundleDto
 import com.maodouchat.core.model.PreKeyBundleDto
 import com.maodouchat.core.model.UpdateDeviceNameRequest
 import com.maodouchat.core.model.UploadKeysRequest
+import com.maodouchat.core.network.KeyDeviceApi
 import com.maodouchat.network.*
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer

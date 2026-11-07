@@ -7,6 +7,7 @@ import com.maodouchat.core.model.CreateChatRequest
 import com.maodouchat.core.model.DisappearingMessagesResponse
 import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.core.model.UpdateDisappearingMessagesRequest
+import com.maodouchat.core.network.ConversationApi
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import okhttp3.Request

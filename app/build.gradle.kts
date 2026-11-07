@@ -300,6 +300,8 @@ dependencies {
     implementation(project(":core:realtime"))
     // §4.1：会话归属句柄 SessionContext / SessionContextProvider 已迁入 :core:session。
     implementation(project(":core:session"))
+    // §4.1：分域 API 契约 AuthApi / MessagingApi / ConversationApi / GroupApi / KeyDeviceApi / CallSignalingApi / MediaApi 已迁入 :core:network。
+    implementation(project(":core:network"))
 
     // Compose BOM
     val composeBom = platform("androidx.compose:compose-bom:2026.05.00")
