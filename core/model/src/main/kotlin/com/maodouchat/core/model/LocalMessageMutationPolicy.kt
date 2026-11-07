@@ -1,10 +1,8 @@
-package com.maodouchat.data.repository
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 
 /** Deterministic local conflict rules shared by own-device and linked-device projections. */
-internal fun applyEditedMessageVersion(existing: Message, candidate: Message): Message? {
+fun applyEditedMessageVersion(existing: Message, candidate: Message): Message? {
     if (existing.id != candidate.id || existing.type == MessageType.REVOKED) return null
     val candidateRevision = candidate.editedAt ?: return null
     val existingRevision = existing.editedAt ?: Long.MIN_VALUE
@@ -18,7 +16,7 @@ internal fun applyEditedMessageVersion(existing: Message, candidate: Message): M
     )
 }
 
-internal fun applyRevokedMessageVersion(existing: Message, candidate: Message): Message? {
+fun applyRevokedMessageVersion(existing: Message, candidate: Message): Message? {
     if (existing.id != candidate.id) return null
     val candidateRevision = candidate.editedAt ?: Long.MIN_VALUE
     val existingRevision = existing.editedAt ?: Long.MIN_VALUE

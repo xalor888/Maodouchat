@@ -7,7 +7,6 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.data.local.dao.ScheduledMessageDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
@@ -15,6 +14,7 @@ import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.ChatGateVerdict
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.scheduling.ConversationScheduledMessageDispatcher
 import com.maodouchat.core.model.ScheduledTimeCalculation

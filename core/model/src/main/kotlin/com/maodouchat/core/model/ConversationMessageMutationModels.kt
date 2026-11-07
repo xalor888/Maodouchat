@@ -1,13 +1,12 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Message
 
-internal sealed interface MessageMutationProjection {
+sealed interface MessageMutationProjection {
     data class Remove(val messageId: String) : MessageMutationProjection
     data class Set(val message: Message) : MessageMutationProjection
 }
 
-internal sealed interface ConversationMessageMutationOutcome {
+sealed interface ConversationMessageMutationOutcome {
     data class Applied(
         val removePinnedReference: Boolean,
         val localProjectionError: Throwable? = null,
