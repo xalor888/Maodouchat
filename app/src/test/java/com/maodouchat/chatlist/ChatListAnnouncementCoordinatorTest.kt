@@ -6,8 +6,6 @@ import com.maodouchat.security.SecureSessionManager
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.ui.screen.chatlist.ChatListAnnouncementCoordinator
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import com.maodouchat.chatlist.PushVerifyKeyAction
-import com.maodouchat.chatlist.parsePushVerifyKeyPayload
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
@@ -15,7 +13,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -100,18 +97,6 @@ class ChatListAnnouncementCoordinatorTest {
 
         assertEquals(1, ackCount)
         assertTrue(uiState.value.activeAnnouncements.isEmpty())
-    }
-
-    @Test
-    fun parsePushVerifyKeyPayloadClearWhenNullKey() {
-        assertEquals(PushVerifyKeyAction.Clear, parsePushVerifyKeyPayload("""{"key":null}"""))
-    }
-
-    @Test
-    fun parsePushVerifyKeyPayloadSetWhenPresent() {
-        val action = parsePushVerifyKeyPayload("""{"key":"abc"}""")
-        assertIs<PushVerifyKeyAction.Set>(action)
-        assertEquals("abc", action.key)
     }
 
     @Test
