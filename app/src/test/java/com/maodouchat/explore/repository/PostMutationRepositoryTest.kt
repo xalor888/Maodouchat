@@ -12,7 +12,7 @@ import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UserDto
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.assertFailsWith

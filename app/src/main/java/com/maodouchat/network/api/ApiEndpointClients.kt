@@ -1,7 +1,6 @@
 package com.maodouchat.network.api
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.network.*
 import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse
 import com.maodouchat.core.model.ClientPrefsDto
@@ -31,6 +30,7 @@ import com.maodouchat.core.model.TogglePinResponse
 import com.maodouchat.core.model.UpdateModerationRuleRequest
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.model.UserPrivacyDto
+import com.maodouchat.core.network.ApiSurface
 internal object ApiEndpointClients : ApiSurface {
 override suspend fun getPublicStatus(): Result<String> = ApiMessagingEndpoints.getPublicStatus()
 override suspend fun deleteChat(token: String, chatId: String): Result<Unit> = ApiMessagingEndpoints.deleteChat(token, chatId)

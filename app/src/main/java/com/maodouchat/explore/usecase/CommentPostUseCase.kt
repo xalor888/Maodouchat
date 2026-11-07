@@ -3,7 +3,7 @@ package com.maodouchat.explore.usecase
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.explore.repository.PostMutationRepository
 import com.maodouchat.core.model.ReportResponse
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 
 class CommentPostUseCase(

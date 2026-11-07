@@ -19,7 +19,7 @@ import com.maodouchat.core.model.HttpResult
 import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.network.api.ApiEndpointClients
-import com.maodouchat.network.api.ApiSurface
+import com.maodouchat.core.network.ApiSurface
 import com.maodouchat.core.network.AuthApi
 import com.maodouchat.network.api.AuthApiClient
 import com.maodouchat.core.network.CallSignalingApi
@@ -34,7 +34,7 @@ import com.maodouchat.core.network.MediaApi
 import com.maodouchat.network.api.MediaApiClient
 import com.maodouchat.core.network.MessagingApi
 import com.maodouchat.network.api.MessagingApiClient
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AuthResponse

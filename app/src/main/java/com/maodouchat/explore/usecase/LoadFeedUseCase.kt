@@ -3,7 +3,7 @@ package com.maodouchat.explore.usecase
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.Cursor
 import com.maodouchat.core.model.UserDto
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.core.model.FeedSession

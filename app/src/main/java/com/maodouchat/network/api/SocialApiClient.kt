@@ -11,7 +11,7 @@ import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UserDto
-import com.maodouchat.network.*
+import com.maodouchat.core.network.SocialApi
 
 object SocialApiClient : SocialApi {
     override suspend fun getUsers(token: String, limit: Int, offset: Int): Result<List<UserDto>> =

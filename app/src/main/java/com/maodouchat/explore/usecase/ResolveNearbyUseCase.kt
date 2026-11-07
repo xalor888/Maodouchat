@@ -2,7 +2,7 @@ package com.maodouchat.explore.usecase
 
 import com.maodouchat.core.model.NearbyLocationStatusResponse
 import com.maodouchat.core.model.NearbyUserResponse
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 
 class ResolveNearbyUseCase(

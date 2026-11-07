@@ -5,7 +5,7 @@ import org.junit.Test
 
 /**
  * 分域 API 契约随 Api*Contracts.kt 由 app 侧迁入 :core:network。
- * 接口本身无行为可测；这里钉住迁移的结构性事实：10 个契约接口都在
+ * 接口本身无行为可测；这里钉住迁移的结构性事实：12 个契约接口都在
  * com.maodouchat.core.network 包内，且 MediaApi 仍聚合三个媒体子接口。
  */
 class ApiContractsTest {
@@ -23,6 +23,8 @@ class ApiContractsTest {
             MediaDownloadApi::class,
             MediaImageApi::class,
             MediaApi::class,
+            SocialApi::class,
+            ApiSurface::class,
         )
         for (contract in contracts) {
             assertTrue(
@@ -30,6 +32,13 @@ class ApiContractsTest {
                 contract.java.isInterface,
             )
         }
+    }
+
+    @Test
+    fun `ApiSurface extends SocialApi`() {
+        val supertypes = ApiSurface::class.java.interfaces
+            .map { it.simpleName }.toSet()
+        assertTrue(supertypes.contains("SocialApi"))
     }
 
     @Test
