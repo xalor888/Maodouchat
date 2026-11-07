@@ -1,11 +1,10 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.core.session
 
-import com.maodouchat.core.session.GroupCallCapabilities
 import com.maodouchat.core.model.GroupCallParticipantUi
 
 // 会话重置簇：从 CallViewModel 纯搬移——呼出/呼入前重置 VM 状态的四个
 // inline lambda 原样搬入，各 controller 接线改方法引用。语句顺序与原实现逐字一致。
-internal class CallSessionResetController(
+class CallSessionResetController(
     private val beginCallSession: (peerId: String, incoming: Boolean) -> Long,
     private val newCallId: () -> String,
     private val setEndingCall: (Boolean) -> Unit,
@@ -15,6 +14,7 @@ internal class CallSessionResetController(
     private val setGroupMemberIds: (Set<String>) -> Unit,
     private val setPendingOfferSdp: (String?) -> Unit,
     private val setCallLogOwnerUserId: (String) -> Unit,
+    private val ownerUserId: () -> String,
 ) {
     fun resetForNewOutgoingCall(peerId: String): Long {
         setEndingCall(false)
@@ -23,7 +23,7 @@ internal class CallSessionResetController(
         setActiveGroupId("")
         setMeshGroupMemberIds(emptyList())
         // 8.55：呼出时快照账号，作为通话记录写入的 expectedUserId 守卫
-        setCallLogOwnerUserId(com.maodouchat.session.CurrentSession.ownerUserId())
+        setCallLogOwnerUserId(ownerUserId())
         return session
     }
 
@@ -47,7 +47,7 @@ internal class CallSessionResetController(
         setEndingCall(false)
         beginCallSession(contactId, true)
         setActiveCallId(callId)
-        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        val selfUserId = ownerUserId()
         val normalizedMembers = groupMemberIds.filter(String::isNotBlank).distinct()
         val isGroup = groupId.isNotBlank() &&
             GroupCallCapabilities.canStartMesh(normalizedMembers.size) &&
@@ -61,6 +61,6 @@ internal class CallSessionResetController(
 
     fun markIncomingSessionOwner() {
         // 8.55：呼入时快照账号，作为通话记录写入的 expectedUserId 守卫
-        setCallLogOwnerUserId(com.maodouchat.session.CurrentSession.ownerUserId())
+        setCallLogOwnerUserId(ownerUserId())
     }
 }
