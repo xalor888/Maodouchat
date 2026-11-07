@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.R
-import com.maodouchat.conversation.ConversationCreationPort
+import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User

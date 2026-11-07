@@ -2,6 +2,7 @@ package com.maodouchat.conversation
 
 import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 import com.maodouchat.network.ApiService
