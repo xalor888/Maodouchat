@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.group.GroupDetailUiState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.messaging.v2.GroupMessagingCoordinator
+import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.resolveUserVisibility
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

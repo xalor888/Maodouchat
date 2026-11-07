@@ -11,7 +11,7 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.group.GroupLifecycleService
-import com.maodouchat.messaging.v2.GroupMessagingCoordinator
+import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

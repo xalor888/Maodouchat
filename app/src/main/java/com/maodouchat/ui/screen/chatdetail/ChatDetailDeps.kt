@@ -16,7 +16,7 @@ import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.forwarding.ConversationForwardCoordinator
-import com.maodouchat.group.GroupLifecycleCoordinator
+import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
 import com.maodouchat.messaging.v2.ConversationReactionCoordinator
 import com.maodouchat.messaging.v2.MessagingV2EventOutbox

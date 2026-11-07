@@ -1,8 +1,8 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.group.GroupLifecycleCoordinator
-import com.maodouchat.group.GroupLifecycleSessionException
+import com.maodouchat.core.model.GroupLifecycleCoordinator
+import com.maodouchat.core.model.GroupLifecycleSessionException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

@@ -239,8 +239,8 @@ class MaodouchatApp : Application() {
     val notificationCenter: NotificationCenterRepository by lazy { NotificationCenterRepository(this) }
 
     /** 群成员状态与快照存储（U06） */
-    val groupMembershipStore: com.maodouchat.group.GroupMembershipStore by lazy {
-        com.maodouchat.group.InMemoryGroupMembershipStore()
+    val groupMembershipStore: com.maodouchat.core.model.GroupMembershipStore by lazy {
+        com.maodouchat.core.model.InMemoryGroupMembershipStore()
     }
 
     val userRepository: com.maodouchat.data.repository.UserRepository by lazy {

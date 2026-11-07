@@ -1,7 +1,5 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.GroupMutationCommit
 import kotlinx.coroutines.CancellationException
 
 class GroupLifecycleSessionException(message: String) : IllegalStateException(message)

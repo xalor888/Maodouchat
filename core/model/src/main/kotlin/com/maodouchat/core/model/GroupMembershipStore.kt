@@ -1,7 +1,5 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.GroupMemberUi
-import com.maodouchat.core.model.GroupMembershipSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
