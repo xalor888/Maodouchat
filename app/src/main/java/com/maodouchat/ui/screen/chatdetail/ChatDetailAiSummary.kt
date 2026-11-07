@@ -5,6 +5,8 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.SEVEN_DAYS_MS
+import com.maodouchat.core.model.THIRTY_DAYS_MS
 import com.maodouchat.core.model.AiContextMessage
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers

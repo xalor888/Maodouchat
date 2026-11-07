@@ -1,10 +1,8 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.ChatItem
-import com.maodouchat.ui.screen.chatdetail.buildChatItems
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.buildChatItems
 
 // 消息列表派生量族：虚拟时间线、反转列表、id 索引、发送者名映射、选中集。
 // 原在 ChatDetailRoute 内联声明，纯搬移不改判断。

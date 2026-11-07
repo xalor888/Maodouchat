@@ -28,8 +28,6 @@ import com.maodouchat.core.model.AiGroupTask
 
 internal const val DEFAULT_TRANSLATION_LANGUAGE = "中文"
 internal const val MAX_AI_SUMMARY_MESSAGES = 48
-internal const val SEVEN_DAYS_MS = 7L * 24L * 60L * 60L * 1_000L
-internal const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1_000L
 internal const val SYNCED_UNREAD_SUMMARY_DISPLAY_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
 
 internal val RELIABLE_ATTACHMENT_TYPES = setOf(

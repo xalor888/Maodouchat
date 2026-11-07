@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ChatSearchDocument
 import com.maodouchat.core.model.ChatSearchScope
@@ -9,7 +9,7 @@ import com.maodouchat.core.model.MentionPolicy
 import java.util.Calendar
 
 /** Parses encrypted-local message content/meta once per message-list revision, not once per keystroke. */
-internal fun buildChatSearchDocuments(messages: List<Message>): List<ChatSearchDocument> =
+fun buildChatSearchDocuments(messages: List<Message>): List<ChatSearchDocument> =
     messages.asSequence()
         .filter { it.type !in EXCLUDED_TYPES }
         .map { message ->
@@ -23,7 +23,7 @@ internal fun buildChatSearchDocuments(messages: List<Message>): List<ChatSearchD
         }
         .toList()
 
-internal fun searchChatDocuments(
+fun searchChatDocuments(
     documents: List<ChatSearchDocument>,
     query: String,
     scope: ChatSearchScope,
@@ -70,7 +70,7 @@ internal fun searchChatDocuments(
         .toList()
 }
 
-internal fun semanticSearchCandidates(
+fun semanticSearchCandidates(
     documents: List<ChatSearchDocument>,
     scope: ChatSearchScope,
     window: ChatSearchWindow,
@@ -135,7 +135,7 @@ private fun ChatSearchDocument.score(query: String, tokens: List<String>, scope:
     } ?: 0
 }
 
-internal fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = when (window) {
+fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = when (window) {
     ChatSearchWindow.ALL -> null
     ChatSearchWindow.TODAY -> Calendar.getInstance().apply {
         timeInMillis = now
@@ -151,3 +151,6 @@ internal fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = whe
 private val EXCLUDED_TYPES = setOf(MessageType.SK_DIST, MessageType.SYSTEM, MessageType.NUDGE)
 private val WHITESPACE = Regex("\\s+")
 private const val MAX_SEMANTIC_CANDIDATES = 100
+
+const val SEVEN_DAYS_MS = 7L * 24L * 60L * 60L * 1_000L
+const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1_000L

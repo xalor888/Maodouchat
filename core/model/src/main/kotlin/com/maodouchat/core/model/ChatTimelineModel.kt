@@ -1,9 +1,9 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
-internal sealed interface ChatItem {
+sealed interface ChatItem {
     /** LazyColumn key — prefixes keep date / unread / message ids from colliding. */
     val listKey: String
 
@@ -31,13 +31,13 @@ internal sealed interface ChatItem {
 }
 
 /** Sender-key distribution is crypto control traffic — keep Room, hide from conversation UI. */
-internal fun isTimelineVisibleMessage(message: Message): Boolean =
+fun isTimelineVisibleMessage(message: Message): Boolean =
     message.type != MessageType.SK_DIST
 
 /** Same visual grouping as ChatDetailScreen: same sender, same day, within 6 minutes. */
-internal const val SENDER_GROUP_WINDOW_MS = 6L * 60L * 1000L
+const val SENDER_GROUP_WINDOW_MS = 6L * 60L * 1000L
 
-internal fun sameSenderGroup(
+fun sameSenderGroup(
     first: Message,
     second: Message,
     firstDateLabel: String,
@@ -49,7 +49,7 @@ internal fun sameSenderGroup(
         kotlin.math.abs(second.timestamp - first.timestamp) < windowMs
 
 /** Builds the virtualized timeline in O(n) when the repository list is already chronological. */
-internal fun buildChatItems(
+fun buildChatItems(
     messages: List<Message>,
     labelForTimestamp: (Long) -> String,
     unreadSeparatorId: String? = null
