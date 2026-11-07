@@ -1,8 +1,10 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.core.model.GroupInviteItem
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

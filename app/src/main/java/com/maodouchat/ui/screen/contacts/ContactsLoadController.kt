@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ContactsUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -48,13 +49,15 @@ internal class ContactsLoadController(
             try {
                 val result = contactsController.loadFriends(session)
                 if (!contactsController.isCurrent(session) && !result.sessionMissing) return@launch
+                // failure 是 :core:model 公开 data class 的属性，跨模块不可智能转换，先取局部变量。
+                val failure = result.failure
                 updateState {
                     it.copy(
                         isLoading = false,
                         errorMessage = when {
                             result.users.isNotEmpty() -> null
                             result.sessionMissing -> text(R.string.error_session_expired, emptyArray())
-                            result.failure != null -> result.failure.message ?: text(R.string.contacts_load_failed, emptyArray())
+                            failure != null -> failure.message ?: text(R.string.contacts_load_failed, emptyArray())
                             else -> null
                         },
                     )

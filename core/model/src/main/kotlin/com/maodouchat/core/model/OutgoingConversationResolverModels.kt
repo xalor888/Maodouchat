@@ -1,6 +1,4 @@
-package com.maodouchat.messaging.v2
-
-import com.maodouchat.core.model.Chat
+package com.maodouchat.core.model
 
 data class OutgoingConversationRequest(
     val ownerUserId: String,

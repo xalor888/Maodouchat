@@ -1,6 +1,9 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.OutgoingConversationErrors
+import com.maodouchat.core.model.OutgoingConversationRequest
+import com.maodouchat.core.model.ResolvedOutgoingConversation
 import kotlinx.coroutines.CancellationException
 
 /**

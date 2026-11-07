@@ -1,5 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
+import com.maodouchat.core.model.ChatListSelection
+import com.maodouchat.core.model.ChatListSelectionEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 

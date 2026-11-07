@@ -1,5 +1,7 @@
 package com.maodouchat.contacts.usecase
 
+import com.maodouchat.core.model.FriendRequestItem
+import com.maodouchat.core.model.FriendRequestsSnapshot
 import com.maodouchat.core.model.User
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.FriendRequestDto

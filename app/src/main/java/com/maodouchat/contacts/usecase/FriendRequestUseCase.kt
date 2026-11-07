@@ -1,5 +1,8 @@
 package com.maodouchat.contacts.usecase
 
+import com.maodouchat.core.model.FriendRequestItem
+import com.maodouchat.core.model.FriendRequestsSnapshot
+
 /**
  * 好友申请用例契约
  */

@@ -1,9 +1,4 @@
-package com.maodouchat.ui.screen.contacts
-
-import com.maodouchat.core.model.ContactsIndexPolicy
-import com.maodouchat.core.model.User
-
-typealias FriendRequestItem = com.maodouchat.contacts.usecase.FriendRequestItem
+package com.maodouchat.core.model
 
 data class GroupInviteItem(
     val id: String,

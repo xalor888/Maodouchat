@@ -1,6 +1,4 @@
-package com.maodouchat.ui.screen.contacts
-
-import com.maodouchat.core.model.User
+package com.maodouchat.core.model
 
 data class ContactsSession(val ownerUserId: String)
 

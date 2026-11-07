@@ -22,8 +22,8 @@ import com.maodouchat.messaging.v2.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.messaging.v2.MessagingV2MutationFacade
-import com.maodouchat.messaging.v2.OutgoingConversationErrors
-import com.maodouchat.messaging.v2.OutgoingConversationRequest
+import com.maodouchat.core.model.OutgoingConversationErrors
+import com.maodouchat.core.model.OutgoingConversationRequest
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.core.model.ChatScheduleController
