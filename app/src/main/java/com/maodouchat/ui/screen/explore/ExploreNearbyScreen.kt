@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout

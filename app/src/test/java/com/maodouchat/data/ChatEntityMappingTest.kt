@@ -2,7 +2,7 @@ package com.maodouchat.data
 
 import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

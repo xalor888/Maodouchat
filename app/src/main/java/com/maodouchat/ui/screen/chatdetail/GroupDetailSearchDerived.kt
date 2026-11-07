@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.ui.screen.chatdetail.group.groupAuditActionSearchTokens
 import com.maodouchat.ui.screen.chatdetail.group.roleRank

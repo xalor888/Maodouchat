@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ChatLoadEffect
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 
 internal data class ChatLoadInput(
     val chat: Chat,

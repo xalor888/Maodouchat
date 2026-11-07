@@ -3,9 +3,9 @@ package com.maodouchat.ui.screen.chatlist
 import com.maodouchat.core.model.ChatListSettingsMergePolicy
 import com.maodouchat.core.model.ChatListUnreadPolicy
 import com.maodouchat.core.model.SettingsSnapshot
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDto
 /**
  * Pure merge of a getChats DTO with in-memory / Room local state.

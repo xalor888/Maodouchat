@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.AnnotatedString
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.ui.component.SearchHighlightAccent
 
 internal fun chatNameForSuggestion(chat: Chat?): String? {

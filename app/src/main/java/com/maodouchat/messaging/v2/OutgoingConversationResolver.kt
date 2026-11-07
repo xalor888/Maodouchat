@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import kotlinx.coroutines.CancellationException
 
 /**

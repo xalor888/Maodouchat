@@ -2,7 +2,7 @@ package com.maodouchat.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 
 @Entity(tableName = "users")
 data class UserEntity(

@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.screen.chatlist.applyPreviewToChats
 import com.maodouchat.ui.screen.chatlist.restoreChatSorted

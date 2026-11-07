@@ -5,10 +5,10 @@ import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.NudgeDisplayPolicy
 import com.maodouchat.core.model.Templates
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.ChatListPreviewPolicy
 
 // 消息展示与搜索索引：列表预览文案、解密后回写预览、本地全文索引

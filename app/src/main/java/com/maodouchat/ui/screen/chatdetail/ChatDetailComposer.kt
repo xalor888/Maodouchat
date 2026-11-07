@@ -29,8 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.BotCommandItem
-import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.filter
@@ -104,7 +104,7 @@ internal fun ComposerPane(
     isGroupChat: Boolean,
     isChannelChat: Boolean = false,
     onSendNudge: () -> Unit = {},
-    mentionParticipants: List<com.maodouchat.data.model.User> = emptyList(),
+    mentionParticipants: List<User> = emptyList(),
     currentUserId: String = "",
     /** 1.37：仅群主/管理员可选「@所有人」候选。 */
     canMentionEveryone: Boolean = true,
@@ -119,7 +119,7 @@ internal fun ComposerPane(
     /** 密聊会话：禁用会话画像/周报等本地 AI 聚合（结果不应落可搜索缓存）。 */
     isSecretChat: Boolean = false,
     /** 1.11：发送名片——转发目标列表与回调（ChatInputBar 无 viewModel 引用）。 */
-    contactCardTargets: List<com.maodouchat.data.model.Chat> = emptyList(),
+    contactCardTargets: List<Chat> = emptyList(),
     onLoadForwardTargets: () -> Unit = {},
     onSendContactCard: (userId: String, displayName: String) -> Unit = { _, _ -> },
     botCommands: List<BotCommandItem> = emptyList(),

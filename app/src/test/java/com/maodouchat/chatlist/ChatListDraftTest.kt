@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
 import com.maodouchat.data.local.entity.ChatDraftEntity
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.ui.screen.chatlist.requiresGroupOwnershipTransfer
 import com.maodouchat.core.model.ApiException

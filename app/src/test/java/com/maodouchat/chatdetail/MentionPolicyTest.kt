@@ -2,7 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.ActiveQuery
 import com.maodouchat.core.model.InsertResult
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.chatdetail.MentionPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

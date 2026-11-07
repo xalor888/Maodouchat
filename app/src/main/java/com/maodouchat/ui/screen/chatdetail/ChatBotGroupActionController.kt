@@ -3,8 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.R
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.BotCommandPolicy
-import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

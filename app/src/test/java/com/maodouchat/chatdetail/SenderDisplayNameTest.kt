@@ -2,11 +2,11 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.model.Message
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.senderDisplayName
 import com.maodouchat.ui.screen.chatlist.listSenderLabel
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.NearbyPolicy
 
 data class NearbyPerson(val user: User, val distanceMeters: Int, val locationUpdatedAt: Long)

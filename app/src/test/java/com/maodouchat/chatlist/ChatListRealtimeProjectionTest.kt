@@ -1,7 +1,7 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.screen.chatlist.applyPresenceProjection
 import com.maodouchat.ui.screen.chatlist.buildAdminBroadcastProjection
 import com.maodouchat.ui.screen.chatlist.zeroChatUnread

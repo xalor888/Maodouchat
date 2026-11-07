@@ -2,8 +2,8 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.chatdetail.ChatDetailAccess
-import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.core.session.OwnerSessionPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot

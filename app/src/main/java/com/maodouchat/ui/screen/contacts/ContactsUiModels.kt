@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.core.model.ContactsIndexPolicy
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 
 typealias FriendRequestItem = com.maodouchat.contacts.usecase.FriendRequestItem
 

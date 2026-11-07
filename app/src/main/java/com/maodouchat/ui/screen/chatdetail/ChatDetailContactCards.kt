@@ -50,7 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.maodouchat.R
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -72,7 +73,7 @@ import com.maodouchat.ui.theme.TextHint
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ContactProfileSheet(
-    contact: com.maodouchat.data.model.User,
+    contact: User,
     isBlocked: Boolean,
     isBlocking: Boolean,
     hideCalls: Boolean = false,
@@ -181,9 +182,9 @@ internal fun ContactProfileSheet(
 
 @Composable
 internal fun ContactCardPickerDialog(
-    contacts: List<Pair<Chat, com.maodouchat.data.model.User>>,
+    contacts: List<Pair<Chat, User>>,
     onDismiss: () -> Unit,
-    onPick: (Chat, com.maodouchat.data.model.User) -> Unit
+    onPick: (Chat, User) -> Unit
 ) {
     var pickerQuery by rememberSaveable { mutableStateOf("") }
     val filteredContacts = remember(contacts, pickerQuery) {

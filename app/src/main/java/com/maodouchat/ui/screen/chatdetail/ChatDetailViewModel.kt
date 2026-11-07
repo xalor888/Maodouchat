@@ -10,11 +10,11 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.crypto.DecryptHistoryPolicy
 import com.maodouchat.core.model.CallType
 import com.maodouchat.messaging.v2.MessageMutationProjection
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.core.model.MessageReminder
 import kotlinx.coroutines.Dispatchers

@@ -1,6 +1,6 @@
 package com.maodouchat.contacts.usecase
 
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.security.BackgroundSessionGate

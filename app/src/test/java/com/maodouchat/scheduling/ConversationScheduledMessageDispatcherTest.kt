@@ -3,7 +3,7 @@ package com.maodouchat.scheduling
 import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.core.model.ConversationCommandRejection
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
 import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome

@@ -1,12 +1,13 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.NudgeDecision
 import com.maodouchat.core.model.NudgeRejectReason
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -32,7 +33,7 @@ class ChatSendIntentFactoryTest {
     ) = ChatDetailUiState(
         isSecretChat = isSecretChat,
         contact = User(id = "u2", name = contactName),
-        chat = com.maodouchat.data.model.Chat(id = "c1", participants = emptyList()),
+        chat = Chat(id = "c1", participants = emptyList()),
         messages = messages,
     )
 

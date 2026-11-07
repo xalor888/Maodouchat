@@ -1,6 +1,6 @@
 package com.maodouchat.contacts.usecase
 
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 
 /**
  * 好友申请模型

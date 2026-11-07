@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.ActiveQuery
 import com.maodouchat.core.model.Candidate
 import com.maodouchat.core.model.InsertResult
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.User
 
 /**
  * 群聊 @ 提及：检测输入、候选过滤、插入 token、从正文提取 mentions。

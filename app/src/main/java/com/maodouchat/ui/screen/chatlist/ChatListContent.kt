@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.data.model.Chat
+import com.maodouchat.core.model.Chat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut

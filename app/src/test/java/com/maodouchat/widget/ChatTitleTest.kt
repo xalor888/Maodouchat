@@ -1,7 +1,7 @@
 package com.maodouchat.widget
 
-import com.maodouchat.data.model.Chat
-import com.maodouchat.data.model.User
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
