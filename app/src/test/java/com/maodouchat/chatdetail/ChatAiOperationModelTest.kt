@@ -8,7 +8,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
-import com.maodouchat.ui.screen.chatdetail.PendingAiAction
+import com.maodouchat.core.model.PendingAiAction
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
 import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
 import com.maodouchat.core.model.ApiException

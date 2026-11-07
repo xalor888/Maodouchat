@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.VoiceTranscriptPolicy
+import com.maodouchat.core.model.PendingAiAction
 
 
 internal fun ChatDetailViewModel.normalizeAiRewriteMode(mode: String?): String {
