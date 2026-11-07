@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.PendingAiAction
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
