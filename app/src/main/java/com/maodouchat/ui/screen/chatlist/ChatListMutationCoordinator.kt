@@ -12,6 +12,8 @@ import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.requiresGroupOwnershipTransfer
 import com.maodouchat.core.model.restoreChatSorted
+import com.maodouchat.core.model.applyConfirmedSettings
+import com.maodouchat.core.model.bumpOptimisticSettingsClock
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
