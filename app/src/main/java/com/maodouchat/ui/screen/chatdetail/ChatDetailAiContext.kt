@@ -9,6 +9,8 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.isAmbiguousTransportFailure
+import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
+import com.maodouchat.core.model.buildPlainAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

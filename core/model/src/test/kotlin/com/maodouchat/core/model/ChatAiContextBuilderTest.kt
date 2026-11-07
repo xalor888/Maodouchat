@@ -1,12 +1,5 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AiContextSenders
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.MAX_AI_SUMMARY_MESSAGES
-import com.maodouchat.ui.screen.chatdetail.buildPlainAiContextMessages
-import com.maodouchat.ui.screen.chatdetail.buildSummaryAiContextMessages
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

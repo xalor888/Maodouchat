@@ -11,6 +11,7 @@ import com.maodouchat.core.model.AiClassifiedError
 import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID

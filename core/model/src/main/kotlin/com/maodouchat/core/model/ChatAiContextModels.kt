@@ -1,12 +1,8 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AiContextSenders
-import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.AiContextMessage
+const val MAX_AI_SUMMARY_MESSAGES = 48
 
-internal fun buildPlainAiContextMessages(
+fun buildPlainAiContextMessages(
     messages: List<Message>,
     senders: AiContextSenders,
     limit: Int,
@@ -31,7 +27,7 @@ internal fun buildPlainAiContextMessages(
         )
     }
 
-internal fun buildSummaryAiContextMessages(
+fun buildSummaryAiContextMessages(
     messages: List<Message>,
     senders: AiContextSenders,
     limit: Int = MAX_AI_SUMMARY_MESSAGES,
@@ -53,7 +49,7 @@ internal fun buildSummaryAiContextMessages(
         )
     }
 
-internal fun Message.aiSummaryContextText(maxLength: Int = 1_500): String {
+fun Message.aiSummaryContextText(maxLength: Int = 1_500): String {
     val metadata = parsedMeta()
     val joined = buildList {
         if (type == MessageType.TEXT || type == MessageType.MARKDOWN) {
