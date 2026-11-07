@@ -64,7 +64,8 @@ class CallSessionResetControllerTest {
         assertTrue(isGroup)
         assertEquals("sdp", rec.offerSdp)
         assertEquals("g-1", rec.activeGroupId)
-        assertEquals(listOf("u2", "u3"), rec.mesh)
+        // mesh 含 self（与 resetForNewGroupCall 的排序一致），排 self 的是 members
+        assertEquals(listOf("self-1", "u2", "u3"), rec.mesh)
         assertEquals(setOf("u2", "u3"), rec.members)
         assertEquals(listOf(GroupCallParticipantUi("u2"), GroupCallParticipantUi("u3")), members)
     }
