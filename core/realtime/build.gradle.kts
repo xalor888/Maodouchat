@@ -10,6 +10,9 @@ kotlin {
 
 dependencies {
     implementation(project(":core:model"))
+    // RealtimeConnectionManager 依赖会话句柄 SessionContext /
+    // SessionContextProvider（:core:session 只依赖 :core:model，无环）。
+    implementation(project(":core:session"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     testImplementation("junit:junit:4.13.2")

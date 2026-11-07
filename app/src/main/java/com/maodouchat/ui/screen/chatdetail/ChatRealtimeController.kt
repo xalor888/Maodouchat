@@ -14,8 +14,8 @@ import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.network.WebSocketTransport
 import com.maodouchat.core.realtime.resolveTypingSignalAction
 import com.maodouchat.core.model.resolveUserVisibility
-import com.maodouchat.session.AccountScopedRealtimeConnectionManager
-import com.maodouchat.session.RealtimeConnectionManager
+import com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager
+import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag

@@ -1,8 +1,8 @@
 package com.maodouchat.network
 
 import com.maodouchat.core.model.WebSocketEvent
-import com.maodouchat.session.AccountScopedRealtimeConnectionManager
-import com.maodouchat.session.RealtimeConnectionManager
+import com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager
+import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.session.TokenManagerSessionContextProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

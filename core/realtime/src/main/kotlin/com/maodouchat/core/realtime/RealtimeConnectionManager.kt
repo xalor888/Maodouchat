@@ -1,9 +1,8 @@
-package com.maodouchat.session
+package com.maodouchat.core.realtime
 
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.core.model.WebSocketEvent
-import com.maodouchat.core.realtime.RealtimeTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted

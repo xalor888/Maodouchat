@@ -1,11 +1,9 @@
-package com.maodouchat.session
+package com.maodouchat.core.realtime
 
 import com.maodouchat.core.session.MutableSessionContextProvider
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.core.model.WebSocketEvent
-import com.maodouchat.core.realtime.RealtimeTransport
-import com.maodouchat.core.realtime.RealtimeTransportEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob

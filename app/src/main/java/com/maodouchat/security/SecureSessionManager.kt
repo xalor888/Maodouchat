@@ -21,7 +21,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
-import com.maodouchat.session.RealtimeConnectionManager
+import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.push.PushRegistrationManager
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
