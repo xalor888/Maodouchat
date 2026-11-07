@@ -10,6 +10,8 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDto
+import com.maodouchat.core.model.requiresGroupOwnershipTransfer
+import com.maodouchat.core.model.restoreChatSorted
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
