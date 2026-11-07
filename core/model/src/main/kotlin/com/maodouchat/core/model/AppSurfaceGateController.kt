@@ -1,9 +1,7 @@
-package com.maodouchat.ui
-
-import com.maodouchat.core.model.AppSurfaceGateState
+package com.maodouchat.core.model
 
 /**
- * P08：App 锁与假聊天表面门闩（从 MainActivity 抽出）。
+ * P08：App 锁与假聊天表面门闩。
  *
  * Activity 只持有 Compose 可变状态并渲染对应 Screen；决策与后台记账经本控制器，
  * 不持有 Activity 引用。窗口隐私仍由 [com.maodouchat.security.WindowPrivacyController] 负责。

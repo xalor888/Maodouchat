@@ -1,7 +1,7 @@
-package com.maodouchat.ui
+package com.maodouchat.core.model
 
 /**
- * P08：来电锁屏旗标轮询（从 MainActivity 抽出）。
+ * P08：来电锁屏旗标轮询。
  *
  * Activity 只提供「是否需要旗标」查询与「落旗」动作；本类负责 onStart 轮询 / onStop 收敛语义。
  */

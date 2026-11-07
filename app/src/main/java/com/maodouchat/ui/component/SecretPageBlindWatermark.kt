@@ -10,8 +10,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.FrequencyWatermark
-import com.maodouchat.watermark.SecretPageWatermark
-import com.maodouchat.watermark.SecretWatermarkPolicy
+import com.maodouchat.core.model.SecretPageWatermark
+import com.maodouchat.core.model.SecretWatermarkPolicy
 
 /**
  * 进入密聊即铺满整页的不可见盲水印纹理（DWT+SVD 载波 + Overlay）。

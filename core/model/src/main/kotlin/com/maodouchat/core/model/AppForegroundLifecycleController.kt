@@ -1,7 +1,7 @@
-package com.maodouchat.ui
+package com.maodouchat.core.model
 
 /**
- * P08：应用前台/后台与 presence 派发（从 MainActivity 抽出）。
+ * P08：应用前台/后台与 presence 派发。
  *
  * Activity 只转发生命周期；本类负责 `appInForeground` / `activeChatId` 清理与 presence 唤醒，
  * 不持有 Activity 引用。presence 经注入，避免 UI 宿主直连 WebSocketClient。
