@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.perf.CoalescedScroller
 

@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ChatSearchMode
 import com.maodouchat.core.model.ChatSearchWindow

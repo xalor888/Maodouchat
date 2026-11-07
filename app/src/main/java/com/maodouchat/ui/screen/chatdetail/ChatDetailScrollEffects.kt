@@ -4,6 +4,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
+import com.maodouchat.core.model.ChatItem
 import com.maodouchat.perf.CoalescedScroller
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
