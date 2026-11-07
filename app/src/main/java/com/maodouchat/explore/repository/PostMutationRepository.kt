@@ -9,7 +9,7 @@ import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostMutationJournal
 import com.maodouchat.core.model.ReportResponse
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.security.BackgroundSessionGate
 

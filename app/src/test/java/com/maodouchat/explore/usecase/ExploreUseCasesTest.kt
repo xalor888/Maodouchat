@@ -19,7 +19,7 @@ import com.maodouchat.core.model.PublicProfileResponse
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UserDto
-import com.maodouchat.network.api.SocialApi
+import com.maodouchat.core.network.SocialApi
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.explore.repository.FeedRepository

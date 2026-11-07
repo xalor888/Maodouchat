@@ -1,7 +1,6 @@
-package com.maodouchat.network.api
+package com.maodouchat.core.network
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.network.*
 import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse
 import com.maodouchat.core.model.ClientPrefsDto
@@ -57,7 +56,7 @@ interface ApiSurface : SocialApi {
     onlineVisibility: String? = null
 ): Result<UserPrivacyDto>
 
-    suspend fun getPublicUpdates(baseUrl: String = ApiConfig.BASE_URL): Result<PublicUpdatesDto>
+    suspend fun getPublicUpdates(baseUrl: String): Result<PublicUpdatesDto>
 
     suspend fun getNotificationSettings(token: String): Result<NotificationSettingsResponse>
 
