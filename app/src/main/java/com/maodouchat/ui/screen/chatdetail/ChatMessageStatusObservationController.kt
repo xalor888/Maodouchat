@@ -7,6 +7,8 @@ import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SeenSet
+import com.maodouchat.core.model.ChatReadWatermarkInput
+import com.maodouchat.core.model.ChatReadWatermarkPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,7 +48,7 @@ internal class ChatMessageStatusObservationController(
                 // G67：「算哪些新未读、水印选哪条」下沉到纯策略（可单测），这里只编排副作用。
                 val liveOwnerUserId = ownerUserId()
                 val plan = ChatReadWatermarkPolicy.plan(
-                    input = Input(
+                    input = ChatReadWatermarkInput(
                         messages = state.messages,
                         hasChat = true,
                         isActiveChat = true,

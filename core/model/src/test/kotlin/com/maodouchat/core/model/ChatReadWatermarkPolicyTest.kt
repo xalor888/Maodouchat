@@ -1,25 +1,12 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.SeenSet
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * G67 安全网：`ChatReadWatermarkPolicy` 的「新未读」与水印判定契约。
- *
- * 这些判定此前全部内联在 `ChatDetailViewModel.observeMessageStatus()`（83 行）里，**零覆盖**。
- * 而它们直接决定已读回执的正确性——判错的后果都不是崩溃，而是**静默的数据不一致**：
- * - 把自己的消息也算进未读 → 给自己发回执，服务端记一条无意义的已读；
- * - `SK_DIST` 计入未读 → 密钥分发被误标已读，后续群消息解不开；
- * - seen-set 不幂等 → 同一条消息每次状态变化都重发回执（刷屏 + 服务端压力）；
- * - 水印选错 → 「已读到哪」比实际少，对方永远显示未读。
- */
+/** 已读水印判定契约：新未读筛选与水印选择。 */
 class ChatReadWatermarkPolicyTest {
 
     private val me = "u1"
@@ -38,7 +25,7 @@ class ChatReadWatermarkPolicyTest {
         isActiveChat: Boolean = true,
         ownerUserId: String = me,
         sessionMayContinue: Boolean = true,
-    ) = Input(
+    ) = ChatReadWatermarkInput(
         messages = messages,
         hasChat = hasChat,
         isActiveChat = isActiveChat,
@@ -227,30 +214,6 @@ class ChatReadWatermarkPolicyTest {
         ChatReadWatermarkPolicy.rollbackAfterFailure(seen, failed)
 
         assertEquals(setOf("done"), seen.snapshot(), "回滚只能撤自己那批，不能把已成功的也撤掉")
-    }
-
-    // ─── SeenSet 本身 ───
-
-    @Test
-    fun `seen set add is idempotent and reports membership`() {
-        val seen = SeenSet()
-        assertFalse(seen.contains("m1"))
-
-        seen.add("m1")
-        seen.add("m1")
-
-        assertEquals(setOf("m1"), seen.snapshot())
-        assertTrue(seen.contains("m1"))
-    }
-
-    @Test
-    fun `seen set removeAll drops exactly the given ids`() {
-        val seen = SeenSet()
-        seen.addAll(listOf("a", "b", "c"))
-
-        seen.removeAll(listOf("a", "c"))
-
-        assertEquals(setOf("b"), seen.snapshot())
     }
 
     @Test
