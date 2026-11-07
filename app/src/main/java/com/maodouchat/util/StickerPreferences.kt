@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.core.model.PrefsJsonLists
 import com.maodouchat.core.model.StickerCatalog
 import com.maodouchat.core.model.StickerPolicy
 
