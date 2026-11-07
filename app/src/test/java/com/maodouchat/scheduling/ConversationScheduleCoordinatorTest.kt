@@ -1,6 +1,7 @@
 package com.maodouchat.scheduling
 
 import com.maodouchat.core.model.ConversationScheduleBackend
+import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.core.model.ConversationScheduleResult
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.ConversationScheduleFailure

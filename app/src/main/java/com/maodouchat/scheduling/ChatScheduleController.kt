@@ -4,6 +4,7 @@ import com.maodouchat.core.model.ChatReminderOutcome
 import com.maodouchat.core.model.ChatScheduleCommand
 import com.maodouchat.core.model.ChatScheduleImmediateOutcome
 import com.maodouchat.core.model.ChatScheduleMutationOutcome
+import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.core.model.ConversationScheduleResult
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.ChatScheduleRejection

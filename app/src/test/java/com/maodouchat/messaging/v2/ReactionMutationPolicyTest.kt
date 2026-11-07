@@ -1,6 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.ReactionMutationPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

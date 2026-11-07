@@ -4,6 +4,7 @@ import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.ReactionLock
 import com.maodouchat.data.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ReactionMutationPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap

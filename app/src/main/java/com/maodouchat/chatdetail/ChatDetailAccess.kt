@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.scheduling.ConversationScheduleCoordinator
+import com.maodouchat.core.model.ConversationScheduleCoordinator
 import kotlinx.coroutines.CoroutineScope
 
 object ChatDetailAccess {

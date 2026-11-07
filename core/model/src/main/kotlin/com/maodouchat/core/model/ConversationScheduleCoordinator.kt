@@ -1,14 +1,5 @@
-package com.maodouchat.scheduling
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConversationScheduleBackend
-import com.maodouchat.core.model.ConversationScheduleResult
-import com.maodouchat.core.model.MessageReminderPolicy
-import com.maodouchat.core.model.MessageReminder
-import com.maodouchat.core.model.ConversationScheduleFailure
-import com.maodouchat.core.model.MessageReminderRequest
-import com.maodouchat.core.model.ScheduledMessage
-import com.maodouchat.core.model.ScheduledMessagePolicy
-import com.maodouchat.core.model.ScheduledMessageRequest
 import java.util.UUID
 
 class ConversationScheduleCoordinator(
