@@ -1,6 +1,8 @@
 package com.maodouchat.watermark
 
 import com.maodouchat.core.model.FrequencyWatermark
+import com.maodouchat.core.model.SecretPageWatermark
+import com.maodouchat.core.model.SecretWatermarkPolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import kotlin.math.abs

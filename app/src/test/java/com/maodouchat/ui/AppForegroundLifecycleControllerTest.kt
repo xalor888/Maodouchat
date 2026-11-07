@@ -1,5 +1,6 @@
 package com.maodouchat.ui
 
+import com.maodouchat.core.model.AppForegroundLifecycleController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

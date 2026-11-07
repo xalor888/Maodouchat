@@ -39,9 +39,10 @@ import com.maodouchat.security.FakeChatManager
 import com.maodouchat.security.ScreenSecureManager
 import com.maodouchat.core.session.ScreenSecurePolicy
 import com.maodouchat.security.SecretChatSession
-import com.maodouchat.ui.AppSurfaceGateController
+import com.maodouchat.core.model.AppForegroundLifecycleController
+import com.maodouchat.core.model.AppSurfaceGateController
 import com.maodouchat.core.model.AppSurfaceGateState
-import com.maodouchat.ui.CallLockScreenFlagController
+import com.maodouchat.core.model.CallLockScreenFlagController
 import com.maodouchat.core.model.StartupPermissionPolicy
 import com.maodouchat.ui.screen.lock.FakeChatScreen
 import com.maodouchat.ui.screen.lock.PasscodeLockScreen
@@ -107,7 +108,7 @@ class MainActivity : FragmentActivity() {
 
     // P08：前台/后台 presence 与 activeChat 清理在 AppForegroundLifecycleController。
     private val foregroundLifecycleController by lazy {
-        com.maodouchat.ui.AppForegroundLifecycleController(
+        AppForegroundLifecycleController(
             setAppInForeground = { MaodouchatApp.appInForeground = it },
             clearActiveChatSurface = {
                 MaodouchatApp.activeChatId = null
@@ -130,7 +131,6 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    // 多权限请求
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> /* 权限结果回调 */ }

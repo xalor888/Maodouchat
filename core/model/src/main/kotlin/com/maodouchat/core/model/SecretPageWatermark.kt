@@ -1,7 +1,5 @@
-package com.maodouchat.watermark
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.FrequencyWatermark
-import com.maodouchat.core.model.ReferenceBlindWatermark
 import kotlin.math.cos
 import kotlin.math.sin
 
