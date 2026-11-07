@@ -9,6 +9,7 @@ import com.maodouchat.core.model.RemoteSticker
 import com.maodouchat.core.model.StickerFilePolicy
 import com.maodouchat.core.model.StickerNamePolicy
 import com.maodouchat.core.model.StickerPackDownloadResult
+import com.maodouchat.core.model.StickerSourcePolicy
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock

@@ -1,4 +1,4 @@
-package com.maodouchat.slim
+package com.maodouchat.core.model
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -9,7 +9,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  * OkHttp 请求导向外域甚至内网地址。这里把所有贴纸地址约束到当前 API 服务器同源，
  * 相对路径会解析为同源绝对地址，跨域/跨端口/跨 scheme 的地址直接丢弃。
  */
-internal object StickerSourcePolicy {
+object StickerSourcePolicy {
 
     private val allowedSchemes = setOf("http", "https")
 
