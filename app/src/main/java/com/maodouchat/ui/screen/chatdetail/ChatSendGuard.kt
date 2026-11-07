@@ -1,5 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.SendDecision
 import com.maodouchat.core.model.SendRejectReason
@@ -109,25 +110,25 @@ internal object ChatSendGuard {
         messageId: String,
         ownerUserId: String,
         token: String,
-    ): RetryDecision {
+    ): ChatRetryDecision {
         val failed = state.messages.find { it.id == messageId }
-            ?: return RetryDecision.Reject(RetryRejectReason.NOT_FOUND)
+            ?: return ChatRetryDecision.Reject(RetryRejectReason.NOT_FOUND)
         if (failed.senderId != ownerUserId) {
-            return RetryDecision.Reject(RetryRejectReason.NOT_MY_MESSAGE)
+            return ChatRetryDecision.Reject(RetryRejectReason.NOT_MY_MESSAGE)
         }
         if (failed.status != MessageStatus.FAILED) {
-            return RetryDecision.Reject(RetryRejectReason.NOT_FAILED)
+            return ChatRetryDecision.Reject(RetryRejectReason.NOT_FAILED)
         }
         if (token.isBlank() || ownerUserId.isBlank()) {
-            return RetryDecision.Reject(RetryRejectReason.NO_SESSION)
+            return ChatRetryDecision.Reject(RetryRejectReason.NO_SESSION)
         }
         if (failed.type in RELIABLE_ATTACHMENT_TYPES) {
-            return RetryDecision.NeedsAttachmentRetry(failed)
+            return ChatRetryDecision.NeedsAttachmentRetry(failed)
         }
         if (failed.type !in TEXT_RETRY_TYPES) {
-            return RetryDecision.Reject(RetryRejectReason.UNSUPPORTED_TYPE)
+            return ChatRetryDecision.Reject(RetryRejectReason.UNSUPPORTED_TYPE)
         }
-        return RetryDecision.Allow(failed)
+        return ChatRetryDecision.Allow(failed)
     }
 
 }

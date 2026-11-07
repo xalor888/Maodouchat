@@ -1,22 +1,12 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * G70 安全网：`ChatHistoryLoadPolicy` 的「历史页收尾」判定契约。
- *
- * 这段判定此前内联在 `ChatDetailViewModel.loadChat()` 的 `withContext(Dispatchers.IO)` 里，
- * **一个用例都没有**。它决定三件用户可见的事：
- * - 未读分隔线标在哪（标错 → 用户以为看全了，实际漏看）；
- * - 密聊**绝不**发已读回执（发了 → 对方知道你在看，密聊的隐私承诺破功）；
- * - 回执带不带 groupRevision（不带 → 服务端按错误 epoch 记账）。
- */
+/** G70 安全网：历史页收尾判定契约。 */
 class ChatHistoryLoadPolicyTest {
 
     private fun msg(id: String, timestamp: Long, type: MessageType = MessageType.TEXT) =
@@ -207,4 +197,40 @@ class ChatHistoryLoadPolicyTest {
         assertNull(result.unreadSeparatorId, "非控制消息只有 2 条，未读 2 条即追平分母，分隔线为空")
     }
 
+    // ─── 未读分隔线 ───
+
+    @Test
+    fun `unread separator marks the oldest unread message`() {
+        val messages = (1..5).map { Message(id = "m$it", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = it.toLong()) }
+
+        // 未读 2 条 → 分隔线应落在第 4 条（倒数第 2 条）之前
+        assertEquals("m4", unreadSeparatorId(unreadCount = 2, messages = messages))
+    }
+
+    @Test
+    fun `unread separator ignores control messages when counting`() {
+        val messages = listOf(
+            Message(id = "m1", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = 1L),
+            Message(id = "sk1", chatId = "c1", senderId = "me", content = "", type = MessageType.SK_DIST, timestamp = 2L),
+            Message(id = "m2", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = 3L),
+        )
+
+        // 未读 1 条，但 SK_DIST 不参与分母 → 分隔线落在 m2
+        assertEquals("m2", unreadSeparatorId(unreadCount = 1, messages = messages))
+    }
+
+    @Test
+    fun `unread separator is absent when there is nothing unread or everything is unread`() {
+        val messages = (1..3).map { Message(id = "m$it", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = it.toLong()) }
+
+        assertNull(unreadSeparatorId(unreadCount = 0, messages = messages), "没有未读就不该有分隔线")
+        assertNull(
+            unreadSeparatorId(unreadCount = 3, messages = messages),
+            "全部未读时分隔线没有意义（整屏都是未读）",
+        )
+        assertNull(
+            unreadSeparatorId(unreadCount = 99, messages = messages),
+            "未读数超过实际条数（脏数据）不得崩也不得给分隔线",
+        )
+    }
 }

@@ -7,8 +7,8 @@ import com.maodouchat.core.model.SendDecision
 import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.messaging.v2.OutgoingMessageCommand
-import com.maodouchat.messaging.v2.OutgoingMessageResult
+import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

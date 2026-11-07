@@ -234,42 +234,4 @@ class ChatDetailLoadCoordinatorTest {
         assertFalse(plan.isLoading, "失败后 loading 必须收起")
         assertEquals("加载失败", plan.initialLoadError, "无缓存失败必须留下可诊断错误")
     }
-
-    // ─── 未读分隔线 ───
-
-    @Test
-    fun `unread separator marks the oldest unread message`() {
-        val messages = (1..5).map { Message(id = "m$it", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = it.toLong()) }
-
-        // 未读 2 条 → 分隔线应落在第 4 条（倒数第 2 条）之前
-        assertEquals("m4", ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount = 2, messages = messages))
-    }
-
-    @Test
-    fun `unread separator ignores control messages when counting`() {
-        val messages = listOf(
-            Message(id = "m1", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = 1L),
-            Message(id = "sk1", chatId = "c1", senderId = "me", content = "", type = MessageType.SK_DIST, timestamp = 2L),
-            Message(id = "m2", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = 3L),
-        )
-
-        // 未读 1 条，但 SK_DIST 不参与分母 → 分隔线落在 m2
-        assertEquals("m2", ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount = 1, messages = messages))
-    }
-
-    @Test
-    fun `unread separator is absent when there is nothing unread or everything is unread`() {
-        val messages = (1..3).map { Message(id = "m$it", chatId = "c1", senderId = "u2", content = "", type = MessageType.TEXT, timestamp = it.toLong()) }
-
-        assertNull(ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount = 0, messages = messages), "没有未读就不该有分隔线")
-        assertNull(
-            ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount = 3, messages = messages),
-            "全部未读时分隔线没有意义（整屏都是未读）",
-        )
-        assertNull(
-            ChatDetailLoadCoordinator.unreadSeparatorId(unreadCount = 99, messages = messages),
-            "未读数超过实际条数（脏数据）不得崩也不得给分隔线",
-        )
-    }
 }
-
