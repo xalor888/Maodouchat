@@ -1,11 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatListSelection
-import com.maodouchat.core.model.ChatListSelectionEvent
-import com.maodouchat.core.model.UnreadBatchTargets
-import com.maodouchat.ui.screen.chatlist.reduceSelection
-import com.maodouchat.ui.screen.chatlist.selectUnreadBatchTargets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

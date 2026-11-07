@@ -1,10 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
-
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatFolderPolicy
-import com.maodouchat.core.model.ChatListSelection
-import com.maodouchat.core.model.ChatListSelectionEvent
-import com.maodouchat.core.model.UnreadBatchTargets
+package com.maodouchat.core.model
 
 fun reduceSelection(
     state: ChatListSelection,

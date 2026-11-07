@@ -6,7 +6,7 @@ import com.maodouchat.core.model.ChatSettingsToggle
 import com.maodouchat.ui.screen.chatlist.applyConfirmedSettings
 import com.maodouchat.ui.screen.chatlist.buildSettingsToggle
 import com.maodouchat.ui.screen.chatlist.bumpOptimisticSettingsClock
-import com.maodouchat.ui.screen.chatlist.selectUnreadBatchTargets
+import com.maodouchat.core.model.selectUnreadBatchTargets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

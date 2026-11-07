@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.core.model.ChatListSelectionEvent
+import com.maodouchat.core.model.reduceSelection
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
