@@ -3,14 +3,14 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import android.util.Log
 import com.maodouchat.R
+import com.maodouchat.core.model.ConversationMessageMutationOutcome
 import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
-import com.maodouchat.messaging.v2.ConversationMessageMutationOutcome
 import com.maodouchat.messaging.v2.ConversationReactionCoordinator
-import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

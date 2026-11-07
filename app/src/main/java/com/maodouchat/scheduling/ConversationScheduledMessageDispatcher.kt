@@ -1,9 +1,9 @@
 package com.maodouchat.scheduling
 
 import com.maodouchat.conversation.ConversationCommandFacade
-import com.maodouchat.conversation.ConversationCommandOutcome
 import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.core.model.ScheduledMessage
 /**
  * Scheduling-domain adapter for turning a due item into a durable v2 message.

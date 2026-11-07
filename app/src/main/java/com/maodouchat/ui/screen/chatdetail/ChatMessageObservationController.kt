@@ -2,10 +2,10 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
-import com.maodouchat.messaging.v2.MessageMutationProjection
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
