@@ -1,4 +1,4 @@
-package com.maodouchat.slim
+package com.maodouchat.core.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
