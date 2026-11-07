@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
