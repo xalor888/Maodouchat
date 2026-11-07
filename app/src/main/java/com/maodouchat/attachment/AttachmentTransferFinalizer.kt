@@ -1,6 +1,7 @@
 package com.maodouchat.attachment
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.AttachmentFinalizeOutcome
 import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
 import com.maodouchat.core.model.User
 import com.maodouchat.data.local.entity.hasCompletedUpload

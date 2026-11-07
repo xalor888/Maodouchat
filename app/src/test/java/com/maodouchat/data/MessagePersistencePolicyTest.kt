@@ -8,7 +8,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.mergeDeliveryStatusForPersistence
 import com.maodouchat.data.repository.mergeLocalMediaMetaForPersistence
 import com.maodouchat.data.repository.mergeMessageForPersistence
-import com.maodouchat.util.ViewOncePolicy
+import com.maodouchat.core.model.ViewOncePolicy
 import kotlin.test.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

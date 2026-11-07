@@ -6,7 +6,7 @@ import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
-import com.maodouchat.util.LiveLocationPolicy
+import com.maodouchat.core.model.LiveLocationPolicy
 import com.maodouchat.util.LocationProvider
 import com.maodouchat.util.RuntimeFlags
 import java.util.UUID

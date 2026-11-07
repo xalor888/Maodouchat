@@ -4,8 +4,8 @@ import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.core.model.ConversationForwardSessionException
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
-import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
+import com.maodouchat.core.model.ConversationMessageStagingGateway
+import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta

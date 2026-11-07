@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ViewOncePolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -37,12 +38,12 @@ fun ChatDetailViewModel.revealSpoilerMedia(messageId: String) {
 fun ChatDetailViewModel.markViewOnceOpened(messageId: String) {
     if (messageId.isBlank()) return
     val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
-    val opened = com.maodouchat.util.ViewOncePolicy.markOpened(current)
+    val opened = ViewOncePolicy.markOpened(current)
     if (opened == current) return
     _uiState.update { state ->
         val updated = state.messages.map { msg ->
             if (msg.id != messageId) msg
-            else com.maodouchat.util.ViewOncePolicy.markOpened(msg)
+            else ViewOncePolicy.markOpened(msg)
         }
         state.copy(messages = updated)
     }

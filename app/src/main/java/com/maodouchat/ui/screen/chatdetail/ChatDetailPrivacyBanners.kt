@@ -26,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.core.model.LiveLocationPolicy
 
 /**
  * 隐私/位置类横幅：实时位置共享与阅后即焚状态条。
@@ -39,16 +40,16 @@ internal fun LiveLocationSharingBanner(
     onStop: () -> Unit
 ) {
     var remaining by remember(untilMs) {
-        mutableLongStateOf(com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs))
+        mutableLongStateOf(LiveLocationPolicy.remainingFromUntil(untilMs))
     }
     LaunchedEffect(untilMs) {
         while (true) {
-            remaining = com.maodouchat.util.LiveLocationPolicy.remainingFromUntil(untilMs)
+            remaining = LiveLocationPolicy.remainingFromUntil(untilMs)
             if (remaining <= 0L) break
             kotlinx.coroutines.delay(1000L)
         }
     }
-    val label = com.maodouchat.util.LiveLocationPolicy.formatRemaining(remaining)
+    val label = LiveLocationPolicy.formatRemaining(remaining)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

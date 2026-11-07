@@ -3,6 +3,7 @@ package com.maodouchat.ui.component
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ViewOncePolicy
 
 /** Converts domain messages to stable Compose presentation data at the UI boundary. */
 object MessagePresentationMapper {
@@ -46,7 +47,7 @@ object MessagePresentationMapper {
                 AttachmentPresentation(
                     uri = body,
                     attachmentId = meta.attachmentId,
-                    viewOnce = meta.viewOnce && com.maodouchat.util.ViewOncePolicy.supports(message.type),
+                    viewOnce = meta.viewOnce && ViewOncePolicy.supports(message.type),
                     viewOnceOpened = meta.viewOnceOpened,
                     spoiler = meta.spoilerMedia,
                     spoilerRevealed = meta.spoilerRevealed,

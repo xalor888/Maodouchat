@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.SpoilerMediaPolicy
+import com.maodouchat.core.model.ViewOncePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertFalse

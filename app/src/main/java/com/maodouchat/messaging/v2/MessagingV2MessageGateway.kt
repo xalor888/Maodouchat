@@ -6,6 +6,8 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ConversationMessageStagingGateway
+import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import com.maodouchat.data.repository.LocalMessageStore
 
 /**

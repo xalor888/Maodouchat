@@ -8,7 +8,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.LiveLocationPolicy
+import com.maodouchat.core.model.LiveLocationPolicy
 import com.maodouchat.util.LocationProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
