@@ -10,6 +10,7 @@ import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AiClassifiedError
 import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiRetryPolicyCategory
+import com.maodouchat.core.model.PendingAiAction
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
