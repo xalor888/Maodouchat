@@ -1,9 +1,5 @@
-package com.maodouchat.realtime
+package com.maodouchat.core.realtime
 
-import com.maodouchat.core.realtime.DefaultRealtimeEventDispatcher
-import com.maodouchat.core.realtime.RealtimeConnectionState
-import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharedFlow

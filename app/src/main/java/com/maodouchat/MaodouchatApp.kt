@@ -2,6 +2,7 @@ package com.maodouchat
 
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
+import com.maodouchat.core.realtime.WebSocketEventBridge
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application
@@ -70,7 +71,6 @@ data class IncomingCallWake(
     val senderId: String = "",
     val isVideo: Boolean = false,
     val atMillis: Long = System.currentTimeMillis(),
-    /** Matches [MaodouchatApp.currentSessionGeneration] at emit time; collectors drop stale wakes. */
     override val sessionGeneration: Long = 0L,
     val requestId: Long = 0L,
     /** 8.56：系统 Telecom 来电 UI 点击「接听」后为 true——IncomingCallRoute 直接自动接听。 */
@@ -103,8 +103,8 @@ class MaodouchatApp : Application() {
         com.maodouchat.core.realtime.DefaultRealtimeEventDispatcher()
     }
 
-    val webSocketEventBridge: com.maodouchat.realtime.WebSocketEventBridge by lazy {
-        com.maodouchat.realtime.WebSocketEventBridge(realtimeEventDispatcher)
+    val webSocketEventBridge: WebSocketEventBridge by lazy {
+        WebSocketEventBridge(realtimeEventDispatcher)
     }
 
     private val realtimeConnectionManager by lazy {
