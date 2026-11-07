@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.group.GroupLifecycleService
 import android.net.Uri
 import com.maodouchat.core.model.GroupMutationAction

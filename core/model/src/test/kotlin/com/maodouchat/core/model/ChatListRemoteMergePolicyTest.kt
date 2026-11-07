@@ -1,10 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.UserDto
-import com.maodouchat.ui.screen.chatlist.ChatListRemoteMergePolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import com.maodouchat.R
 import com.maodouchat.core.model.Candidate
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.core.model.MentionPolicy
 
 /**
  * 「@提及」候选选择器（G89 从 `ChatDetailComponents.kt` 的 `ComposerPane` 拆出，原 61 行）。

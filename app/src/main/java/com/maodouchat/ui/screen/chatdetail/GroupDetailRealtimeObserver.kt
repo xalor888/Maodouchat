@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
-import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.resolveUserVisibility

@@ -18,6 +18,7 @@ import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.Candidate
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.MentionPolicy
 
 /**
  * 输入框上方的「覆盖层编排」（G96 从 `ChatDetailComponents.kt` 的 `ComposerPane` 拆出，原 126 行）。

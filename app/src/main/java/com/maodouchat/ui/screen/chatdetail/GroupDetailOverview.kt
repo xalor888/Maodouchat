@@ -25,7 +25,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.group.GroupDetailUiState
+import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.ui.screen.chatdetail.group.GroupAnnouncementCard
 import com.maodouchat.ui.screen.chatdetail.group.GroupFeatureAction
 import com.maodouchat.ui.screen.chatdetail.group.GroupFeaturesCard
