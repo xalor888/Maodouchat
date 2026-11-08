@@ -14,6 +14,9 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.OutboxIdempotencyPolicy
+import com.maodouchat.domain.messaging.OutboxRetryGuard
+import com.maodouchat.domain.messaging.SenderKeyRequestValidation
 import com.maodouchat.domain.messaging.deliveryReceiptEvent
 import com.maodouchat.domain.messaging.isAttachmentMessageType
 import com.maodouchat.domain.messaging.playReceiptEvent
@@ -74,12 +77,13 @@ class MessagingV2Outbox(
         val owner = requireOwner()
         if (dao.isMessageTerminal(owner, messageId)) return
         val existing = dao.getOutbox(messageId, owner)
-        if (existing == null) {
+        val decision = OutboxRetryGuard.decide(existing?.conversationId, existing?.kind, conversationId)
+        require(decision != OutboxRetryGuard.Decision.CONVERSATION_MISMATCH) { "messaging_v2_retry_conversation_mismatch" }
+        require(decision != OutboxRetryGuard.Decision.KIND_MISMATCH) { "messaging_v2_retry_kind_mismatch" }
+        if (decision == OutboxRetryGuard.Decision.ENQUEUE) {
             enqueueContent(conversationId, body, type, groupRevision, messageId)
             return
         }
-        require(existing.conversationId == conversationId) { "messaging_v2_retry_conversation_mismatch" }
-        require(existing.kind == "DATA") { "messaging_v2_retry_kind_mismatch" }
         dao.retryOutbox(messageId, owner, clock())
         wakeTransport()
     }
@@ -93,12 +97,13 @@ class MessagingV2Outbox(
     ) {
         val owner = requireOwner()
         val existing = dao.getOutbox(messageId, owner)
-        if (existing == null) {
+        val decision = OutboxRetryGuard.decide(existing?.conversationId, existing?.kind, conversationId)
+        require(decision != OutboxRetryGuard.Decision.CONVERSATION_MISMATCH) { "messaging_v2_retry_conversation_mismatch" }
+        require(decision != OutboxRetryGuard.Decision.KIND_MISMATCH) { "messaging_v2_retry_kind_mismatch" }
+        if (decision == OutboxRetryGuard.Decision.ENQUEUE) {
             enqueueContentInCurrentTransaction(conversationId, body, type, groupRevision, messageId)
             return
         }
-        require(existing.conversationId == conversationId) { "messaging_v2_retry_conversation_mismatch" }
-        require(existing.kind == "DATA") { "messaging_v2_retry_kind_mismatch" }
         dao.retryOutbox(messageId, owner, clock())
     }
 
@@ -203,9 +208,14 @@ class MessagingV2Outbox(
         groupRevision: Long,
         failedMessageId: String,
     ): String {
-        require(requestedSenderUserId.isNotBlank()) { "messaging_v2_key_request_sender_missing" }
-        require(groupRevision > 0L) { "messaging_v2_key_request_revision_missing" }
-        require(failedMessageId.isNotBlank()) { "messaging_v2_key_request_message_missing" }
+        val problem = SenderKeyRequestValidation.validate(
+            requestedSenderUserId = requestedSenderUserId,
+            groupRevision = groupRevision,
+            failedMessageId = failedMessageId,
+        )
+        require(problem != SenderKeyRequestValidation.Problem.SENDER_MISSING) { "messaging_v2_key_request_sender_missing" }
+        require(problem != SenderKeyRequestValidation.Problem.REVISION_MISSING) { "messaging_v2_key_request_revision_missing" }
+        require(problem != SenderKeyRequestValidation.Problem.MESSAGE_MISSING) { "messaging_v2_key_request_message_missing" }
         val owner = requireOwner()
         return enqueuePayload(
             owner = owner,
@@ -293,12 +303,13 @@ class MessagingV2Outbox(
     ) {
         val owner = requireOwner()
         val existing = dao.getOutbox(messageId, owner)
-        if (existing == null) {
+        val decision = OutboxRetryGuard.decide(existing?.conversationId, existing?.kind, conversationId)
+        require(decision != OutboxRetryGuard.Decision.CONVERSATION_MISMATCH) { "messaging_v2_retry_conversation_mismatch" }
+        require(decision != OutboxRetryGuard.Decision.KIND_MISMATCH) { "messaging_v2_retry_kind_mismatch" }
+        if (decision == OutboxRetryGuard.Decision.ENQUEUE) {
             enqueueContentPayloadInCurrentTransaction(conversationId, payload, groupRevision, messageId)
             return
         }
-        require(existing.conversationId == conversationId) { "messaging_v2_retry_conversation_mismatch" }
-        require(existing.kind == "DATA") { "messaging_v2_retry_kind_mismatch" }
         dao.retryOutbox(messageId, owner, clock())
     }
 
@@ -376,9 +387,14 @@ class MessagingV2Outbox(
     ): String {
         dao.getOutbox(messageId, owner)?.let { existing ->
             require(
-                existing.conversationId == conversationId &&
-                    existing.kind == kind &&
-                    existing.localPayload == payload,
+                OutboxIdempotencyPolicy.isSameOutbox(
+                    existingConversationId = existing.conversationId,
+                    existingKind = existing.kind,
+                    existingPayload = existing.localPayload,
+                    conversationId = conversationId,
+                    kind = kind,
+                    payload = payload,
+                ),
             ) { "messaging_v2_outbox_id_conflict" }
             return messageId
         }
