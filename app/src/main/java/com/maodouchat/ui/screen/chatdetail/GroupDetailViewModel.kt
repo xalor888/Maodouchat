@@ -6,12 +6,16 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.group.DefaultGroupLifecycleService
-import com.maodouchat.group.GroupAuditController
-import com.maodouchat.group.GroupBotController
+import com.maodouchat.domain.groups.GroupAuditController
+import com.maodouchat.domain.groups.GroupBotController
+import com.maodouchat.domain.groups.GroupEncryptionHealthController
+import com.maodouchat.domain.groups.GroupInviteController
+import com.maodouchat.group.createAndroidGroupAuditController
+import com.maodouchat.group.createAndroidGroupBotController
+import com.maodouchat.group.createAndroidGroupEncryptionHealthController
+import com.maodouchat.group.createAndroidGroupInviteController
+import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.group.GroupDetailAccess
-import com.maodouchat.group.GroupEncryptionHealthController
-import com.maodouchat.group.GroupInviteController
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import kotlinx.coroutines.Dispatchers
@@ -55,23 +59,15 @@ class GroupDetailViewModel(
         },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
-    private val groupLifecycleService: GroupLifecycleService = DefaultGroupLifecycleService(
+    private val groupLifecycleService: GroupLifecycleService = createAndroidGroupLifecycleService(
         coordinator = groupLifecycleCoordinator,
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         membershipStore = GroupDetailAccess.groupMembershipStore,
     )
-    private val groupInviteController = GroupInviteController(
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
-    )
-    private val groupAuditController = GroupAuditController(
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
-    )
-    private val groupBotController = GroupBotController(
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
-    )
-    private val groupEncryptionHealthController = GroupEncryptionHealthController(
+    private val groupInviteController = createAndroidGroupInviteController()
+    private val groupAuditController = createAndroidGroupAuditController()
+    private val groupBotController = createAndroidGroupBotController()
+    private val groupEncryptionHealthController = createAndroidGroupEncryptionHealthController(
         maintenanceCoordinator = groupSenderKeyMaintenanceCoordinator,
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
     )
 
     private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()

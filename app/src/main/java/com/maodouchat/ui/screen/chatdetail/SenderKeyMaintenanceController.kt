@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.R
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.group.GroupEncryptionHealthController
+import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome

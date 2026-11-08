@@ -19,6 +19,7 @@ import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
+import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
 import com.maodouchat.core.model.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
@@ -273,9 +274,8 @@ internal class ChatDetailDeps(
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
     internal val groupLifecycleService: GroupLifecycleService by lazy {
-        com.maodouchat.group.DefaultGroupLifecycleService(
+        createAndroidGroupLifecycleService(
             coordinator = groupLifecycleCoordinator,
-            tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             membershipStore = com.maodouchat.group.GroupDetailAccess.groupMembershipStore,
         )
     }

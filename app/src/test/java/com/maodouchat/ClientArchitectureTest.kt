@@ -565,7 +565,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MediaVoiceBubble.kt" to 474,
         // 拆小后 MainActivity（497）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/MainActivity.kt" to 497,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 286,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
         // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
@@ -837,7 +837,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MediaVoiceBubble.kt" to 474,
         // 拆小后 MainActivity（497）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/MainActivity.kt" to 497,
-        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 290,
+        "com/maodouchat/ui/screen/chatdetail/GroupDetailViewModel.kt" to 286,
         // 2026-10-08：AI 任务行组件簇（筛选条/任务行/元信息/空状态 + 日历助手）搬出同包
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
         // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
@@ -1673,6 +1673,7 @@ class ClientArchitectureTest {
         "domain/messaging",
         "domain/conversation",
         "domain/contacts",
+        "domain/groups",
     )
 
     @Test

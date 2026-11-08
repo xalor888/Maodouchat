@@ -296,6 +296,8 @@ dependencies {
     implementation(project(":domain:conversation"))
     // §4.1：联系人变更与好友申请用例实现已迁入 :domain:contacts。
     implementation(project(":domain:contacts"))
+    // §4.1：群生命周期服务与群控制器实现已迁入 :domain:groups。
+    implementation(project(":domain:groups"))
     // M03：接入 core:crypto 端口（IdentityTrustService + 直接会话密码学端口）。
     implementation(project(":core:crypto"))
     // 核心通用领域模型（ConversationId, UserId 等）
