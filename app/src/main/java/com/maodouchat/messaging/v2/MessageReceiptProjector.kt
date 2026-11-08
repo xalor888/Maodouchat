@@ -4,8 +4,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.domain.messaging.MessageReceipt
 import com.maodouchat.domain.messaging.MessageReceiptAggregationPolicy
+import com.maodouchat.domain.messaging.MessageReceiptGuard
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
@@ -21,7 +21,7 @@ internal class MessageReceiptProjector(
         existing: Message,
         envelope: MessagingV2InboxEntity,
     ) {
-        if (existing.senderId != owner || envelope.senderUserId == owner) return
+        if (!MessageReceiptGuard.shouldApplyDeliveryReceipt(existing.senderId, owner, envelope.senderUserId)) return
         persistReceipt(
             ownerUserId = owner,
             message = existing,
@@ -39,7 +39,7 @@ internal class MessageReceiptProjector(
     ) {
         val through = event.throughMessageId ?: event.targetMessageId
         val boundary = messageStore.getMessageById(through) ?: return
-        if (envelope.senderUserId == owner) {
+        if (MessageReceiptGuard.isOwnReadReceipt(envelope.senderUserId, owner)) {
             app.database.messageDao().markIncomingReadThrough(
                 chatId = envelope.conversationId,
                 ownerUserId = owner,
@@ -50,7 +50,7 @@ internal class MessageReceiptProjector(
             MaodouchatApp.emitChatRead(envelope.conversationId)
             return
         }
-        if (boundary.senderId != owner) return
+        if (!MessageReceiptGuard.shouldApplyPeerReadReceipt(boundary.senderId, owner)) return
 
         val outgoing = app.database.messageDao().getOutgoingMessagesThrough(
             chatId = envelope.conversationId,
@@ -82,8 +82,7 @@ internal class MessageReceiptProjector(
     ) {
         val targetMessageId = event.targetMessageId
         val target = if (existing.id == targetMessageId) existing else messageStore.getMessageById(targetMessageId) ?: return
-        if (envelope.senderUserId == owner) return
-        if (target.senderId != owner) return
+        if (!MessageReceiptGuard.shouldApplyPlayReceipt(target.senderId, owner, envelope.senderUserId)) return
 
         persistReceipt(
             ownerUserId = owner,

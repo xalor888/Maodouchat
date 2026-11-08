@@ -64,7 +64,7 @@ class SignalMessagingV2EnvelopePreparer(
         ) {
             throw MessagingV2StaleGroupControlException()
         }
-        return if (snapshot.isGroup && message.kind in DIRECT_GROUP_CONTROL_KINDS) {
+        return if (snapshot.isGroup && MessagingV2GroupControlPolicy.isGroupControl(message.kind)) {
             if (snapshot.targets.isEmpty()) {
                 return PreparedMessageV2(groupRevision = snapshot.memberRevision, envelopes = emptyList())
             }
@@ -159,7 +159,6 @@ class SignalMessagingV2EnvelopePreparer(
         const val KIND_SENDER_KEY = "SENDER_KEY"
         const val KIND_KEY_REQUEST = "KEY_REQUEST"
         const val TYPE_SENDER_KEY = "SK_DIST"
-        val DIRECT_GROUP_CONTROL_KINDS = setOf(KIND_SENDER_KEY, KIND_KEY_REQUEST)
     }
 }
 
