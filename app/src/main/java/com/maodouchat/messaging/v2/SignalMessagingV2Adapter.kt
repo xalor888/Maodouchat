@@ -2,7 +2,6 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
-import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2ContentPolicy
 import com.maodouchat.core.model.MessagingV2ConversationSnapshot
@@ -15,7 +14,12 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.domain.messaging.OutboxWireFormat
 import com.maodouchat.domain.messaging.PreparedMessageV2
+import com.maodouchat.domain.messaging.deviceEnvelopes
+import com.maodouchat.domain.messaging.envelopeTargetsCovered
 import com.maodouchat.domain.messaging.outboxAttachmentIds
+import com.maodouchat.domain.messaging.requiredRecipientIds
+import com.maodouchat.domain.messaging.senderKeyEnvelopes
+import com.maodouchat.domain.messaging.targetUserIds
 import com.maodouchat.network.ApiService
 import kotlinx.serialization.json.Json
 
@@ -69,27 +73,18 @@ class SignalMessagingV2EnvelopePreparer(
             if (snapshot.targets.isEmpty()) {
                 return PreparedMessageV2(groupRevision = snapshot.memberRevision, envelopes = emptyList())
             }
-            val targetUserIds = snapshot.targets.mapTo(linkedSetOf()) { it.userId }
+            val recipientUserIds = targetUserIds(snapshot.targets)
             val content = decodeContent(message)
             val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
                 token = token,
-                recipientIds = targetUserIds.toList(),
+                recipientIds = recipientUserIds.toList(),
                 plaintext = if (message.kind == KIND_SENDER_KEY) content.body else message.localPayload,
                 payloadType = if (message.kind == KIND_SENDER_KEY) TYPE_SENDER_KEY else KIND_KEY_REQUEST,
                 includeCurrentUserDevices = true,
-                requiredRecipientIds = targetUserIds.filterNot { it == snapshot.ownerUserId }.toSet(),
+                requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
             ).getOrThrow()
-            val envelopes = encrypted.ciphertexts.map {
-                EncryptedDeviceEnvelopeRequestV2(
-                    recipientUserId = it.userId,
-                    recipientDeviceId = it.deviceId,
-                    ciphertextType = OutboxWireFormat.ciphertextType(it.ciphertextType),
-                    ciphertext = it.ciphertext,
-                )
-            }
-            check(envelopes.mapTo(linkedSetOf()) {
-                MessagingV2DeviceTarget(it.recipientUserId, it.recipientDeviceId)
-            } == snapshot.targets) { "messaging_v2_group_control_coverage_mismatch" }
+            val envelopes = deviceEnvelopes(encrypted.ciphertexts)
+            check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_group_control_coverage_mismatch" }
             PreparedMessageV2(
                 groupRevision = snapshot.memberRevision,
                 envelopes = envelopes,
@@ -107,14 +102,7 @@ class SignalMessagingV2EnvelopePreparer(
             PreparedMessageV2(
                 groupRevision = snapshot.memberRevision,
                 attachmentIds = outboxAttachmentIds(message.localPayload),
-                envelopes = snapshot.targets.sortedWith(compareBy({ it.userId }, { it.deviceId })).map {
-                    EncryptedDeviceEnvelopeRequestV2(
-                        recipientUserId = it.userId,
-                        recipientDeviceId = it.deviceId,
-                        ciphertextType = CIPHERTEXT_SENDER_KEY,
-                        ciphertext = senderKeyEnvelope,
-                    )
-                },
+                envelopes = senderKeyEnvelopes(snapshot.targets, senderKeyEnvelope),
             )
         } else {
             if (snapshot.targets.isEmpty()) {
@@ -124,27 +112,17 @@ class SignalMessagingV2EnvelopePreparer(
                     envelopes = emptyList(),
                 )
             }
-            val targetUserIds = snapshot.targets.mapTo(linkedSetOf()) { it.userId }
+            val recipientUserIds = targetUserIds(snapshot.targets)
             val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
                 token = token,
-                recipientIds = targetUserIds.toList(),
+                recipientIds = recipientUserIds.toList(),
                 plaintext = message.localPayload,
                 payloadType = message.kind,
                 includeCurrentUserDevices = true,
-                requiredRecipientIds = targetUserIds.filterNot { it == snapshot.ownerUserId }.toSet(),
+                requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
             ).getOrThrow().ciphertexts
-            val envelopes = encrypted.map {
-                EncryptedDeviceEnvelopeRequestV2(
-                    recipientUserId = it.userId,
-                    recipientDeviceId = it.deviceId,
-                    ciphertextType = OutboxWireFormat.ciphertextType(it.ciphertextType),
-                    ciphertext = it.ciphertext,
-                )
-            }
-            val actualTargets = envelopes.mapTo(linkedSetOf()) {
-                MessagingV2DeviceTarget(it.recipientUserId, it.recipientDeviceId)
-            }
-            check(actualTargets == snapshot.targets) { "messaging_v2_crypto_coverage_mismatch" }
+            val envelopes = deviceEnvelopes(encrypted)
+            check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_crypto_coverage_mismatch" }
             PreparedMessageV2(groupRevision = null, attachmentIds = outboxAttachmentIds(message.localPayload), envelopes = envelopes)
         }
     }
@@ -156,7 +134,6 @@ class SignalMessagingV2EnvelopePreparer(
         json.decodeFromString(message.localPayload)
 
     private companion object {
-        const val CIPHERTEXT_SENDER_KEY = "SENDER_KEY"
         const val KIND_SENDER_KEY = "SENDER_KEY"
         const val KIND_KEY_REQUEST = "KEY_REQUEST"
         const val TYPE_SENDER_KEY = "SK_DIST"
