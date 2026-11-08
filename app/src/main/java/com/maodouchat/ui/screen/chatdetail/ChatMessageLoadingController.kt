@@ -21,6 +21,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.ChatLoadPlan
+import com.maodouchat.core.model.AUTO_DOWNLOAD_MEDIA_TYPES
+import com.maodouchat.core.model.toDomainChat
 
 // 消息加载/分页/刷新一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
 internal class ChatMessageLoadingController(

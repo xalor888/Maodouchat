@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatDetailUiState
 
 
 /** 聊天锁门控分支（从 ChatDetailRoute.kt 纯搬移，块字节级一致）。 */

@@ -1,6 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-internal sealed interface SemanticSearchAdmission {
+sealed interface SemanticSearchAdmission {
     data class Accepted(val query: String, val candidateIds: List<String>) : SemanticSearchAdmission
     data class Rejected(val state: ChatDetailUiState) : SemanticSearchAdmission
 }

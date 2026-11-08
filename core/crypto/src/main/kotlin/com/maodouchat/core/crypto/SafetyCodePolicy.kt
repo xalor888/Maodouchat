@@ -1,5 +1,7 @@
 package com.maodouchat.core.crypto
 
+import com.maodouchat.core.model.IdentityTrustState
+
 object SafetyCodePolicy {
     private val digitsOnly = Regex("[^0-9]")
 

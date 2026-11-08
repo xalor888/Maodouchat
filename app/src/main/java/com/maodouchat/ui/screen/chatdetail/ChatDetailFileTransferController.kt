@@ -18,6 +18,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 
 /**
  * 附件「下载 / 暂停 / 续传 / 取消 / 进度」这一族的控制逻辑（G328c 从

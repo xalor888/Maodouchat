@@ -24,6 +24,7 @@ import com.maodouchat.core.model.isMessageReplyable
 import com.maodouchat.core.model.Message
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 长按消息的「操作」底部弹层（G328c 从 `ChatDetailRoute.kt` 的
@@ -35,7 +36,6 @@ import com.maodouchat.util.RuntimeFlags
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatDetailMessageActionsSheet(
-    /** 由 Route 传入的文案与可见性开关（它们是 Route 的 `stringResource` 结果与 AI 入口判定）。 */
     onMessageToActionsDismiss: () -> Unit,
     chatCopiedMsg: String,
     chatTranslationCopiedMsg: String,

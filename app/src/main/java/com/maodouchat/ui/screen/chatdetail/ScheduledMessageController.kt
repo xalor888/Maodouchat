@@ -9,6 +9,7 @@ import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.core.model.ScheduledMessagePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 定时发送控制器。从 ChatDetailViewModel 抽出；「立即发送」通过 [sendMessage] 端口回调

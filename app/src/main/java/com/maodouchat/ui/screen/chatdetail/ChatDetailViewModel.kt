@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 class ChatDetailViewModel(
     application: Application,
@@ -351,7 +352,6 @@ class ChatDetailViewModel(
     internal fun observeAttachmentFinalizedEvents() = attachmentObservationController.observeAttachmentFinalizedEvents()
 
 
-    /** Sends a nudge through the same durable encrypted outbox as every other message. */
     fun sendNudge() = nudgeSender.sendNudge()
 
     /**

@@ -14,6 +14,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G68 安全网：`ChatSendIntentFactory` 的守卫与「待发意图」构造契约。

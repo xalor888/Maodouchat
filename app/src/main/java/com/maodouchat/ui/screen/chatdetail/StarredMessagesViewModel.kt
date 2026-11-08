@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
+import com.maodouchat.core.model.toDomainChat
 
 class StarredMessagesViewModel(
     application: Application,

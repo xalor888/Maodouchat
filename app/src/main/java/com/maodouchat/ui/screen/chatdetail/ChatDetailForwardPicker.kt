@@ -41,7 +41,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import android.widget.Toast
-import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary

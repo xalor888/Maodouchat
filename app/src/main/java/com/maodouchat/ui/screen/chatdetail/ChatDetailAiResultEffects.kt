@@ -8,6 +8,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G389：B4 本地 AI 聚合副作用：消息分类 / 情感回复 / 会话画像 / 本周周报（纯搬移，不改判断）。

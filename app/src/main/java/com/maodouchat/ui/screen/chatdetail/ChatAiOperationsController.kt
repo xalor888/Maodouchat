@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 // AI 操作观察与结果提交：操作流投屏、会话切走时丢弃，以及中断恢复/过期清理。
 // 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。

@@ -4,6 +4,7 @@ import android.app.Application
 import com.maodouchat.core.model.CaptureAlertPolicy
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 截屏/录屏检测的本地提示 + 对端 E2EE 告警（仅密聊或阅后即焚的 1:1 会话才告警，8s 节流）：
 // 逻辑从 ChatDetailViewModel 纯搬移。

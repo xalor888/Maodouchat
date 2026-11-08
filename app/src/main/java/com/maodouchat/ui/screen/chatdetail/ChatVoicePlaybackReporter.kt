@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 语音"已播放"回执上报：从 ChatDetailViewModel 纯搬移，判断逻辑一行未动。
 internal class ChatVoicePlaybackReporter(

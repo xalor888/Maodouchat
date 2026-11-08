@@ -15,6 +15,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 长按弹层的复制/分享按钮组：复制、带发送者/时间复制、系统分享、纯文本/名片/翻译/转写/ID 复制。
 // SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。

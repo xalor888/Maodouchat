@@ -7,6 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 会话内跳转定位（日期跳转 / 引用预览跳转 / 置顶跳转）：逻辑从 ChatDetailViewModel 纯搬移。
 internal class ChatJumpController(

@@ -1,6 +1,8 @@
 package com.maodouchat.core.crypto
 
 import com.maodouchat.core.model.WarningKind
+import com.maodouchat.core.model.DeviceSafetyState
+import com.maodouchat.core.model.IdentityTrustState
 
 object IdentitySafetyPolicy {
 

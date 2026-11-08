@@ -8,6 +8,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 会话级设置开关（置顶 / 标记未读）：乐观更新 UI，失败回滚。逻辑从 ChatDetailViewModel 纯搬移。
 internal class ChatSettingToggleController(

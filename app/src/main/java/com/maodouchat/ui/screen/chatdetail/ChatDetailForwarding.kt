@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 
 fun ChatDetailViewModel.loadForwardTargets() {
     viewModelScope.launch {

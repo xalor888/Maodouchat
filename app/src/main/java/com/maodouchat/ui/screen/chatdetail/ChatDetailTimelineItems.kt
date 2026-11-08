@@ -37,6 +37,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReplyPreview
 import com.maodouchat.core.model.toggleMessageSelection
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 主时间线的**单条 item** 渲染（G85 从 `ChatDetailRoute.kt` 拆出，原 231 行）。

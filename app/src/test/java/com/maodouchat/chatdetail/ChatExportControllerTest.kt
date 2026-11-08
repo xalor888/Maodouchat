@@ -10,7 +10,7 @@ import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.model.SessionSnapshot
-import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatExportController
 import com.maodouchat.util.ChatExport
 import io.mockk.every

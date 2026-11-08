@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.core.model.toDomainChat
 
 // 密聊（自 ChatDetailViewModel.kt 拆分）。
 // 涵盖密聊态刷新、已打开密聊清理与从普通单聊发起独立密聊，复用 chatRepo / secretTtlRepo。

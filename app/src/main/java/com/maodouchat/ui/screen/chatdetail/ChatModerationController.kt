@@ -8,6 +8,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 internal class ChatModerationController(
     private val application: Application,

@@ -4,6 +4,8 @@ import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.core.model.ChatLoadInput
 import com.maodouchat.core.model.User
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.ChatLoadPlan
 
 /**
  * 进入聊天时「加载会话」的纯决策核心（G65，从 `ChatDetailViewModel.loadChat()` 178 行里抽出）。

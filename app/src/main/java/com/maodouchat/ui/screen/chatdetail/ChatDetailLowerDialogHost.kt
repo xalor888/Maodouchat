@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G352：会话详情「下半区」弹窗簇从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——

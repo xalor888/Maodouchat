@@ -9,6 +9,7 @@ import com.maodouchat.core.model.MessageReminderRequest
 import com.maodouchat.core.model.MessageReminder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 消息「稍后提醒」控制器。从 ChatDetailViewModel 抽出，只依赖注入的

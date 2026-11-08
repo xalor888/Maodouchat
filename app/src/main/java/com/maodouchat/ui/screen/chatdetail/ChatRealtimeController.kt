@@ -32,6 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.data.repository.UserNetworkRepository
+import com.maodouchat.core.model.ChatDetailUiState
 
 internal class ChatRealtimeController(
     private val application: Application,

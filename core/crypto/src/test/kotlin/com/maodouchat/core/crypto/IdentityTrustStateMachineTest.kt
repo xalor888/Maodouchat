@@ -2,6 +2,7 @@ package com.maodouchat.core.crypto
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import com.maodouchat.core.model.IdentityTrustState
 
 class IdentityTrustStateMachineTest {
 

@@ -47,6 +47,7 @@ import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
+import com.maodouchat.core.model.ChatDetailUiState
 
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
 @Composable

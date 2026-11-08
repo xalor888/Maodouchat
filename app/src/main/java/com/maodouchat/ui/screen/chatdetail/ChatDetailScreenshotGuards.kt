@@ -9,6 +9,7 @@ import androidx.compose.ui.res.stringResource
 
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable

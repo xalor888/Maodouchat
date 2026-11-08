@@ -24,6 +24,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import com.maodouchat.conversation.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G64 安全网：`ChatReadReceiptCoordinator` 的行为契约。

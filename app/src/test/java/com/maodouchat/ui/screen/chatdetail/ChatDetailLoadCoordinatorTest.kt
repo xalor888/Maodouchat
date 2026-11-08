@@ -11,6 +11,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G65 安全网：`ChatDetailLoadCoordinator` 的纯决策契约。

@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
+import com.maodouchat.core.model.ChatDetailUiState
 
 /** 门禁路由：聊天锁加载中 / 新设备风控锁 / 聊天锁拦截三路门禁，任一生效时展示对应占位，否则渲染主内容。 */
 @Composable

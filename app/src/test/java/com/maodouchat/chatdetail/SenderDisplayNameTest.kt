@@ -3,7 +3,7 @@ package com.maodouchat.chatdetail
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
-import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.senderDisplayName
 import com.maodouchat.core.model.listSenderLabel
 import com.maodouchat.core.model.Chat

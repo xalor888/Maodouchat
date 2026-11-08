@@ -9,6 +9,7 @@ import com.maodouchat.core.session.OwnerSessionPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 会话水合一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
 internal class ChatOutgoingHydrationController(

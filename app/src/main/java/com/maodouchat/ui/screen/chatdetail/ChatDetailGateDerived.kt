@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 门禁派生量族：聊天锁门禁两态（加载中/拦截中）+ 密聊/阅后即焚活跃态。
 // 原在 ChatDetailRoute 内联计算，纯搬移不改判断。

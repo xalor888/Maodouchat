@@ -10,6 +10,8 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MentionPolicy
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 
 /**
  * 发送/重试的**准入判定**（G66，从 `ChatDetailViewModel.sendMessage()` 90 行与

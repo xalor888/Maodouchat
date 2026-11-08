@@ -1,42 +1,18 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.model.AiFileAnalysisMode
-import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.core.model.AiOperationUi
-import com.maodouchat.core.model.AiSummaryHistoryUi
-import com.maodouchat.core.model.AiSummaryScope
-import com.maodouchat.core.model.BotCommandItem
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.PinnedMessageDto
-import com.maodouchat.core.model.ReadCountUi
-import com.maodouchat.core.model.ReadReceiptUi
-import com.maodouchat.core.crypto.DeviceSafetyState
-import com.maodouchat.core.crypto.IdentityTrustState
-import com.maodouchat.core.model.ScheduledMessage
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.User
-import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.AiGroupTask
-
-/**
- * 从 ChatDetailViewModel.kt 拆分的顶层常量、数据类、枚举和 UI 状态。
- * 这些声明不依赖 ViewModel 实例状态，可在同包内直接引用。
- */
+package com.maodouchat.core.model
 
 // ── 常量 ──────────────────────────────
 
-internal const val DEFAULT_TRANSLATION_LANGUAGE = "中文"
-internal const val SYNCED_UNREAD_SUMMARY_DISPLAY_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
+const val DEFAULT_TRANSLATION_LANGUAGE = "中文"
+const val SYNCED_UNREAD_SUMMARY_DISPLAY_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
 
-internal val RELIABLE_ATTACHMENT_TYPES = setOf(
+val RELIABLE_ATTACHMENT_TYPES = setOf(
     MessageType.FILE,
     MessageType.IMAGE,
     MessageType.GIF,
     MessageType.VIDEO,
     MessageType.VOICE
 )
-internal val AUTO_DOWNLOAD_MEDIA_TYPES = RELIABLE_ATTACHMENT_TYPES - MessageType.FILE
+val AUTO_DOWNLOAD_MEDIA_TYPES = RELIABLE_ATTACHMENT_TYPES - MessageType.FILE
 
 // ── UI 状态 ───────────────────────────
 
@@ -196,7 +172,7 @@ data class ChatDetailUiState(
 
 // ── DTO 映射 ──────────────────────────
 
-internal fun ChatDto.toDomainChat(): Chat = Chat(
+fun ChatDto.toDomainChat(): Chat = Chat(
     id = id,
     participants = participants.map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) },
     lastMessage = lastMessage,

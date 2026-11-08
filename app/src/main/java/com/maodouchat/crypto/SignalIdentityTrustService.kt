@@ -2,8 +2,8 @@ package com.maodouchat.crypto
 
 import android.util.Base64
 import com.maodouchat.core.crypto.IdentityTrustService
-import com.maodouchat.core.crypto.DeviceSafetyState
-import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.DeviceSafetyState
+import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.IdentityTrustStateMachine
 import com.maodouchat.core.crypto.SignalProtocolConstants
 import org.signal.libsignal.protocol.IdentityKey

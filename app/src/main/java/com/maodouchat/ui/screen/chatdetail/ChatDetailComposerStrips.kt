@@ -27,6 +27,7 @@ import com.maodouchat.core.model.MessagePreviewText
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.TypingPresence
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G353：输入区上方的「状态条带」从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——

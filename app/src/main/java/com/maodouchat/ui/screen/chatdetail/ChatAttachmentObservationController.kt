@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 附件观察：附件落库事件回写时间线 + 传输状态观察与最终发送调度。
 // 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。

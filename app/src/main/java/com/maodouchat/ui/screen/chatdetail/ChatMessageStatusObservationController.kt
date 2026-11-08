@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 消息状态观察：时间线变化 → 标已读水印 + 持久化 + 已读回执入队。
 // 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
