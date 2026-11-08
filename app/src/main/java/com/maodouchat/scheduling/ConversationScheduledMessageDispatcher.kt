@@ -13,7 +13,7 @@ import com.maodouchat.core.model.ScheduledMessage
  * message/outbox transaction.
  */
 class ConversationScheduledMessageDispatcher(
-    private val facade: ConversationCommandFacade,
+    private val facade: DefaultConversationCommandFacade,
     private val resolveChat: suspend (chatId: String) -> Chat?,
 ) {
     suspend fun stage(

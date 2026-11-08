@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
  */
 class DefaultQuickReplyUseCase(
     private val context: Context,
-    private val commandFacade: ConversationCommandFacade,
+    private val commandFacade: DefaultConversationCommandFacade,
     private val secretConversationController: DefaultSecretConversationController,
     private val tokenManager: TokenManager = TokenManager.getInstance(context),
 ) : QuickReplyUseCase {
