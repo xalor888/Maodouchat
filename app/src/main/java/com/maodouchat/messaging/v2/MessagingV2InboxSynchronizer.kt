@@ -1,10 +1,8 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.core.model.MessagingV2InboxFailurePolicy
-import com.maodouchat.core.model.MessagingV2RetryPolicy
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.domain.messaging.messagingErrorCode
+import com.maodouchat.domain.messaging.InboxRetryPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.toEntity
 import kotlinx.coroutines.CancellationException
@@ -63,25 +61,28 @@ class MessagingV2InboxSynchronizer(
                 throw cancel
             } catch (error: Exception) {
                 val attempts = envelope.attempts + 1
-                val errorCode = messagingErrorCode(error)
-                if (MessagingV2InboxFailurePolicy.shouldDeadLetter(errorCode, attempts)) {
-                    check(
-                        dao.markInboxDeadLetterAckPending(
+                when (val decision = InboxRetryPolicy.decide(error, attempts, clock())) {
+                    is InboxRetryPolicy.Decision.DeadLetter -> {
+                        check(
+                            dao.markInboxDeadLetterAckPending(
+                                envelopeId = envelope.envelopeId,
+                                errorCode = decision.errorCode,
+                                now = clock(),
+                            ) == 1,
+                        ) { "messaging_v2_inbox_dead_letter_state_lost" }
+                        continue
+                    }
+                    is InboxRetryPolicy.Decision.Retry -> {
+                        dao.markInboxFailed(
                             envelopeId = envelope.envelopeId,
-                            errorCode = errorCode,
+                            errorCode = decision.errorCode,
+                            nextAttemptAt = decision.nextAttemptAt,
                             now = clock(),
-                        ) == 1,
-                    ) { "messaging_v2_inbox_dead_letter_state_lost" }
-                    continue
+                        )
+                        // Preserve delivery order. A later envelope may share the failed ratchet.
+                        return false
+                    }
                 }
-                dao.markInboxFailed(
-                    envelopeId = envelope.envelopeId,
-                    errorCode = errorCode,
-                    nextAttemptAt = MessagingV2RetryPolicy.nextAttemptAt(clock(), attempts),
-                    now = clock(),
-                )
-                // Preserve delivery order. A later envelope may share the failed ratchet.
-                return false
             }
         }
     }
