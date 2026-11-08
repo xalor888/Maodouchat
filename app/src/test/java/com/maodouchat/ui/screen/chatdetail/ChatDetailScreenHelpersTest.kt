@@ -5,6 +5,7 @@ import java.util.TimeZone
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
+import com.maodouchat.core.model.truncatedSenderId
 import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
 import io.mockk.every
 import io.mockk.mockk

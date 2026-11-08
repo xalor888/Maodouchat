@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.core.model.MyQrCodeDecision
+import com.maodouchat.core.model.MyQrCodeLoadPolicy
 import com.maodouchat.core.model.RejectReason
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -95,7 +96,7 @@ class MyQrCodeViewModel(application: Application) : AndroidViewModel(application
                     val bmp = withContext(Dispatchers.Default) {
                         QrCodeGenerator.generateBitmap(QrCodeGenerator.encodeUserQrPayload(targetUserId), 600)
                     }
-                    val outcome = MyQrCodeLoadPolicy.finalize(bmp)
+                    val outcome = finalizeQrCode(bmp)
                     _uiState.update {
                         it.copy(
                             qrBitmap = outcome.bitmap,

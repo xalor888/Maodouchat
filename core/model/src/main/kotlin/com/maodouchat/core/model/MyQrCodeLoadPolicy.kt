@@ -9,7 +9,7 @@ package com.maodouchat.core.model
  *
  * 本对象是纯函数：无 Coroutine / Room / ApiService / Android 资源。
  *
- * 二维码生成收尾 finalize() 含 Bitmap，仍在 app 侧。
+ * 二维码生成收尾 finalizeQrCode() 含 Bitmap，仍在 app 侧（MyQrCodeLoadModels.kt 顶层函数）。
  */
 object MyQrCodeLoadPolicy {
 

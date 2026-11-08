@@ -26,6 +26,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.MessageSafetyScanner
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.truncatedSenderId
 import java.util.Calendar
 import java.util.Date
 
@@ -80,9 +81,6 @@ internal fun resolveChatDetailSenderName(
     unknownLabel = unknownLabel,
     groupMemberLabel = groupMemberLabel,
 )
-
-internal fun truncatedSenderId(senderId: String): String? =
-    com.maodouchat.core.model.truncatedSenderId(senderId)
 
 private fun firstNonBlank(vararg values: String?): String? {
     for (value in values) {

@@ -1,5 +1,6 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.model.ChatListPreviewPolicy
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
