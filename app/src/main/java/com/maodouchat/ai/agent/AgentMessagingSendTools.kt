@@ -9,7 +9,7 @@ import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import java.util.UUID
 
 // 消息发送与草稿：出站文本与草稿存取。

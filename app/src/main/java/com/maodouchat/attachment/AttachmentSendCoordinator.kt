@@ -7,7 +7,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import kotlinx.coroutines.CancellationException
 
 /**

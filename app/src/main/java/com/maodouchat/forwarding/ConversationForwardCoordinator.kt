@@ -19,7 +19,7 @@ import com.maodouchat.domain.messaging.ForwardPolicy
 import com.maodouchat.domain.messaging.ForwardRequest
 import com.maodouchat.domain.messaging.ForwardTargetResult
 import com.maodouchat.domain.messaging.Forwardability
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
 

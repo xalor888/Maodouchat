@@ -1,4 +1,4 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ChatTextDisplayPolicy
 import com.maodouchat.core.model.Message
@@ -7,7 +7,6 @@ import com.maodouchat.core.model.LegacyBody
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.util.JsonFormat
 
 /** Versioned read/write adapter for v2 content and the legacy `<meta>` representation. */
 object ContentPayloadCodec {

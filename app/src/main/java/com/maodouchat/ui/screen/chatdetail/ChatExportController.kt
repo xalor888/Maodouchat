@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.ChatExport
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

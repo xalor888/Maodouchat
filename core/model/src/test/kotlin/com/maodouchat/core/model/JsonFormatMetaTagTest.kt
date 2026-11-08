@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.MessageMeta
 import org.junit.Test

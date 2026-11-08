@@ -1,4 +1,4 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.DecodedContentPayload
