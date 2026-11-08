@@ -1,9 +1,11 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.data.local.dao.MessagingV2Dao
-import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
-import com.maodouchat.conversation.ReadReceiptSource
+import com.maodouchat.domain.messaging.MessageReceipt
+import com.maodouchat.domain.messaging.ReadReceiptSource
+import com.maodouchat.messaging.v2.toMessageReceipt
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * 把 `MessagingV2Dao` 适配成 `ui/` 的 `ReadReceiptSource` 端口（G64）。
@@ -19,10 +21,12 @@ internal class RoomReadReceiptSource(private val dao: MessagingV2Dao) : ReadRece
     override suspend fun getReceiptsForMessage(
         ownerUserId: String,
         messageId: String,
-    ): List<MessagingV2ReceiptEntity> = dao.getReceiptsForMessage(ownerUserId, messageId)
+    ): List<MessageReceipt> = dao.getReceiptsForMessage(ownerUserId, messageId)
+        .map { it.toMessageReceipt() }
 
     override fun observeReceiptsForConversation(
         ownerUserId: String,
         conversationId: String,
-    ): Flow<List<MessagingV2ReceiptEntity>> = dao.observeReceiptsForConversation(ownerUserId, conversationId)
+    ): Flow<List<MessageReceipt>> = dao.observeReceiptsForConversation(ownerUserId, conversationId)
+        .map { receipts -> receipts.map { it.toMessageReceipt() } }
 }
