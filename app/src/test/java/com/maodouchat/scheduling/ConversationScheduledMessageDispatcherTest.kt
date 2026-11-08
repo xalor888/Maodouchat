@@ -1,6 +1,6 @@
 package com.maodouchat.scheduling
 
-import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
 import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ConversationCommandOutcome
@@ -19,7 +19,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `dispatcher uses deterministic scheduled id through facade`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            facade = DefaultConversationCommandFacade(gateway, now = { 10L }),
             resolveChat = { Chat(id = it) },
         )
 
@@ -34,7 +34,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `missing chat is rejected without staging`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway),
+            facade = DefaultConversationCommandFacade(gateway),
             resolveChat = { null },
         )
 
@@ -51,7 +51,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `id without sch prefix keeps raw suffix`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            facade = DefaultConversationCommandFacade(gateway, now = { 10L }),
             resolveChat = { Chat(id = it) },
         )
 
@@ -65,7 +65,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `sch prefix is stripped only once`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            facade = DefaultConversationCommandFacade(gateway, now = { 10L }),
             resolveChat = { Chat(id = it) },
         )
 
@@ -79,7 +79,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `blank text is rejected as EMPTY_TEXT without staging`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            facade = DefaultConversationCommandFacade(gateway, now = { 10L }),
             resolveChat = { Chat(id = it) },
         )
         val blank = scheduled("sch_t").copy(text = "   ")
@@ -98,7 +98,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `staged id is stable across repeated staging`() = runTest {
         val gateway = RecordingGateway()
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(gateway, now = { 10L }),
+            facade = DefaultConversationCommandFacade(gateway, now = { 10L }),
             resolveChat = { Chat(id = it) },
         )
 
@@ -114,7 +114,7 @@ class ConversationScheduledMessageDispatcherTest {
     fun `resolveChat receives the scheduled item chatId`() = runTest {
         var resolvedChatId: String? = null
         val dispatcher = ConversationScheduledMessageDispatcher(
-            facade = ConversationCommandFacade(RecordingGateway(), now = { 10L }),
+            facade = DefaultConversationCommandFacade(RecordingGateway(), now = { 10L }),
             resolveChat = {
                 resolvedChatId = it
                 Chat(id = it)

@@ -3,7 +3,7 @@ package com.maodouchat.quickreply
 import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
 import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.QuickReplyRequest
 import com.maodouchat.domain.messaging.QuickReplyUseCase
@@ -22,11 +22,11 @@ import kotlinx.coroutines.withContext
  * M11 快捷回复统一用例实现。
  *
  * 同时服务通知栏 RemoteInput 与桌面小组件，
- * 通过 [ConversationCommandFacade] 统一调度入队出站，不直接碰底层 DAO 与 raw crypto。
+ * 通过 [DefaultConversationCommandFacade] 统一调度入队出站，不直接碰底层 DAO 与 raw crypto。
  */
 class DefaultQuickReplyUseCase(
     private val context: Context,
-    private val commandFacade: ConversationCommandFacade,
+    private val commandFacade: DefaultConversationCommandFacade,
     private val secretConversationController: DefaultSecretConversationController,
     private val tokenManager: TokenManager = TokenManager.getInstance(context),
 ) : QuickReplyUseCase {

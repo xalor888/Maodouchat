@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.ConversationPrivacyContext
@@ -11,13 +11,13 @@ import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.ConversationMessageStagingGateway
 import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
-class ConversationCommandFacadeTest {
+class DefaultConversationCommandFacadeTest {
     @Test
     fun `text send stages structured payload without legacy marker`() = runTest {
         val gateway = FakeGateway()
@@ -94,18 +94,18 @@ class ConversationCommandFacadeTest {
             resolveChat = { chat() },
             messageId = { "msg-${++msgSeq}" },
         )
-        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+        val command = SendMessageCommand(
             conversationId = "chat-1",
-            content = com.maodouchat.domain.messaging.ContentPayload.Text("Hello world"),
+            content = ContentPayload.Text("Hello world"),
             idempotencyKey = "key-12345",
         )
 
         val first = facade.send(command)
         val second = facade.send(command)
 
-        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
-        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
-        assertEquals((first as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId, (second as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId)
+        assertTrue(first is SendMessageResult.Success)
+        assertTrue(second is SendMessageResult.Success)
+        assertEquals((first as SendMessageResult.Success).localMessageId, (second as SendMessageResult.Success).localMessageId)
         assertEquals(1, gateway.messages.size)
     }
 
@@ -113,16 +113,16 @@ class ConversationCommandFacadeTest {
     fun `send command with empty text fails validation without hitting gateway`() = runTest {
         val gateway = FakeGateway()
         val facade = facade(gateway)
-        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+        val command = SendMessageCommand(
             conversationId = "chat-1",
-            content = com.maodouchat.domain.messaging.ContentPayload.Text("   "),
+            content = ContentPayload.Text("   "),
             idempotencyKey = "key-empty",
         )
 
         val result = facade.send(command)
 
-        assertTrue(result is com.maodouchat.domain.messaging.SendMessageResult.Failure)
-        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.VALIDATION, (result as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+        assertTrue(result is SendMessageResult.Failure)
+        assertEquals(SendFailureReason.VALIDATION, (result as SendMessageResult.Failure).reason)
         assertTrue(gateway.messages.isEmpty())
     }
 
@@ -137,7 +137,7 @@ class ConversationCommandFacadeTest {
         )
 
         val successResult = facadeSuccess.retry("m-1")
-        assertTrue(successResult is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(successResult is SendMessageResult.Success)
         assertEquals(1, successGateway.retryCount)
 
         val terminalGateway = FakeGateway(retryOutcome = MessagingV2MessageGatewayOutcome.Rejected.TerminalTombstone("m-1"))
@@ -147,12 +147,12 @@ class ConversationCommandFacadeTest {
             getMessage = { if (it == "m-1") message else null },
         )
         val terminalResult = facadeTerminal.retry("m-1")
-        assertTrue(terminalResult is com.maodouchat.domain.messaging.SendMessageResult.Failure)
-        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.PERMANENT, (terminalResult as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+        assertTrue(terminalResult is SendMessageResult.Failure)
+        assertEquals(SendFailureReason.PERMANENT, (terminalResult as SendMessageResult.Failure).reason)
 
         val missingResult = facadeSuccess.retry("non-existent")
-        assertTrue(missingResult is com.maodouchat.domain.messaging.SendMessageResult.Failure)
-        assertEquals(com.maodouchat.domain.messaging.SendFailureReason.NOT_READY, (missingResult as com.maodouchat.domain.messaging.SendMessageResult.Failure).reason)
+        assertTrue(missingResult is SendMessageResult.Failure)
+        assertEquals(SendFailureReason.NOT_READY, (missingResult as SendMessageResult.Failure).reason)
     }
 
     @Test
@@ -205,9 +205,9 @@ class ConversationCommandFacadeTest {
             ownerUserId = { currentOwner },
             messageId = { "msg-${++msgSeq}" },
         )
-        fun command(key: String) = com.maodouchat.domain.messaging.SendMessageCommand(
+        fun command(key: String) = SendMessageCommand(
             conversationId = "chat-1",
-            content = com.maodouchat.domain.messaging.ContentPayload.Text("hi"),
+            content = ContentPayload.Text("hi"),
             idempotencyKey = key,
         )
 
@@ -215,12 +215,12 @@ class ConversationCommandFacadeTest {
         currentOwner = "owner-2"
         val second = facade.send(command("key-a2"))
 
-        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
-        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(first is SendMessageResult.Success)
+        assertTrue(second is SendMessageResult.Success)
         assertEquals(listOf("owner-1", "owner-2"), gateway.messages.map { it.senderId })
         assertNotEquals(
-            (first as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId,
-            (second as com.maodouchat.domain.messaging.SendMessageResult.Success).localMessageId,
+            (first as SendMessageResult.Success).localMessageId,
+            (second as SendMessageResult.Success).localMessageId,
         )
     }
 
@@ -323,17 +323,17 @@ class ConversationCommandFacadeTest {
             resolveChat = { chat() },
             messageId = { "msg-${++msgSeq}" },
         )
-        val command = com.maodouchat.domain.messaging.SendMessageCommand(
+        val command = SendMessageCommand(
             conversationId = "chat-1",
-            content = com.maodouchat.domain.messaging.ContentPayload.Text("hi"),
+            content = ContentPayload.Text("hi"),
             idempotencyKey = "",
         )
 
         val first = facade.send(command)
         val second = facade.send(command)
 
-        assertTrue(first is com.maodouchat.domain.messaging.SendMessageResult.Success)
-        assertTrue(second is com.maodouchat.domain.messaging.SendMessageResult.Success)
+        assertTrue(first is SendMessageResult.Success)
+        assertTrue(second is SendMessageResult.Success)
         assertEquals(2, gateway.messages.size)
     }
 
@@ -392,7 +392,7 @@ class ConversationCommandFacadeTest {
         ownerUserId: () -> String = { "owner-1" },
         messageId: () -> String = { "new-1" },
         now: () -> Long = { 10L },
-    ) = ConversationCommandFacade(
+    ) = DefaultConversationCommandFacade(
         gateway = gateway,
         resolveChat = resolveChat,
         getMessage = getMessage,

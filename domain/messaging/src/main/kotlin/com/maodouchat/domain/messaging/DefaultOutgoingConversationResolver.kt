@@ -1,4 +1,4 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.OutgoingConversationErrors
@@ -11,7 +11,7 @@ import kotlinx.coroutines.CancellationException
  * Existing local conversations stay sendable offline; network access is only required
  * when metadata is incomplete or a direct conversation has never been created.
  */
-class OutgoingConversationResolver(
+class DefaultOutgoingConversationResolver(
     private val getCachedConversation: suspend (String) -> Chat?,
     private val fetchConversations: suspend (String) -> List<Chat>,
     private val createDirectConversation: suspend (String, String, Boolean) -> Chat,
@@ -24,8 +24,8 @@ class OutgoingConversationResolver(
     private val currentAuthToken: (() -> String)? = null,
     private val findCachedDirectConversation: (suspend (peerUserId: String) -> Chat?)? = null,
     private val createOfflineDirectConversation: (suspend (ownerUserId: String, peerUserId: String, isSecret: Boolean) -> Chat)? = null,
-) : com.maodouchat.domain.messaging.OutgoingConversationResolver {
-    override suspend fun resolve(peerAccountId: String): com.maodouchat.domain.messaging.ResolvedConversation {
+) : OutgoingConversationResolver {
+    override suspend fun resolve(peerAccountId: String): ResolvedConversation {
         val owner = currentOwnerUserId?.invoke().orEmpty()
         val token = currentAuthToken?.invoke().orEmpty()
         val request = OutgoingConversationRequest(
@@ -38,7 +38,7 @@ class OutgoingConversationResolver(
             createSecretConversation = false,
         )
         val resolved = resolve(request).getOrThrow()
-        return com.maodouchat.domain.messaging.ResolvedConversation(
+        return ResolvedConversation(
             conversationId = resolved.conversation.id,
             isCryptoReady = true,
         )
