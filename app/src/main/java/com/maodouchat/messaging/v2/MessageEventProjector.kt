@@ -13,9 +13,10 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.domain.messaging.MessageEventMissingTargetPolicy
+import com.maodouchat.domain.messaging.editedMessage
+import com.maodouchat.domain.messaging.revokedMessage
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 
 import com.maodouchat.util.MediaCache
@@ -147,10 +148,8 @@ internal class MessageEventProjector(
         event: MessagingV2Event,
         serverTimestamp: Long,
     ): Message? {
-        val body = event.content ?: return null
-        val editedAt = event.editedAt ?: serverTimestamp
         val applied = messageStore.applyEditedMessage(
-            existing.copy(content = body, editedAt = editedAt),
+            editedMessage(existing, event, serverTimestamp) ?: return null,
         ) ?: return null
         MaodouchatApp.emitChatListPreviewRefresh(existing.chatId)
         return applied
@@ -163,11 +162,7 @@ internal class MessageEventProjector(
     ): Message? {
         val applied = app.database.withTransaction {
             val updated = messageStore.applyRevokedMessage(
-                existing.copy(
-                    type = MessageType.REVOKED,
-                    content = event.content ?: "Message revoked",
-                    editedAt = event.editedAt ?: serverTimestamp,
-                ),
+                revokedMessage(existing, event, serverTimestamp),
             ) ?: return@withTransaction null
             app.database.messageSearchDao().deleteDocument(existing.id)
             updated
