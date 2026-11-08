@@ -5,7 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.maodouchat.IncomingCallWake
+import com.maodouchat.core.model.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.core.model.AppLinkRouter

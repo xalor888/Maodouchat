@@ -1,14 +1,13 @@
 package com.maodouchat.navigation
 
-import com.maodouchat.IncomingCallWake
+import com.maodouchat.core.model.IncomingCallWake
+import com.maodouchat.core.model.OpenContactsRequest
+import com.maodouchat.core.model.OpenMissedCallsRequest
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.consumeIfStale
 import com.maodouchat.util.ClientPrefsSync
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-
-typealias OpenMissedCallsRequest = com.maodouchat.OpenMissedCallsRequest
-typealias OpenContactsRequest = com.maodouchat.OpenContactsRequest
 
 object AppNavigationEvents {
 

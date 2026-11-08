@@ -2,6 +2,8 @@ package com.maodouchat.navigation
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.core.model.OpenContactsRequest
+import com.maodouchat.core.model.OpenMissedCallsRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull

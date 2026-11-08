@@ -1,6 +1,11 @@
 package com.maodouchat
 
+import com.maodouchat.core.model.AttachmentFinalizedEvent
+import com.maodouchat.core.model.IncomingCallWake
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.OpenContactsRequest
+import com.maodouchat.core.model.OpenMissedCallsRequest
+import com.maodouchat.core.model.SessionScopedEvent
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.WebSocketEventBridge
@@ -42,13 +47,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
- * 会话作用域事件：携带发射时 session 世代，收集器丢弃过期事件（登出/换号后送达）。
- */
-interface SessionScopedEvent {
-    val sessionGeneration: Long
-}
-
-/**
  * 会话过期事件消费：世代不符则消费丢弃并返回 true（调用方直接 return），
  * 否则返回 false 继续处理。收敛各收集器逐字相同的守卫样板。
  */
@@ -62,21 +60,6 @@ fun <T : SessionScopedEvent> consumeIfStale(
     }
     return false
 }
-
-/**
- * Tap from FCM/system call notification → wake IncomingCallObserver to poll
- * pending offers (SDP lives server-side; FCM only carries callId/sender).
- */
-data class IncomingCallWake(
-    val callId: String = "",
-    val senderId: String = "",
-    val isVideo: Boolean = false,
-    val atMillis: Long = System.currentTimeMillis(),
-    override val sessionGeneration: Long = 0L,
-    val requestId: Long = 0L,
-    /** 8.56：系统 Telecom 来电 UI 点击「接听」后为 true——IncomingCallRoute 直接自动接听。 */
-    val autoAnswer: Boolean = false,
-) : SessionScopedEvent
 
 /**
  * Application 类 — 全局初始化
