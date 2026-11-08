@@ -43,6 +43,7 @@ class MessagingInvariantTraceabilityTest {
             "core/serialization/src/test/kotlin", "core/session/src/test/kotlin",
             "core/testing/src/test/kotlin", "core/util/src/test/kotlin",
             "domain/messaging/src/test/kotlin",
+        )
             .map { File(repoRoot, it) }
             .filter { it.isDirectory }
             .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
