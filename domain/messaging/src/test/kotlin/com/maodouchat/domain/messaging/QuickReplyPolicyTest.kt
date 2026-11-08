@@ -1,7 +1,9 @@
 package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.ConversationWidgetContract
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -86,5 +88,24 @@ class QuickReplyPolicyTest {
     fun `length is measured on the raw string, blank check still wins at the limit`() {
         assertTrue(QuickReplyPolicy.validate("c1", "x".repeat(3999) + "\n"))
         assertFalse(QuickReplyPolicy.validate("c1", " ".repeat(4000)))
+    }
+
+    @Test
+    fun `sanitize trims and caps at widget limit`() {
+        assertEquals("hello", QuickReplyPolicy.sanitizeReplyText("  hello  "))
+        assertEquals("", QuickReplyPolicy.sanitizeReplyText(null))
+        assertEquals("", QuickReplyPolicy.sanitizeReplyText("   "))
+        val long = "x".repeat(ConversationWidgetContract.MAX_REPLY_LENGTH + 10)
+        assertEquals(ConversationWidgetContract.MAX_REPLY_LENGTH, QuickReplyPolicy.sanitizeReplyText(long).length)
+    }
+
+    @Test
+    fun `dedupe key is stable and scoped by owner chat and text`() {
+        val key = QuickReplyPolicy.dedupeKey("owner", "chat", "hello")
+        assertEquals(key, QuickReplyPolicy.dedupeKey("owner", "chat", "hello"))
+        assertTrue(key.startsWith("owner|chat|"))
+        assertNotEquals(key, QuickReplyPolicy.dedupeKey("owner", "chat", "hello!"))
+        assertNotEquals(key, QuickReplyPolicy.dedupeKey("other", "chat", "hello"))
+        assertNotEquals(key, QuickReplyPolicy.dedupeKey("owner", "other", "hello"))
     }
 }

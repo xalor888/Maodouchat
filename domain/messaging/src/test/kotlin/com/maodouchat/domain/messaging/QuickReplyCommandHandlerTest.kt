@@ -1,4 +1,4 @@
-package com.maodouchat.quickreply
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatGateVerdict
 import com.maodouchat.core.model.QuickReplyCommand
