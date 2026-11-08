@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.core.model.LocalAiProviderJsonCodec
 
 // provider 增删改查簇：用户自配模型端点的列表/当前选中/新增更新/删除/切换。
 // 原 LocalAiProviderStorage 的 CRUD 部分整体搬入。

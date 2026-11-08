@@ -1,13 +1,11 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.LocalAiProvider
 import org.json.JSONArray
 import org.json.JSONObject
 
 // Anthropic Messages 请求编码簇。
 
-internal object LocalAiAnthropicEncode {
+object LocalAiAnthropicEncode {
 
     fun anthropicBody(
         provider: LocalAiProvider,

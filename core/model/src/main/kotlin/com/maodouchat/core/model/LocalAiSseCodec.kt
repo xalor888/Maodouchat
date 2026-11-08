@@ -1,13 +1,12 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.SseDeltaParts
 import org.json.JSONObject
 
 // SSE 流式解析簇。
 
-internal object LocalAiSseCodec {
+object LocalAiSseCodec {
 
-fun parseSseChat(payload: String, onDelta: (String) -> Unit): OpenAiCompatClient.Completion {
+fun parseSseChat(payload: String, onDelta: (String) -> Unit): LocalAiCompletion {
     val contentBuilder = StringBuilder()
     val reasoningBuilder = StringBuilder()
     payload.lineSequence().forEach { line ->
@@ -47,11 +46,11 @@ fun parseSseChat(payload: String, onDelta: (String) -> Unit): OpenAiCompatClient
         }
     }
     val text = contentBuilder.toString().ifBlank { reasoningBuilder.toString() }
-    if (text.isBlank()) return OpenAiCompatClient.Completion.Error("empty stream")
+    if (text.isBlank()) return LocalAiCompletion.Error("empty stream")
     if (contentBuilder.isBlank() && reasoningBuilder.isNotBlank()) {
         onDelta(text)
     }
-    return OpenAiCompatClient.Completion.Text(text)
+    return LocalAiCompletion.Text(text)
 }
 
 /**

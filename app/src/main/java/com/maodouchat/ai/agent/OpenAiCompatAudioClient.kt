@@ -1,5 +1,6 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -17,10 +18,10 @@ object OpenAiCompatAudioClient {
         provider: LocalAiProvider,
         audioBase64: String,
         mimeType: String
-    ): OpenAiCompatClient.Completion = withContext(Dispatchers.IO) {
+    ): LocalAiCompletion = withContext(Dispatchers.IO) {
         val bytes = runCatching { android.util.Base64.decode(audioBase64, android.util.Base64.NO_WRAP) }
             .getOrNull()
-            ?: return@withContext OpenAiCompatClient.Completion.Error("无法解码语音")
+            ?: return@withContext LocalAiCompletion.Error("无法解码语音")
         val url = provider.baseUrl.trimEnd('/') + "/audio/transcriptions"
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
@@ -40,17 +41,17 @@ object OpenAiCompatAudioClient {
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    return@withContext OpenAiCompatClient.Completion.Error(
+                    return@withContext LocalAiCompletion.Error(
                         "语音接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
                     )
                 }
                 val text = runCatching { JSONObject(payload).optString("text") }.getOrNull().orEmpty()
-                if (text.isBlank()) OpenAiCompatClient.Completion.Error("语音接口没有 text") else OpenAiCompatClient.Completion.Text(text)
+                if (text.isBlank()) LocalAiCompletion.Error("语音接口没有 text") else LocalAiCompletion.Text(text)
             }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            OpenAiCompatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
+            LocalAiCompletion.Error(error.message ?: error.javaClass.simpleName)
         }
     }
 }

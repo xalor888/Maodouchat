@@ -1,14 +1,12 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.ai.agent.LocalAiStorePrefs.optDoubleOrNull
-import com.maodouchat.core.model.LocalAiProvider
 import org.json.JSONArray
 import org.json.JSONObject
 
 // provider JSON 编解码簇：LocalAiProvider 列表与 prefs 字符串互转。
-// 原 LocalAiProviderStorage 的编解码部分整体搬入；经门面 LocalAiProviderStore 供测试引用。
-internal object LocalAiProviderJsonCodec {
-    internal fun parseProviders(raw: String): List<LocalAiProvider> {
+// 原 LocalAiProviderStorage 的编解码部分整体搬入；测试直接引用，app 侧门面经 internal 委托引用。
+object LocalAiProviderJsonCodec {
+    fun parseProviders(raw: String): List<LocalAiProvider> {
         val array = runCatching { JSONArray(raw) }.getOrNull() ?: return emptyList()
         return buildList {
             for (i in 0 until array.length()) {
@@ -42,7 +40,7 @@ internal object LocalAiProviderJsonCodec {
         }
     }
 
-    internal fun encodeProviders(list: List<LocalAiProvider>): String {
+    fun encodeProviders(list: List<LocalAiProvider>): String {
         val array = JSONArray()
         list.forEach { p ->
             array.put(
@@ -68,4 +66,10 @@ internal object LocalAiProviderJsonCodec {
         }
         return array.toString()
     }
+}
+
+private fun JSONObject.optDoubleOrNull(key: String): Double? {
+    if (!has(key) || isNull(key)) return null
+    val value = optDouble(key, Double.NaN)
+    return value.takeIf { !it.isNaN() }
 }

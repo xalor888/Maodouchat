@@ -4,6 +4,7 @@ import com.maodouchat.core.model.AgentChatMessage
 import com.maodouchat.core.model.AgentToolCall
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.AgentTurnEvent
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -27,7 +28,7 @@ class AgentSessionEngineTest {
     fun `send tool pauses for approval`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
                     ""
                 )
@@ -45,7 +46,7 @@ class AgentSessionEngineTest {
     fun `update chat pauses for approval`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "update_chat", """{"chatId":"chat-1","muted":true}""")),
                     ""
                 )
@@ -65,12 +66,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("你有 1 个会话")
+                    LocalAiCompletion.Text("你有 1 个会话")
                 }
             },
             executeTool = { name, _ ->
@@ -89,7 +90,7 @@ class AgentSessionEngineTest {
     fun `approved send is executed on resume`() = runBlocking {
         var executed = 0
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已排队") },
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("已排队") },
             executeTool = { name, args ->
                 executed++
                 assertEquals("send_text_message", name)
@@ -112,7 +113,7 @@ class AgentSessionEngineTest {
     @Test
     fun `completion error becomes Failed`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Error("boom") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Error("boom") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals(1, events.size)
@@ -128,12 +129,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "dump_host_sql", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("ok")
+                    LocalAiCompletion.Text("ok")
                 }
             },
             executeTool = { _, _ ->
@@ -154,12 +155,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi","mode":"polish"}""")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Text(" polished ")
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    2 -> LocalAiCompletion.Text(" polished ")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ ->
@@ -179,7 +180,7 @@ class AgentSessionEngineTest {
     fun `read tool emits started before finished`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "list_chats", "{}")),
                     ""
                 )
@@ -195,7 +196,7 @@ class AgentSessionEngineTest {
     @Test
     fun `text completion is trimmed before final`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("  你有 1 个会话  ") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("  你有 1 个会话  ") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals("你有 1 个会话", (events.single() as AgentTurnEvent.AssistantFinal).text)
@@ -209,7 +210,7 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(
                             AgentToolCall("c1", "list_chats", "{}"),
                             AgentToolCall("c2", "get_chat_history", """{"chatId":"chat-1"}""")
@@ -217,7 +218,7 @@ class AgentSessionEngineTest {
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { name, _ ->
@@ -239,12 +240,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Error("late boom")
+                    LocalAiCompletion.Error("late boom")
                 }
             },
             executeTool = { _, _ -> "ok" }
@@ -261,7 +262,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
                 completions++
-                OpenAiCompatClient.Completion.Tools(emptyList(), "")
+                LocalAiCompletion.Tools(emptyList(), "")
             },
             executeTool = { _, _ -> error("no tool call expected") }
         )
@@ -274,7 +275,7 @@ class AgentSessionEngineTest {
     @Test
     fun `approved call prefill event comes before the model turn`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已排队") },
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("已排队") },
             executeTool = { _, _ -> "Queued m_1" }
         )
         val events = engine.runTurn(
@@ -295,7 +296,7 @@ class AgentSessionEngineTest {
         var executions = 0
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "list_chats", "{}")),
                     ""
                 )
@@ -319,7 +320,7 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(
                             AgentToolCall("c0", "dump_host_sql", "{}"),
                             AgentToolCall("c1", "list_chats", "{}")
@@ -327,7 +328,7 @@ class AgentSessionEngineTest {
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("ok")
+                    LocalAiCompletion.Text("ok")
                 }
             },
             executeTool = { name, _ ->
@@ -353,7 +354,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
                 completions++
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(
                         AgentToolCall("c1", "list_chats", "{}"),
                         AgentToolCall("c2", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
@@ -385,12 +386,12 @@ class AgentSessionEngineTest {
                 completions++
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"   ","mode":"polish"}""")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> error("rewrite must not reach the host") }
@@ -410,12 +411,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi","mode":"polish"}""")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Error("model down")
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    2 -> LocalAiCompletion.Error("model down")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> error("rewrite must not reach the host") }
@@ -434,7 +435,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 if (captured.isEmpty()) captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             },
             executeTool = { _, _ -> error("no tool call expected") }
         )
@@ -463,12 +464,12 @@ class AgentSessionEngineTest {
                 round++
                 if (round == 2) roundTwoMessages = messages.toList()
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "dump_host_sql", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("ok")
+                    LocalAiCompletion.Text("ok")
                 }
             },
             executeTool = { _, _ -> error("unknown tool must not execute") }
@@ -488,12 +489,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi","mode":"polish"}""")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Text(" polished ")
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    2 -> LocalAiCompletion.Text(" polished ")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> error("rewrite must not reach the host") }
@@ -513,12 +514,12 @@ class AgentSessionEngineTest {
                 round++
                 if (round == 2) roundTwoMessages = messages.toList()
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> "c1\tAlice\thi\t" }
@@ -538,7 +539,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 if (captured.isEmpty()) captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("已排队")
+                LocalAiCompletion.Text("已排队")
             },
             executeTool = { _, _ -> "Queued m_1" }
         )
@@ -563,7 +564,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 if (captured.isEmpty()) captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             },
             executeTool = { _, _ -> error("no tool call expected") }
         )
@@ -582,12 +583,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c2", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { name, args ->
@@ -621,7 +622,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 if (captured.isEmpty()) captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             },
             executeTool = { _, _ -> error("no tool call expected") }
         )
@@ -639,12 +640,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hi"}""")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Text(" polished ")
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    2 -> LocalAiCompletion.Text(" polished ")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> error("rewrite must not reach the host") }
@@ -665,7 +666,7 @@ class AgentSessionEngineTest {
                 round++
                 if (round == 2) roundTwoMessages = messages.toList()
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(
                             AgentToolCall("c0", "dump_host_sql", "{}"),
                             AgentToolCall("c1", "drop_tables", "{}")
@@ -673,7 +674,7 @@ class AgentSessionEngineTest {
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("ok")
+                    LocalAiCompletion.Text("ok")
                 }
             },
             executeTool = { _, _ -> error("unknown tool must not execute") }
@@ -693,7 +694,7 @@ class AgentSessionEngineTest {
     fun `send approval pending carries the original call id and arguments`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c9", "send_text_message", """{"chatId":"chat-9","text":"hello"}""")),
                     ""
                 )
@@ -715,7 +716,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
                 completions++
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
                     ""
                 )
@@ -732,7 +733,7 @@ class AgentSessionEngineTest {
         var executed = 0
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(
                         AgentToolCall("u1", "dump_host_sql", "{}"),
                         AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")
@@ -755,7 +756,7 @@ class AgentSessionEngineTest {
     fun `approved read call prefill executes before the model turn`() = runBlocking {
         var executed = 0
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已排队") },
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("已排队") },
             executeTool = { name, _ ->
                 executed++
                 assertEquals("list_chats", name)
@@ -781,12 +782,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("你有 1 个会话")
+                    LocalAiCompletion.Text("你有 1 个会话")
                 }
             },
             executeTool = { _, _ -> "c1\tAlice\thi\t" }
@@ -801,7 +802,7 @@ class AgentSessionEngineTest {
     fun `send approval pending preview matches the send preview`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
                     ""
                 )
@@ -820,7 +821,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("ok")
+                LocalAiCompletion.Text("ok")
             }
         )
         engine.runTurn(provider, emptyList(), "hi", "简洁").toList()
@@ -835,7 +836,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             }
         )
         val history = (1..6).map { AgentChatMessage(role = "user", content = "m$it") }
@@ -849,7 +850,7 @@ class AgentSessionEngineTest {
     @Test
     fun `privilege claim in final text gains the disclaimer`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("已经转账 100 元") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("已经转账 100 元") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals(
@@ -866,15 +867,15 @@ class AgentSessionEngineTest {
             complete = { _, messages, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "rewrite_text", """{"text":"hello","mode":"translate","targetLanguage":"English"}""")),
                         ""
                     )
                     2 -> {
                         captured = messages.toList()
-                        OpenAiCompatClient.Completion.Text("translated")
+                        LocalAiCompletion.Text("translated")
                     }
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    else -> LocalAiCompletion.Text("done")
                 }
             }
         )
@@ -892,7 +893,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, messages, _, _ ->
                 captured = messages.toList()
-                OpenAiCompatClient.Completion.Text("final")
+                LocalAiCompletion.Text("final")
             },
             executeTool = { name, _ ->
                 assertEquals("mystery_tool", name)
@@ -919,7 +920,7 @@ class AgentSessionEngineTest {
         var executed = 0
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(
                         AgentToolCall("c1", "send_text_message", """{"chatId":"chat-1","text":"hi"}"""),
                         AgentToolCall("c2", "update_chat", """{"chatId":"chat-1","muted":true}""")
@@ -946,12 +947,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c2", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
                         ""
                     )
@@ -977,9 +978,9 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(emptyList(), "")
+                    LocalAiCompletion.Tools(emptyList(), "")
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             }
         )
@@ -996,15 +997,15 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Tools(
+                    2 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c2", "get_contacts", "{}")),
                         ""
                     )
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { name, _ ->
@@ -1026,7 +1027,7 @@ class AgentSessionEngineTest {
         var executed = 0
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c9", "update_chat", """{"chatId":"chat-9","muted":true}""")),
                     ""
                 )
@@ -1051,7 +1052,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { provider, _, _, _ ->
                 seen = provider
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             }
         )
         engine.runTurn(provider, emptyList(), "问一句", null).toList()
@@ -1070,12 +1071,12 @@ class AgentSessionEngineTest {
                 seenTools += tools
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> "ok" }
@@ -1094,12 +1095,12 @@ class AgentSessionEngineTest {
                 round++
                 if (round == 2) roundTwoMessages = messages.toList()
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> "ok" }
@@ -1117,15 +1118,15 @@ class AgentSessionEngineTest {
                 round++
                 if (round == 3) roundThreeMessages = messages.toList()
                 when (round) {
-                    1 -> OpenAiCompatClient.Completion.Tools(
+                    1 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
-                    2 -> OpenAiCompatClient.Completion.Tools(
+                    2 -> LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c2", "get_contacts", "{}")),
                         ""
                     )
-                    else -> OpenAiCompatClient.Completion.Text("done")
+                    else -> LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { name, _ -> if (name == "list_chats") "chats-ok" else "contacts-ok" }
@@ -1142,7 +1143,7 @@ class AgentSessionEngineTest {
         val engine = AgentSessionEngine(
             complete = { _, _, _, onDelta ->
                 seenDelta = onDelta
-                OpenAiCompatClient.Completion.Text("done")
+                LocalAiCompletion.Text("done")
             }
         )
         engine.runTurn(provider, emptyList(), "问一句", null).toList()
@@ -1152,7 +1153,7 @@ class AgentSessionEngineTest {
     @Test
     fun `whitespace only text completion finalizes as empty`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Text("   \n\t  ") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("   \n\t  ") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals("", (events.single() as AgentTurnEvent.AssistantFinal).text)
@@ -1161,7 +1162,7 @@ class AgentSessionEngineTest {
     @Test
     fun `prefill then model error yields finished before failed`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> OpenAiCompatClient.Completion.Error("model down") },
+            complete = { _, _, _, _ -> LocalAiCompletion.Error("model down") },
             executeTool = { _, _ -> "chats" }
         )
         val events = engine.runTurn(
@@ -1181,7 +1182,7 @@ class AgentSessionEngineTest {
         var executions = 0
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c1", "list_chats", "{}")),
                     ""
                 )
@@ -1206,12 +1207,12 @@ class AgentSessionEngineTest {
             complete = { _, _, _, _ ->
                 round++
                 if (round == 1) {
-                    OpenAiCompatClient.Completion.Tools(
+                    LocalAiCompletion.Tools(
                         listOf(AgentToolCall("c1", "list_chats", "{}")),
                         ""
                     )
                 } else {
-                    OpenAiCompatClient.Completion.Text("done")
+                    LocalAiCompletion.Text("done")
                 }
             },
             executeTool = { _, _ -> "" }
@@ -1227,7 +1228,7 @@ class AgentSessionEngineTest {
     fun `prefill read call then model need-user pauses on approval`() = runBlocking {
         val engine = AgentSessionEngine(
             complete = { _, _, _, _ ->
-                OpenAiCompatClient.Completion.Tools(
+                LocalAiCompletion.Tools(
                     listOf(AgentToolCall("c9", "send_text_message", """{"chatId":"chat-1","text":"hi"}""")),
                     ""
                 )

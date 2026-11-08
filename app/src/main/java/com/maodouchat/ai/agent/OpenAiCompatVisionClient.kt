@@ -1,6 +1,8 @@
 package com.maodouchat.ai.agent
 
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.core.model.LocalAiProtocolCodec
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -17,7 +19,7 @@ object OpenAiCompatVisionClient {
         instruction: String,
         imageBase64: String,
         mimeType: String
-    ): OpenAiCompatClient.Completion = completeVision(
+    ): LocalAiCompletion = completeVision(
         provider,
         instruction,
         listOf((mimeType.ifBlank { "image/jpeg" }) to imageBase64)
@@ -27,8 +29,8 @@ object OpenAiCompatVisionClient {
         provider: LocalAiProvider,
         instruction: String,
         images: List<Pair<String, String>>
-    ): OpenAiCompatClient.Completion = withContext(Dispatchers.IO) {
-        if (images.isEmpty()) return@withContext OpenAiCompatClient.Completion.Error("没有可分析的图片")
+    ): LocalAiCompletion = withContext(Dispatchers.IO) {
+        if (images.isEmpty()) return@withContext LocalAiCompletion.Error("没有可分析的图片")
         val url = provider.baseUrl.trimEnd('/') + "/chat/completions"
         val parts = JSONArray().put(JSONObject().put("type", "text").put("text", instruction.take(2_000)))
         images.take(LocalAiFileAnalyzer.MAX_PDF_PAGES).forEach { (mimeType, imageBase64) ->
@@ -64,7 +66,7 @@ object OpenAiCompatVisionClient {
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    return@withContext OpenAiCompatClient.Completion.Error(
+                    return@withContext LocalAiCompletion.Error(
                         "模型接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
                     )
                 }
@@ -73,10 +75,10 @@ object OpenAiCompatVisionClient {
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            OpenAiCompatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
+            LocalAiCompletion.Error(error.message ?: error.javaClass.simpleName)
         }
     }
 
-    internal fun parseNonStream(payload: String): OpenAiCompatClient.Completion =
+    internal fun parseNonStream(payload: String): LocalAiCompletion =
         LocalAiProtocolCodec.parseChatCompletions(payload)
 }

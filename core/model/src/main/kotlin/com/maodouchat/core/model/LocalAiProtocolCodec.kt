@@ -1,9 +1,5 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProvider
-import com.maodouchat.core.model.SseDeltaParts
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -55,19 +51,19 @@ object LocalAiProtocolCodec {
     ): JSONObject =
         LocalAiAnthropicEncode.anthropicBody(provider, messages, tools, stream)
 
-    fun parseChatCompletions(payload: String): OpenAiCompatClient.Completion =
+    fun parseChatCompletions(payload: String): LocalAiCompletion =
         LocalAiChatCompletionsCodec.parseChatCompletions(payload)
 
-    fun parseResponses(payload: String): OpenAiCompatClient.Completion =
+    fun parseResponses(payload: String): LocalAiCompletion =
         LocalAiResponsesParse.parseResponses(payload)
 
-    fun parseAnthropic(payload: String): OpenAiCompatClient.Completion =
+    fun parseAnthropic(payload: String): LocalAiCompletion =
         LocalAiAnthropicParse.parseAnthropic(payload)
 
     fun parseSseChat(
         payload: String,
         onDelta: (String) -> Unit
-    ): OpenAiCompatClient.Completion =
+    ): LocalAiCompletion =
         LocalAiSseCodec.parseSseChat(payload, onDelta)
 
     internal fun sseDeltaParts(delta: JSONObject?): SseDeltaParts =

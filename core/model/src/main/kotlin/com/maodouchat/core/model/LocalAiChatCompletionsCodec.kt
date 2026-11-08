@@ -1,15 +1,12 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.AgentToolCall
-import com.maodouchat.core.model.LocalAiProvider
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
 // Chat Completions 协议簇：请求编码 + 响应解析。
 
-internal object LocalAiChatCompletionsCodec {
+object LocalAiChatCompletionsCodec {
 
 private fun applySampling(body: JSONObject, provider: LocalAiProvider) {
     provider.temperature?.let { body.put("temperature", it.coerceIn(0.0, 2.0)) }
@@ -36,16 +33,16 @@ fun chatCompletionsBody(
     return body
 }
 
-fun parseChatCompletions(payload: String): OpenAiCompatClient.Completion {
+fun parseChatCompletions(payload: String): LocalAiCompletion {
     val root = runCatching { JSONObject(payload) }.getOrNull()
-        ?: return OpenAiCompatClient.Completion.Error("模型返回不是 JSON")
+        ?: return LocalAiCompletion.Error("模型返回不是 JSON")
     val choice = root.optJSONArray("choices")?.optJSONObject(0)
-        ?: return OpenAiCompatClient.Completion.Error("模型没有 choices")
+        ?: return LocalAiCompletion.Error("模型没有 choices")
     val message = choice.optJSONObject("message") ?: JSONObject()
     return parseOpenAiMessage(message)
 }
 
-private fun parseOpenAiMessage(message: JSONObject): OpenAiCompatClient.Completion {
+private fun parseOpenAiMessage(message: JSONObject): LocalAiCompletion {
     val toolCalls = message.optJSONArray("tool_calls")
     val contentRaw = message.opt("content")
     val content = if (contentRaw is String && contentRaw.isNotEmpty()) {
@@ -68,9 +65,9 @@ private fun parseOpenAiMessage(message: JSONObject): OpenAiCompatClient.Completi
                 )
             }
         }
-        if (calls.isNotEmpty()) return OpenAiCompatClient.Completion.Tools(calls, content)
+        if (calls.isNotEmpty()) return LocalAiCompletion.Tools(calls, content)
     }
-    return OpenAiCompatClient.Completion.Text(content)
+    return LocalAiCompletion.Text(content)
 }
 
 private fun encodeChatMessages(messages: List<AgentChatMessage>): JSONArray {

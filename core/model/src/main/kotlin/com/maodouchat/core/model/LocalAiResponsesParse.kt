@@ -1,17 +1,16 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentToolCall
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
 // OpenAI Responses 响应解析簇。
 
-internal object LocalAiResponsesParse {
+object LocalAiResponsesParse {
 
-    fun parseResponses(payload: String): OpenAiCompatClient.Completion {
+    fun parseResponses(payload: String): LocalAiCompletion {
         val root = runCatching { JSONObject(payload) }.getOrNull()
-            ?: return OpenAiCompatClient.Completion.Error("模型返回不是 JSON")
+            ?: return LocalAiCompletion.Error("模型返回不是 JSON")
         val output = root.optJSONArray("output") ?: JSONArray()
         val calls = mutableListOf<AgentToolCall>()
         val text = StringBuilder()
@@ -46,7 +45,7 @@ internal object LocalAiResponsesParse {
             }
         }
         if (text.isBlank()) text.append(root.optString("output_text"))
-        if (calls.isNotEmpty()) return OpenAiCompatClient.Completion.Tools(calls, text.toString())
-        return OpenAiCompatClient.Completion.Text(text.toString())
+        if (calls.isNotEmpty()) return LocalAiCompletion.Tools(calls, text.toString())
+        return LocalAiCompletion.Text(text.toString())
     }
 }
