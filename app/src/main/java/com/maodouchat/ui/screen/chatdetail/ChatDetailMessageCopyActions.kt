@@ -43,7 +43,7 @@ internal fun ChatDetailMessageCopyActions(
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
                     chatClipboardMessageLabel,
-                    com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                    com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
                         message.parsedContent(),
                         context.getString(R.string.chat_decrypt_failed)
                     )
@@ -57,7 +57,7 @@ internal fun ChatDetailMessageCopyActions(
         TextButton(
             onClick = {
                 val sender = senderName ?: ""
-                val copied = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                val copied = com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )
@@ -74,7 +74,7 @@ internal fun ChatDetailMessageCopyActions(
             onClick = {
                 val sender = senderName ?: ""
                 val time = copyWithSenderTimeFormat.get().format(java.util.Date(message.timestamp))
-                val body = com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                val body = com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )

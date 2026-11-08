@@ -6,6 +6,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.AttachmentKind

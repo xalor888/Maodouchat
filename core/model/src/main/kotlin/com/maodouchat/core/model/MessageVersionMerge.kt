@@ -1,13 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.ChatListPreviewPolicy
+package com.maodouchat.core.model
 
 /** Incoming versions are authoritative unless they would regress an edit or terminal revoke. */
-internal fun mergeMessageVersions(existing: List<Message>, incoming: List<Message>): List<Message> {
+fun mergeMessageVersions(existing: List<Message>, incoming: List<Message>): List<Message> {
     val byId = linkedMapOf<String, Message>()
     (existing + incoming).forEach { candidate ->
         val current = byId[candidate.id]
@@ -16,7 +10,7 @@ internal fun mergeMessageVersions(existing: List<Message>, incoming: List<Messag
     return byId.values.sortedWith(compareBy<Message> { it.timestamp }.thenBy { it.id })
 }
 
-internal fun chooseMessageVersion(current: Message, candidate: Message): Message {
+fun chooseMessageVersion(current: Message, candidate: Message): Message {
     if (current.type == MessageType.REVOKED && candidate.type != MessageType.REVOKED) return current
     if (candidate.type == MessageType.REVOKED) return candidate
 
@@ -50,7 +44,7 @@ internal fun chooseMessageVersion(current: Message, candidate: Message): Message
     }
 }
 
-internal fun mergeEqualRevision(current: Message, candidate: Message): Message {
+fun mergeEqualRevision(current: Message, candidate: Message): Message {
     val preferredStatus = higherDeliveryStatus(current.status, candidate.status)
     // Prefer non-encrypted successful plaintext over re-decrypt failure placeholders /
     // wire ciphertext. Prevents open→reopen from wiping already-readable messages.
@@ -68,7 +62,7 @@ internal fun mergeEqualRevision(current: Message, candidate: Message): Message {
  * When both versions share the same edit revision, keep readable local plaintext if
  * the other side looks like ciphertext or a decrypt-failure placeholder.
  */
-internal fun preferReadableContent(current: Message, candidate: Message): Message {
+fun preferReadableContent(current: Message, candidate: Message): Message {
     val currentLooksEncrypted = looksLikeEncryptedEnvelope(current.content)
     val candidateLooksEncrypted = looksLikeEncryptedEnvelope(candidate.content)
     val currentLooksFailure = looksLikeDecryptFailurePlaceholder(current.content)
@@ -84,7 +78,7 @@ internal fun preferReadableContent(current: Message, candidate: Message): Messag
     }
 }
 
-internal fun looksLikeEncryptedEnvelope(content: String): Boolean {
+fun looksLikeEncryptedEnvelope(content: String): Boolean {
     if (content.isBlank() || content.length < 16) return false
     if (ChatListPreviewPolicy.isSignalWireEnvelope(content)) return true
     // Server/client envelopes are base64-ish JSON or multi-device markers; cheap heuristic
@@ -93,11 +87,11 @@ internal fun looksLikeEncryptedEnvelope(content: String): Boolean {
         content.startsWith("MD:") || content.startsWith("SK:")
 }
 
-internal fun looksLikeDecryptFailurePlaceholder(content: String): Boolean {
+fun looksLikeDecryptFailurePlaceholder(content: String): Boolean {
     return DecryptPlaceholderPolicy.isPlaceholder(content)
 }
 
-internal fun higherDeliveryStatus(a: MessageStatus, b: MessageStatus): MessageStatus {
+fun higherDeliveryStatus(a: MessageStatus, b: MessageStatus): MessageStatus {
     if (a == MessageStatus.FAILED) return b
     if (b == MessageStatus.FAILED) return a
     return if (a.deliveryRank() >= b.deliveryRank()) a else b

@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.core.crypto.DecryptPlaceholderPolicy
+import com.maodouchat.core.model.DecryptPlaceholderPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType

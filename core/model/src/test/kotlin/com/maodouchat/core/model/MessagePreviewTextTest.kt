@@ -1,8 +1,5 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.MessagePreviewText
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

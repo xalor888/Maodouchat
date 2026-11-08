@@ -101,7 +101,7 @@ object MediaCache {
 
     fun attachmentUri(attachmentId: String): String = "maodou-attachment://$attachmentId"
 
-    fun isRemoteAttachmentUri(value: String): Boolean = value.startsWith("maodou-attachment://")
+    fun isRemoteAttachmentUri(value: String): Boolean = com.maodouchat.core.model.isRemoteAttachmentUri(value)
 
     fun isReadableLocalUri(context: Context, value: String): Boolean = runCatching {
         val uri = value.toUri()

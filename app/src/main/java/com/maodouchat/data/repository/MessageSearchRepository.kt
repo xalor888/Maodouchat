@@ -9,7 +9,7 @@ import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.semanticSearchText
-import com.maodouchat.data.repository.ChatListPreviewPolicy
+import com.maodouchat.core.model.ChatListPreviewPolicy
 import java.security.MessageDigest
 import java.text.Normalizer
 import java.util.Locale

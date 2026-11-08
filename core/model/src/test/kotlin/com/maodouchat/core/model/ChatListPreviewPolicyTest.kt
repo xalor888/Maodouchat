@@ -1,9 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.ChatListPreviewPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

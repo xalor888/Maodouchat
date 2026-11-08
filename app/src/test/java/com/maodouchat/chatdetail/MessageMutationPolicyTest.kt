@@ -11,7 +11,7 @@ import com.maodouchat.core.model.MessageMutationTracker
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.isAlreadyTerminalMutation
 import com.maodouchat.core.model.isAmbiguousTransportFailure
-import com.maodouchat.ui.screen.chatdetail.mergeMessageVersions
+import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.ui.screen.chatdetail.toOptimisticEdit
 import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder
 import org.junit.Assert.assertEquals

@@ -9,7 +9,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
-import com.maodouchat.data.repository.ChatListPreviewPolicy
+import com.maodouchat.core.model.ChatListPreviewPolicy
 
 // 消息展示与搜索索引：列表预览文案、解密后回写预览、本地全文索引
 // 从 ChatDetailViewModel 纯搬移，日志 tag 保持 ChatDetailViewModel 不变。

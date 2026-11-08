@@ -344,7 +344,7 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String {
 @Composable
 private fun Message.starredPreview(context: android.content.Context): String = when (type) {
     MessageType.TEXT, MessageType.MARKDOWN ->
-        com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+        com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
             parsedContent(),
             context.getString(R.string.starred_encrypted_message),
         )

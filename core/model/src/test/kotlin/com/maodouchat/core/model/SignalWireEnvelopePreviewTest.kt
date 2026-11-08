@@ -1,6 +1,5 @@
-package com.maodouchat.chatlist
+package com.maodouchat.core.model
 
-import com.maodouchat.data.repository.ChatListPreviewPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
