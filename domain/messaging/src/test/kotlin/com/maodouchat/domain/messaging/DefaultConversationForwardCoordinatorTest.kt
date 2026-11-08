@@ -1,6 +1,5 @@
-package com.maodouchat.forwarding
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.core.model.ConversationForwardSessionException
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.DecodedContentPayload
@@ -10,23 +9,18 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.domain.messaging.AttachmentIntent
-import com.maodouchat.domain.messaging.AttachmentIntentController
-import com.maodouchat.domain.messaging.AttachmentTransfer
-import com.maodouchat.domain.messaging.ForwardFailureReason
-import com.maodouchat.domain.messaging.ForwardRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import java.io.IOException
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
-class ConversationForwardCoordinatorTest {
+class DefaultConversationForwardCoordinatorTest {
     @Test
     fun `durable text forward is not failed by post commit notification`() = runTest {
         val staged = mutableListOf<Message>()
@@ -109,12 +103,12 @@ class ConversationForwardCoordinatorTest {
     @Test
     fun `facade forward stages typed content without legacy marker`() = runTest {
         val gateway = RecordingGateway()
-        val coordinator = ConversationForwardCoordinator(
+        val coordinator = DefaultConversationForwardCoordinator(
             ownerUserId = { "owner-1" },
             token = { "token-1" },
             sessionActive = { true },
             fetchTargets = { Result.success(emptyList()) },
-            commandFacade = ConversationCommandFacade(gateway, messageId = { "forward-1" }, now = { 10L }),
+            commandFacade = DefaultConversationCommandFacade(gateway, messageId = { "forward-1" }, now = { 10L }),
             forwardAttachment = { _, _, _, _, _ -> },
         )
 
@@ -473,7 +467,7 @@ class ConversationForwardCoordinatorTest {
         getChatById: (suspend (String) -> Chat?)? = null,
         isChatLocked: (suspend (String) -> Boolean)? = null,
         onMessageSent: (String, String, MessageType) -> Unit = { _, _, _ -> },
-    ) = ConversationForwardCoordinator(
+    ) = DefaultConversationForwardCoordinator(
         ownerUserId = { "owner-1" },
         token = { "token-1" },
         sessionActive = sessionActive,

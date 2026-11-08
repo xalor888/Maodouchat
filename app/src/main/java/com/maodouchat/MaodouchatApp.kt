@@ -184,8 +184,8 @@ class MaodouchatApp : Application() {
             }
         }
 
-    val conversationCommandFacade: com.maodouchat.conversation.ConversationCommandFacade
-        get() = com.maodouchat.conversation.ConversationCommandFacade(
+    val conversationCommandFacade: com.maodouchat.domain.messaging.DefaultConversationCommandFacade
+        get() = com.maodouchat.domain.messaging.DefaultConversationCommandFacade(
             gateway = com.maodouchat.messaging.v2.MessagingV2MessageGateway(
                 database = database,
                 messageStore = com.maodouchat.data.repository.LocalMessageStore(database.messageDao(), database),

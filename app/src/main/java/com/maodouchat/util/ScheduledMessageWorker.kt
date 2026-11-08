@@ -75,7 +75,7 @@ class ScheduledMessageWorker(
             }
         }
 
-        // Stage via ConversationScheduledMessageDispatcher / ConversationCommandFacade
+        // Stage via ConversationScheduledMessageDispatcher / DefaultConversationCommandFacade
         val dispatcher = ConversationScheduledMessageDispatcher(
             facade = app.conversationCommandFacade,
             resolveChat = { chatId -> app.database.chatDao().getChatById(chatId)?.toDomain() },

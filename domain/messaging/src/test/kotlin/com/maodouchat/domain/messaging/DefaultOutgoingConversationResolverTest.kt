@@ -1,4 +1,4 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.LocalCryptoNotReadyException
 import com.maodouchat.core.model.Chat
@@ -13,7 +13,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
-class OutgoingConversationResolverTest {
+class DefaultOutgoingConversationResolverTest {
     @Test
     fun `cached direct conversation resolves without network`() = runTest {
         val harness = Harness(cached = directChat("cached", "alice"))
@@ -314,7 +314,7 @@ class OutgoingConversationResolverTest {
         val cachedWrites = mutableListOf<Chat>()
         val secretCreateFlags = mutableListOf<Boolean>()
 
-        val resolver = OutgoingConversationResolver(
+        val resolver = DefaultOutgoingConversationResolver(
             getCachedConversation = { cached },
             fetchConversations = {
                 fetchCount += 1

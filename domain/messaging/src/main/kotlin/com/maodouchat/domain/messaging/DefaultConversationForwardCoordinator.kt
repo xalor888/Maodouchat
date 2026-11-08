@@ -1,6 +1,5 @@
-package com.maodouchat.forwarding
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.conversation.ConversationCommandFacade
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.core.model.ConversationForwardSessionException
@@ -11,14 +10,6 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.domain.messaging.AttachmentIntent
-import com.maodouchat.domain.messaging.AttachmentIntentController
-import com.maodouchat.domain.messaging.AttachmentKind
-import com.maodouchat.domain.messaging.ForwardFailureReason
-import com.maodouchat.domain.messaging.ForwardPolicy
-import com.maodouchat.domain.messaging.ForwardRequest
-import com.maodouchat.domain.messaging.ForwardTargetResult
-import com.maodouchat.domain.messaging.Forwardability
 import com.maodouchat.core.model.JsonFormat
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
@@ -30,14 +21,14 @@ import java.util.UUID
  * [stageMessage] returns. UI projection, list preview, sounds, and other post-commit work may
  * fail but cannot turn the durable message into FAILED or cause a retry of the same forward.
  */
-class ConversationForwardCoordinator(
+class DefaultConversationForwardCoordinator(
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val sessionActive: (ownerUserId: String) -> Boolean,
     private val fetchTargets: suspend (token: String) -> Result<List<Chat>>,
     private val resolveTargets: suspend (token: String, targets: List<Chat>) -> List<Chat> = { _, targets -> targets },
     private val stageMessage: suspend (message: Message, groupRevision: Long?) -> Unit = { _, _ -> },
-    private val commandFacade: ConversationCommandFacade? = null,
+    private val commandFacade: DefaultConversationCommandFacade? = null,
     private val forwardAttachment: (suspend (
         target: Chat,
         message: Message,
@@ -54,7 +45,7 @@ class ConversationForwardCoordinator(
     private val preview: (type: MessageType, plainContent: String) -> String = { _, content -> content.take(40) },
     private val messageId: () -> String = { "m_${UUID.randomUUID()}" },
     private val now: () -> Long = System::currentTimeMillis,
-) : com.maodouchat.domain.messaging.ConversationForwardCoordinator {
+) : ConversationForwardCoordinator {
     suspend fun loadTargets(activeChatId: String): List<Chat> {
         val owner = requireSession()
         val liveToken = token().trim()

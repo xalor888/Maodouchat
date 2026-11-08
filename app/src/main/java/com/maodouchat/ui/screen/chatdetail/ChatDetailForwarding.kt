@@ -7,7 +7,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
-import com.maodouchat.forwarding.ConversationForwardCoordinator
+import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -61,7 +61,7 @@ fun ChatDetailViewModel.sendTextToChat(targetChatId: String, text: String) {
 }
 
 /**
- * 批量转发：将消息与附带留言委托给 ConversationForwardCoordinator 统一处理。
+ * 批量转发：将消息与附带留言委托给 DefaultConversationForwardCoordinator 统一处理。
  * UI 仅接收逐目标结果并更新状态，不再循环调用底层发送或附件实现。
  */
 fun ChatDetailViewModel.forwardMessagesBatch(messages: List<Message>, targetChatIds: List<String>, note: String?) {
@@ -70,7 +70,7 @@ fun ChatDetailViewModel.forwardMessagesBatch(messages: List<Message>, targetChat
         return
     }
     val usable = messages.filter {
-        it.type in ConversationForwardCoordinator.FORWARDABLE_TYPES
+        it.type in DefaultConversationForwardCoordinator.FORWARDABLE_TYPES
     }
     if (usable.isEmpty() || targetChatIds.isEmpty()) return
     if (_uiState.value.isForwarding) return

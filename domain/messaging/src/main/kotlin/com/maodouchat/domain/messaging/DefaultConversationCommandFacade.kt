@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCapability
@@ -16,11 +16,6 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.ConversationMessageStagingGateway
 import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
-import com.maodouchat.domain.messaging.AttachmentKind
-import com.maodouchat.domain.messaging.ContentPayload
-import com.maodouchat.domain.messaging.SendMessageCommand
-import com.maodouchat.domain.messaging.SendMessageResult
-import com.maodouchat.domain.messaging.SendFailureReason
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -31,7 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  * It owns content normalization, terminal tombstone handling, and privacy admission. Existing UI
  * adapters may retain their direct gateway use while they migrate to this API.
  */
-class ConversationCommandFacade(
+class DefaultConversationCommandFacade(
     private val gateway: ConversationMessageStagingGateway,
     private val privacyPolicy: ConversationPrivacyPolicy = ConversationPrivacyPolicy(),
     private val resolveChat: (suspend (conversationId: String) -> Chat?)? = null,
@@ -39,7 +34,7 @@ class ConversationCommandFacade(
     private val ownerUserId: () -> String = { "" },
     private val messageId: () -> String = { "m_${UUID.randomUUID()}" },
     private val now: () -> Long = System::currentTimeMillis,
-) : com.maodouchat.domain.messaging.ConversationCommandFacade {
+) : ConversationCommandFacade {
     private val idempotencyResults = ConcurrentHashMap<String, SendMessageResult.Success>()
     private val stagedIdempotencyMap = ConcurrentHashMap<String, Message>()
 

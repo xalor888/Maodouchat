@@ -9,14 +9,14 @@ import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
 import com.maodouchat.attachment.RoomTransferRepository
-import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
-import com.maodouchat.forwarding.ConversationForwardCoordinator
+import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
@@ -109,7 +109,7 @@ internal class ChatDetailDeps(
         )
     }
     internal val commandFacade by lazy {
-        ConversationCommandFacade(
+        DefaultConversationCommandFacade(
             gateway = messageGateway,
             resolveChat = chatRepo::getChatById,
             getMessage = messageRepo::getMessageById,
@@ -279,7 +279,7 @@ internal class ChatDetailDeps(
         )
     }
     internal val conversationForwardCoordinator by lazy {
-        ConversationForwardCoordinator(
+        DefaultConversationForwardCoordinator(
             ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
             token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             sessionActive = { ownerUserId ->

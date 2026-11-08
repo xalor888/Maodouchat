@@ -2,7 +2,7 @@ package com.maodouchat.quickreply
 
 import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
-import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
 import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.QuickReplyRequest
@@ -33,7 +33,7 @@ import org.junit.Test
 class DefaultQuickReplyUseCaseTest {
 
     private val context = mockk<Context>(relaxed = true)
-    private val commandFacade = mockk<ConversationCommandFacade>()
+    private val commandFacade = mockk<DefaultConversationCommandFacade>()
     private val secretController = mockk<DefaultSecretConversationController>()
     private val tokenManager = mockk<TokenManager>()
 
