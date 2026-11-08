@@ -6,6 +6,7 @@ import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.MessageReceiptAggregationPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

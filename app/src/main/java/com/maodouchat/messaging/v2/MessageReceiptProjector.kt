@@ -4,6 +4,9 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
+import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
+import com.maodouchat.domain.messaging.MessageReceipt
+import com.maodouchat.domain.messaging.MessageReceiptAggregationPolicy
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
@@ -104,7 +107,7 @@ internal class MessageReceiptProjector(
         val dao = app.database.messagingV2Dao()
         val previous = dao.getReceipt(ownerUserId, message.id, recipientUserId)
         val merged = MessageReceiptAggregationPolicy.mergeReceipt(
-            existing = previous,
+            existing = previous?.toMessageReceipt(),
             ownerUserId = ownerUserId,
             messageId = message.id,
             conversationId = message.chatId,
@@ -114,6 +117,29 @@ internal class MessageReceiptProjector(
             playedAt = playedAt,
             now = clock(),
         )
-        dao.upsertReceipt(merged)
+        dao.upsertReceipt(merged.toReceiptEntity())
     }
 }
+
+/** 回执实体与纯领域模型之间的边界映射（字段一一对应，值原样搬运）。 */
+private fun MessagingV2ReceiptEntity.toMessageReceipt() = MessageReceipt(
+    ownerUserId = ownerUserId,
+    messageId = messageId,
+    conversationId = conversationId,
+    recipientUserId = recipientUserId,
+    deliveredAt = deliveredAt,
+    readAt = readAt,
+    playedAt = playedAt,
+    updatedAt = updatedAt,
+)
+
+private fun MessageReceipt.toReceiptEntity() = MessagingV2ReceiptEntity(
+    ownerUserId = ownerUserId,
+    messageId = messageId,
+    conversationId = conversationId,
+    recipientUserId = recipientUserId,
+    deliveredAt = deliveredAt,
+    readAt = readAt,
+    playedAt = playedAt,
+    updatedAt = updatedAt,
+)

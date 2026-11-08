@@ -1,14 +1,12 @@
-package com.maodouchat.messaging.v2
-
-import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
+package com.maodouchat.domain.messaging
 
 /**
  * Pure policy for monotonic receipt timestamp aggregation.
  * Delivery, read, and playback receipts cannot move backward in time.
  */
-internal object MessageReceiptAggregationPolicy {
+object MessageReceiptAggregationPolicy {
     fun mergeReceipt(
-        existing: MessagingV2ReceiptEntity?,
+        existing: MessageReceipt?,
         ownerUserId: String,
         messageId: String,
         conversationId: String,
@@ -17,8 +15,8 @@ internal object MessageReceiptAggregationPolicy {
         readAt: Long? = null,
         playedAt: Long? = null,
         now: Long,
-    ): MessagingV2ReceiptEntity {
-        return MessagingV2ReceiptEntity(
+    ): MessageReceipt {
+        return MessageReceipt(
             ownerUserId = ownerUserId,
             messageId = messageId,
             conversationId = conversationId,
