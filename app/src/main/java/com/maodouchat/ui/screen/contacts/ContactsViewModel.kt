@@ -7,7 +7,7 @@ import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.usecase.DefaultContactMutationUseCase
 import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
-import com.maodouchat.contacts.usecase.FriendRequestUseCase
+import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.conversation.DefaultConversationCreationPort
 import com.maodouchat.core.model.ContactMutationUseCase

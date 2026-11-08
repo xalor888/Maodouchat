@@ -232,7 +232,7 @@ class MaodouchatApp : Application() {
         )
 
     internal val messagingV2MutationEvents by lazy {
-        com.maodouchat.messaging.v2.MessagingV2MutationEventBus()
+        com.maodouchat.core.model.MessagingV2MutationEventBus()
     }
 
 

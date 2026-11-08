@@ -1,11 +1,10 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 /** Process-scoped bridge from durable timeline projection to active UI mutation coordinators. */
-internal class MessagingV2MutationEventBus {
+class MessagingV2MutationEventBus {
     private val mutableEvents = MutableSharedFlow<MessagingV2AuthoritativeMutation>(
         extraBufferCapacity = 64,
     )

@@ -8,7 +8,7 @@ import com.maodouchat.core.model.ContactsLoadResult
 import com.maodouchat.core.model.ContactsSession
 import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.core.model.FriendRequestsSnapshot
-import com.maodouchat.contacts.usecase.FriendRequestUseCase
+import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.model.Chat

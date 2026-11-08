@@ -12,6 +12,9 @@ import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.model.Trigger
+import com.maodouchat.core.model.applyPresenceProjection
+import com.maodouchat.core.model.buildAdminBroadcastProjection
+import com.maodouchat.core.model.zeroChatUnread
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
