@@ -1,9 +1,7 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.model.Message
+package com.maodouchat.core.model
 
 /** Serializes privacy-sensitive local effects shared by REST success and WebSocket authority. */
-internal class MessageTerminalStore(
+class MessageTerminalStore(
     private val deleteCachedMedia: (String) -> Unit,
     private val deleteSearchDocument: suspend (String) -> Unit,
     private val deleteLocalMessage: suspend (String) -> Unit,

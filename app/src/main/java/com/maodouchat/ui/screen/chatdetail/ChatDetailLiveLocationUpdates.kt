@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.toOptimisticEdit
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.LiveLocationPolicy
 import com.maodouchat.util.LocationProvider

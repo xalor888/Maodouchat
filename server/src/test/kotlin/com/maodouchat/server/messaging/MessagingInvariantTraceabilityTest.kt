@@ -34,7 +34,15 @@ class MessagingInvariantTraceabilityTest {
     }
 
     private val testSources: List<File> by lazy {
-        listOf("server/src/test/kotlin", "app/src/test/java", "app/src/androidTest/java")
+        // §4.1 迁移正把 app/ 的代码连测试一起迁入 :core:*，门禁的扫描范围必须跟上，
+        // 否则一次搬移就会把还存在的测试误判为「文档引用了不存在的测试」。
+        listOf(
+            "server/src/test/kotlin", "app/src/test/java", "app/src/androidTest/java",
+            "core/crypto/src/test/kotlin", "core/model/src/test/kotlin",
+            "core/network/src/test/kotlin", "core/realtime/src/test/kotlin",
+            "core/serialization/src/test/kotlin", "core/session/src/test/kotlin",
+            "core/testing/src/test/kotlin", "core/util/src/test/kotlin",
+        )
             .map { File(repoRoot, it) }
             .filter { it.isDirectory }
             .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }

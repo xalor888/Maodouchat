@@ -1,18 +1,12 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConversationMessageMutationOutcome
-import com.maodouchat.core.model.MessageMutationKind
-import com.maodouchat.core.model.MessageMutationProjection
-import com.maodouchat.core.model.MessageMutationTracker
-import com.maodouchat.core.model.MessagingV2MutationCommit
-import com.maodouchat.core.model.Message
 import kotlinx.coroutines.CancellationException
 
 /**
  * Owns optimistic mutation ordering around the durable v2 event boundary.
  * Only failures before outbox commit may roll UI state back.
  */
-internal class ConversationMessageMutationCoordinator(
+class ConversationMessageMutationCoordinator(
     private val facade: MessagingV2MutationFacade,
     private val tracker: MessageMutationTracker = MessageMutationTracker(),
 ) {

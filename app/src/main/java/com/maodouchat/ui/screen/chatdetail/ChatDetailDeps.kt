@@ -18,11 +18,11 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.forwarding.ConversationForwardCoordinator
 import com.maodouchat.core.model.GroupLifecycleCoordinator
-import com.maodouchat.messaging.v2.ConversationMessageMutationCoordinator
-import com.maodouchat.messaging.v2.ConversationReactionCoordinator
+import com.maodouchat.core.model.ConversationMessageMutationCoordinator
+import com.maodouchat.core.model.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
-import com.maodouchat.messaging.v2.MessagingV2MutationFacade
+import com.maodouchat.core.model.MessagingV2MutationFacade
 import com.maodouchat.core.model.OutgoingConversationErrors
 import com.maodouchat.core.model.OutgoingConversationRequest
 import com.maodouchat.notification.MessageNotificationService
@@ -40,6 +40,7 @@ import com.maodouchat.core.model.ChatDetailLiveLocationBookkeeping
 import com.maodouchat.core.model.ChatDetailReadReceiptBookkeeping
 import com.maodouchat.core.crypto.ChatDetailDecryptStatus
 import com.maodouchat.core.model.DecryptTexts
+import com.maodouchat.core.model.MessageTerminalStore
 import com.maodouchat.core.model.ReactionMutationPolicy
 import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred

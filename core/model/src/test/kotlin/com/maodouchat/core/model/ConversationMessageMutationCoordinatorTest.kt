@@ -1,12 +1,5 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConversationMessageMutationOutcome
-import com.maodouchat.core.model.MessageMutationKind
-import com.maodouchat.core.model.MessageMutationProjection
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MessagingV2Event
-import com.maodouchat.core.model.MessagingV2EventOutbox
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
