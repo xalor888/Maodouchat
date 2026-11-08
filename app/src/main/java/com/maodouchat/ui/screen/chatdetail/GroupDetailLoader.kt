@@ -1,10 +1,10 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.group.GroupAuditController
-import com.maodouchat.group.GroupBotController
+import com.maodouchat.domain.groups.GroupAuditController
+import com.maodouchat.domain.groups.GroupBotController
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.group.GroupEncryptionHealthController
+import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.GroupMutationAction

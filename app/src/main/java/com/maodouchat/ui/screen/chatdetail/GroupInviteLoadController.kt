@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.group.GroupInviteController
+import com.maodouchat.group.createAndroidGroupInviteController
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.util.RuntimeFlags
@@ -25,9 +25,7 @@ internal class GroupInviteLoadController(
     private val ownerUserId: () -> String,
     private val pendingRetrySet: ((() -> Unit)?) -> Unit,
 ) {
-    private val groupInviteController = GroupInviteController(
-        tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() }
-    )
+    private val groupInviteController = createAndroidGroupInviteController()
 
     fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
         if (!RuntimeFlags.isEnabled(application, RuntimeFlags.GROUP_INVITES)) {

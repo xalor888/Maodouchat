@@ -1,9 +1,8 @@
-package com.maodouchat.group
+package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.User
-import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupMembershipStore
@@ -21,11 +20,12 @@ class DefaultGroupLifecycleService(
     private val coordinator: GroupLifecycleCoordinator,
     private val tokenProvider: () -> String,
     private val membershipStore: GroupMembershipStore? = null,
+    private val gateway: GroupNetworkGateway,
 ) : GroupLifecycleService {
 
     override suspend fun addMembers(chatId: String, userIds: List<String>): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = true) { token ->
-            ApiService.addGroupMembers(token, chatId, userIds).getOrThrow()
+            gateway.addGroupMembers(token, chatId, userIds).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -33,7 +33,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun removeMember(chatId: String, userId: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = true) { token ->
-            ApiService.removeGroupMember(token, chatId, userId).getOrThrow()
+            gateway.removeGroupMember(token, chatId, userId).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -41,7 +41,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun setRole(chatId: String, userId: String, role: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.updateMemberRole(token, chatId, userId, role).getOrThrow()
+            gateway.updateMemberRole(token, chatId, userId, role).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -49,7 +49,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun transferOwnership(chatId: String, newOwnerUserId: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.transferGroupOwnership(token, chatId, newOwnerUserId).getOrThrow()
+            gateway.transferGroupOwnership(token, chatId, newOwnerUserId).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -57,7 +57,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun setTitle(chatId: String, userId: String, title: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.updateMemberTitle(token, chatId, userId, title).getOrThrow()
+            gateway.updateMemberTitle(token, chatId, userId, title).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -65,7 +65,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun setMemberMute(chatId: String, userId: String, mutedUntil: Long): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.updateMemberMute(token, chatId, userId, mutedUntil).getOrThrow()
+            gateway.updateMemberMute(token, chatId, userId, mutedUntil).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -74,7 +74,7 @@ class DefaultGroupLifecycleService(
     override suspend fun setMuteAll(chatId: String, muted: Boolean): GroupMutationCommit {
         val muteUntil = if (muted) System.currentTimeMillis() + 86400000L * 365 else 0L
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.muteAllMembers(token, chatId, muteUntil).getOrThrow()
+            gateway.muteAllMembers(token, chatId, muteUntil).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -83,13 +83,13 @@ class DefaultGroupLifecycleService(
     override suspend fun updateGroupInfo(chatId: String, name: String?, announcement: String?, avatar: String?): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
             if (!name.isNullOrBlank()) {
-                ApiService.renameGroup(token, chatId, name.trim()).getOrThrow()
+                gateway.renameGroup(token, chatId, name.trim()).getOrThrow()
             }
             if (announcement != null) {
-                ApiService.updateGroupAnnouncement(token, chatId, announcement.trim()).getOrThrow()
+                gateway.updateGroupAnnouncement(token, chatId, announcement.trim()).getOrThrow()
             }
             if (!avatar.isNullOrBlank()) {
-                ApiService.uploadGroupAvatar(token, chatId, avatar).getOrThrow()
+                gateway.uploadGroupAvatar(token, chatId, avatar).getOrThrow()
             }
         }
         applyCommitToStore(chatId, commit)
@@ -98,7 +98,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun updateMyNickname(chatId: String, nickname: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.updateGroupNickname(token, chatId, nickname.trim()).getOrThrow()
+            gateway.updateGroupNickname(token, chatId, nickname.trim()).getOrThrow()
         }
         applyCommitToStore(chatId, commit)
         return commit
@@ -106,7 +106,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun leaveGroup(chatId: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = true) { token ->
-            ApiService.deleteChat(token, chatId).getOrThrow()
+            gateway.deleteChat(token, chatId).getOrThrow()
         }
         membershipStore?.invalidate(chatId)
         return commit
@@ -114,7 +114,7 @@ class DefaultGroupLifecycleService(
 
     override suspend fun dissolveGroup(chatId: String): GroupMutationCommit {
         val commit = coordinator.mutate(chatId, rotateSenderKey = false) { token ->
-            ApiService.deleteChat(token, chatId).getOrThrow()
+            gateway.deleteChat(token, chatId).getOrThrow()
         }
         membershipStore?.invalidate(chatId)
         return commit
@@ -123,7 +123,7 @@ class DefaultGroupLifecycleService(
     override suspend fun fetchGroupDetails(chatId: String): Result<ChatDto?> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.getChats(token).map { chats ->
+        gateway.getChats(token).map { chats ->
             chats.firstOrNull { it.id == chatId }
         }
     }
@@ -131,7 +131,7 @@ class DefaultGroupLifecycleService(
     override suspend fun fetchGroupMembers(chatId: String): Result<List<GroupMemberDto>> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        val result = ApiService.getGroupMembers(token, chatId)
+        val result = gateway.getGroupMembers(token, chatId)
         result.onSuccess { members ->
             membershipStore?.updateMembers(chatId, members.map { it.toUi() })
         }
@@ -141,7 +141,7 @@ class DefaultGroupLifecycleService(
     override suspend fun fetchCandidates(excludeMemberIds: Set<String>, excludeUserId: String): Result<List<User>> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.getAllSearchableUsers(token).map { users ->
+        gateway.getAllSearchableUsers(token).map { users ->
             users
                 .filter { it.id !in excludeMemberIds && it.id != excludeUserId }
                 .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status) }
@@ -151,7 +151,7 @@ class DefaultGroupLifecycleService(
     override suspend fun uploadAvatar(chatId: String, base64: String): Result<String> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.uploadGroupAvatar(token, chatId, base64)
+        gateway.uploadGroupAvatar(token, chatId, base64)
     }
 
     private fun applyCommitToStore(chatId: String, commit: GroupMutationCommit) {

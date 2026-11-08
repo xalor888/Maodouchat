@@ -1,11 +1,10 @@
-package com.maodouchat.group
+package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupAuditLogDto
 import com.maodouchat.core.model.GroupOwnedBotUi
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
-import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.GroupInviteResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -16,6 +15,7 @@ import kotlinx.coroutines.withContext
  */
 class GroupInviteController(
     private val tokenProvider: () -> String,
+    private val gateway: GroupNetworkGateway,
 ) {
     suspend fun fetchInvite(
         chatId: String,
@@ -25,7 +25,7 @@ class GroupInviteController(
     ): Result<GroupInviteResponse> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.getOrCreateGroupInvite(
+        gateway.getOrCreateGroupInvite(
             token = token,
             chatId = chatId,
             rotate = rotate,
@@ -52,6 +52,7 @@ class GroupInviteController(
  */
 class GroupAuditController(
     private val tokenProvider: () -> String,
+    private val gateway: GroupNetworkGateway,
 ) {
     suspend fun fetchAuditLogs(
         chatId: String,
@@ -60,7 +61,7 @@ class GroupAuditController(
     ): Result<List<GroupAuditLogDto>> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.getGroupAudit(token, chatId, limit = limit, offset = offset)
+        gateway.getGroupAudit(token, chatId, limit = limit, offset = offset)
     }
 }
 
@@ -70,11 +71,12 @@ class GroupAuditController(
  */
 class GroupBotController(
     private val tokenProvider: () -> String,
+    private val gateway: GroupNetworkGateway,
 ) {
     suspend fun fetchCandidateBots(): Result<List<GroupOwnedBotUi>> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.listBots(token).map { raw ->
+        gateway.listBots(token).map { raw ->
             val arr = org.json.JSONArray(raw)
             buildList {
                 for (i in 0 until arr.length()) {
@@ -93,7 +95,7 @@ class GroupBotController(
     suspend fun inviteBot(chatId: String, botId: String): Result<String> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.inviteBotToChat(token, chatId, botId)
+        gateway.inviteBotToChat(token, chatId, botId)
     }
 }
 
@@ -104,6 +106,7 @@ class GroupBotController(
 class GroupEncryptionHealthController(
     private val maintenanceCoordinator: GroupSenderKeyMaintenanceCoordinator,
     private val tokenProvider: () -> String,
+    private val gateway: GroupNetworkGateway,
 ) {
     suspend fun runManual(
         chatId: String,
@@ -127,6 +130,6 @@ class GroupEncryptionHealthController(
     ): Result<SenderKeyDistributionStatusDto> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
-        ApiService.getSenderKeyDistributionStatus(token, chatId, epoch = epoch)
+        gateway.getSenderKeyDistributionStatus(token, chatId, epoch = epoch)
     }
 }
