@@ -5,8 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
-import com.maodouchat.contacts.usecase.DefaultContactMutationUseCase
-import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
+import com.maodouchat.contacts.createAndroidContactMutationUseCase
+import com.maodouchat.contacts.createAndroidFriendRequestUseCase
 import com.maodouchat.conversation.createAndroidConversationCreationPort
 import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ConversationCreationPort
@@ -17,7 +17,6 @@ import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.ContactNetworkRepository
-import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
@@ -33,31 +32,8 @@ class ContactsViewModel @JvmOverloads constructor(
     private val contactsController: ContactsController = ContactsController(
         AndroidContactsRepository(application, AppRepositories.users)
     ),
-    private val friendRequestUseCase: FriendRequestUseCase = DefaultFriendRequestUseCase(
-        sessionProvider = {
-            val snap = com.maodouchat.session.CurrentSession.snapshot()
-            Pair(snap.userId, snap.token)
-        },
-        onFriendAccepted = { newFriend ->
-            AppRepositories.users.insertUsers(listOf(newFriend))
-            FriendCacheStore.add(application, newFriend.id, com.maodouchat.session.CurrentSession.ownerUserId())
-        }
-    ),
-    private val contactMutationUseCase: ContactMutationUseCase = DefaultContactMutationUseCase(
-        sessionProvider = {
-            val snap = com.maodouchat.session.CurrentSession.snapshot()
-            Pair(snap.userId, snap.token)
-        },
-        setNicknameLocal = { userId, nickname ->
-            AppRepositories.users.setNickname(userId, nickname)
-        },
-        onFriendRemoved = { ownerUserId, friendId ->
-            FriendCacheStore.remove(application, friendId, ownerUserId)
-        },
-        onUserBlocked = { ownerUserId, targetId ->
-            FriendCacheStore.remove(application, targetId, ownerUserId)
-        }
-    ),
+    private val friendRequestUseCase: FriendRequestUseCase = createAndroidFriendRequestUseCase(application),
+    private val contactMutationUseCase: ContactMutationUseCase = createAndroidContactMutationUseCase(application),
     private val conversationCreationPort: ConversationCreationPort = createAndroidConversationCreationPort(application),
     private val realtimeSyncCoordinator: ContactsRealtimeSyncCoordinator = DefaultContactsRealtimeSyncCoordinator(
         context = application,

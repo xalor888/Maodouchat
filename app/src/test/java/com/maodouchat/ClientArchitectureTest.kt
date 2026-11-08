@@ -1672,6 +1672,7 @@ class ClientArchitectureTest {
         "core/util",
         "domain/messaging",
         "domain/conversation",
+        "domain/contacts",
     )
 
     @Test

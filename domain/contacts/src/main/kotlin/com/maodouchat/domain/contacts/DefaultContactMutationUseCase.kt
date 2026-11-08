@@ -1,8 +1,6 @@
-package com.maodouchat.contacts.usecase
+package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.ContactMutationUseCase
-import com.maodouchat.network.ApiService
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -16,16 +14,11 @@ import kotlinx.coroutines.CancellationException
  */
 class DefaultContactMutationUseCase(
     private val sessionProvider: () -> Pair<String?, String?>,
+    private val isOwnerSessionCurrent: (expectedUserId: String, liveToken: String, liveUserId: String) -> Boolean,
     private val setNicknameLocal: suspend (userId: String, nickname: String) -> Unit,
-    private val removeFriendApi: suspend (token: String, friendUserId: String) -> Result<Unit> = { token, id ->
-        ApiService.removeFriend(token, id)
-    },
-    private val blockUserApi: suspend (token: String, targetUserId: String) -> Result<Unit> = { token, id ->
-        ApiService.blockUser(token, id)
-    },
-    private val unblockUserApi: suspend (token: String, targetUserId: String) -> Result<Unit> = { token, id ->
-        ApiService.unblockUser(token, id)
-    },
+    private val removeFriendApi: suspend (token: String, friendUserId: String) -> Result<Unit>,
+    private val blockUserApi: suspend (token: String, targetUserId: String) -> Result<Unit>,
+    private val unblockUserApi: suspend (token: String, targetUserId: String) -> Result<Unit>,
     private val onFriendRemoved: suspend (ownerUserId: String, friendUserId: String) -> Unit = { _, _ -> },
     private val onUserBlocked: suspend (ownerUserId: String, targetUserId: String) -> Unit = { _, _ -> }
 ) : ContactMutationUseCase {
@@ -63,7 +56,7 @@ class DefaultContactMutationUseCase(
             return Result.failure(IllegalStateException("Session expired or user not logged in"))
         }
 
-        if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+        if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
             return Result.failure(IllegalStateException("Session validation failed"))
         }
 
@@ -106,7 +99,7 @@ class DefaultContactMutationUseCase(
             return Result.failure(IllegalArgumentException("Cannot block yourself"))
         }
 
-        if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+        if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
             return Result.failure(IllegalStateException("Session validation failed"))
         }
 
@@ -145,7 +138,7 @@ class DefaultContactMutationUseCase(
             return Result.failure(IllegalStateException("Session expired or user not logged in"))
         }
 
-        if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+        if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
             return Result.failure(IllegalStateException("Session validation failed"))
         }
 

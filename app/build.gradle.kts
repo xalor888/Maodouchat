@@ -294,6 +294,8 @@ dependencies {
     implementation(project(":domain:messaging"))
     // §4.1：会话创建端口实现 DefaultConversationCreationPort 已迁入 :domain:conversation。
     implementation(project(":domain:conversation"))
+    // §4.1：联系人变更与好友申请用例实现已迁入 :domain:contacts。
+    implementation(project(":domain:contacts"))
     // M03：接入 core:crypto 端口（IdentityTrustService + 直接会话密码学端口）。
     implementation(project(":core:crypto"))
     // 核心通用领域模型（ConversationId, UserId 等）
