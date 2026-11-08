@@ -27,7 +27,7 @@ import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.util.StickerPreferences
-import com.maodouchat.util.ViewOncePolicy
+import com.maodouchat.core.model.ViewOncePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

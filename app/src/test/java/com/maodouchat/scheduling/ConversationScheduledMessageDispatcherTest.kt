@@ -6,8 +6,8 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.Message
-import com.maodouchat.messaging.v2.ConversationMessageStagingGateway
-import com.maodouchat.messaging.v2.MessagingV2MessageGatewayOutcome
+import com.maodouchat.core.model.ConversationMessageStagingGateway
+import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import com.maodouchat.core.model.ScheduledMessage
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals

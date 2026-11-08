@@ -49,7 +49,7 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.rememberMotionPulse
-import com.maodouchat.util.LiveLocationPolicy
+import com.maodouchat.core.model.LiveLocationPolicy
 import java.util.Locale
 
 /**

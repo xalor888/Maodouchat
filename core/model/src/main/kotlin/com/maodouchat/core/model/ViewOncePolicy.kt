@@ -1,7 +1,5 @@
-package com.maodouchat.util
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 
 /**
  * View-once (open-once) media policy for 1:1 chats.

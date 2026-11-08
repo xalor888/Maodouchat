@@ -8,6 +8,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.ViewOncePolicy
 import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
@@ -76,7 +77,7 @@ internal class AttachmentSendWorkflow(
             fileMimeType = initialMetadata.mimeType,
             fileSizeBytes = initialMetadata.sizeBytes.takeIf { it > 0 },
             viewOnce = command.viewOnce &&
-                com.maodouchat.util.ViewOncePolicy.supports(command.type),
+                ViewOncePolicy.supports(command.type),
             spoilerMedia = command.spoilerMedia && !command.viewOnce &&
                 SpoilerMediaPolicy.supports(command.type),
         )
