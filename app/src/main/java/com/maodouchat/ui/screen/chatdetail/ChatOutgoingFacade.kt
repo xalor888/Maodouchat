@@ -7,9 +7,9 @@ import com.maodouchat.core.model.OutgoingConversationContext
 import com.maodouchat.core.model.OutgoingConversationErrors
 import com.maodouchat.core.model.OutgoingConversationRequest
 import com.maodouchat.core.model.OutgoingMessageCommand
+import com.maodouchat.core.model.OutgoingMessageCoordinator
 import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.messaging.v2.OutgoingConversationResolver
-import com.maodouchat.messaging.v2.OutgoingMessageCoordinator
 import kotlinx.coroutines.CancellationException
 
 internal data class ResolvedOutgoingChat(
