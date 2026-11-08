@@ -16,7 +16,7 @@ import com.maodouchat.core.model.ChatGateVerdict
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.quickreply.QuickReplyPolicy
-import com.maodouchat.scheduling.ConversationScheduledMessageDispatcher
+import com.maodouchat.domain.messaging.ConversationScheduledMessageDispatcher
 import com.maodouchat.core.model.ScheduledTimeCalculation
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.Dispatchers

@@ -1,18 +1,17 @@
-package com.maodouchat.scheduling
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
-import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ConversationCommandOutcome
+import com.maodouchat.core.model.ConversationCommandRejection
+import com.maodouchat.core.model.ConversationMessageStagingGateway
 import com.maodouchat.core.model.DecodedContentPayload
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.ConversationMessageStagingGateway
 import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
-import com.maodouchat.core.model.ScheduledMessage
+import com.maodouchat.core.model.ScheduledMessage as CoreScheduledMessage
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class ConversationScheduledMessageDispatcherTest {
     @Test
@@ -126,7 +125,7 @@ class ConversationScheduledMessageDispatcherTest {
         assertEquals("chat-1", resolvedChatId)
     }
 
-    private fun scheduled(id: String) = ScheduledMessage(
+    private fun scheduled(id: String) = CoreScheduledMessage(
         id = id,
         chatId = "chat-1",
         peerUserId = "peer-1",
