@@ -1,6 +1,4 @@
-package com.maodouchat.messaging.v2
-
-import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
+package com.maodouchat.domain.messaging
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -33,7 +31,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `subsequent read receipt retains delivery timestamp and advances readAt`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -64,7 +62,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `subsequent play receipt retains delivery and read and advances playedAt`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -95,7 +93,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `older timestamps never regress existing receipts`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -126,7 +124,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `incoming null timestamps leave existing values untouched`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -206,7 +204,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `merge under a new owner re-keys the receipt identity`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -241,7 +239,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `updatedAt follows now even when it moves backward`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -291,7 +289,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `partial advance leaves the other fields untouched`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -322,7 +320,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `mixed advance and regression resolve independently per field`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -353,7 +351,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `equal timestamps merge without changing stored values`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -424,7 +422,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `zero incoming timestamp never erases an existing positive value`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -455,7 +453,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `negative incoming timestamp never regresses an existing value`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
@@ -517,7 +515,7 @@ class MessageReceiptAggregationPolicyTest {
 
     @Test
     fun `recipient-only re-key keeps timestamps`() {
-        val existing = MessagingV2ReceiptEntity(
+        val existing = MessageReceipt(
             ownerUserId = "alice",
             messageId = "msg-1",
             conversationId = "conv-1",
