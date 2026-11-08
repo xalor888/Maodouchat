@@ -1,12 +1,12 @@
-package com.maodouchat.attachment
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 /**
- * G157：`AttachmentContentInspector.isAttachmentContentCompatible` 的测试。
+ * G157：`isAttachmentContentCompatible` 的测试。
  *
  * 上传前用文件头几个字节判断「声明的类型和实际内容是否相符」，防止把
  * 文本当图片发出去。每种格式只认它自己的魔数——认宽了会让伪装文件混过去，

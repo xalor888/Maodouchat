@@ -1,10 +1,9 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.attachment.isAttachmentContentCompatible
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class AttachmentContentInspectorTest {
     @Test

@@ -11,6 +11,7 @@ import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.messaging.isOwnSenderKeyRequest
 
 /** Commits decrypted v2 content into the local timeline and applies encrypted domain events. */
 internal class MessagingV2TimelineProjector(
@@ -30,12 +31,7 @@ internal class MessagingV2TimelineProjector(
             val owner = ownerUserId()
             val requestedSender = content.attributes[ATTRIBUTE_REQUESTED_SENDER]
             val epoch = envelope.groupRevision ?: 0L
-            if (
-                owner.isNotBlank() &&
-                requestedSender == owner &&
-                envelope.senderUserId != owner &&
-                epoch > 0L
-            ) {
+            if (isOwnSenderKeyRequest(owner, requestedSender, envelope.senderUserId, epoch)) {
                 onSenderKeyRequest(envelope.conversationId, epoch, envelope.senderUserId)
             }
             return
