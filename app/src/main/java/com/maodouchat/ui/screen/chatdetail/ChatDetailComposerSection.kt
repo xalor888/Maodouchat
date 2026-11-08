@@ -10,6 +10,7 @@ import com.maodouchat.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G355：输入区（`ComposerPane`）的接线从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——

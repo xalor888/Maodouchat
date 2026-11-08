@@ -15,6 +15,7 @@ import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.core.model.isMessageForwardable
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 消息操作弹窗（G80 从 `ChatDetailRoute.kt` 拆出，原 58 行）。

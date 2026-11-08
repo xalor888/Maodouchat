@@ -7,6 +7,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import java.util.UUID
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 「构造一条待发意图」的统一工厂（G68）。

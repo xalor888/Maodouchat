@@ -50,6 +50,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
+import com.maodouchat.core.model.toDomainChat
 /**
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
  *
@@ -319,7 +320,6 @@ internal class ChatDetailDeps(
             preview = { type, content -> host.forwardPreview(type, content) },
         )
     }
-    /** Senders that already got one ensureSessions this chat open (history must not storm). */
     internal val aiMessageResultStore = AiMessageResultStore(com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val readReceiptBookkeeping = ChatDetailReadReceiptBookkeeping()
     internal val aiBookkeeping = ChatDetailAiBookkeeping()

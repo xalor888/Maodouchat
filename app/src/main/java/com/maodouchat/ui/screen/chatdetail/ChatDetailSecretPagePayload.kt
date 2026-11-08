@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.watermark.DeviceHint
+import com.maodouchat.core.model.ChatDetailUiState
 
 @Composable
 internal fun rememberChatDetailSecretPagePayload(

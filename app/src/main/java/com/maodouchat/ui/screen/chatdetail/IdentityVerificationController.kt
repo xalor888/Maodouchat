@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 「安全码 / 身份核验」控制器。把对方设备安全状态加载、身份信任标记、一键验证等

@@ -1,11 +1,11 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.core.crypto.DeviceSafetyState
-import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.DeviceSafetyState
+import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
-import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatGroupSecurityStateController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

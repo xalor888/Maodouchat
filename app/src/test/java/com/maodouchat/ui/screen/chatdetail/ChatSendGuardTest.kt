@@ -16,6 +16,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * G66 安全网：`ChatSendGuard` 的发送准入与重试准入契约。

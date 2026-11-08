@@ -1,9 +1,10 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
+import com.maodouchat.core.model.ChatDetailUiState
 
 /** Maps group and identity responses into the stable chat-detail UI contract. */
 internal class ChatGroupSecurityStateController {

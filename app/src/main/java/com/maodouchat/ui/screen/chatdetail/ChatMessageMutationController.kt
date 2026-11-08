@@ -17,6 +17,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 消息变更命令（删除/批量删除/撤回/编辑）与表情回应：从 ChatDetailViewModel 纯搬移，逻辑一行未动。
 internal class ChatMessageMutationController(

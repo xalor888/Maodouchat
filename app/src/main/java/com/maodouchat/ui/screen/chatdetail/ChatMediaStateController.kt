@@ -4,6 +4,7 @@ import com.maodouchat.core.model.AttachmentProgressPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.core.model.ChatDetailUiState
 
 /** Owns transient attachment/download state transitions used by chat detail. */
 internal class ChatMediaStateController {

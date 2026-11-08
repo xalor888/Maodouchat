@@ -8,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 
 import com.maodouchat.R
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 从 ChatDetailRoute.kt 纯搬移：密聊门禁副作用簇（2FA 门禁 / 设备核验 / 新设备风控）抽出，块字节级一致。
 @Composable

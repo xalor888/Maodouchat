@@ -31,6 +31,7 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 群通话成员选择对话框（G78 从 `ChatDetailRoute.kt` 拆出，原 123 行）。

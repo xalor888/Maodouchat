@@ -4,7 +4,7 @@ import com.maodouchat.core.crypto.CryptoAccountBootstrapper
 import com.maodouchat.core.crypto.DecryptEnvelopeGate
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.DeviceIdMigrationCoordinator
-import com.maodouchat.core.crypto.DeviceSafetyState
+import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.crypto.DirectMessageCipher
 import com.maodouchat.core.crypto.DirectSessionManager
 import com.maodouchat.core.crypto.EnvelopeCodec
@@ -13,7 +13,7 @@ import com.maodouchat.core.crypto.GroupEncryptionHealthService
 import com.maodouchat.core.crypto.GroupMessageCipher
 import com.maodouchat.core.crypto.GroupSenderKeyManager
 import com.maodouchat.core.crypto.IdentityTrustService
-import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.PreKeyInventory
 import com.maodouchat.core.crypto.PreKeyPublisher
 import com.maodouchat.core.crypto.SenderKeyDistOutcome

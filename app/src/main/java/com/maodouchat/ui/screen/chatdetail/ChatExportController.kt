@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 聊天导出控制器。从 ChatDetailViewModel 抽出；导出只读本地已解密明文快照，

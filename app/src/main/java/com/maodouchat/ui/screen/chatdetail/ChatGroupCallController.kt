@@ -7,6 +7,7 @@ import com.maodouchat.core.model.CallOrchestrator
 import com.maodouchat.core.model.CallType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 群通话入口：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
 internal class ChatGroupCallController(

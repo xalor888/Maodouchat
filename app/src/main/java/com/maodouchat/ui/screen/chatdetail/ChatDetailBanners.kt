@@ -16,6 +16,7 @@ import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.bannerEnter
 import com.maodouchat.ui.theme.composerBarEnter
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 聊天详情页顶部横幅栈组装点（置顶/群公告/未读摘要横幅已拆出同包簇文件，纯搬移）。
 

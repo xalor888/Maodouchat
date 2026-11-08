@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 internal class ChatGroupRevisionHandler(
     private val ownerUserId: () -> String,

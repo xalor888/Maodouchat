@@ -29,6 +29,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.truncatedSenderId
 import java.util.Calendar
 import java.util.Date
+import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 从 ChatDetailScreen.kt 拆分的纯工具函数和小型 Composable。

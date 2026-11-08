@@ -1,4 +1,4 @@
-package com.maodouchat.core.crypto
+package com.maodouchat.core.model
 
 data class DeviceSafetyState(
     val deviceId: Int,

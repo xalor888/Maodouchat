@@ -14,6 +14,7 @@ import com.maodouchat.core.model.PrefetchMessage
 import com.maodouchat.core.model.ReadCountUi
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReadReceiptUi
+import com.maodouchat.core.model.ChatDetailUiState
 
 internal class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,

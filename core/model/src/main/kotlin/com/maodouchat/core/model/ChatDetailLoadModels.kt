@@ -1,8 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ChatLoadEffect
-
-internal data class ChatLoadPlan(
+data class ChatLoadPlan(
     val nextState: ChatDetailUiState,
     val effects: List<ChatLoadEffect>,
     val shouldInvalidateSenderKey: Boolean,

@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 名片发送：功能开关 / 密聊拦截 / 内容拼装，然后调发送流水线。
 // 从 ChatDetailViewModel 纯搬移；调用方（作曲区扩展）仍走 VM 的同签名委托。

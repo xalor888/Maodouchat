@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 @Composable
 internal fun rememberChatDetailMessageLabels(): ChatDetailMessageLabels =

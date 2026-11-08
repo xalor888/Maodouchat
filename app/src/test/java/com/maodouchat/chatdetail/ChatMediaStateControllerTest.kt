@@ -5,7 +5,7 @@ import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.ChatDetailUiState
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.screen.chatdetail.ChatMediaStateController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

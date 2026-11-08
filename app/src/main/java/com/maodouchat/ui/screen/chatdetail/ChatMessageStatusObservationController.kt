@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.maodouchat.core.model.ChatDetailUiState
 
 // 消息状态观察：时间线变化 → 标已读水印 + 持久化 + 已读回执入队。
 // 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
@@ -39,7 +40,7 @@ internal class ChatMessageStatusObservationController(
     internal fun observeMessageStatus() {
         uiState
             .onEach { state ->
-                if (state.chat == null) return@onEach
+                val chat = state.chat ?: return@onEach
                 val effectiveChatId = activeChatId().ifBlank { chatId }
                 if (ChatDetailAccess.activeChatId() != effectiveChatId) return@onEach
                 val currentIds = state.messages.map { it.id to it.status }
@@ -97,7 +98,7 @@ internal class ChatMessageStatusObservationController(
                             ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
                                 conversationId = effectiveChatId,
                                 throughMessageId = watermarkId,
-                                groupRevision = state.chat.memberRevision.takeIf { state.chat.isGroup },
+                                groupRevision = chat.memberRevision.takeIf { chat.isGroup },
                             )
                         }
                     } catch (error: kotlinx.coroutines.CancellationException) {

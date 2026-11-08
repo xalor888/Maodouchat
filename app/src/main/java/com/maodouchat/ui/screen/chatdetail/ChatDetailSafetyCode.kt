@@ -43,8 +43,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.crypto.DeviceSafetyState
-import com.maodouchat.core.crypto.IdentityTrustState
+import com.maodouchat.core.model.DeviceSafetyState
+import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.SafetyCodePolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface

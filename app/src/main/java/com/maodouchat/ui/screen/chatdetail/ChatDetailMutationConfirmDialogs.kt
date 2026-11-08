@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.compose.runtime.Composable
 import com.maodouchat.core.model.Message
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.core.model.ChatDetailUiState
 
 /** 下半区弹窗簇：撤回/删除确认、复制操作弹窗、编辑与重发弹窗，原在 ChatDetailLowerDialogHost 内联，纯搬移。 */
 @Composable
