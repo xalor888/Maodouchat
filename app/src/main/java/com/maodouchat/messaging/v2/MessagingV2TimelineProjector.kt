@@ -11,6 +11,8 @@ import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.messaging.ATTRIBUTE_REQUESTED_SENDER
+import com.maodouchat.domain.messaging.TYPE_SENDER_KEY_REQUEST
 import com.maodouchat.domain.messaging.isOwnSenderKeyRequest
 
 /** Commits decrypted v2 content into the local timeline and applies encrypted domain events. */
@@ -88,10 +90,5 @@ internal class MessagingV2TimelineProjector(
         MaodouchatApp.emitChatListPreviewRefresh(envelope.conversationId)
         if (arrival.shouldAttemptNotification) notifier.notify(projected)
         if (arrival.shouldSendDeliveryReceipt) sendDeliveryReceipt(envelope)
-    }
-
-    private companion object {
-        const val TYPE_SENDER_KEY_REQUEST = "SENDER_KEY_REQUEST"
-        const val ATTRIBUTE_REQUESTED_SENDER = "requestedSenderUserId"
     }
 }

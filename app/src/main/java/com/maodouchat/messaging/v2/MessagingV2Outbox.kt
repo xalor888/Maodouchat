@@ -7,7 +7,6 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
-import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
@@ -16,7 +15,13 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.ATTRIBUTE_FAILED_MESSAGE_ID
+import com.maodouchat.domain.messaging.ATTRIBUTE_REQUESTED_SENDER
+import com.maodouchat.domain.messaging.TYPE_SENDER_KEY_REQUEST
+import com.maodouchat.domain.messaging.isAttachmentMessageType
 import com.maodouchat.domain.messaging.receiptMessageId
+import com.maodouchat.domain.messaging.senderKeyRequestMessageId
+import com.maodouchat.domain.messaging.terminalTombstoneKind
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
@@ -104,11 +109,7 @@ class MessagingV2Outbox(
         messageId: String = UUID.randomUUID().toString(),
         kind: String = "EVENT",
     ): String {
-        val terminalKind = when (event.action) {
-            MessagingV2EventAction.DELETE -> MessageMutationTombstoneKind.DELETE
-            MessagingV2EventAction.REVOKE -> MessageMutationTombstoneKind.REVOKE
-            else -> null
-        }
+        val terminalKind = terminalTombstoneKind(event.action)
         return enqueueContentPayload(
             conversationId = conversationId,
             content = MessagingV2Content(type = "EVENT", event = event),
@@ -176,7 +177,7 @@ class MessagingV2Outbox(
         groupRevision: Long? = null,
         messageId: String = UUID.randomUUID().toString(),
     ): String {
-        require(type in ATTACHMENT_TYPES) { "messaging_v2_attachment_type_invalid" }
+        require(isAttachmentMessageType(type)) { "messaging_v2_attachment_type_invalid" }
         return enqueueContentPayload(
             conversationId = conversationId,
             content = MessagingV2Content(
@@ -215,7 +216,6 @@ class MessagingV2Outbox(
         require(groupRevision > 0L) { "messaging_v2_key_request_revision_missing" }
         require(failedMessageId.isNotBlank()) { "messaging_v2_key_request_message_missing" }
         val owner = requireOwner()
-        val seed = "$conversationId|$requestedSenderUserId|$groupRevision|$failedMessageId|$owner|${deviceId()}"
         return enqueuePayload(
             owner = owner,
             conversationId = conversationId,
@@ -232,7 +232,14 @@ class MessagingV2Outbox(
             clientTimestamp = clock(),
             groupRevision = groupRevision,
             kind = KIND_KEY_REQUEST,
-            messageId = "kr_${UUID.nameUUIDFromBytes(seed.toByteArray(Charsets.UTF_8))}",
+            messageId = senderKeyRequestMessageId(
+                conversationId = conversationId,
+                requestedSenderUserId = requestedSenderUserId,
+                groupRevision = groupRevision,
+                failedMessageId = failedMessageId,
+                owner = owner,
+                deviceId = deviceId(),
+            ),
         )
     }
 
@@ -413,15 +420,5 @@ class MessagingV2Outbox(
 
     private companion object {
         const val KIND_KEY_REQUEST = "KEY_REQUEST"
-        const val TYPE_SENDER_KEY_REQUEST = "SENDER_KEY_REQUEST"
-        const val ATTRIBUTE_REQUESTED_SENDER = "requestedSenderUserId"
-        const val ATTRIBUTE_FAILED_MESSAGE_ID = "failedMessageId"
-        val ATTACHMENT_TYPES = setOf(
-            MessageType.IMAGE,
-            MessageType.GIF,
-            MessageType.VIDEO,
-            MessageType.VOICE,
-            MessageType.FILE,
-        )
     }
 }
