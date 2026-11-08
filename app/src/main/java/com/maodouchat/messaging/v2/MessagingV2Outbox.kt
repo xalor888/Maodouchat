@@ -3,7 +3,6 @@ package com.maodouchat.messaging.v2
 import androidx.room.withTransaction
 import com.maodouchat.core.model.ContentPayloadCodec
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
@@ -15,11 +14,12 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
-import com.maodouchat.domain.messaging.ATTRIBUTE_FAILED_MESSAGE_ID
-import com.maodouchat.domain.messaging.ATTRIBUTE_REQUESTED_SENDER
-import com.maodouchat.domain.messaging.TYPE_SENDER_KEY_REQUEST
+import com.maodouchat.domain.messaging.deliveryReceiptEvent
 import com.maodouchat.domain.messaging.isAttachmentMessageType
+import com.maodouchat.domain.messaging.playReceiptEvent
+import com.maodouchat.domain.messaging.readReceiptEvent
 import com.maodouchat.domain.messaging.receiptMessageId
+import com.maodouchat.domain.messaging.senderKeyRequestContent
 import com.maodouchat.domain.messaging.senderKeyRequestMessageId
 import com.maodouchat.domain.messaging.terminalTombstoneKind
 import kotlinx.serialization.json.Json
@@ -129,12 +129,7 @@ class MessagingV2Outbox(
         val owner = requireOwner()
         return enqueueEvent(
             conversationId = conversationId,
-            event = MessagingV2Event(
-                action = MessagingV2EventAction.READ_RECEIPT,
-                targetMessageId = throughMessageId,
-                status = MessageStatus.READ.name,
-                throughMessageId = throughMessageId,
-            ),
+            event = readReceiptEvent(throughMessageId),
             groupRevision = groupRevision,
             messageId = receiptMessageId(
                 action = MessagingV2EventAction.READ_RECEIPT,
@@ -154,11 +149,7 @@ class MessagingV2Outbox(
         val owner = requireOwner()
         return enqueueEvent(
             conversationId = conversationId,
-            event = MessagingV2Event(
-                action = MessagingV2EventAction.PLAY_RECEIPT,
-                targetMessageId = messageId,
-                status = "PLAYED",
-            ),
+            event = playReceiptEvent(messageId),
             groupRevision = groupRevision,
             messageId = receiptMessageId(
                 action = MessagingV2EventAction.PLAY_RECEIPT,
@@ -221,12 +212,9 @@ class MessagingV2Outbox(
             conversationId = conversationId,
             payload = json.encodeToString(
                 MessagingV2Content.serializer(),
-                MessagingV2Content(
-                    type = TYPE_SENDER_KEY_REQUEST,
-                    attributes = mapOf(
-                        ATTRIBUTE_REQUESTED_SENDER to requestedSenderUserId,
-                        ATTRIBUTE_FAILED_MESSAGE_ID to failedMessageId,
-                    ),
+                senderKeyRequestContent(
+                    requestedSenderUserId = requestedSenderUserId,
+                    failedMessageId = failedMessageId,
                 ),
             ),
             clientTimestamp = clock(),
@@ -247,11 +235,7 @@ class MessagingV2Outbox(
         val owner = ownerUserId().takeIf(String::isNotBlank) ?: return
         enqueueEvent(
             conversationId = envelope.conversationId,
-            event = MessagingV2Event(
-                action = MessagingV2EventAction.DELIVERY_RECEIPT,
-                targetMessageId = envelope.messageId,
-                status = MessageStatus.DELIVERED.name,
-            ),
+            event = deliveryReceiptEvent(envelope.messageId),
             groupRevision = envelope.groupRevision,
             messageId = receiptMessageId(
                 action = MessagingV2EventAction.DELIVERY_RECEIPT,
