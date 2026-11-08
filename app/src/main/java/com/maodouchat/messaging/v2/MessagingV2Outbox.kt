@@ -16,6 +16,7 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.receiptMessageId
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
@@ -138,6 +139,7 @@ class MessagingV2Outbox(
                 action = MessagingV2EventAction.READ_RECEIPT,
                 targetMessageId = throughMessageId,
                 owner = owner,
+                deviceId = deviceId(),
             ),
             kind = "RECEIPT",
         )
@@ -161,6 +163,7 @@ class MessagingV2Outbox(
                 action = MessagingV2EventAction.PLAY_RECEIPT,
                 targetMessageId = messageId,
                 owner = owner,
+                deviceId = deviceId(),
             ),
             kind = "RECEIPT",
         )
@@ -247,6 +250,7 @@ class MessagingV2Outbox(
                 action = MessagingV2EventAction.DELIVERY_RECEIPT,
                 targetMessageId = envelope.messageId,
                 owner = owner,
+                deviceId = deviceId(),
             ),
             kind = "RECEIPT",
         )
@@ -403,11 +407,6 @@ class MessagingV2Outbox(
     }
 
     internal fun currentOwnerUserId(): String = requireOwner()
-
-    private fun receiptMessageId(action: String, targetMessageId: String, owner: String): String {
-        val seed = "$action|$targetMessageId|$owner|${deviceId()}"
-        return "r_${UUID.nameUUIDFromBytes(seed.toByteArray(Charsets.UTF_8))}"
-    }
 
     private fun requireOwner(): String =
         ownerUserId().takeIf(String::isNotBlank) ?: error("messaging_v2_owner_missing")
