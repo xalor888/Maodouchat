@@ -1,4 +1,4 @@
-package com.maodouchat.contacts.usecase
+package com.maodouchat.domain.contacts
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
@@ -15,8 +15,11 @@ class DefaultContactMutationUseCaseTest {
         var savedNickname = ""
         val useCase = DefaultContactMutationUseCase(
             sessionProvider = { "owner-1" to "token-1" },
-            setNicknameLocal = { _, nick -> savedNickname = nick }
-        )
+            setNicknameLocal = { _, nick -> savedNickname = nick },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.setNickname("friend-1", "Best Friend")
         assertTrue(result.isSuccess)
@@ -27,8 +30,11 @@ class DefaultContactMutationUseCaseTest {
     fun blockUser_blocksSelfTarget() = runBlocking {
         val useCase = DefaultContactMutationUseCase(
             sessionProvider = { "owner-1" to "token-1" },
-            setNicknameLocal = { _, _ -> }
-        )
+            setNicknameLocal = { _, _ -> },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.blockUser("owner-1")
         assertTrue("Cannot block self", result.isFailure)
@@ -49,8 +55,10 @@ class DefaultContactMutationUseCaseTest {
                 assertEquals("owner-1", owner)
                 assertEquals("friend-2", friend)
                 removedCallbackCalled.set(true)
-            }
-        )
+            },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.removeFriend("friend-2")
         assertTrue(result.isSuccess)
@@ -70,8 +78,10 @@ class DefaultContactMutationUseCaseTest {
             },
             onFriendRemoved = { _, _ ->
                 removedCallbackCalled.set(true)
-            }
-        )
+            },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.removeFriend("friend-2")
         assertTrue(result.isFailure)
@@ -82,16 +92,22 @@ class DefaultContactMutationUseCaseTest {
     fun setNickname_failsOnBlankIdOrMissingSession() = runBlocking {
         val useCase = DefaultContactMutationUseCase(
             sessionProvider = { "owner-1" to "token-1" },
-            setNicknameLocal = { _, _ -> }
-        )
+            setNicknameLocal = { _, _ -> },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
         val blankResult = useCase.setNickname("   ", "x")
         assertTrue(blankResult.isFailure)
         assertTrue(blankResult.exceptionOrNull()?.message?.contains("User ID cannot be blank") == true)
 
         val noSessionCase = DefaultContactMutationUseCase(
             sessionProvider = { null to "token-1" },
-            setNicknameLocal = { _, _ -> }
-        )
+            setNicknameLocal = { _, _ -> },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
         val noSessionResult = noSessionCase.setNickname("friend-1", "x")
         assertTrue(noSessionResult.isFailure)
         assertTrue(noSessionResult.exceptionOrNull()?.message?.contains("Session expired") == true)
@@ -102,8 +118,11 @@ class DefaultContactMutationUseCaseTest {
         var savedNickname = ""
         val useCase = DefaultContactMutationUseCase(
             sessionProvider = { "owner-1" to "token-1" },
-            setNicknameLocal = { _, nick -> savedNickname = nick }
-        )
+            setNicknameLocal = { _, nick -> savedNickname = nick },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.setNickname("friend-1", "  Best Friend  ")
         assertTrue(result.isSuccess)
@@ -117,8 +136,10 @@ class DefaultContactMutationUseCaseTest {
             sessionProvider = { "owner-1" to "token-1" },
             setNicknameLocal = { _, _ -> },
             blockUserApi = { _, _ -> Result.failure(RuntimeException("403")) },
-            onUserBlocked = { _, _ -> blockedCallbackCalled.set(true) }
-        )
+            onUserBlocked = { _, _ -> blockedCallbackCalled.set(true) },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.blockUser("spammer-1")
         assertTrue(result.isFailure)
@@ -137,8 +158,10 @@ class DefaultContactMutationUseCaseTest {
                 currentAccount = "owner-2" to "token-2"
                 Result.success(Unit)
             },
-            onUserBlocked = { _, _ -> blockedCallbackCalled.set(true) }
-        )
+            onUserBlocked = { _, _ -> blockedCallbackCalled.set(true) },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.blockUser("spammer-1")
         assertTrue(result.isFailure)
@@ -155,8 +178,10 @@ class DefaultContactMutationUseCaseTest {
                 assertEquals("token-1", token)
                 assertEquals("spammer-1", id)
                 Result.success(Unit)
-            }
-        )
+            },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.unblockUser("spammer-1")
         assertTrue(result.isSuccess)
@@ -166,8 +191,11 @@ class DefaultContactMutationUseCaseTest {
     fun setNickname_cancellationPropagates() = runBlocking {
         val useCase = DefaultContactMutationUseCase(
             sessionProvider = { "owner-1" to "token-1" },
-            setNicknameLocal = { _, _ -> throw CancellationException("gone") }
-        )
+            setNicknameLocal = { _, _ -> throw CancellationException("gone") },
+            removeFriendApi = { _, _ -> error("unexpected removeFriendApi call") },
+            blockUserApi = { _, _ -> error("unexpected blockUserApi call") },
+            unblockUserApi = { _, _ -> error("unexpected unblockUserApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         var thrown: Throwable? = null
         try {

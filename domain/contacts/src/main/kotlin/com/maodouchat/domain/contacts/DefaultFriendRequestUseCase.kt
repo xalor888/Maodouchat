@@ -1,15 +1,13 @@
-package com.maodouchat.contacts.usecase
+package com.maodouchat.domain.contacts
 
+import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.FriendRequestsSnapshot
 import com.maodouchat.core.model.User
-import com.maodouchat.network.ApiService
-import com.maodouchat.core.model.FriendRequestDto
-import com.maodouchat.security.BackgroundSessionGate
-import kotlinx.coroutines.CancellationException
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 
 /**
  * 好友申请用例实现。
@@ -22,24 +20,13 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DefaultFriendRequestUseCase(
     private val sessionProvider: () -> Pair<String?, String?>,
-    private val getIncomingRequestsApi: suspend (token: String) -> Result<List<FriendRequestDto>> = { token ->
-        ApiService.getIncomingFriendRequests(token)
-    },
-    private val getOutgoingRequestsApi: suspend (token: String) -> Result<List<FriendRequestDto>> = { token ->
-        ApiService.getOutgoingFriendRequests(token)
-    },
-    private val sendFriendRequestApi: suspend (token: String, targetUserId: String, note: String) -> Result<FriendRequestDto> = { token, target, note ->
-        ApiService.sendFriendRequest(token, target, note)
-    },
-    private val acceptFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto> = { token, id ->
-        ApiService.acceptFriendRequest(token, id)
-    },
-    private val rejectFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto> = { token, id ->
-        ApiService.rejectFriendRequest(token, id)
-    },
-    private val cancelFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto> = { token, id ->
-        ApiService.cancelFriendRequest(token, id)
-    },
+    private val isOwnerSessionCurrent: (expectedUserId: String, liveToken: String, liveUserId: String) -> Boolean,
+    private val getIncomingRequestsApi: suspend (token: String) -> Result<List<FriendRequestDto>>,
+    private val getOutgoingRequestsApi: suspend (token: String) -> Result<List<FriendRequestDto>>,
+    private val sendFriendRequestApi: suspend (token: String, targetUserId: String, note: String) -> Result<FriendRequestDto>,
+    private val acceptFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto>,
+    private val rejectFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto>,
+    private val cancelFriendRequestApi: suspend (token: String, requestId: String) -> Result<FriendRequestDto>,
     private val onFriendAccepted: suspend (User) -> Unit = {}
 ) : FriendRequestUseCase {
 
@@ -54,7 +41,7 @@ class DefaultFriendRequestUseCase(
             return Result.failure(IllegalStateException("Session expired or user not logged in"))
         }
 
-        if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+        if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
             return Result.failure(IllegalStateException("Session validation failed"))
         }
 
@@ -145,7 +132,7 @@ class DefaultFriendRequestUseCase(
         }
 
         return try {
-            if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+            if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
                 return Result.failure(IllegalStateException("Session validation failed"))
             }
 
@@ -211,7 +198,7 @@ class DefaultFriendRequestUseCase(
                 return Result.failure(IllegalStateException("Session expired or user not logged in"))
             }
 
-            if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+            if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
                 return Result.failure(IllegalStateException("Session validation failed"))
             }
 
@@ -278,7 +265,7 @@ class DefaultFriendRequestUseCase(
                 return Result.failure(IllegalStateException("Session expired or user not logged in"))
             }
 
-            if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+            if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
                 return Result.failure(IllegalStateException("Session validation failed"))
             }
 
@@ -328,7 +315,7 @@ class DefaultFriendRequestUseCase(
                 return Result.failure(IllegalStateException("Session expired or user not logged in"))
             }
 
-            if (!BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId, liveToken = token, liveUserId = ownerUserId)) {
+            if (!isOwnerSessionCurrent(ownerUserId, token, ownerUserId)) {
                 return Result.failure(IllegalStateException("Session validation failed"))
             }
 

@@ -1,4 +1,4 @@
-package com.maodouchat.contacts.usecase
+package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.FriendRequestDto
 import com.maodouchat.core.model.UserDto
@@ -33,8 +33,14 @@ class DefaultFriendRequestUseCaseTest {
     @Test
     fun sendFriendRequest_failsOnSelfOrBlank() = runBlocking {
         val useCase = DefaultFriendRequestUseCase(
-            sessionProvider = { "alice" to "token-alice" }
-        )
+            sessionProvider = { "alice" to "token-alice" },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
         val selfResult = useCase.sendFriendRequest("alice")
         assertTrue(selfResult.isFailure)
 
@@ -50,8 +56,13 @@ class DefaultFriendRequestUseCaseTest {
             sendFriendRequestApi = { _, target, _ ->
                 barrier.await()
                 Result.success(mockDto("req-1", "alice", target))
-            }
-        )
+            },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         // 第一个请求正在进行中
         val firstJob = async { useCase.sendFriendRequest("bob") }
@@ -83,8 +94,12 @@ class DefaultFriendRequestUseCaseTest {
                     )
                 )
             },
-            getOutgoingRequestsApi = { Result.success(emptyList()) }
-        )
+            getOutgoingRequestsApi = { Result.success(emptyList()) },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.loadRequests()
         assertTrue(result.isSuccess)
@@ -104,8 +119,13 @@ class DefaultFriendRequestUseCaseTest {
             acceptFriendRequestApi = { _, _ ->
                 barrier.await()
                 Result.success(mockDto("req-123", "bob", "alice", status = "ACCEPTED"))
-            }
-        )
+            },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val acceptJob = async { useCase.acceptFriendRequest("req-123") }
         yield() // 让出事件循环，accept 进入 in-flight（同上）
@@ -126,8 +146,11 @@ class DefaultFriendRequestUseCaseTest {
             sessionProvider = { "alice" to "token-alice" },
             acceptFriendRequestApi = { _, _ -> Result.success(mockDto("req-123", "bob", "alice", status = "ACCEPTED")) },
             cancelFriendRequestApi = { _, _ -> Result.success(mockDto("req-123", "bob", "alice", status = "CANCELLED")) },
-            rejectFriendRequestApi = { _, _ -> Result.success(mockDto("req-123", "bob", "alice", status = "REJECTED")) }
-        )
+            rejectFriendRequestApi = { _, _ -> Result.success(mockDto("req-123", "bob", "alice", status = "REJECTED")) },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val acceptResult = useCase.acceptFriendRequest("req-123")
         assertTrue(acceptResult.isSuccess)
@@ -157,8 +180,13 @@ class DefaultFriendRequestUseCaseTest {
             },
             onFriendAccepted = {
                 friendAcceptedCalled.set(true)
-            }
-        )
+            },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val sendResult = useCase.sendFriendRequest("bob")
         assertTrue("Switched account must abort result", sendResult.isFailure)
@@ -169,8 +197,13 @@ class DefaultFriendRequestUseCaseTest {
     fun rejectFriendRequest_successMarksSettled() = runBlocking {
         val useCase = DefaultFriendRequestUseCase(
             sessionProvider = { "alice" to "token-alice" },
-            rejectFriendRequestApi = { _, _ -> Result.success(mockDto("req-7", "bob", "alice", status = "REJECTED")) }
-        )
+            rejectFriendRequestApi = { _, _ -> Result.success(mockDto("req-7", "bob", "alice", status = "REJECTED")) },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val rejectResult = useCase.rejectFriendRequest("req-7")
         assertTrue(rejectResult.isSuccess)
@@ -184,8 +217,13 @@ class DefaultFriendRequestUseCaseTest {
     fun cancelFriendRequest_successMarksSettled() = runBlocking {
         val useCase = DefaultFriendRequestUseCase(
             sessionProvider = { "alice" to "token-alice" },
-            cancelFriendRequestApi = { _, _ -> Result.success(mockDto("req-8", "alice", "bob", status = "CANCELLED")) }
-        )
+            cancelFriendRequestApi = { _, _ -> Result.success(mockDto("req-8", "alice", "bob", status = "CANCELLED")) },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val cancelResult = useCase.cancelFriendRequest("req-8")
         assertTrue(cancelResult.isSuccess)
@@ -202,8 +240,12 @@ class DefaultFriendRequestUseCaseTest {
             getIncomingRequestsApi = { Result.failure(RuntimeException("offline")) },
             getOutgoingRequestsApi = {
                 Result.success(listOf(mockDto("req-out", "alice", "bob", createdAt = 200L)))
-            }
-        )
+            },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.loadRequests()
         assertTrue(result.isSuccess)
@@ -221,8 +263,13 @@ class DefaultFriendRequestUseCaseTest {
             sendFriendRequestApi = { _, target, _ ->
                 assertEquals("bob", target)
                 Result.success(mockDto("req-9", "alice", "bob"))
-            }
-        )
+            },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            acceptFriendRequestApi = { _, _ -> error("unexpected acceptFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val result = useCase.sendFriendRequest("bob", "hey")
         assertTrue(result.isSuccess)
@@ -241,8 +288,13 @@ class DefaultFriendRequestUseCaseTest {
             acceptFriendRequestApi = { _, id ->
                 apiCalls++
                 Result.success(mockDto(id, "bob", "alice", status = "ACCEPTED"))
-            }
-        )
+            },
+            getIncomingRequestsApi = { _ -> error("unexpected getIncomingRequestsApi call") },
+            getOutgoingRequestsApi = { _ -> error("unexpected getOutgoingRequestsApi call") },
+            sendFriendRequestApi = { _, _, _ -> error("unexpected sendFriendRequestApi call") },
+            rejectFriendRequestApi = { _, _ -> error("unexpected rejectFriendRequestApi call") },
+            cancelFriendRequestApi = { _, _ -> error("unexpected cancelFriendRequestApi call") },
+            isOwnerSessionCurrent = { _, _, _ -> true })
 
         val results = useCase.batchAcceptFriendRequests(listOf("req-a", "req-a", "req-b"))
         assertEquals(2, results.size)
