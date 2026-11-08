@@ -1,14 +1,13 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.core.model.MessagingV2RetryPolicy
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.domain.messaging.OutboxFailurePolicy
-import com.maodouchat.domain.messaging.messagingErrorCode
+import com.maodouchat.domain.messaging.OutboxRetryPolicy
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.CancellationException
@@ -79,7 +78,7 @@ class MessagingV2OutboxCoordinator(
             markFailure(
                 message = message,
                 expectedState = MessagingV2OutboxState.PREPARING,
-                retryState = MessagingV2OutboxState.RETRY_PREPARE,
+                failedWhilePreparing = true,
                 error = error,
             )
         }
@@ -123,15 +122,10 @@ class MessagingV2OutboxCoordinator(
                 ) { "messaging_v2_stale_control_send_discard_lost" }
                 return
             }
-            val needsFreshEncryption = OutboxFailurePolicy.needsFreshEncryption(error)
             markFailure(
                 message = message,
                 expectedState = MessagingV2OutboxState.SENDING,
-                retryState = if (needsFreshEncryption) {
-                    MessagingV2OutboxState.RETRY_PREPARE
-                } else {
-                    MessagingV2OutboxState.RETRY_SEND
-                },
+                failedWhilePreparing = false,
                 error = error,
             )
         }
@@ -140,25 +134,25 @@ class MessagingV2OutboxCoordinator(
     private suspend fun markFailure(
         message: MessagingV2OutboxEntity,
         expectedState: String,
-        retryState: String,
+        failedWhilePreparing: Boolean,
         error: Exception,
     ) {
-        val attempts = message.attempts + 1
-        val nextAttemptAt = if (OutboxFailurePolicy.isSenderKeyCoveragePending(error.message)) {
-            // A Sender Key mailbox item was queued during preparation. Retry the data message
-            // immediately after the current flush can send that item; exponential backoff here
-            // needlessly stalls a perfectly valid group send.
-            clock()
-        } else {
-            MessagingV2RetryPolicy.nextAttemptAt(clock(), attempts)
-        }
+        val decision = OutboxRetryPolicy.decide(
+            error = error,
+            failedWhilePreparing = failedWhilePreparing,
+            attempts = message.attempts + 1,
+            now = clock(),
+        )
         dao.markOutboxFailed(
             messageId = message.messageId,
             ownerUserId = message.ownerUserId,
             expectedState = expectedState,
-            retryState = retryState,
-            errorCode = messagingErrorCode(error),
-            nextAttemptAt = nextAttemptAt,
+            retryState = when (decision.target) {
+                OutboxRetryPolicy.RetryTarget.RE_ENCRYPT -> MessagingV2OutboxState.RETRY_PREPARE
+                OutboxRetryPolicy.RetryTarget.RESEND -> MessagingV2OutboxState.RETRY_SEND
+            },
+            errorCode = decision.errorCode,
+            nextAttemptAt = decision.nextAttemptAt,
             now = clock(),
         )
     }
