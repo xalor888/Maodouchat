@@ -18,7 +18,7 @@ import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
 

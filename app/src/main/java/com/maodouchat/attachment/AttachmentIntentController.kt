@@ -20,7 +20,7 @@ import com.maodouchat.domain.messaging.SendMessageResult
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag

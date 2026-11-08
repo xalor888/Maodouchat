@@ -3,6 +3,7 @@ package com.maodouchat.util
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.ViewOncePolicy
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -35,7 +36,7 @@ class ViewOncePolicyTest {
             id = "m1",
             chatId = "c1",
             senderId = if (own) "me" else "peer",
-            content = com.maodouchat.util.JsonFormat.composeContentWithMeta("x", meta),
+            content = JsonFormat.composeContentWithMeta("x", meta),
             type = type,
             timestamp = 1L,
         )
@@ -119,7 +120,7 @@ class ViewOncePolicyTest {
             fileMimeType = "image/jpeg"
         )
         val m = msg(type = MessageType.IMAGE).copy(
-            content = com.maodouchat.util.JsonFormat.composeContentWithMeta("x", meta)
+            content = JsonFormat.composeContentWithMeta("x", meta)
         )
         val marked = ViewOncePolicy.markOpened(m)
         val after = marked.parsedMeta()

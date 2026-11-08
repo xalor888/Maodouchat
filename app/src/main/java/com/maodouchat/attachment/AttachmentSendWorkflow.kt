@@ -13,7 +13,7 @@ import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers

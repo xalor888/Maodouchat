@@ -6,7 +6,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals

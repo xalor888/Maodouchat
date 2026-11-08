@@ -11,7 +11,7 @@ import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.core.model.EncryptedAttachmentReference
-import com.maodouchat.util.JsonFormat
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
