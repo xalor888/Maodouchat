@@ -19,7 +19,7 @@ import com.maodouchat.data.local.AppDatabase
  * - 密聊会话不参与（结果不应落可搜索缓存）；
  * - 需已同意 AI 处理 + 本地画像开关（默认开）。
  *
- * 实现已按簇拆到 AiProfileGates / AiProfileAssembly / AiProfileStats，
+ * 实现已按簇拆到 AiProfileGates / AiProfileAssembly，统计函数 AiProfileStats 已迁入 :core:model，
  * 这里只保留统一入口（外部端口与测试按此引用）。
  */
 object AiConversationProfile {

@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.R
-import com.maodouchat.contacts.usecase.FriendRequestUseCase
+import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User
