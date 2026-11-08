@@ -1,24 +1,8 @@
-package com.maodouchat.widget
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.WidgetRow
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
-import com.maodouchat.domain.messaging.PrivacyAction
-
-/**
- * 桌面小组件行投影纯策略（P09 首切片）。
- *
- * 自 `ConversationWidgetData.loadSnapshot` 抽出的行组装决策：隐私门禁、
- * 脱敏标题/预览、角标、行数上限。DB 查询、字符串资源、相对时间格式化仍由
- * `ConversationWidgetData` 提供（`timeLabel` 以函数传入，保持纯）。
- *
- * 安全不变量（与旧实现逐字对齐）：
- * - 密聊 / 隐私受限会话永不上桌；
- * - App 锁或 PIN 锁定时标题只显示应用名、正文只显示通用脱敏文案；
- * - App 锁定时角标强制 0。
- */
+// 桌面小组件行投影纯策略：隐私门禁、脱敏标题/预览、角标、行数上限。
+// 密聊 / 隐私受限会话永不上桌；App 锁或 PIN 锁定时标题只显示应用名、正文只显示通用脱敏文案；App 锁定时角标强制 0。
+// DB 查询、字符串资源、相对时间格式化仍由调用方提供（timeLabel 以函数传入，保持纯）。
 
 fun widgetChatTitle(chat: Chat, ownerUserId: String): String? {
     if (chat.isGroup) return chat.groupName?.takeIf { it.isNotBlank() }
@@ -50,10 +34,10 @@ fun buildWidgetRows(
         val chat = input.chat
         if (chat.id.isBlank()) continue
         // 密聊 / 隐私受限会话：永不展示在桌面小组件
-        if (!ConversationPrivacyPolicy.allows(input.caps, PrivacyAction.NOTIFICATION_PREVIEW)) {
+        if (!input.previewAllowed) {
             continue
         }
-        val pinLocked = input.caps.isLocked
+        val pinLocked = input.isLocked
         val title = if (appLockOn || pinLocked) {
             labels.appName
         } else {

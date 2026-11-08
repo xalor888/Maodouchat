@@ -1,14 +1,9 @@
-package com.maodouchat.widget
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.User
-import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class WidgetRowPolicyTest {
 
@@ -18,9 +13,9 @@ class WidgetRowPolicyTest {
         lockedPreview = "LOCKED",
         attachmentLabel = "[ATT]",
     )
-    private val openCaps = ConversationPrivacyCapabilities(isSecretChat = false, isLocked = false)
-    private val lockedCaps = ConversationPrivacyCapabilities(isSecretChat = false, isLocked = true)
-    private val secretCaps = ConversationPrivacyCapabilities(isSecretChat = true, isLocked = false)
+    private fun openInput(c: Chat) = WidgetChatInput(c, previewAllowed = true, isLocked = false)
+    private fun lockedInput(c: Chat) = WidgetChatInput(c, previewAllowed = true, isLocked = true)
+    private fun secretInput(c: Chat) = WidgetChatInput(c, previewAllowed = false, isLocked = false)
 
     private fun chat(
         id: String,
@@ -48,14 +43,14 @@ class WidgetRowPolicyTest {
 
     @Test
     fun secretChatsNeverOnDesk() {
-        val r = build(listOf(WidgetChatInput(chat("s"), secretCaps)))
+        val r = build(listOf(secretInput(chat("s"))))
         assertTrue(r.rows.isEmpty())
         assertEquals(0, r.totalUnread)
     }
 
     @Test
     fun lockedChatMasked() {
-        val r = build(listOf(WidgetChatInput(chat("c", unread = 5, lastMessage = "secret"), lockedCaps)))
+        val r = build(listOf(lockedInput(chat("c", unread = 5, lastMessage = "secret"))))
         assertEquals("APP", r.rows.single().title)
         assertEquals("LOCKED", r.rows.single().subtitle)
         assertEquals(5, r.rows.single().unread)
@@ -64,7 +59,7 @@ class WidgetRowPolicyTest {
     @Test
     fun appLockMasksAndZeroesBadge() {
         val r = build(
-            listOf(WidgetChatInput(chat("c", unread = 5, lastMessage = "secret"), openCaps)),
+            listOf(openInput(chat("c", unread = 5, lastMessage = "secret"))),
             appLockOn = true,
         )
         assertEquals("APP", r.rows.single().title)
@@ -76,7 +71,7 @@ class WidgetRowPolicyTest {
     @Test
     fun badgeOffZeroesUnread() {
         val r = build(
-            listOf(WidgetChatInput(chat("c", unread = 5), openCaps)),
+            listOf(openInput(chat("c", unread = 5))),
             showUnreadBadge = false,
         )
         assertEquals(0, r.rows.single().unread)
@@ -86,8 +81,8 @@ class WidgetRowPolicyTest {
     fun normalRowAndTotal() {
         val r = build(
             listOf(
-                WidgetChatInput(chat("a", unread = 2, lastMessage = "hello"), openCaps),
-                WidgetChatInput(chat("b", unread = 3), openCaps),
+                openInput(chat("a", unread = 2, lastMessage = "hello")),
+                openInput(chat("b", unread = 3)),
             )
         )
         assertEquals("Peer", r.rows[0].title)
@@ -99,20 +94,20 @@ class WidgetRowPolicyTest {
     @Test
     fun titleFallsBackToTruncatedId() {
         val c = chat("very-long-chat-id-123", peer = null).copy(isGroup = false, groupName = null)
-        val r = build(listOf(WidgetChatInput(c, openCaps)))
+        val r = build(listOf(openInput(c)))
         assertEquals("very-long-ch", r.rows.single().title)
     }
 
     @Test
     fun maxRowsCap() {
-        val inputs = (1..5).map { WidgetChatInput(chat("c$it"), openCaps) }
+        val inputs = (1..5).map { openInput(chat("c$it")) }
         val r = build(inputs, maxRows = 3)
         assertEquals(3, r.rows.size)
     }
 
     @Test
     fun blankIdsSkipped() {
-        val r = build(listOf(WidgetChatInput(chat(" ", unread = 1), openCaps)))
+        val r = build(listOf(openInput(chat(" ", unread = 1))))
         assertTrue(r.rows.isEmpty())
     }
 
@@ -150,7 +145,7 @@ class WidgetRowPolicyTest {
     @Test
     fun lockedChatUnderAppLockKeepsLockedPreviewButZeroesBadge() {
         val r = build(
-            listOf(WidgetChatInput(chat("c", unread = 5, lastMessage = "secret"), lockedCaps)),
+            listOf(lockedInput(chat("c", unread = 5, lastMessage = "secret"))),
             appLockOn = true,
         )
         assertEquals("APP", r.rows.single().title)
@@ -162,10 +157,10 @@ class WidgetRowPolicyTest {
     @Test
     fun skippedSecretChatsDoNotConsumeMaxRows() {
         val inputs = listOf(
-            WidgetChatInput(chat("s"), secretCaps),
-            WidgetChatInput(chat("a"), openCaps),
-            WidgetChatInput(chat("b"), openCaps),
-            WidgetChatInput(chat("c"), openCaps),
+            secretInput(chat("s")),
+            openInput(chat("a")),
+            openInput(chat("b")),
+            openInput(chat("c")),
         )
         val r = build(inputs, maxRows = 2)
         assertEquals(listOf("a", "b"), r.rows.map { it.chatId })
