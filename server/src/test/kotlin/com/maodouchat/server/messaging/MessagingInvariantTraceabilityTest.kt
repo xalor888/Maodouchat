@@ -42,6 +42,7 @@ class MessagingInvariantTraceabilityTest {
             "core/network/src/test/kotlin", "core/realtime/src/test/kotlin",
             "core/serialization/src/test/kotlin", "core/session/src/test/kotlin",
             "core/testing/src/test/kotlin", "core/util/src/test/kotlin",
+            "domain/messaging/src/test/kotlin",
         )
             .map { File(repoRoot, it) }
             .filter { it.isDirectory }
