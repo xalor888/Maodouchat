@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.data.local.entity.MessagingV2ReceiptEntity
+import com.maodouchat.domain.messaging.MessageReceipt
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import com.maodouchat.conversation.ReadReceiptSource
+import com.maodouchat.domain.messaging.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ChatDetailUiState
 
@@ -46,16 +46,16 @@ class ChatReadReceiptCoordinatorTest {
 
     /** 测试用的端口实现：直接伪造，不碰 Room。 */
     private class FakeReceiptSource : ReadReceiptSource {
-        val receipts = mutableListOf<MessagingV2ReceiptEntity>()
+        val receipts = mutableListOf<MessageReceipt>()
         var getCalls = 0
         var observeCalls = 0
         var throwOnGet: Throwable? = null
-        val observed = MutableStateFlow<List<MessagingV2ReceiptEntity>>(emptyList())
+        val observed = MutableStateFlow<List<MessageReceipt>>(emptyList())
 
         override suspend fun getReceiptsForMessage(
             ownerUserId: String,
             messageId: String,
-        ): List<MessagingV2ReceiptEntity> {
+        ): List<MessageReceipt> {
             getCalls++
             throwOnGet?.let { throw it }
             return receipts.filter { it.messageId == messageId }
@@ -64,7 +64,7 @@ class ChatReadReceiptCoordinatorTest {
         override fun observeReceiptsForConversation(
             ownerUserId: String,
             conversationId: String,
-        ): Flow<List<MessagingV2ReceiptEntity>> {
+        ): Flow<List<MessageReceipt>> {
             observeCalls++
             return observed
         }
@@ -143,9 +143,9 @@ class ChatReadReceiptCoordinatorTest {
     @Test
     fun `a non sender never sees receipts for someone else's message`() = runTest(dispatcher) {
         val source = FakeReceiptSource()
-        source.receipts += MessagingV2ReceiptEntity(
+        source.receipts += MessageReceipt(
             ownerUserId = "me", messageId = "m1", conversationId = "c1",
-            recipientUserId = "u2", readAt = 100L,
+            recipientUserId = "u2", readAt = 100L, updatedAt = 100L,
         )
         // 消息是 u2 发的，当前用户只是接收者
         val base = state(messages = listOf(message("m1", "u2", MessageType.TEXT, MessageStatus.SENT)))
@@ -160,8 +160,8 @@ class ChatReadReceiptCoordinatorTest {
     fun `group read count only counts my own deliverable messages`() = runTest(dispatcher) {
         val source = FakeReceiptSource()
         source.receipts += listOf(
-            MessagingV2ReceiptEntity("me", "m1", "c1", "u2", readAt = 10L),
-            MessagingV2ReceiptEntity("me", "m1", "c1", "u3", readAt = 11L),
+            MessageReceipt("me", "m1", "c1", "u2", readAt = 10L, updatedAt = 10L),
+            MessageReceipt("me", "m1", "c1", "u3", readAt = 11L, updatedAt = 11L),
         )
         val base = state(
             messages = listOf(
@@ -217,7 +217,7 @@ class ChatReadReceiptCoordinatorTest {
         assertEquals(1, source.observeCalls, "observe 必须订阅一次")
 
         source.observed.value = listOf(
-            MessagingV2ReceiptEntity("me", "m1", "c1", "u2", readAt = 5L),
+            MessageReceipt("me", "m1", "c1", "u2", readAt = 5L, updatedAt = 5L),
         )
         awaitQuiescence()
 
