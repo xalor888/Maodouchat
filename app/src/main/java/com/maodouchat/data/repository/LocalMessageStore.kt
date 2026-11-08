@@ -2,6 +2,8 @@ package com.maodouchat.data.repository
 
 import androidx.room.withTransaction
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.mergeLocalMediaMetaForPersistence
+import com.maodouchat.core.model.mergeMessageForPersistence
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.entity.MessageEntity

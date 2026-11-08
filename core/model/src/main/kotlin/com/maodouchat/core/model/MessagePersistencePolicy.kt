@@ -1,9 +1,4 @@
-package com.maodouchat.data.repository
-
-import com.maodouchat.core.model.DecryptPlaceholderPolicy
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
+package com.maodouchat.core.model
 
 /**
  * Room write-path merge for message rows.
@@ -12,7 +7,7 @@ import com.maodouchat.core.model.MessageType
  * ciphertext / decrypt placeholders. Star and reactions treat the newer (or equal)
  * revision writer snapshot as authoritative so unstar and empty reaction lists stick.
  */
-internal fun mergeMessageForPersistence(existing: Message, incoming: Message): Message {
+fun mergeMessageForPersistence(existing: Message, incoming: Message): Message {
     if (existing.type == MessageType.REVOKED && incoming.type != MessageType.REVOKED) return existing
     if (incoming.type == MessageType.REVOKED) return incoming
     val existingEdit = existing.editedAt ?: Long.MIN_VALUE
@@ -46,7 +41,7 @@ internal fun mergeMessageForPersistence(existing: Message, incoming: Message): M
     return preserveLocalMediaFlags(existing, incoming, withStatus)
 }
 
-internal fun preserveLocalMediaFlags(existing: Message, incoming: Message, merged: Message): Message {
+fun preserveLocalMediaFlags(existing: Message, incoming: Message, merged: Message): Message {
     val existingMeta = existing.parsedMeta()
     val incomingMeta = incoming.parsedMeta()
     val mergedMeta = merged.parsedMeta()
@@ -59,7 +54,7 @@ internal fun preserveLocalMediaFlags(existing: Message, incoming: Message, merge
     return if (protectedMeta == mergedMeta) merged else merged.withEncodedMeta(protectedMeta)
 }
 
-internal fun mergeLocalMediaMetaForPersistence(current: Message, localSnapshot: Message): Message {
+fun mergeLocalMediaMetaForPersistence(current: Message, localSnapshot: Message): Message {
     val currentMeta = current.parsedMeta()
     val localMeta = localSnapshot.parsedMeta()
     val mergedMeta = currentMeta.copy(
