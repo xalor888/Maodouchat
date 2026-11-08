@@ -7,9 +7,9 @@ import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.usecase.DefaultContactMutationUseCase
 import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
+import com.maodouchat.conversation.createAndroidConversationCreationPort
 import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ConversationCreationPort
-import com.maodouchat.conversation.DefaultConversationCreationPort
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.ContactsUiState
@@ -58,15 +58,7 @@ class ContactsViewModel @JvmOverloads constructor(
             FriendCacheStore.remove(application, targetId, ownerUserId)
         }
     ),
-    private val conversationCreationPort: ConversationCreationPort = DefaultConversationCreationPort(
-        sessionProvider = {
-            val snap = com.maodouchat.session.CurrentSession.snapshot()
-            Pair(snap.userId, snap.token)
-        },
-        isSecretChatFeatureEnabled = {
-            RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_CHAT)
-        }
-    ),
+    private val conversationCreationPort: ConversationCreationPort = createAndroidConversationCreationPort(application),
     private val realtimeSyncCoordinator: ContactsRealtimeSyncCoordinator = DefaultContactsRealtimeSyncCoordinator(
         context = application,
         userDao = AppRepositories.userDao,

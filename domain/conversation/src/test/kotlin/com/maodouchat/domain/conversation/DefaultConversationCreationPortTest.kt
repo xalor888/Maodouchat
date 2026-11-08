@@ -1,4 +1,4 @@
-package com.maodouchat.conversation
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.ChatDto
@@ -33,7 +33,9 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createDirectChat_failsOnBlankPeerId() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { "owner-1" to "token-1" }
+            sessionProvider = { "owner-1" to "token-1" },
+            createChatApi = { _, _, _, _, _ -> error("must not be called") },
+            isOwnerSessionCurrent = { _, _ -> true },
         )
         val result = port.createDirectChat("   ")
         assertTrue(result.isFailure)
@@ -43,7 +45,9 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createDirectChat_failsOnExpiredSession() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { null to null }
+            sessionProvider = { null to null },
+            createChatApi = { _, _, _, _, _ -> error("must not be called") },
+            isOwnerSessionCurrent = { _, _ -> true },
         )
         val result = port.createDirectChat("user-2")
         assertTrue(result.isFailure)
@@ -55,6 +59,7 @@ class DefaultConversationCreationPortTest {
         val onCreatedCalled = AtomicBoolean(false)
         val port = DefaultConversationCreationPort(
             sessionProvider = { "owner-1" to "token-1" },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { token, ids, isGroup, name, type ->
                 assertEquals("token-1", token)
                 assertEquals(listOf("user-2"), ids)
@@ -82,6 +87,7 @@ class DefaultConversationCreationPortTest {
         val apiCalled = AtomicBoolean(false)
         val port = DefaultConversationCreationPort(
             sessionProvider = { "owner-1" to "token-1" },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { _, _, _, _, _ ->
                 apiCalled.set(true)
                 Result.success(mockChatDto("chat-secret-1"))
@@ -98,6 +104,7 @@ class DefaultConversationCreationPortTest {
     fun createSecretChat_successWhenFeatureEnabled() = runBlocking {
         val port = DefaultConversationCreationPort(
             sessionProvider = { "owner-1" to "token-1" },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { _, ids, isGroup, _, type ->
                 assertEquals(listOf("user-2"), ids)
                 assertFalse(isGroup)
@@ -117,7 +124,9 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createGroupChat_failsOnBlankName() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { "owner-1" to "token-1" }
+            sessionProvider = { "owner-1" to "token-1" },
+            createChatApi = { _, _, _, _, _ -> error("must not be called") },
+            isOwnerSessionCurrent = { _, _ -> true },
         )
         val result = port.createGroupChat("  ", listOf("user-2", "user-3"))
         assertTrue(result.isFailure)
@@ -127,6 +136,7 @@ class DefaultConversationCreationPortTest {
     fun createGroupChat_success() = runBlocking {
         val port = DefaultConversationCreationPort(
             sessionProvider = { "owner-1" to "token-1" },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { _, ids, isGroup, name, type ->
                 assertEquals(listOf("user-2", "user-3"), ids)
                 assertTrue(isGroup)
@@ -148,6 +158,7 @@ class DefaultConversationCreationPortTest {
     fun createChannelChat_success() = runBlocking {
         val port = DefaultConversationCreationPort(
             sessionProvider = { "owner-1" to "token-1" },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { _, ids, isGroup, name, type ->
                 assertEquals(listOf("user-2"), ids)
                 assertTrue(isGroup)
@@ -171,6 +182,7 @@ class DefaultConversationCreationPortTest {
 
         val port = DefaultConversationCreationPort(
             sessionProvider = { currentAccount },
+            isOwnerSessionCurrent = { _, _ -> true },
             createChatApi = { _, _, _, _, _ ->
                 // 切号模拟：在 API 响应后，账号已切换为 owner-2
                 currentAccount = "owner-2" to "token-2"

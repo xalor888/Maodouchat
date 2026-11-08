@@ -1,13 +1,11 @@
-package com.maodouchat.conversation
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User
-import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -15,7 +13,7 @@ import kotlinx.coroutines.sync.withLock
  * 默认会话创建端口实现。
  *
  * 统一处理：
- * 1. 会话鉴权与账号状态门禁 (BackgroundSessionGate)
+ * 1. 会话鉴权与账号状态门禁（isOwnerSessionCurrent 注入）
  * 2. 密聊开关特性校验 (RuntimeFlags / SecretChatPolicy)
  * 3. 并发/快速重复点击重入防抖 (Mutex)
  * 4. 远程 API 调用与领域模型映射
@@ -29,9 +27,8 @@ class DefaultConversationCreationPort(
         isGroup: Boolean,
         groupName: String?,
         chatType: String?
-    ) -> Result<ChatDto> = { token, ids, isGroup, name, type ->
-        ApiService.createChat(token, ids, isGroup, name, type)
-    },
+    ) -> Result<ChatDto>,
+    private val isOwnerSessionCurrent: (ownerUserId: String, token: String) -> Boolean,
     private val onChatCreated: suspend (Chat) -> Unit = {},
     private val isSecretChatFeatureEnabled: () -> Boolean = { true }
 ) : ConversationCreationPort {
@@ -106,12 +103,7 @@ class DefaultConversationCreationPort(
             return@withLock Result.failure(IllegalStateException("Session expired or user not logged in"))
         }
 
-        if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-                liveToken = token,
-                liveUserId = ownerUserId
-            )
-        ) {
+        if (!isOwnerSessionCurrent(ownerUserId, token)) {
             return@withLock Result.failure(IllegalStateException("Session validation failed"))
         }
 

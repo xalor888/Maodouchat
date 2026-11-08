@@ -1671,6 +1671,7 @@ class ClientArchitectureTest {
         "core/testing",
         "core/util",
         "domain/messaging",
+        "domain/conversation",
     )
 
     @Test
