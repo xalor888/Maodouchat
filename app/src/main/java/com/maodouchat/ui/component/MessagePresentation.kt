@@ -1,5 +1,6 @@
 package com.maodouchat.ui.component
 
+import com.maodouchat.core.model.ChatListPreviewPolicy
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
@@ -66,7 +67,7 @@ object MessagePresentationMapper {
                 null
             },
             requiresDecryptPlaceholder = message.type in TEXT_TYPES &&
-                com.maodouchat.data.repository.ChatListPreviewPolicy.isSignalWireEnvelope(body),
+                ChatListPreviewPolicy.isSignalWireEnvelope(body),
         )
     }
 

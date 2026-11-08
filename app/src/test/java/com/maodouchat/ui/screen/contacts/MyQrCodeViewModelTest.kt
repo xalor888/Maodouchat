@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.contacts
 
 import com.maodouchat.core.model.MyQrCodeDecision
+import com.maodouchat.core.model.MyQrCodeLoadPolicy
 import com.maodouchat.core.model.RejectReason
 import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.UserRepository
@@ -180,7 +181,7 @@ class MyQrCodeViewModelTest {
     @Test
     fun `a null bitmap is a generation failure not a crash`() {
         // QrCodeGenerator 返回 null 时策略必须让调用方走失败分支
-        val result = MyQrCodeLoadPolicy.finalize(bitmap = null)
+        val result = finalizeQrCode(bitmap = null)
         assertFalse(result.success, "null bitmap 必须算失败")
         assertNotNull(result.message)
     }
@@ -190,7 +191,7 @@ class MyQrCodeViewModelTest {
         // 不真造 Bitmap（plain JUnit 下 android.graphics 未 mock，会抛 not-mocked）：
         // 用一个同类型替身验证「非 null 即成功、且原样带回」。
         val bmp = mockk<android.graphics.Bitmap>(relaxed = true)
-        val result = MyQrCodeLoadPolicy.finalize(bitmap = bmp)
+        val result = finalizeQrCode(bitmap = bmp)
         assertTrue(result.success)
         assertEquals(bmp, result.bitmap)
     }
