@@ -13,6 +13,8 @@ import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.domain.messaging.OutboxWireFormat
+import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.serialization.json.Json
 
@@ -80,7 +82,7 @@ class SignalMessagingV2EnvelopePreparer(
                 EncryptedDeviceEnvelopeRequestV2(
                     recipientUserId = it.userId,
                     recipientDeviceId = it.deviceId,
-                    ciphertextType = wireCiphertextType(it.ciphertextType),
+                    ciphertextType = OutboxWireFormat.ciphertextType(it.ciphertextType),
                     ciphertext = it.ciphertext,
                 )
             }
@@ -103,7 +105,7 @@ class SignalMessagingV2EnvelopePreparer(
             ).getOrThrow()
             PreparedMessageV2(
                 groupRevision = snapshot.memberRevision,
-                attachmentIds = decodeContent(message).attachmentIds,
+                attachmentIds = outboxAttachmentIds(message.localPayload),
                 envelopes = snapshot.targets.sortedWith(compareBy({ it.userId }, { it.deviceId })).map {
                     EncryptedDeviceEnvelopeRequestV2(
                         recipientUserId = it.userId,
@@ -117,7 +119,7 @@ class SignalMessagingV2EnvelopePreparer(
             if (snapshot.targets.isEmpty()) {
                 return PreparedMessageV2(
                     groupRevision = null,
-                    attachmentIds = decodeContent(message).attachmentIds,
+                    attachmentIds = outboxAttachmentIds(message.localPayload),
                     envelopes = emptyList(),
                 )
             }
@@ -134,7 +136,7 @@ class SignalMessagingV2EnvelopePreparer(
                 EncryptedDeviceEnvelopeRequestV2(
                     recipientUserId = it.userId,
                     recipientDeviceId = it.deviceId,
-                    ciphertextType = wireCiphertextType(it.ciphertextType),
+                    ciphertextType = OutboxWireFormat.ciphertextType(it.ciphertextType),
                     ciphertext = it.ciphertext,
                 )
             }
@@ -142,20 +144,12 @@ class SignalMessagingV2EnvelopePreparer(
                 MessagingV2DeviceTarget(it.recipientUserId, it.recipientDeviceId)
             }
             check(actualTargets == snapshot.targets) { "messaging_v2_crypto_coverage_mismatch" }
-            PreparedMessageV2(groupRevision = null, attachmentIds = decodeContent(message).attachmentIds, envelopes = envelopes)
+            PreparedMessageV2(groupRevision = null, attachmentIds = outboxAttachmentIds(message.localPayload), envelopes = envelopes)
         }
     }
 
-    /**
-     * V2 线上约定：`ciphertext_type` 必须匹配 `^[A-Z0-9_-]{1,32}$`（服务端 `MessagingV2Routing`
-     * 的校验），而直发密码学常量是 `prekey` / `signal`（小写）。此前把小写直接写上线，服务端一律回
-     * 400 INVALID_MESSAGE——两侧各自的测试都发现不了（服务端测试全用 "TEXT"，客户端测试只到信封为止）。
-     * G23 的真 HTTP 端到端第一次把它暴露出来。
-     *
-     * 归一化只放在**线上边界**，不动密码学常量：解密侧的 `else` 分支本来就会按内容判断
-     * PreKey/Signal，所以大写值不影响解密。
-     */
-    internal fun wireCiphertextType(value: String): String = value.uppercase()
+    // Retained for the E2E test; the rule itself lives in OutboxWireFormat.
+    internal fun wireCiphertextType(value: String): String = OutboxWireFormat.ciphertextType(value)
 
     private fun decodeContent(message: MessagingV2OutboxEntity): MessagingV2Content =
         json.decodeFromString(message.localPayload)

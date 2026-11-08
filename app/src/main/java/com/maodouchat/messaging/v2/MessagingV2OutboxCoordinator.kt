@@ -1,15 +1,14 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.core.model.MessagingV2GroupControlPolicy
 import com.maodouchat.core.model.MessagingV2RetryPolicy
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
-import com.maodouchat.core.model.ApiException
+import com.maodouchat.domain.messaging.OutboxFailurePolicy
+import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -102,7 +101,7 @@ class MessagingV2OutboxCoordinator(
                     kind = message.kind,
                     clientTimestamp = message.clientTimestamp,
                     groupRevision = message.groupRevision,
-                    attachmentIds = messageAttachmentIds(message),
+                    attachmentIds = outboxAttachmentIds(message.localPayload),
                     envelopes = envelopes,
                 ),
             ).getOrThrow()
@@ -113,11 +112,7 @@ class MessagingV2OutboxCoordinator(
         } catch (cancel: CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            if (
-                error is ApiException &&
-                error.serverCode == "GROUP_REVISION_MISMATCH" &&
-                MessagingV2GroupControlPolicy.isGroupControl(message.kind)
-            ) {
+            if (OutboxFailurePolicy.shouldDiscardStaleGroupControl(error, message.kind)) {
                 check(
                     dao.discardOutbox(
                         message.messageId,
@@ -127,10 +122,7 @@ class MessagingV2OutboxCoordinator(
                 ) { "messaging_v2_stale_control_send_discard_lost" }
                 return
             }
-            val needsFreshEncryption = error is ApiException && error.serverCode in setOf(
-                "DEVICE_COVERAGE_MISMATCH",
-                "GROUP_REVISION_MISMATCH",
-            )
+            val needsFreshEncryption = OutboxFailurePolicy.needsFreshEncryption(error)
             markFailure(
                 message = message,
                 expectedState = MessagingV2OutboxState.SENDING,
@@ -144,11 +136,6 @@ class MessagingV2OutboxCoordinator(
         }
     }
 
-    private fun messageAttachmentIds(message: MessagingV2OutboxEntity): List<String> =
-        runCatching {
-            Json.decodeFromString<MessagingV2Content>(message.localPayload).attachmentIds
-        }.getOrDefault(emptyList())
-
     private suspend fun markFailure(
         message: MessagingV2OutboxEntity,
         expectedState: String,
@@ -156,7 +143,7 @@ class MessagingV2OutboxCoordinator(
         error: Exception,
     ) {
         val attempts = message.attempts + 1
-        val nextAttemptAt = if (error.message == SENDER_KEY_COVERAGE_PENDING) {
+        val nextAttemptAt = if (OutboxFailurePolicy.isSenderKeyCoveragePending(error.message)) {
             // A Sender Key mailbox item was queued during preparation. Retry the data message
             // immediately after the current flush can send that item; exponential backoff here
             // needlessly stalls a perfectly valid group send.
@@ -178,6 +165,5 @@ class MessagingV2OutboxCoordinator(
     private companion object {
         const val MAX_MESSAGES_PER_RUN = 100
         const val STALE_CLAIM_MS = 2L * 60L * 1_000L
-        const val SENDER_KEY_COVERAGE_PENDING = "sender_key_coverage_pending"
     }
 }
