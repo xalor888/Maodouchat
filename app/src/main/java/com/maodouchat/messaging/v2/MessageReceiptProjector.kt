@@ -6,6 +6,7 @@ import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.domain.messaging.MessageReceiptAggregationPolicy
 import com.maodouchat.domain.messaging.MessageReceiptGuard
+import com.maodouchat.domain.messaging.readReceiptStatus
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
@@ -69,7 +70,7 @@ internal class MessageReceiptProjector(
             )
             messageStore.updateMessageStatus(
                 message.id,
-                if (isGroup) MessageStatus.DELIVERED else MessageStatus.READ,
+                readReceiptStatus(isGroup),
             )
         }
     }
