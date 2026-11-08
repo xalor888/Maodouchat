@@ -33,7 +33,7 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createDirectChat_failsOnBlankPeerId() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { "owner-1" to "token-1" }
+            sessionProvider = { "owner-1" to "token-1" },
             createChatApi = { _, _, _, _, _ -> error("must not be called") },
             isOwnerSessionCurrent = { _, _ -> true },
         )
@@ -45,7 +45,7 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createDirectChat_failsOnExpiredSession() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { null to null }
+            sessionProvider = { null to null },
             createChatApi = { _, _, _, _, _ -> error("must not be called") },
             isOwnerSessionCurrent = { _, _ -> true },
         )
@@ -124,7 +124,7 @@ class DefaultConversationCreationPortTest {
     @Test
     fun createGroupChat_failsOnBlankName() = runBlocking {
         val port = DefaultConversationCreationPort(
-            sessionProvider = { "owner-1" to "token-1" }
+            sessionProvider = { "owner-1" to "token-1" },
             createChatApi = { _, _, _, _, _ -> error("must not be called") },
             isOwnerSessionCurrent = { _, _ -> true },
         )
