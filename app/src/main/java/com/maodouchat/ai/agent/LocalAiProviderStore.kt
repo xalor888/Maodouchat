@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AgentOverlayMode
 import com.maodouchat.core.model.AgentSession
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.core.model.LocalAiProviderJsonCodec
 
 /**
  * Account-scoped encrypted store for user-owned model endpoints.

@@ -1,10 +1,5 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.AgentToolCall
-import com.maodouchat.core.model.AgentToolPolicy
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,8 +77,8 @@ class LocalAiProtocolCodecTest {
             ]}
         """.trimIndent()
         val result = LocalAiProtocolCodec.parseAnthropic(payload)
-        assertTrue(result is OpenAiCompatClient.Completion.Tools)
-        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertTrue(result is LocalAiCompletion.Tools)
+        val tools = result as LocalAiCompletion.Tools
         assertEquals("list_chats", tools.calls.single().name)
         assertTrue(tools.calls.single().argumentsJson.contains("query"))
     }
@@ -97,8 +92,8 @@ class LocalAiProtocolCodecTest {
             ]}
         """.trimIndent()
         val result = LocalAiProtocolCodec.parseResponses(payload)
-        assertTrue(result is OpenAiCompatClient.Completion.Tools)
-        assertEquals("get_me", (result as OpenAiCompatClient.Completion.Tools).calls.single().name)
+        assertTrue(result is LocalAiCompletion.Tools)
+        assertEquals("get_me", (result as LocalAiCompletion.Tools).calls.single().name)
     }
 
     @Test
@@ -119,8 +114,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("PONG", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("PONG", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("PONG"), deltas)
     }
 
@@ -132,8 +127,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("PONG", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("PONG", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("PONG"), deltas)
     }
 
@@ -145,7 +140,7 @@ class LocalAiProtocolCodecTest {
             contextWindowTokens = 200_000,
             historyMessageLimit = 40
         )
-        val decoded = LocalAiProviderStore.parseProviders(LocalAiProviderStore.encodeProviders(listOf(original))).single()
+        val decoded = LocalAiProviderJsonCodec.parseProviders(LocalAiProviderJsonCodec.encodeProviders(listOf(original))).single()
         assertEquals(LocalAiProtocol.ANTHROPIC_MESSAGES, decoded.protocol)
         assertEquals(200_000, decoded.contextWindowTokens)
         assertEquals(40, decoded.historyMessageLimit)
@@ -196,25 +191,25 @@ class LocalAiProtocolCodecTest {
         val text = LocalAiProtocolCodec.parseChatCompletions(
             """{"choices":[{"message":{"role":"assistant","content":"hello"}}]}"""
         )
-        assertTrue(text is OpenAiCompatClient.Completion.Text)
-        assertEquals("hello", (text as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(text is LocalAiCompletion.Text)
+        assertEquals("hello", (text as LocalAiCompletion.Text).content)
         val tools = LocalAiProtocolCodec.parseChatCompletions(
             """{"choices":[{"message":{"role":"assistant","content":"","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{\"query\":\"a\"}"}}]}}]}"""
         )
-        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
-        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertTrue(tools is LocalAiCompletion.Tools)
+        val call = (tools as LocalAiCompletion.Tools).calls.single()
         assertEquals("list_chats", call.name)
         assertEquals("c1", call.id)
         assertTrue(call.argumentsJson.contains("query"))
         val malformed = LocalAiProtocolCodec.parseChatCompletions("{oops")
-        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(malformed is LocalAiCompletion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as LocalAiCompletion.Error).message)
         val noChoices = LocalAiProtocolCodec.parseChatCompletions("{}")
-        assertTrue(noChoices is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型没有 choices", (noChoices as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(noChoices is LocalAiCompletion.Error)
+        assertEquals("模型没有 choices", (noChoices as LocalAiCompletion.Error).message)
         val emptyChoices = LocalAiProtocolCodec.parseChatCompletions("""{"choices":[]}""")
-        assertTrue(emptyChoices is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型没有 choices", (emptyChoices as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(emptyChoices is LocalAiCompletion.Error)
+        assertEquals("模型没有 choices", (emptyChoices as LocalAiCompletion.Error).message)
     }
 
     @Test
@@ -365,23 +360,23 @@ class LocalAiProtocolCodecTest {
     @Test
     fun `response parsers and sse handle error and fallback edges`() {
         val malformed = LocalAiProtocolCodec.parseResponses("{oops")
-        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(malformed is LocalAiCompletion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as LocalAiCompletion.Error).message)
         val textOnly = LocalAiProtocolCodec.parseResponses(
             """{"output":[{"type":"message","content":[{"type":"output_text","text":"he"},{"type":"text","text":"llo"}]}]}"""
         )
-        assertTrue(textOnly is OpenAiCompatClient.Completion.Text)
-        assertEquals("hello", (textOnly as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(textOnly is LocalAiCompletion.Text)
+        assertEquals("hello", (textOnly as LocalAiCompletion.Text).content)
         val noInput = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"tool_use","id":"tu1","name":"list_chats"}]}"""
         )
-        assertTrue(noInput is OpenAiCompatClient.Completion.Tools)
-        val call = (noInput as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertTrue(noInput is LocalAiCompletion.Tools)
+        val call = (noInput as LocalAiCompletion.Tools).calls.single()
         assertEquals("tu1", call.id)
         assertEquals("{}", call.argumentsJson)
         val emptyStream = LocalAiProtocolCodec.parseSseChat("data: [DONE]\n") { error("no delta expected") }
-        assertTrue(emptyStream is OpenAiCompatClient.Completion.Error)
-        assertEquals("empty stream", (emptyStream as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(emptyStream is LocalAiCompletion.Error)
+        assertEquals("empty stream", (emptyStream as LocalAiCompletion.Error).message)
     }
 
 
@@ -395,8 +390,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("hi", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("hi"), deltas)
     }
 
@@ -409,8 +404,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("ok", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("ok", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("ok"), deltas)
     }
 
@@ -423,8 +418,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("A", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("A", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("A"), deltas)
     }
 
@@ -437,8 +432,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("Hello", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("Hello", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("Hel", "lo"), deltas)
     }
 
@@ -450,8 +445,8 @@ class LocalAiProtocolCodecTest {
         """.trimIndent()
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat(payload) { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("hi", (result as LocalAiCompletion.Text).content)
         assertEquals(listOf("hi"), deltas)
     }
 
@@ -486,14 +481,14 @@ class LocalAiProtocolCodecTest {
         val tools = LocalAiProtocolCodec.parseResponses(
             """{"output":[{"type":"tool_call","id":"x1","function":{"name":"list_chats","arguments":"{}"}}]}"""
         )
-        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
-        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertTrue(tools is LocalAiCompletion.Tools)
+        val call = (tools as LocalAiCompletion.Tools).calls.single()
         assertEquals("x1", call.id)
         assertEquals("list_chats", call.name)
         assertEquals("{}", call.argumentsJson)
         val fallback = LocalAiProtocolCodec.parseResponses("""{"output":[],"output_text":"hi"}""")
-        assertTrue(fallback is OpenAiCompatClient.Completion.Text)
-        assertEquals("hi", (fallback as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(fallback is LocalAiCompletion.Text)
+        assertEquals("hi", (fallback as LocalAiCompletion.Text).content)
     }
 
     @Test
@@ -501,13 +496,13 @@ class LocalAiProtocolCodecTest {
         val text = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"text","text":"Hel"},{"type":"text","text":"lo"}]}"""
         )
-        assertTrue(text is OpenAiCompatClient.Completion.Text)
-        assertEquals("Hello", (text as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(text is LocalAiCompletion.Text)
+        assertEquals("Hello", (text as LocalAiCompletion.Text).content)
         val tools = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"tool_use","id":"t1","name":"list_chats","input":"raw"}]}"""
         )
-        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
-        val call = (tools as OpenAiCompatClient.Completion.Tools).calls.single()
+        assertTrue(tools is LocalAiCompletion.Tools)
+        val call = (tools as LocalAiCompletion.Tools).calls.single()
         assertEquals("t1", call.id)
         assertEquals("raw", call.argumentsJson)
     }
@@ -515,8 +510,8 @@ class LocalAiProtocolCodecTest {
     @Test
     fun `parse anthropic malformed returns model not json error`() {
         val malformed = LocalAiProtocolCodec.parseAnthropic("{oops")
-        assertTrue(malformed is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型返回不是 JSON", (malformed as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(malformed is LocalAiCompletion.Error)
+        assertEquals("模型返回不是 JSON", (malformed as LocalAiCompletion.Error).message)
     }
 
     @Test
@@ -524,8 +519,8 @@ class LocalAiProtocolCodecTest {
         val text = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":"hi"}]}"""
         )
-        assertTrue(text is OpenAiCompatClient.Completion.Text)
-        assertEquals("hi", (text as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(text is LocalAiCompletion.Text)
+        assertEquals("hi", (text as LocalAiCompletion.Text).content)
     }
 
     @Test
@@ -533,8 +528,8 @@ class LocalAiProtocolCodecTest {
         val tools = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"text","text":"pre"},{"type":"tool_use","id":"t1","name":"list_chats","input":{}}]}"""
         )
-        assertTrue(tools is OpenAiCompatClient.Completion.Tools)
-        val result = tools as OpenAiCompatClient.Completion.Tools
+        assertTrue(tools is LocalAiCompletion.Tools)
+        val result = tools as LocalAiCompletion.Tools
         assertEquals("list_chats", result.calls.single().name)
         assertEquals("pre", result.content)
     }
@@ -545,8 +540,8 @@ class LocalAiProtocolCodecTest {
         val result = LocalAiProtocolCodec.parseResponses(
             """{"output":[{"type":"function_call","call_id":"c1","arguments":"{}"}]}"""
         )
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("", (result as LocalAiCompletion.Text).content)
     }
 
     @Test
@@ -597,21 +592,21 @@ class LocalAiProtocolCodecTest {
     @Test
     fun `parse anthropic empty content yields empty text`() {
         val missing = LocalAiProtocolCodec.parseAnthropic("{}")
-        assertTrue(missing is OpenAiCompatClient.Completion.Text)
-        assertEquals("", (missing as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(missing is LocalAiCompletion.Text)
+        assertEquals("", (missing as LocalAiCompletion.Text).content)
         val unknownOnly = LocalAiProtocolCodec.parseAnthropic(
             """{"content":[{"type":"thinking","thinking":"hmm"}]}"""
         )
-        assertTrue(unknownOnly is OpenAiCompatClient.Completion.Text)
-        assertEquals("", (unknownOnly as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(unknownOnly is LocalAiCompletion.Text)
+        assertEquals("", (unknownOnly as LocalAiCompletion.Text).content)
     }
 
     @Test
     fun `parse chat completions falls back to reasoning content for tools`() {
         val payload = """{"choices":[{"message":{"role":"assistant","reasoning_content":"think","tool_calls":[{"id":"c1","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
         val result = LocalAiProtocolCodec.parseChatCompletions(payload)
-        assertTrue(result is OpenAiCompatClient.Completion.Tools)
-        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertTrue(result is LocalAiCompletion.Tools)
+        val tools = result as LocalAiCompletion.Tools
         assertEquals("list_chats", tools.calls.single().name)
         assertEquals("think", tools.content)
     }
@@ -619,16 +614,16 @@ class LocalAiProtocolCodecTest {
     @Test
     fun `parse chat completions without message object yields empty text`() {
         val result = LocalAiProtocolCodec.parseChatCompletions("""{"choices":[{}]}""")
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("", (result as LocalAiCompletion.Text).content)
     }
 
     @Test
     fun `parse chat completions skips tool calls without function object`() {
         val payload = """{"choices":[{"message":{"role":"assistant","content":"hi","tool_calls":[{"id":"c1"},{"id":"c2","function":{"name":"list_chats","arguments":"{}"}}]}}]}"""
         val result = LocalAiProtocolCodec.parseChatCompletions(payload)
-        assertTrue(result is OpenAiCompatClient.Completion.Tools)
-        val tools = result as OpenAiCompatClient.Completion.Tools
+        assertTrue(result is LocalAiCompletion.Tools)
+        val tools = result as LocalAiCompletion.Tools
         assertEquals(1, tools.calls.size)
         assertEquals("c2", tools.calls.single().id)
         assertEquals("list_chats", tools.calls.single().name)
@@ -668,31 +663,31 @@ class LocalAiProtocolCodecTest {
     @Test
     fun `parse responses malformed returns model not json error`() {
         val result = LocalAiProtocolCodec.parseResponses("{oops")
-        assertTrue(result is OpenAiCompatClient.Completion.Error)
-        assertEquals("模型返回不是 JSON", (result as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(result is LocalAiCompletion.Error)
+        assertEquals("模型返回不是 JSON", (result as LocalAiCompletion.Error).message)
     }
 
     @Test
     fun `parse responses reads root output text without output array`() {
         val result = LocalAiProtocolCodec.parseResponses("""{"output_text":"hi"}""")
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("hi", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("hi", (result as LocalAiCompletion.Text).content)
     }
 
     @Test
     fun `parse responses concatenates message output text parts`() {
         val payload = """{"output":[{"type":"message","content":[{"type":"output_text","text":"Hel"},{"type":"output_text","text":"lo"}]}]}"""
         val result = LocalAiProtocolCodec.parseResponses(payload)
-        assertTrue(result is OpenAiCompatClient.Completion.Text)
-        assertEquals("Hello", (result as OpenAiCompatClient.Completion.Text).content)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("Hello", (result as LocalAiCompletion.Text).content)
     }
 
     @Test
     fun `parse sse chat empty payload returns empty stream error`() {
         val deltas = mutableListOf<String>()
         val result = LocalAiProtocolCodec.parseSseChat("") { deltas += it }
-        assertTrue(result is OpenAiCompatClient.Completion.Error)
-        assertEquals("empty stream", (result as OpenAiCompatClient.Completion.Error).message)
+        assertTrue(result is LocalAiCompletion.Error)
+        assertEquals("empty stream", (result as LocalAiCompletion.Error).message)
         assertTrue(deltas.isEmpty())
     }
 

@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.AgentChatMessage
 import com.maodouchat.core.model.AiWritingStylePolicy
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.Snapshot
 import com.maodouchat.core.model.agentRewriteInstruction
@@ -20,16 +21,16 @@ object AgentTextCompletion {
             List<AgentChatMessage>,
             List<Map<String, Any?>>?,
             ((String) -> Unit)?
-        ) -> OpenAiCompatClient.Completion
+        ) -> LocalAiCompletion
     ): Result<String> {
         val messages = listOf(
             AgentChatMessage(role = "system", content = instruction),
             AgentChatMessage(role = "user", content = userContent.take(8_000))
         )
         return when (val result = complete(provider, messages, null, onDelta)) {
-            is OpenAiCompatClient.Completion.Text -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Tools -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Error -> Result.failure(IllegalStateException(result.message))
+            is LocalAiCompletion.Text -> Result.success(result.content.trim())
+            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }
 
@@ -51,7 +52,7 @@ object AgentTextCompletion {
             List<AgentChatMessage>,
             List<Map<String, Any?>>?,
             ((String) -> Unit)?
-        ) -> OpenAiCompatClient.Completion
+        ) -> LocalAiCompletion
     ): String {
         val text = args["text"].orEmpty()
         if (text.isBlank()) return "Error: text required"

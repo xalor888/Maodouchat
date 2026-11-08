@@ -1,13 +1,11 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.LocalAiProvider
 import org.json.JSONArray
 import org.json.JSONObject
 
 // OpenAI Responses 请求编码簇。
 
-internal object LocalAiResponsesEncode {
+object LocalAiResponsesEncode {
 
     fun responsesBody(
         provider: LocalAiProvider,

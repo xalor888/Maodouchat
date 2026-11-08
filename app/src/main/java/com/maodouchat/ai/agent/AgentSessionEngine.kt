@@ -7,6 +7,7 @@ import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.AgentTurnMessages
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Approval
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +20,7 @@ class AgentSessionEngine(
         List<AgentChatMessage>,
         List<Map<String, Any?>>?,
         ((String) -> Unit)?
-    ) -> OpenAiCompatClient.Completion = { provider, messages, tools, onDelta ->
+    ) -> LocalAiCompletion = { provider, messages, tools, onDelta ->
         OpenAiCompatClient.complete(provider, messages, tools, onDelta)
     },
     private val executeTool: suspend (String, String) -> String = { name, args ->
@@ -48,11 +49,11 @@ class AgentSessionEngine(
                     null
                 )
             ) {
-                is OpenAiCompatClient.Completion.Error -> {
+                is LocalAiCompletion.Error -> {
                     emit(AgentTurnEvent.Failed(result.message))
                     return@flow
                 }
-                is OpenAiCompatClient.Completion.Text -> {
+                is LocalAiCompletion.Text -> {
                     val text = AiPromptSafetyPolicy.annotateIfPrivilegedHallucination(
                         result.content.trim(),
                         "助手不能执行未审批的特权动作，请以本机实际结果为准。"
@@ -60,7 +61,7 @@ class AgentSessionEngine(
                     emit(AgentTurnEvent.AssistantFinal(text))
                     return@flow
                 }
-                is OpenAiCompatClient.Completion.Tools -> {
+                is LocalAiCompletion.Tools -> {
                     working += AgentChatMessage(
                         role = "assistant",
                         content = result.content,

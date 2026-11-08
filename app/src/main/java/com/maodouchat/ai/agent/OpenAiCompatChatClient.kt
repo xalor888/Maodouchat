@@ -1,7 +1,9 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.core.model.LocalAiProtocolCodec
 import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -12,14 +14,13 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 // 对话簇：纯文本聊天 + 工具调用。原 OpenAiCompatClient 的 complete 整体搬入，逻辑逐行不变。
 object OpenAiCompatChatClient {
-    // Completion 住在统一入口 OpenAiCompatClient：调用方都写 OpenAiCompatClient.Completion。
 
     suspend fun complete(
         provider: LocalAiProvider,
         messages: List<AgentChatMessage>,
         tools: List<Map<String, Any?>>?,
         onDelta: ((String) -> Unit)? = null
-    ): OpenAiCompatClient.Completion = withContext(Dispatchers.IO) {
+    ): LocalAiCompletion = withContext(Dispatchers.IO) {
         val stream = provider.stream && onDelta != null && tools.isNullOrEmpty()
         val (url, body) = when (provider.protocol) {
             LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
@@ -39,14 +40,14 @@ object OpenAiCompatChatClient {
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    return@withContext OpenAiCompatClient.Completion.Error(
+                    return@withContext LocalAiCompletion.Error(
                         "模型接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
                     )
                 }
                 if (stream) {
                     val deltaSink = onDelta ?: return@withContext parseByProtocol(provider.protocol, payload)
                     val streamed = LocalAiProtocolCodec.parseSseChat(payload, deltaSink)
-                    if (streamed is OpenAiCompatClient.Completion.Error) {
+                    if (streamed is LocalAiCompletion.Error) {
                         return@withContext parseByProtocol(provider.protocol, payload)
                     }
                     return@withContext streamed
@@ -56,11 +57,11 @@ object OpenAiCompatChatClient {
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
         } catch (error: Exception) {
-            OpenAiCompatClient.Completion.Error(error.message ?: error.javaClass.simpleName)
+            LocalAiCompletion.Error(error.message ?: error.javaClass.simpleName)
         }
     }
 
-    internal fun parseByProtocol(protocol: LocalAiProtocol, payload: String): OpenAiCompatClient.Completion = when (protocol) {
+    internal fun parseByProtocol(protocol: LocalAiProtocol, payload: String): LocalAiCompletion = when (protocol) {
         LocalAiProtocol.OPENAI_CHAT_COMPLETIONS -> LocalAiProtocolCodec.parseChatCompletions(payload)
         LocalAiProtocol.OPENAI_RESPONSES -> LocalAiProtocolCodec.parseResponses(payload)
         LocalAiProtocol.ANTHROPIC_MESSAGES -> LocalAiProtocolCodec.parseAnthropic(payload)

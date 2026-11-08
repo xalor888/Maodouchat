@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
+import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.PreparedDocumentKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,9 +21,9 @@ internal object LocalAiFileTasks {
             else -> "用一两段话描述这张图。不要声称已发送或已删除消息。"
         }
         return when (val result = OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg")) {
-            is OpenAiCompatClient.Completion.Text -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Tools -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Error -> Result.failure(IllegalStateException(result.message))
+            is LocalAiCompletion.Text -> Result.success(result.content.trim())
+            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }
 
@@ -65,9 +66,9 @@ internal object LocalAiFileTasks {
                 }
                 val pages = prepared.pageJpegsBase64.map { "image/jpeg" to it }
                 when (val result = OpenAiCompatClient.completeVision(provider, instruction, pages)) {
-                    is OpenAiCompatClient.Completion.Text -> Result.success(result.content.trim())
-                    is OpenAiCompatClient.Completion.Tools -> Result.success(result.content.trim())
-                    is OpenAiCompatClient.Completion.Error -> Result.failure(IllegalStateException(result.message))
+                    is LocalAiCompletion.Text -> Result.success(result.content.trim())
+                    is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+                    is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
                 }
             }
         }
@@ -94,9 +95,9 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         return when (val result = OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType)) {
-            is OpenAiCompatClient.Completion.Text -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Tools -> Result.success(result.content.trim())
-            is OpenAiCompatClient.Completion.Error -> Result.failure(IllegalStateException(result.message))
+            is LocalAiCompletion.Text -> Result.success(result.content.trim())
+            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }
 }
