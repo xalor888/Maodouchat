@@ -7,6 +7,7 @@ import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.GroupMessageCipher
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.crypto.SenderKeyDistributionEnvelope
+import com.maodouchat.core.crypto.SenderKeyDistributionFailurePolicy
 import com.maodouchat.core.crypto.SenderKeyMessageEnvelope
 import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.ConversationId
