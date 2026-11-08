@@ -40,7 +40,7 @@ internal class ChatMessageStatusObservationController(
     internal fun observeMessageStatus() {
         uiState
             .onEach { state ->
-                if (state.chat == null) return@onEach
+                val chat = state.chat ?: return@onEach
                 val effectiveChatId = activeChatId().ifBlank { chatId }
                 if (ChatDetailAccess.activeChatId() != effectiveChatId) return@onEach
                 val currentIds = state.messages.map { it.id to it.status }
@@ -98,7 +98,7 @@ internal class ChatMessageStatusObservationController(
                             ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
                                 conversationId = effectiveChatId,
                                 throughMessageId = watermarkId,
-                                groupRevision = state.chat.memberRevision.takeIf { state.chat.isGroup },
+                                groupRevision = chat.memberRevision.takeIf { chat.isGroup },
                             )
                         }
                     } catch (error: kotlinx.coroutines.CancellationException) {
