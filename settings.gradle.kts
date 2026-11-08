@@ -29,6 +29,7 @@ rootProject.name = "Maodouchat"
 // 但目前只被 :core:testing 的 testImplementation 引用——即「已冻结的共享契约，尚未被生产代码采纳」。
 // core/session 自本轮起被生产代码采纳：SessionContext / SessionContextProvider / MutableSessionContextProvider 已迁入，:app 直接依赖。
 // core/network 自本轮起被生产代码采纳：分域 API 契约 AuthApi / MessagingApi / ConversationApi / GroupApi / KeyDeviceApi / CallSignalingApi / MediaApi（含 MediaUploadApi / MediaDownloadApi / MediaImageApi）已迁入，:app 直接依赖。
+// domain:conversation 自本轮起被生产代码采纳：会话创建端口实现 DefaultConversationCreationPort 已迁入，:app 直接依赖。
 // 要判断某个模块是不是真在用，跑 `grep -rn "com.maodouchat.core.<模块>" app/src core domain server/src`。
 include(":app")
 include(
@@ -41,4 +42,5 @@ include(
     ":core:session",
     ":core:testing",
     ":domain:messaging",
+    ":domain:conversation",
 )

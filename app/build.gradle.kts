@@ -292,6 +292,8 @@ ksp {
 dependencies {
     // M02：接入 domain:messaging 端口（ContentPayload 协议 + MessagingV2Runtime 接口）。
     implementation(project(":domain:messaging"))
+    // §4.1：会话创建端口实现 DefaultConversationCreationPort 已迁入 :domain:conversation。
+    implementation(project(":domain:conversation"))
     // M03：接入 core:crypto 端口（IdentityTrustService + 直接会话密码学端口）。
     implementation(project(":core:crypto"))
     // 核心通用领域模型（ConversationId, UserId 等）

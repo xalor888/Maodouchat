@@ -9,7 +9,7 @@ import com.maodouchat.contacts.usecase.DefaultContactMutationUseCase
 import com.maodouchat.contacts.usecase.DefaultFriendRequestUseCase
 import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ConversationCreationPort
-import com.maodouchat.conversation.DefaultConversationCreationPort
+import com.maodouchat.domain.conversation.DefaultConversationCreationPort
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.ContactsUiState
@@ -18,9 +18,11 @@ import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.data.repository.FriendCacheStore
+import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -62,6 +64,16 @@ class ContactsViewModel @JvmOverloads constructor(
         sessionProvider = {
             val snap = com.maodouchat.session.CurrentSession.snapshot()
             Pair(snap.userId, snap.token)
+        },
+        createChatApi = { token, ids, isGroup, name, type ->
+            ApiService.createChat(token, ids, isGroup, name, type)
+        },
+        isOwnerSessionCurrent = { ownerUserId, token ->
+            BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+                liveToken = token,
+                liveUserId = ownerUserId
+            )
         },
         isSecretChatFeatureEnabled = {
             RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_CHAT)
