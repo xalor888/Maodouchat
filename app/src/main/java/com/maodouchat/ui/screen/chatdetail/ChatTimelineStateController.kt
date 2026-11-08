@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMutationProjection
+import com.maodouchat.core.model.mergeMessageVersions
 
 /** Owns deterministic timeline projections; callers retain persistence and sync responsibilities. */
 internal class ChatTimelineStateController(

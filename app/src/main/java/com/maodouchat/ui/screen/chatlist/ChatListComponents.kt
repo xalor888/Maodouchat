@@ -113,7 +113,7 @@ internal fun ChatListItem(
         MessageType.NUDGE -> stringResource(R.string.message_preview_nudge)
         else -> {
             val placeholder = stringResource(R.string.message_preview_encrypted)
-            val stripped = com.maodouchat.data.repository.ChatListPreviewPolicy
+            val stripped = com.maodouchat.core.model.ChatListPreviewPolicy
                 .listVisibleText(
                     chat.lastMessage, placeholder)
             if (stripped == placeholder) placeholder

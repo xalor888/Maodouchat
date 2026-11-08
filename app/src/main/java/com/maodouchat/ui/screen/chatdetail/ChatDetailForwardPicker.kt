@@ -122,7 +122,7 @@ internal fun ChatDetailForwardPicker(
                             MessageType.VIDEO -> stringResource(R.string.message_preview_video)
                             MessageType.FILE -> stringResource(R.string.message_preview_file)
                             MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                            else -> com.maodouchat.data.repository.ChatListPreviewPolicy.redactedIfWire(
+                            else -> com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
                                 fm.parsedContent(),
                                 stringResource(R.string.chat_decrypt_failed)
                             ).replace('\n', ' ').take(40)

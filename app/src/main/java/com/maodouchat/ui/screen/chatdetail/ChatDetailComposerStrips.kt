@@ -23,6 +23,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessagePreviewText
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.TypingPresence

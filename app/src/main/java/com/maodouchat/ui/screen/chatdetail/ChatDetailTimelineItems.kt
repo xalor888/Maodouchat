@@ -27,6 +27,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.ChatMessageRowState
 import com.maodouchat.core.model.DEFAULT_QUICK_REACTION
+import com.maodouchat.core.model.MessagePreviewText
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message

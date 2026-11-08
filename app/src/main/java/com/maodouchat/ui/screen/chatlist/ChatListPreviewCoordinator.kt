@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.ChatListPreviewPolicy
+import com.maodouchat.core.model.ChatListPreviewPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import com.maodouchat.core.model.NudgeDisplayPolicy
 import com.maodouchat.core.model.Templates

@@ -1,8 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
-
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.ChatListPreviewPolicy
+package com.maodouchat.core.model
 
 /**
  * 引用条 / 气泡引用 / 星标预览：永远不要把 Signal 信封 JSON 渲成正文。

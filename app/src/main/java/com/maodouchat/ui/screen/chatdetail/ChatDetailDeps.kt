@@ -10,6 +10,7 @@ import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
 import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.conversation.ConversationCommandFacade
+import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.repository.AiMessageResultStore
