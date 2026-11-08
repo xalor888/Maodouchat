@@ -634,7 +634,8 @@ class ClientArchitectureTest {
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
         // （700 → 701，纯接线），上限按实测同步上调（两份 map 一起改）。
-        "com/maodouchat/MaodouchatApp.kt" to 701,
+        // 2026-11-08：会话作用域事件模型迁入 :core:model（SessionScopedEvent / IncomingCallWake / OpenMissedCallsRequest / OpenContactsRequest / AttachmentFinalizedEvent 搬出，701 → 684，纯搬移），上限按实测同步收紧（两份 map 一起改）。
+        "com/maodouchat/MaodouchatApp.kt" to 684,
         // 2026-10-08：SettingsScreen 拆小（936→398）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,
@@ -890,7 +891,8 @@ class ClientArchitectureTest {
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
         // （700 → 701，纯接线），上限按实测同步上调（两份 map 一起改）。
-        "com/maodouchat/MaodouchatApp.kt" to 701,
+        // 2026-11-08：会话作用域事件模型迁入 :core:model（SessionScopedEvent / IncomingCallWake / OpenMissedCallsRequest / OpenContactsRequest / AttachmentFinalizedEvent 搬出，701 → 684，纯搬移），上限按实测同步收紧（两份 map 一起改）。
+        "com/maodouchat/MaodouchatApp.kt" to 684,
         // 2026-10-08：GlobalSearchScreen 拆小（991→483）后它挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         "com/maodouchat/data/local/DatabaseMigrations.kt" to 80,

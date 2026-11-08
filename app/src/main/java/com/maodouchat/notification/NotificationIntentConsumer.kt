@@ -2,7 +2,7 @@ package com.maodouchat.notification
 
 import android.content.Context
 import android.content.Intent
-import com.maodouchat.IncomingCallWake
+import com.maodouchat.core.model.IncomingCallWake
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.core.model.AppLinkAuthGate
