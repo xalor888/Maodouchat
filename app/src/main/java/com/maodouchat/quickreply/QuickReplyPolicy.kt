@@ -5,7 +5,6 @@ import android.os.SystemClock
 import androidx.core.content.edit
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.ChatGateVerdict
-import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.SyncVerdict
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -13,7 +12,6 @@ import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
 
 /**
  * B5 快捷回复门禁与去重（纯策略，不触碰任何 View/通知）。
@@ -26,10 +24,6 @@ import java.security.MessageDigest
  *  4. App 锁开启时不显示消息预览（脱敏），但快捷回复本身属于用户主动操作，仍允许。
  */
 object QuickReplyPolicy {
-
-    // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
-    private val sha256Digest: ThreadLocal<MessageDigest> =
-        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
 
     private const val PREFS = "quick_reply"
     private const val KEY_ENABLED = "enabled"
@@ -125,15 +119,10 @@ object QuickReplyPolicy {
     }
 
     fun sanitizeReplyText(raw: String?): String =
-        raw?.trim().orEmpty().let { if (it.length > ConversationWidgetContract.MAX_REPLY_LENGTH) it.take(ConversationWidgetContract.MAX_REPLY_LENGTH) else it }
+        com.maodouchat.domain.messaging.QuickReplyPolicy.sanitizeReplyText(raw)
 
-    fun dedupeKey(ownerUserId: String, chatId: String, text: String): String {
-        val digest = sha256Digest.get()
-            .digest(text.toByteArray(Charsets.UTF_8))
-            .take(8)
-            .joinToString("") { "%02x".format(it) }
-        return "$ownerUserId|$chatId|$digest"
-    }
+    fun dedupeKey(ownerUserId: String, chatId: String, text: String): String =
+        com.maodouchat.domain.messaging.QuickReplyPolicy.dedupeKey(ownerUserId, chatId, text)
 
     private fun rememberSent(context: Context, key: String, now: Long) {
         val prefs = prefs(context)
