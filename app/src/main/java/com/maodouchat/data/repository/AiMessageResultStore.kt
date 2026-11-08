@@ -5,6 +5,7 @@ import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.mergeMessageForPersistence
 
 /** Atomically accepts a running AI operation and persists its message metadata result. */
 class AiMessageResultStore(private val database: AppDatabase) {
