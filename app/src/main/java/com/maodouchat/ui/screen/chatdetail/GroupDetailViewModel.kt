@@ -12,7 +12,7 @@ import com.maodouchat.group.GroupBotController
 import com.maodouchat.group.GroupDetailAccess
 import com.maodouchat.group.GroupEncryptionHealthController
 import com.maodouchat.group.GroupInviteController
-import com.maodouchat.group.GroupLifecycleService
+import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

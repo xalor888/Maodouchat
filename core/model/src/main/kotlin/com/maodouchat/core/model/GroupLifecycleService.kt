@@ -1,4 +1,4 @@
-package com.maodouchat.group
+package com.maodouchat.core.model
 
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.User
