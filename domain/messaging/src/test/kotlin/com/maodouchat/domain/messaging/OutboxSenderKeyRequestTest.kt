@@ -33,4 +33,17 @@ class OutboxSenderKeyRequestTest {
         assertEquals("requestedSenderUserId", ATTRIBUTE_REQUESTED_SENDER)
         assertEquals("failedMessageId", ATTRIBUTE_FAILED_MESSAGE_ID)
     }
+
+    @Test
+    fun `request content carries type and both attributes`() {
+        val content = senderKeyRequestContent("alice", "msg-1")
+        assertEquals(TYPE_SENDER_KEY_REQUEST, content.type)
+        assertEquals(
+            mapOf(
+                ATTRIBUTE_REQUESTED_SENDER to "alice",
+                ATTRIBUTE_FAILED_MESSAGE_ID to "msg-1",
+            ),
+            content.attributes,
+        )
+    }
 }
