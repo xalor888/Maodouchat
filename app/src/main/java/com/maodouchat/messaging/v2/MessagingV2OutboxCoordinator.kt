@@ -8,6 +8,7 @@ import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.domain.messaging.OutboxFailurePolicy
+import com.maodouchat.domain.messaging.messagingErrorCode
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.CancellationException
@@ -156,7 +157,7 @@ class MessagingV2OutboxCoordinator(
             ownerUserId = message.ownerUserId,
             expectedState = expectedState,
             retryState = retryState,
-            errorCode = error.message?.take(120)?.ifBlank { null } ?: error::class.java.simpleName,
+            errorCode = messagingErrorCode(error),
             nextAttemptAt = nextAttemptAt,
             now = clock(),
         )

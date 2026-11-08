@@ -12,6 +12,7 @@ import com.maodouchat.core.model.ReactionMutationPolicy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneKind
+import com.maodouchat.domain.messaging.MessageEventMissingTargetPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import com.maodouchat.core.model.MessageType
@@ -41,46 +42,39 @@ internal class MessageEventProjector(
 
         val existing = messageStore.getMessageById(event.targetMessageId)
         if (existing == null) {
-            if (event.action in TERMINAL_ACTIONS) {
-                val kind = when (event.action) {
-                    MessagingV2EventAction.REVOKE -> MessageMutationTombstoneKind.REVOKE
-                    else -> MessageMutationTombstoneKind.DELETE
-                }
-                app.database.withTransaction {
-                    app.database.messagingV2Dao().upsertMessageTombstone(
-                        MessageMutationTombstoneEntity(
-                            ownerUserId = owner,
-                            messageId = event.targetMessageId,
-                            conversationId = envelope.conversationId,
-                            kind = kind,
-                            terminalAt = envelope.serverTimestamp,
-                        ),
-                    )
-                }
-                cleanupTerminalArtifacts(
-                    conversationId = envelope.conversationId,
-                    messageId = event.targetMessageId,
-                    ownerUserId = owner,
-                )
-                if (event.action == MessagingV2EventAction.DELETE) {
-                    MaodouchatApp.emitChatListPreviewRefresh(envelope.conversationId)
-                }
-                onAuthoritativeMutation(
-                    MessagingV2AuthoritativeMutation(
+            when (val decision = MessageEventMissingTargetPolicy.decide(event.action)) {
+                is MessageEventMissingTargetPolicy.MissingTargetDecision.Tombstone -> {
+                    app.database.withTransaction {
+                        app.database.messagingV2Dao().upsertMessageTombstone(
+                            MessageMutationTombstoneEntity(
+                                ownerUserId = owner,
+                                messageId = event.targetMessageId,
+                                conversationId = envelope.conversationId,
+                                kind = decision.kind.name,
+                                terminalAt = envelope.serverTimestamp,
+                            ),
+                        )
+                    }
+                    cleanupTerminalArtifacts(
                         conversationId = envelope.conversationId,
                         messageId = event.targetMessageId,
-                        kind = if (event.action == MessagingV2EventAction.REVOKE) {
-                            MessageMutationKind.REVOKE
-                        } else {
-                            MessageMutationKind.DELETE
-                        },
-                    ),
-                )
-                return
-            } else if (event.action in MISSING_TARGET_NO_OP_ACTIONS) {
-                return
-            } else {
-                error("messaging_v2_event_target_missing:${event.targetMessageId}")
+                        ownerUserId = owner,
+                    )
+                    if (event.action == MessagingV2EventAction.DELETE) {
+                        MaodouchatApp.emitChatListPreviewRefresh(envelope.conversationId)
+                    }
+                    onAuthoritativeMutation(
+                        MessagingV2AuthoritativeMutation(
+                            conversationId = envelope.conversationId,
+                            messageId = event.targetMessageId,
+                            kind = decision.kind,
+                        ),
+                    )
+                    return
+                }
+                MessageEventMissingTargetPolicy.MissingTargetDecision.NoOp -> return
+                MessageEventMissingTargetPolicy.MissingTargetDecision.Error ->
+                    error("messaging_v2_event_target_missing:${event.targetMessageId}")
             }
         }
 
@@ -263,18 +257,5 @@ internal class MessageEventProjector(
         ) {
             MaodouchatApp.emitChatListPreviewRefresh(existing.chatId)
         }
-    }
-
-    private companion object {
-        val TERMINAL_ACTIONS = setOf(
-            MessagingV2EventAction.DELETE,
-            MessagingV2EventAction.REVOKE,
-        )
-        val MISSING_TARGET_NO_OP_ACTIONS = setOf(
-            MessagingV2EventAction.DELETE,
-            MessagingV2EventAction.DELIVERY_RECEIPT,
-            MessagingV2EventAction.READ_RECEIPT,
-            MessagingV2EventAction.PLAY_RECEIPT,
-        )
     }
 }
