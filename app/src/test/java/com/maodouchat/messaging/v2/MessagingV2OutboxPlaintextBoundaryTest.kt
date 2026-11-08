@@ -7,6 +7,7 @@ import com.maodouchat.core.model.SendMessageResponseV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
+import com.maodouchat.domain.messaging.PreparedMessageV2
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService

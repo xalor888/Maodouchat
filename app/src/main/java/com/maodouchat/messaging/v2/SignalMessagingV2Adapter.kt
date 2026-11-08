@@ -14,6 +14,7 @@ import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.domain.messaging.OutboxWireFormat
+import com.maodouchat.domain.messaging.PreparedMessageV2
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.serialization.json.Json

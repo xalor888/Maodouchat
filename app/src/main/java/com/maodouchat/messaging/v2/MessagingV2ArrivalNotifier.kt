@@ -4,7 +4,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatQuietHoursPolicy
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.ArrivalPreview
+import com.maodouchat.domain.messaging.ArrivalPreviewPolicy
 import com.maodouchat.notification.ChatQuietHoursStore
 import com.maodouchat.core.model.LocalNotificationSuppressPolicy
 import com.maodouchat.notification.MessageNotificationService
@@ -58,19 +59,16 @@ class MessagingV2ArrivalNotifier(
         )
     }
 
-    private fun preview(message: Message): String = when (message.type) {
-        MessageType.TEXT,
-        MessageType.MARKDOWN,
-        MessageType.SYSTEM -> message.parsedContent().take(500)
-        MessageType.IMAGE -> app.getString(R.string.message_preview_image)
-        MessageType.GIF -> app.getString(R.string.message_preview_gif)
-        MessageType.STICKER -> app.getString(R.string.message_preview_sticker)
-        MessageType.LOCATION -> app.getString(R.string.message_preview_location)
-        MessageType.VOICE -> app.getString(R.string.message_preview_voice)
-        MessageType.VIDEO -> app.getString(R.string.message_preview_video)
-        MessageType.FILE -> app.getString(R.string.message_preview_file)
-        MessageType.NUDGE -> app.getString(R.string.message_preview_nudge)
-        MessageType.REVOKED,
-        MessageType.SK_DIST -> app.getString(R.string.notification_encrypted_message)
+    private fun preview(message: Message): String = when (val preview = ArrivalPreviewPolicy.preview(message)) {
+        is ArrivalPreview.Text -> preview.text
+        ArrivalPreview.Image -> app.getString(R.string.message_preview_image)
+        ArrivalPreview.Gif -> app.getString(R.string.message_preview_gif)
+        ArrivalPreview.Sticker -> app.getString(R.string.message_preview_sticker)
+        ArrivalPreview.Location -> app.getString(R.string.message_preview_location)
+        ArrivalPreview.Voice -> app.getString(R.string.message_preview_voice)
+        ArrivalPreview.Video -> app.getString(R.string.message_preview_video)
+        ArrivalPreview.File -> app.getString(R.string.message_preview_file)
+        ArrivalPreview.Nudge -> app.getString(R.string.message_preview_nudge)
+        ArrivalPreview.Encrypted -> app.getString(R.string.notification_encrypted_message)
     }
 }
