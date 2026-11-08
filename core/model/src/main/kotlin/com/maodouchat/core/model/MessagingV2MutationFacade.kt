@@ -1,11 +1,5 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessagingV2Event
-import com.maodouchat.core.model.MessagingV2EventAction
-import com.maodouchat.core.model.MessagingV2EventOutbox
-import com.maodouchat.core.model.MessagingV2MutationCommit
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageReaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -14,7 +8,7 @@ import kotlinx.coroutines.withContext
  * Owns the durable message-mutation boundary. UI callers may stage optimistic state, but a
  * mutation is accepted only after its encrypted event is durable in the v2 outbox.
  */
-internal class MessagingV2MutationFacade(
+class MessagingV2MutationFacade(
     private val eventOutbox: MessagingV2EventOutbox,
     private val persistDeleted: suspend (String) -> Unit,
     private val persistRevoked: suspend (String, Message) -> Unit,

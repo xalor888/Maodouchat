@@ -430,7 +430,8 @@ class ClientArchitectureTest {
         // 按实测值纳入监管（两份 map 一起加）。
         // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-11-08：mergeMessageVersions 迁入 :core:model，ChatDetailDeps 加一行 import（809 → 810，纯接线），上限按实测同步上调（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 810,
+        // 2026-11-08：消息变更簇迁入 :core:model，ChatDetailDeps 加一行 MessageTerminalStore import（810 → 811，纯接线），上限按实测同步上调（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 811,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -725,7 +726,8 @@ class ClientArchitectureTest {
             // 按实测值纳入监管（两份 map 一起加）。
             // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
             // 2026-11-08：mergeMessageVersions 迁入 :core:model，ChatDetailDeps 加一行 import（809 → 810，纯接线），上限按实测同步上调（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 810,
+            // 2026-11-08：消息变更簇迁入 :core:model，ChatDetailDeps 加一行 MessageTerminalStore import（810 → 811，纯接线），上限按实测同步上调（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 811,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；

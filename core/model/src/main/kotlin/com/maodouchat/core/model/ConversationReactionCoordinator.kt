@@ -1,16 +1,11 @@
-package com.maodouchat.messaging.v2
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.ConversationReactionOutcome
-import com.maodouchat.core.model.ReactionLock
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.ReactionMutationPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
 /** Serializes actor-scoped reaction toggles per message around the durable v2 commit boundary. */
-internal class ConversationReactionCoordinator(
+class ConversationReactionCoordinator(
     private val facade: MessagingV2MutationFacade,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {

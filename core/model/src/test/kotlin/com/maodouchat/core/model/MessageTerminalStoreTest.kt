@@ -1,11 +1,5 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.core.model
 
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.MessageTerminalStore
-import com.maodouchat.ui.screen.chatdetail.toRevokedPlaceholder
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -672,7 +666,6 @@ class MessageTerminalStoreTest {
         assertTrue(failure is AssertionError)
         assertEquals(listOf("media:message-1"), effects)
     }
-
 
     @Test
     fun `revoked placeholder preserves identity and scheduling fields`() = runTest {
