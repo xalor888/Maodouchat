@@ -18,6 +18,7 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.forwarding.ConversationForwardCoordinator
 import com.maodouchat.core.model.GroupLifecycleCoordinator
+import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
 import com.maodouchat.core.model.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
@@ -35,6 +36,7 @@ import com.maodouchat.util.VoiceRecorder
 import com.maodouchat.core.model.AiChatClassificationSource
 import com.maodouchat.core.model.AiEmotionReplySource
 import com.maodouchat.core.model.AiWeeklyReportSource
+import com.maodouchat.core.model.ChatDetailAiBookkeeping
 import com.maodouchat.core.model.ChatDetailDraftBookkeeping
 import com.maodouchat.core.model.ChatDetailLiveLocationBookkeeping
 import com.maodouchat.core.model.ChatDetailReadReceiptBookkeeping
@@ -269,7 +271,7 @@ internal class ChatDetailDeps(
         },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
-    internal val groupLifecycleService: com.maodouchat.group.GroupLifecycleService by lazy {
+    internal val groupLifecycleService: GroupLifecycleService by lazy {
         com.maodouchat.group.DefaultGroupLifecycleService(
             coordinator = groupLifecycleCoordinator,
             tokenProvider = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },

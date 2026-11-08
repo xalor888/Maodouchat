@@ -5,7 +5,7 @@ import com.maodouchat.group.GroupAuditController
 import com.maodouchat.group.GroupBotController
 import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.group.GroupEncryptionHealthController
-import com.maodouchat.group.GroupLifecycleService
+import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy

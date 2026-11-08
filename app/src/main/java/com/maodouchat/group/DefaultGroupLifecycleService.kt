@@ -8,6 +8,7 @@ import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupMembershipStore
 import com.maodouchat.core.model.GroupMutationCommit
+import com.maodouchat.core.model.GroupLifecycleService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

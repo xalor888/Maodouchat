@@ -12,7 +12,7 @@ import com.maodouchat.core.model.User
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.group.GroupLifecycleService
+import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CoroutineScope
