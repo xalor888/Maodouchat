@@ -4,6 +4,7 @@ import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.canRetryWithoutUpload
 import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.domain.messaging.AttachmentWorkerAction
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
