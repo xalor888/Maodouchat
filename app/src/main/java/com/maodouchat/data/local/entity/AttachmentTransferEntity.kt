@@ -3,6 +3,7 @@ package com.maodouchat.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.maodouchat.domain.messaging.AttachmentWorkerPolicy
 
 @Entity(
     tableName = "attachment_transfers",
@@ -46,7 +47,7 @@ object AttachmentTransferState {
 }
 
 fun AttachmentTransferEntity.hasCompletedUpload(): Boolean =
-    !attachmentId.isNullOrBlank() && cipherSize > 0L && uploadedBytes == cipherSize
+    AttachmentWorkerPolicy.hasCompletedUpload(attachmentId, cipherSize, uploadedBytes)
 
 fun AttachmentTransferEntity.canRetryWithoutUpload(): Boolean =
-    state in setOf(AttachmentTransferState.FAILED, AttachmentTransferState.PAUSED) && hasCompletedUpload()
+    AttachmentWorkerPolicy.canRetryWithoutUpload(state, hasCompletedUpload())
