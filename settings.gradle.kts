@@ -32,6 +32,7 @@ rootProject.name = "Maodouchat"
 // domain:conversation 自本轮起被生产代码采纳：会话创建端口实现 DefaultConversationCreationPort 已迁入，:app 直接依赖。
 // domain:contacts 自本轮起被生产代码采纳：联系人变更与好友申请用例实现 DefaultContactMutationUseCase / DefaultFriendRequestUseCase 已迁入，:app 直接依赖。
 // domain:groups 自本轮起被生产代码采纳：群生命周期服务实现 DefaultGroupLifecycleService 与群邀请/审计/机器人/加密健康控制器已迁入，:app 直接依赖。
+// domain:calls 自本轮起被生产代码采纳：通话记录编解码与增删裁剪 CallLogPolicy 已迁入，:app 直接依赖。
 // 要判断某个模块是不是真在用，跑 `grep -rn "com.maodouchat.core.<模块>" app/src core domain server/src`。
 include(":app")
 include(
@@ -47,4 +48,5 @@ include(
     ":domain:conversation",
     ":domain:contacts",
     ":domain:groups",
+    ":domain:calls",
 )
