@@ -7,9 +7,8 @@ import com.maodouchat.core.model.AttachmentTransferDisposition
 import com.maodouchat.data.local.dao.AttachmentTransferDao
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.domain.messaging.AttachmentTransferErrorPolicy
 import com.maodouchat.domain.messaging.AttachmentWorkerAction
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
@@ -94,12 +93,7 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             // 否则该行永久停在 UPLOADING 转圈
             if (!sessionActive(ownerUserId)) return AttachmentTransferDisposition.SUCCESS
             val pending = dao.get(messageId, ownerUserId = ownerUserId)
-            return when (pending?.state) {
-                AttachmentTransferState.QUEUED,
-                AttachmentTransferState.UPLOADING,
-                AttachmentTransferState.FAILED -> AttachmentTransferDisposition.RETRY
-                else -> AttachmentTransferDisposition.SUCCESS
-            }
+            return AttachmentTransferErrorPolicy.claimFailureDisposition(pending?.state)
         }
         return try {
             ensureSessionActive(ownerUserId)
@@ -150,9 +144,9 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             if (!sessionActive(ownerUserId)) {
                 throw CancellationException("attachment_session_changed").apply { initCause(error) }
             }
-            val code = error.transferErrorCode()
+            val code = AttachmentTransferErrorPolicy.transferErrorCode(error)
             Log.w(TAG, "Attachment transfer failed: $messageId ($code)", error)
-            if (runAttemptCount < MAX_RETRIES && error.isRetryableTransferError()) {
+            if (runAttemptCount < MAX_RETRIES && AttachmentTransferErrorPolicy.isRetryableTransferError(error)) {
                 // Soft-fail: leave QUEUED/UPLOADING (or requeue) without FAILED flash mid-retry.
                 val row = dao.get(messageId, ownerUserId = ownerUserId)
                 ensureSessionActive(ownerUserId)
@@ -197,19 +191,6 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             }
         }
         is AttachmentFinalizeOutcome.Failed -> AttachmentTransferDisposition.FAILURE
-    }
-
-    private fun Throwable.transferErrorCode(): String = when (this) {
-        is ApiException -> "${kind.name}_${statusCode ?: 0}"
-        else -> this::class.java.simpleName.take(80).ifBlank { "UNKNOWN" }
-    }
-
-    private fun Throwable.isRetryableTransferError(): Boolean = when (this) {
-        is ApiException -> retryAfterSeconds != null ||
-            kind in setOf(ApiFailureKind.NETWORK, ApiFailureKind.TIMEOUT) ||
-            statusCode == 429 ||
-            (statusCode ?: 0) >= 500
-        else -> this is java.io.IOException
     }
 
     private fun sessionActive(expectedOwnerUserId: String): Boolean =
