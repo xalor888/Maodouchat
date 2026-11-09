@@ -4,13 +4,12 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentFinalizeOutcome
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.messaging.AttachmentFinalizeFailure
+import com.maodouchat.domain.messaging.composeFinalizeContent
 import com.maodouchat.domain.messaging.decideFinalizeFailure
 import com.maodouchat.domain.messaging.isFinalizeEligible
 import com.maodouchat.domain.messaging.sendFailureCode
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
@@ -21,7 +20,6 @@ import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
 
@@ -137,7 +135,7 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
             )
             val finalMessage = original.copy(
                 chatId = transfer.chatId,
-                content = composeContent(MediaCache.attachmentUri(attachmentId), finalMeta),
+                content = composeFinalizeContent(MediaCache.attachmentUri(attachmentId), finalMeta),
                 type = messageType,
                 status = MessageStatus.SENDING,
                 meta = finalMeta,
@@ -266,12 +264,5 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
         if (!sessionActive(tokenManager, expectedOwnerUserId)) {
             throw CancellationException("attachment_session_changed")
         }
-    }
-
-    private fun composeContent(text: String, meta: MessageMeta): String {
-        // Must encode MessageMeta as a JSON object; JsonFormat.encode(data class) used to
-        // stringify toString() and permanently lose attachment keys after process death.
-        val encoded = JsonFormat.encodeMessageMeta(meta)
-        return "$text${Message.META_TAG_PREFIX}$encoded</meta>"
     }
 }
