@@ -3,48 +3,29 @@ package com.maodouchat.call
 import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
+import com.maodouchat.domain.calls.decodeCallLog
+import com.maodouchat.domain.calls.encodeCallLog
+import com.maodouchat.domain.calls.removeCallLogEntry
+import com.maodouchat.domain.calls.upsertCallLog
 import com.maodouchat.util.currentUserId
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * 全量通话记录（8.52）：本地按账号保存呼出/已接/未接通话 + 时长。
  * 与 MissedCallRecorder 互补（未接来电另写 Room 用于会话列表卡片/角标）；
- * 本 store 提供完整历史，UI 展示最近 [MAX_ENTRIES] 条。
+ * 本 store 提供完整历史，UI 展示最近 MAX_CALL_LOG_ENTRIES 条。
+ * 编解码与增删裁剪见 :domain:calls 的 CallLogPolicy，这里只留
+ * SharedPreferences 读写与账号守卫。
  */
 object CallLogStore {
 
     private const val PREFS_NAME = "call_log_store"
     private const val KEY_LOG = "call_log"
-    private const val MAX_ENTRIES = 200
 
     fun list(context: Context, peerId: String? = null): List<CallLogEntry> {
         val userId = currentUserId(context) ?: return emptyList()
-        return runCatching {
-            val arr = JSONArray(prefs(context).getString(key(userId), null) ?: return emptyList())
-            buildList {
-                for (i in 0 until arr.length()) {
-                    val obj = arr.optJSONObject(i) ?: continue
-                    val peer = obj.optString("peer").trim()
-                    if (peerId != null && peer != peerId) continue
-                    add(
-                        CallLogEntry(
-                            id = obj.optString("id"),
-                            peerId = peer,
-                            peerName = obj.optString("name"),
-                            isVideo = obj.optBoolean("video", false),
-                            direction = if (obj.optString("dir") == "out") Direction.OUTGOING else Direction.INCOMING,
-                            state = if (obj.optString("state") == "missed") State.MISSED else State.ANSWERED,
-                            startedAt = obj.optLong("at", 0L),
-                            durationMs = obj.optLong("dur", 0L),
-                            isGroup = obj.optBoolean("group", false)
-                        )
-                    )
-                }
-            }
-        }.getOrDefault(emptyList()).sortedByDescending { it.startedAt }
+        val raw = prefs(context).getString(key(userId), null) ?: return emptyList()
+        val entries = decodeCallLog(raw) ?: return emptyList()
+        return if (peerId == null) entries else entries.filter { it.peerId == peerId }
     }
 
     fun listForChat(context: Context, peerId: String): List<CallLogEntry> =
@@ -59,29 +40,10 @@ object CallLogStore {
         // 避免 repo.insert 挂起点与 upsert 之间换号导致旧通话写进新账号 key
         if (expectedUserId != null && expectedUserId != liveUserId) return
         if (entry.id.isBlank() || entry.peerId.isBlank()) return
+        // 已存 JSON 损坏时不覆盖（与原 runCatching 静默放弃一致）。
+        val existing = decodeCallLog(prefs(context).getString(key(liveUserId), null) ?: "[]") ?: return
         runCatching {
-            val arr = JSONArray(prefs(context).getString(key(liveUserId), null) ?: "[]")
-            val next = JSONArray()
-            var replaced = false
-            for (i in 0 until arr.length()) {
-                val obj = arr.optJSONObject(i) ?: continue
-                if (obj.optString("id") == entry.id) {
-                    next.put(encode(entry))
-                    replaced = true
-                } else {
-                    next.put(obj)
-                }
-            }
-            if (!replaced) next.put(encode(entry))
-            // 截断到最近 MAX_ENTRIES：按 startedAt 降序裁剪，避免乱序写入（晚写旧记录）
-            // 导致按插入序 remove(0) 裁掉较新记录。
-            val trimmed = JSONArray()
-            (0 until next.length())
-                .map { next.getJSONObject(it) }
-                .sortedByDescending { it.optLong("at", 0L) }
-                .take(MAX_ENTRIES)
-                .forEach { trimmed.put(it) }
-            prefs(context).edit { putString(key(liveUserId), trimmed.toString()) }
+            prefs(context).edit { putString(key(liveUserId), encodeCallLog(upsertCallLog(existing, entry))) }
         }
     }
 
@@ -105,33 +67,16 @@ object CallLogStore {
     fun remove(context: Context, entryId: String): Boolean {
         if (entryId.isBlank()) return false
         val userId = currentUserId(context) ?: return false
-        var removed = false
-        runCatching {
-            val arr = JSONArray(prefs(context).getString(key(userId), null) ?: "[]")
-            val next = JSONArray()
-            for (i in 0 until arr.length()) {
-                val obj = arr.optJSONObject(i) ?: continue
-                if (obj.optString("id") != entryId) next.put(obj) else removed = true
-            }
-            if (removed) {
-                prefs(context).edit { putString(key(userId), next.toString()) }
+        val existing = decodeCallLog(prefs(context).getString(key(userId), null) ?: "[]") ?: return false
+        val next = removeCallLogEntry(existing, entryId)
+        val removed = next.size != existing.size
+        if (removed) {
+            runCatching {
+                prefs(context).edit { putString(key(userId), encodeCallLog(next)) }
             }
         }
         return removed
     }
-
-    private fun encode(entry: CallLogEntry): JSONObject =
-        JSONObject()
-            .put("id", entry.id)
-            .put("peer", entry.peerId)
-            .put("name", entry.peerName)
-            .put("video", entry.isVideo)
-            .put("dir", if (entry.direction == Direction.OUTGOING) "out" else "in")
-            .put("state", if (entry.state == State.MISSED) "missed" else "answered")
-            .put("at", entry.startedAt)
-            .put("dur", entry.durationMs)
-            .put("group", entry.isGroup)
-
 
     private fun prefs(context: Context): android.content.SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

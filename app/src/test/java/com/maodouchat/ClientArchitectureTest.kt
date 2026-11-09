@@ -1674,6 +1674,9 @@ class ClientArchitectureTest {
         "domain/conversation",
         "domain/contacts",
         "domain/groups",
+        // #1674：新建 :domain:calls 并随迁首个测试（CallLogPolicyTest），
+        // 有测试的模块集合刻意 +1。
+        "domain/calls",
     )
 
     @Test

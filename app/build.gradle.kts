@@ -298,6 +298,8 @@ dependencies {
     implementation(project(":domain:contacts"))
     // §4.1：群生命周期服务与群控制器实现已迁入 :domain:groups。
     implementation(project(":domain:groups"))
+    // §4.1：通话记录编解码与增删裁剪 CallLogPolicy 已迁入 :domain:calls。
+    implementation(project(":domain:calls"))
     // M03：接入 core:crypto 端口（IdentityTrustService + 直接会话密码学端口）。
     implementation(project(":core:crypto"))
     // 核心通用领域模型（ConversationId, UserId 等）
