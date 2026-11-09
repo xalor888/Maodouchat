@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
@@ -7,7 +7,7 @@ import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.core.model.ChatDetailUiState
 
 /** Owns deterministic timeline projections; callers retain persistence and sync responsibilities. */
-internal class ChatTimelineStateController(
+class ChatTimelineStateController(
     private val merge: (List<Message>, List<Message>) -> List<Message> = ::mergeMessageVersions,
 ) {
     fun mergeIncoming(state: ChatDetailUiState, incoming: List<Message>): ChatDetailUiState =

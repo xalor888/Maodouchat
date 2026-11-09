@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.ChatLoadEffect
@@ -23,7 +23,7 @@ import com.maodouchat.core.model.ChatLoadPlan
  *
  * 这样「决策」可测，「执行」仍留在编排层，边界清晰。
  */
-internal object ChatDetailLoadCoordinator {
+object ChatDetailLoadCoordinator {
 
     /**
      * 决定一次会话加载要写什么状态、触发哪些副作用。

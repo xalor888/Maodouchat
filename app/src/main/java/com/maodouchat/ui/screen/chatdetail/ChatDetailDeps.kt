@@ -17,6 +17,9 @@ import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
+import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
+import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
+import com.maodouchat.domain.conversation.ChatTimelineStateController
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.group.createAndroidGroupLifecycleService
@@ -59,10 +62,7 @@ import com.maodouchat.core.model.toDomainChat
  * 在需要读 VM 状态或调用 VM 方法时用 `host.xxx`。反向调用只发生在 lambda / 方法引用里
  * （构造期不触碰），所以运行期不会形成环。本类是 `internal`，不对外暴露。
  *
- * 搬移只做了四类机械改写：`_uiState`/`chatId`/`token`/`app` 等 VM 成员 → `host.xxx`；
- * `getApplication()` → 构造参数 `application`；`viewModelScope` → `host.viewModelScope`；
- * 隐式 `this` 的方法引用 `::m` → `host::m`。**每一行的构造顺序与内容都与搬出前一致**
- * （顺序有语义：后面的协调器引用前面构造出来的仓库）。
+ * 构造顺序有语义：后面的协调器引用前面构造出来的仓库。
  */
 internal class ChatDetailDeps(
     private val application: Application,

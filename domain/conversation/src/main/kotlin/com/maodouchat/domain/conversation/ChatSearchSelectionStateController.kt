@@ -1,10 +1,10 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.SemanticSearchAdmission
 
 /** UI-only search admission, navigation, and semantic-search reset behavior. */
-internal class ChatSearchSelectionStateController {
+class ChatSearchSelectionStateController {
 
     fun admitSemanticSearch(
         state: ChatDetailUiState,

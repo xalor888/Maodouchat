@@ -1,11 +1,10 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.ui.screen.chatdetail.ChatTimelineStateController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
