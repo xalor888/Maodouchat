@@ -1,7 +1,6 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
-import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2ConversationSnapshot
 import com.maodouchat.core.model.MessagingV2DeviceTarget
@@ -10,18 +9,24 @@ import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.domain.messaging.DecryptPath
 import com.maodouchat.domain.messaging.DuplicateEnvelopeRecovery
 import com.maodouchat.domain.messaging.EnvelopePrepareRoute
 import com.maodouchat.domain.messaging.OutboxWireFormat
 import com.maodouchat.domain.messaging.PreparedMessageV2
+import com.maodouchat.domain.messaging.SENDER_KEY_INSTALL_FAILURE_MESSAGE
+import com.maodouchat.domain.messaging.decideDecryptPath
 import com.maodouchat.domain.messaging.decideDuplicateRecovery
 import com.maodouchat.domain.messaging.decideEnvelopePrepareRoute
 import com.maodouchat.domain.messaging.decideGroupControlPayload
+import com.maodouchat.domain.messaging.decryptFailureMessage
 import com.maodouchat.domain.messaging.decryptedEnvelopeContent
 import com.maodouchat.domain.messaging.deviceEnvelopes
 import com.maodouchat.domain.messaging.envelopeTargetsCovered
+import com.maodouchat.domain.messaging.isSenderKeyInstallFailure
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.domain.messaging.requiredRecipientIds
+import com.maodouchat.domain.messaging.resolveSenderKeyMissingEpoch
 import com.maodouchat.domain.messaging.senderKeyEnvelopes
 import com.maodouchat.domain.messaging.serviceEnvelopeContent
 import com.maodouchat.domain.messaging.targetUserIds
@@ -172,15 +177,14 @@ class SignalMessagingV2EnvelopeProcessor(
             )?.let { domainSink.commit(envelope, it) }
             return
         }
-        val decrypted = if (envelope.ciphertextType == CIPHERTEXT_SENDER_KEY) {
-            signalProtocol.decryptGroupContentEnvelope(
+        val decrypted = when (decideDecryptPath(envelope.ciphertextType)) {
+            DecryptPath.GROUP -> signalProtocol.decryptGroupContentEnvelope(
                 senderId = envelope.senderUserId,
                 content = envelope.ciphertext,
                 expectedGroupId = envelope.conversationId,
                 currentEpoch = groupRevisionProvider(envelope.conversationId),
             )
-        } else {
-            signalProtocol.decryptDeviceCiphertext(
+            DecryptPath.DEVICE -> signalProtocol.decryptDeviceCiphertext(
                 senderId = envelope.senderUserId,
                 senderDeviceId = envelope.senderDeviceId,
                 ciphertextType = envelope.ciphertextType,
@@ -190,17 +194,17 @@ class SignalMessagingV2EnvelopeProcessor(
         when (decrypted) {
             is DecryptResult.Success -> {
                 if (envelope.kind == KIND_SENDER_KEY) {
-                    when (
-                        signalProtocol.processSenderKeyDistributionEnvelope(
-                            senderId = envelope.senderUserId,
-                            content = decrypted.plaintext,
-                            expectedGroupId = envelope.conversationId,
-                            currentEpoch = groupRevisionProvider(envelope.conversationId),
+                    if (
+                        isSenderKeyInstallFailure(
+                            signalProtocol.processSenderKeyDistributionEnvelope(
+                                senderId = envelope.senderUserId,
+                                content = decrypted.plaintext,
+                                expectedGroupId = envelope.conversationId,
+                                currentEpoch = groupRevisionProvider(envelope.conversationId),
+                            ),
                         )
                     ) {
-                        SenderKeyDistOutcome.Installed,
-                        SenderKeyDistOutcome.Skipped -> Unit
-                        SenderKeyDistOutcome.Failed -> error("messaging_v2_sender_key_install_failed")
+                        error(SENDER_KEY_INSTALL_FAILURE_MESSAGE)
                     }
                 } else {
                     // Journal before parsing/commit: the ratchet step is already persisted at
@@ -244,24 +248,22 @@ class SignalMessagingV2EnvelopeProcessor(
                 }
             }
             DecryptResult.NoSession -> {
-                if (envelope.ciphertextType == CIPHERTEXT_SENDER_KEY) {
-                    val epoch = envelope.groupRevision
-                        ?: groupRevisionProvider(envelope.conversationId)
-                        ?: 0L
-                    if (epoch > 0L) onSenderKeyMissing(envelope, epoch)
-                }
-                error("messaging_v2_no_session")
+                resolveSenderKeyMissingEpoch(
+                    ciphertextType = envelope.ciphertextType,
+                    envelopeGroupRevision = envelope.groupRevision,
+                    providedRevision = { groupRevisionProvider(envelope.conversationId) },
+                )?.let { onSenderKeyMissing(envelope, it) }
+                error(decryptFailureMessage(decrypted))
             }
-            DecryptResult.UntrustedIdentity -> error("messaging_v2_untrusted_identity")
-            DecryptResult.FutureEpoch -> error("messaging_v2_future_group_revision")
-            DecryptResult.NotForThisDevice -> error("messaging_v2_wrong_device")
-            DecryptResult.UnsupportedEnvelope -> error("messaging_v2_unsupported_ciphertext")
-            DecryptResult.Failed -> error("messaging_v2_decrypt_failed")
+            DecryptResult.UntrustedIdentity -> error(decryptFailureMessage(decrypted))
+            DecryptResult.FutureEpoch -> error(decryptFailureMessage(decrypted))
+            DecryptResult.NotForThisDevice -> error(decryptFailureMessage(decrypted))
+            DecryptResult.UnsupportedEnvelope -> error(decryptFailureMessage(decrypted))
+            DecryptResult.Failed -> error(decryptFailureMessage(decrypted))
         }
     }
 
     private companion object {
-        const val CIPHERTEXT_SENDER_KEY = "SENDER_KEY"
         const val KIND_SENDER_KEY = "SENDER_KEY"
         const val KIND_SERVICE = "SERVICE"
     }

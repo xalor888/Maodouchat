@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:crypto"))
     implementation(project(":core:serialization"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
