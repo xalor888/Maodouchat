@@ -2,7 +2,10 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
+import com.maodouchat.domain.messaging.InboxPullContinuation
 import com.maodouchat.domain.messaging.InboxRetryPolicy
+import com.maodouchat.domain.messaging.decideInboxPullContinuation
+import com.maodouchat.domain.messaging.shouldFetchMoreAcknowledgements
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.toEntity
 import kotlinx.coroutines.CancellationException
@@ -42,8 +45,7 @@ class MessagingV2InboxSynchronizer(
                 dao.insertInbox(page.envelopes.map { it.toEntity(ownerUserId, deviceId, pulledAt) })
                 val batchCompleted = processAvailable(ownerUserId, deviceId)
                 flushAcknowledgements(token, ownerUserId, deviceId)
-                if (!batchCompleted) return
-                if (!page.hasMore) return
+                if (decideInboxPullContinuation(batchCompleted, page.hasMore) == InboxPullContinuation.STOP) return
             }
         }
     }
@@ -95,7 +97,7 @@ class MessagingV2InboxSynchronizer(
             check(response.acknowledged == ids.size) { "messaging_v2_ack_incomplete" }
             dao.deleteAcknowledgedInbox(ownerUserId, deviceId, ids)
             dao.markDeadLettersAcknowledged(ownerUserId, deviceId, ids, clock())
-            if (ids.size < ACK_LIMIT) return
+            if (!shouldFetchMoreAcknowledgements(ids.size, ACK_LIMIT)) return
         }
     }
 

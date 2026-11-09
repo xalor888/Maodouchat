@@ -6,8 +6,10 @@ import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
+import com.maodouchat.domain.messaging.OutboxClaimAction
 import com.maodouchat.domain.messaging.OutboxFailurePolicy
 import com.maodouchat.domain.messaging.OutboxRetryPolicy
+import com.maodouchat.domain.messaging.decideOutboxClaimAction
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.CancellationException
@@ -37,10 +39,11 @@ class MessagingV2OutboxCoordinator(
             )
             repeat(MAX_MESSAGES_PER_RUN) {
                 val claimed = dao.claimNextOutbox(ownerUserId, clock()) ?: return
-                when (claimed.state) {
-                    MessagingV2OutboxState.PREPARING -> prepare(token, claimed)
-                    MessagingV2OutboxState.SENDING -> send(token, claimed)
-                    else -> error("messaging_v2_invalid_claim_state:${claimed.state}")
+                when (val action = decideOutboxClaimAction(claimed.state)) {
+                    OutboxClaimAction.Prepare -> prepare(token, claimed)
+                    OutboxClaimAction.Send -> send(token, claimed)
+                    is OutboxClaimAction.Invalid ->
+                        error("messaging_v2_invalid_claim_state:${action.state}")
                 }
             }
         }
