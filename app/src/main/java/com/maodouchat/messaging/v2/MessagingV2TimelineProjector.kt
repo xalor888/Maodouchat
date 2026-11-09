@@ -2,7 +2,6 @@ package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessagingV2ArrivalPolicy
 import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import com.maodouchat.core.model.ContentPayloadCodec
@@ -12,7 +11,7 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.ATTRIBUTE_REQUESTED_SENDER
-import com.maodouchat.domain.messaging.TYPE_SENDER_KEY_REQUEST
+import com.maodouchat.domain.messaging.TimelineProjectionRoute
 import com.maodouchat.domain.messaging.isOwnSenderKeyRequest
 
 /** Commits decrypted v2 content into the local timeline and applies encrypted domain events. */
@@ -29,18 +28,21 @@ internal class MessagingV2TimelineProjector(
     private val eventProjector: MessageEventProjector = MessageEventProjector(app, messageStore, ownerUserId, receiptProjector, onAuthoritativeMutation),
 ) {
     suspend fun project(envelope: MessagingV2InboxEntity, content: MessagingV2Content) {
-        if (content.type == TYPE_SENDER_KEY_REQUEST) {
-            val owner = ownerUserId()
-            val requestedSender = content.attributes[ATTRIBUTE_REQUESTED_SENDER]
-            val epoch = envelope.groupRevision ?: 0L
-            if (isOwnSenderKeyRequest(owner, requestedSender, envelope.senderUserId, epoch)) {
-                onSenderKeyRequest(envelope.conversationId, epoch, envelope.senderUserId)
+        when (TimelineProjectionRoute.decide(content.type, content.event != null)) {
+            TimelineProjectionRoute.Route.SENDER_KEY_REQUEST -> {
+                val owner = ownerUserId()
+                val requestedSender = content.attributes[ATTRIBUTE_REQUESTED_SENDER]
+                val epoch = envelope.groupRevision ?: 0L
+                if (isOwnSenderKeyRequest(owner, requestedSender, envelope.senderUserId, epoch)) {
+                    onSenderKeyRequest(envelope.conversationId, epoch, envelope.senderUserId)
+                }
+                return
             }
-            return
-        }
-        content.event?.let {
-            eventProjector.projectEvent(envelope, it)
-            return
+            TimelineProjectionRoute.Route.EVENT -> content.event?.let {
+                eventProjector.projectEvent(envelope, it)
+                return
+            }
+            TimelineProjectionRoute.Route.DATA -> Unit
         }
 
         val owner = ownerUserId()
@@ -52,7 +54,7 @@ internal class MessagingV2TimelineProjector(
             content = MessageContentProjector.projectContent(payload),
             type = payload.type,
             timestamp = envelope.clientTimestamp,
-            status = if (envelope.senderUserId == owner) MessageStatus.SENT else MessageStatus.DELIVERED,
+            status = TimelineProjectionRoute.projectedStatus(envelope.senderUserId, owner),
             meta = MessageContentProjector.projectMetadata(payload),
         )
         val arrival = MessagingV2ArrivalPolicy.evaluate(

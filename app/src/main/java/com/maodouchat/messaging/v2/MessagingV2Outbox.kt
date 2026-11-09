@@ -24,7 +24,7 @@ import com.maodouchat.domain.messaging.readReceiptEvent
 import com.maodouchat.domain.messaging.receiptMessageId
 import com.maodouchat.domain.messaging.senderKeyRequestContent
 import com.maodouchat.domain.messaging.senderKeyRequestMessageId
-import com.maodouchat.domain.messaging.terminalTombstoneKind
+import com.maodouchat.domain.messaging.terminalTombstone
 import kotlinx.serialization.json.Json
 import java.util.UUID
 
@@ -114,15 +114,15 @@ class MessagingV2Outbox(
         messageId: String = UUID.randomUUID().toString(),
         kind: String = "EVENT",
     ): String {
-        val terminalKind = terminalTombstoneKind(event.action)
+        val tombstone = terminalTombstone(event.action, event.targetMessageId)
         return enqueueContentPayload(
             conversationId = conversationId,
             content = MessagingV2Content(type = "EVENT", event = event),
             groupRevision = groupRevision,
             kind = kind,
             messageId = messageId,
-            terminalTargetMessageId = event.targetMessageId.takeIf { terminalKind != null },
-            terminalKind = terminalKind,
+            terminalTargetMessageId = tombstone?.targetMessageId,
+            terminalKind = tombstone?.kind,
         )
     }
 
