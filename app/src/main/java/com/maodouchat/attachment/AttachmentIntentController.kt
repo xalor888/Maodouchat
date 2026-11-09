@@ -3,11 +3,9 @@ package com.maodouchat.attachment
 import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentPreparationLease
-import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
@@ -18,6 +16,7 @@ import com.maodouchat.domain.messaging.AttachmentTransfer
 import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.SendMessageCommand
 import com.maodouchat.domain.messaging.SendMessageResult
+import com.maodouchat.domain.messaging.SpecialAttachmentMessagePolicy
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
@@ -87,15 +86,9 @@ class DefaultAttachmentIntentController(
             return (res as? SendMessageResult.Success)?.localMessageId
                 ?: intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         }
-        val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
-        val msg = Message(
-            id = messageId,
-            chatId = intent.conversationId,
-            senderId = owner,
-            content = stickerCode,
-            type = MessageType.STICKER,
-            timestamp = System.currentTimeMillis(),
-            status = MessageStatus.SENDING,
+        val messageId = SpecialAttachmentMessagePolicy.resolveMessageId(intent.idempotencyKey)
+        val msg = SpecialAttachmentMessagePolicy.stickerMessage(
+            messageId, intent.conversationId, owner, stickerCode, System.currentTimeMillis(),
         )
         storeMessage(msg)
         return messageId
@@ -116,24 +109,9 @@ class DefaultAttachmentIntentController(
             return (res as? SendMessageResult.Success)?.localMessageId
                 ?: intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         }
-        val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
-        val payload = LocationPayload(
-            latitude = location.latitude,
-            longitude = location.longitude,
-            capturedAt = System.currentTimeMillis()
-        )
-        val content = kotlinx.serialization.json.Json.encodeToString(
-            LocationPayload.serializer(),
-            payload
-        )
-        val msg = Message(
-            id = messageId,
-            chatId = intent.conversationId,
-            senderId = owner,
-            content = content,
-            type = MessageType.LOCATION,
-            timestamp = System.currentTimeMillis(),
-            status = MessageStatus.SENDING,
+        val messageId = SpecialAttachmentMessagePolicy.resolveMessageId(intent.idempotencyKey)
+        val msg = SpecialAttachmentMessagePolicy.locationMessage(
+            messageId, intent.conversationId, owner, location, System.currentTimeMillis(),
         )
         storeMessage(msg)
         return messageId
@@ -154,16 +132,9 @@ class DefaultAttachmentIntentController(
             return (res as? SendMessageResult.Success)?.localMessageId
                 ?: intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         }
-        val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
-        val cardContent = "👤 ${card.displayName}\n[contactUser:${card.userId}]"
-        val msg = Message(
-            id = messageId,
-            chatId = intent.conversationId,
-            senderId = owner,
-            content = cardContent,
-            type = MessageType.TEXT,
-            timestamp = System.currentTimeMillis(),
-            status = MessageStatus.SENDING,
+        val messageId = SpecialAttachmentMessagePolicy.resolveMessageId(intent.idempotencyKey)
+        val msg = SpecialAttachmentMessagePolicy.contactMessage(
+            messageId, intent.conversationId, owner, card, System.currentTimeMillis(),
         )
         storeMessage(msg)
         return messageId
