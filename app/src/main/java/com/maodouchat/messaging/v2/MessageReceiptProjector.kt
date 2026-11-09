@@ -6,7 +6,9 @@ import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.domain.messaging.MessageReceiptAggregationPolicy
 import com.maodouchat.domain.messaging.MessageReceiptGuard
+import com.maodouchat.domain.messaging.PlayReceiptTarget
 import com.maodouchat.domain.messaging.readReceiptStatus
+import com.maodouchat.domain.messaging.readReceiptThrough
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
@@ -38,7 +40,7 @@ internal class MessageReceiptProjector(
         envelope: MessagingV2InboxEntity,
         event: MessagingV2Event,
     ) {
-        val through = event.throughMessageId ?: event.targetMessageId
+        val through = readReceiptThrough(event.throughMessageId, event.targetMessageId)
         val boundary = messageStore.getMessageById(through) ?: return
         if (MessageReceiptGuard.isOwnReadReceipt(envelope.senderUserId, owner)) {
             app.database.messageDao().markIncomingReadThrough(
@@ -82,7 +84,11 @@ internal class MessageReceiptProjector(
         event: MessagingV2Event,
     ) {
         val targetMessageId = event.targetMessageId
-        val target = if (existing.id == targetMessageId) existing else messageStore.getMessageById(targetMessageId) ?: return
+        val target = when (PlayReceiptTarget.decide(existing.id, targetMessageId)) {
+            PlayReceiptTarget.Decision.EXISTING -> existing
+            PlayReceiptTarget.Decision.LOOKUP ->
+                messageStore.getMessageById(targetMessageId) ?: return
+        }
         if (!MessageReceiptGuard.shouldApplyPlayReceipt(target.senderId, owner, envelope.senderUserId)) return
 
         persistReceipt(
