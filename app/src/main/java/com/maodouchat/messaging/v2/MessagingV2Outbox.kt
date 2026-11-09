@@ -15,6 +15,7 @@ import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.domain.messaging.OutboxIdempotencyPolicy
+import com.maodouchat.domain.messaging.OutboxKind
 import com.maodouchat.domain.messaging.OutboxRetryGuard
 import com.maodouchat.domain.messaging.SenderKeyRequestValidation
 import com.maodouchat.domain.messaging.deliveryReceiptEvent
@@ -49,7 +50,7 @@ class MessagingV2Outbox(
         conversationId = conversationId,
         content = MessagingV2Content(type = type, body = body),
         groupRevision = groupRevision,
-        kind = "DATA",
+        kind = OutboxKind.DATA,
         messageId = messageId,
     )
 
@@ -63,7 +64,7 @@ class MessagingV2Outbox(
         conversationId = conversationId,
         content = MessagingV2Content(type = type.name, body = body),
         groupRevision = groupRevision,
-        kind = "DATA",
+        kind = OutboxKind.DATA,
         messageId = messageId,
     )
 
@@ -112,7 +113,7 @@ class MessagingV2Outbox(
         event: MessagingV2Event,
         groupRevision: Long? = null,
         messageId: String = UUID.randomUUID().toString(),
-        kind: String = "EVENT",
+        kind: String = OutboxKind.EVENT,
     ): String {
         val tombstone = terminalTombstone(event.action, event.targetMessageId)
         return enqueueContentPayload(
@@ -142,7 +143,7 @@ class MessagingV2Outbox(
                 owner = owner,
                 deviceId = deviceId(),
             ),
-            kind = "RECEIPT",
+            kind = OutboxKind.RECEIPT,
         )
     }
 
@@ -162,7 +163,7 @@ class MessagingV2Outbox(
                 owner = owner,
                 deviceId = deviceId(),
             ),
-            kind = "RECEIPT",
+            kind = OutboxKind.RECEIPT,
         )
     }
 
@@ -184,7 +185,7 @@ class MessagingV2Outbox(
                 ),
             ),
             groupRevision = groupRevision,
-            kind = "DATA",
+            kind = OutboxKind.DATA,
             messageId = messageId,
         )
     }
@@ -198,7 +199,7 @@ class MessagingV2Outbox(
         conversationId = conversationId,
         content = MessagingV2Content(type = MessageType.SK_DIST.name, body = distributionEnvelope),
         groupRevision = groupRevision,
-        kind = "SENDER_KEY",
+        kind = OutboxKind.SENDER_KEY,
         messageId = messageId,
     )
 
@@ -229,7 +230,7 @@ class MessagingV2Outbox(
             ),
             clientTimestamp = clock(),
             groupRevision = groupRevision,
-            kind = KIND_KEY_REQUEST,
+            kind = OutboxKind.KEY_REQUEST,
             messageId = senderKeyRequestMessageId(
                 conversationId = conversationId,
                 requestedSenderUserId = requestedSenderUserId,
@@ -253,7 +254,7 @@ class MessagingV2Outbox(
                 owner = owner,
                 deviceId = deviceId(),
             ),
-            kind = "RECEIPT",
+            kind = OutboxKind.RECEIPT,
         )
     }
 
@@ -328,7 +329,7 @@ class MessagingV2Outbox(
         ),
         clientTimestamp = clock(),
         groupRevision = groupRevision,
-        kind = "DATA",
+        kind = OutboxKind.DATA,
         messageId = messageId,
     )
 
@@ -346,7 +347,7 @@ class MessagingV2Outbox(
         ),
         clientTimestamp = clock(),
         groupRevision = groupRevision,
-        kind = "DATA",
+        kind = OutboxKind.DATA,
         messageId = messageId,
     )
 
@@ -418,7 +419,4 @@ class MessagingV2Outbox(
     private fun requireOwner(): String =
         ownerUserId().takeIf(String::isNotBlank) ?: error("messaging_v2_owner_missing")
 
-    private companion object {
-        const val KIND_KEY_REQUEST = "KEY_REQUEST"
-    }
 }
