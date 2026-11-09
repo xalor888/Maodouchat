@@ -10,6 +10,7 @@ import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.core.model.LocalFileMetadata
 import com.maodouchat.core.model.normalizeAttachmentMetadata
+import com.maodouchat.domain.messaging.AttachmentImagePreparePolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -101,11 +102,9 @@ internal class AttachmentPreparationExecutor(
             ?: throw IllegalStateException("attachment_image_prepare_failed")
         val preparedUri = Uri.fromFile(file)
         lease.recordPreparedSource(preparedUri.toString())
-        return preparedUri to LocalFileMetadata(
-            fileName = request.initialMetadata.fileName.substringBeforeLast('.', request.initialMetadata.fileName)
-                .ifBlank { "image" }.take(116) + ".jpg",
-            mimeType = "image/jpeg",
-            sizeBytes = file.length()
+        return preparedUri to AttachmentImagePreparePolicy.compressedImageMetadata(
+            request.initialMetadata.fileName,
+            file.length(),
         )
     }
 }
