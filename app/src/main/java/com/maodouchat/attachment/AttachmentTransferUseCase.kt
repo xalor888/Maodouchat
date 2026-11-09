@@ -6,10 +6,12 @@ import com.maodouchat.core.model.AttachmentTransferDisposition
 import com.maodouchat.data.local.dao.AttachmentTransferDao
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.domain.messaging.AttachmentExecuteDispositionPolicy
 import com.maodouchat.domain.messaging.AttachmentFinalizeDispositionPolicy
 import com.maodouchat.domain.messaging.AttachmentTransferErrorPolicy
 import com.maodouchat.domain.messaging.AttachmentWorkerAction
 import com.maodouchat.domain.messaging.FinalizeDisposition
+import com.maodouchat.domain.messaging.PromoteDisposition
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
@@ -66,13 +68,15 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             if (!sessionActive(ownerUserId)) return AttachmentTransferDisposition.SUCCESS
             val current = dao.get(messageId, ownerUserId = ownerUserId) ?: return AttachmentTransferDisposition.SUCCESS
             if (!sessionActive(ownerUserId)) return AttachmentTransferDisposition.SUCCESS
-            return when (current.state) {
-                AttachmentTransferState.READY, AttachmentTransferState.SENDING -> finalizeReady(messageId, ownerUserId, runAttemptCount)
-                AttachmentTransferState.PAUSED -> AttachmentTransferDisposition.SUCCESS
-                else -> {
-                    // 仍标记为已完成上传但 promote 失败：保持失败态等待下次校准，禁止重复上传
-                    if (current.hasCompletedUpload()) AttachmentTransferDisposition.SUCCESS else AttachmentTransferDisposition.RETRY
-                }
+            return when (
+                AttachmentExecuteDispositionPolicy.promoteDisposition(
+                    current.state,
+                    current.hasCompletedUpload(),
+                )
+            ) {
+                PromoteDisposition.Finalize -> finalizeReady(messageId, ownerUserId, runAttemptCount)
+                PromoteDisposition.Done -> AttachmentTransferDisposition.SUCCESS
+                PromoteDisposition.Retry -> AttachmentTransferDisposition.RETRY
             }
         }
 
@@ -147,11 +151,11 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             }
             val code = AttachmentTransferErrorPolicy.transferErrorCode(error)
             Log.w(TAG, "Attachment transfer failed: $messageId ($code)", error)
-            if (runAttemptCount < AttachmentFinalizeDispositionPolicy.MAX_TRANSFER_RETRIES && AttachmentTransferErrorPolicy.isRetryableTransferError(error)) {
+            if (AttachmentExecuteDispositionPolicy.shouldRetryUploadFailure(runAttemptCount, error)) {
                 // Soft-fail: leave QUEUED/UPLOADING (or requeue) without FAILED flash mid-retry.
                 val row = dao.get(messageId, ownerUserId = ownerUserId)
                 ensureSessionActive(ownerUserId)
-                if (row?.state == AttachmentTransferState.UPLOADING || row?.state == AttachmentTransferState.QUEUED) {
+                if (AttachmentExecuteDispositionPolicy.shouldRequeueForRetry(row?.state)) {
                     ensureSessionActive(ownerUserId)
                     dao.requeueForRetry(messageId, ownerUserId = ownerUserId)
                 }
