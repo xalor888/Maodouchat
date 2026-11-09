@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.Chat
@@ -14,9 +14,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatSendGuard
 
 /**
  * G66 安全网：`ChatSendGuard` 的发送准入与重试准入契约。
@@ -349,7 +349,7 @@ class ChatSendGuardTest {
     }
 
     @Test
-    fun `the allowed decision carries everything the intent factory needs`() {
+    fun `the allowed decision carries text type and draft clearing`() {
         val decision = ChatSendGuard.checkSend(
             state = state(inputText = "hi"),
             ownerUserId = "u1",
@@ -359,25 +359,10 @@ class ChatSendGuardTest {
             mentionsEnabled = true,
         ) as SendDecision.Allow
 
-        // 乐观气泡的构造已归 ChatSendIntentFactory（G68），守卫只负责给出「要发什么」。
-        // 这里断言 Allow 决策自含全部必要字段，工厂不需要再猜。
+        // 守卫只负责给出「要发什么」；乐观气泡的构造已归 ChatSendIntentFactory（G68），由其自有测试覆盖。
         assertEquals("hi", decision.text)
         assertEquals(MessageType.TEXT, decision.messageType)
         assertTrue(decision.clearDraft, "普通发送必须清草稿")
-        val optimistic = ChatSendIntentFactory.build(
-            chatId = "c1",
-            senderId = "u1",
-            messageId = "m_test",
-            timestamp = 42L,
-            content = decision.text,
-            type = decision.messageType,
-            meta = decision.meta,
-        )
-        assertEquals("m_test", optimistic.id)
-        assertEquals(MessageStatus.SENDING, optimistic.status)
-        assertEquals("c1", optimistic.chatId)
-        assertEquals("u1", optimistic.senderId)
-        assertNull(optimistic.meta.forwardedFrom, "普通发送不得带转发来源")
     }
 
     // ─── 发送准入的边界 ───

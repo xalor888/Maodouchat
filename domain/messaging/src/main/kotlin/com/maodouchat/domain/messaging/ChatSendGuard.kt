@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.RetryRejectReason
@@ -24,7 +24,7 @@ import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
  * **设计约束**：纯对象，不碰 Coroutine / Room / ApiService / Android 资源。
  * 需要资源的文案由调用方按 `reason` 自己映射，测试因此完全确定。
  */
-internal object ChatSendGuard {
+object ChatSendGuard {
 
     /** 输入框硬上限（与服务端限制对齐，超长在前端就截断，不让请求白跑）。 */
     const val MAX_TEXT_LENGTH: Int = 4_000
