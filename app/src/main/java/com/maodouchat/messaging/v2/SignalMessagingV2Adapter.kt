@@ -11,9 +11,12 @@ import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.domain.messaging.DuplicateEnvelopeRecovery
+import com.maodouchat.domain.messaging.EnvelopePrepareRoute
 import com.maodouchat.domain.messaging.OutboxWireFormat
 import com.maodouchat.domain.messaging.PreparedMessageV2
 import com.maodouchat.domain.messaging.decideDuplicateRecovery
+import com.maodouchat.domain.messaging.decideEnvelopePrepareRoute
+import com.maodouchat.domain.messaging.decideGroupControlPayload
 import com.maodouchat.domain.messaging.decryptedEnvelopeContent
 import com.maodouchat.domain.messaging.deviceEnvelopes
 import com.maodouchat.domain.messaging.envelopeTargetsCovered
@@ -71,61 +74,71 @@ class SignalMessagingV2EnvelopePreparer(
         ) {
             throw MessagingV2StaleGroupControlException()
         }
-        return if (snapshot.isGroup && MessagingV2GroupControlPolicy.isGroupControl(message.kind)) {
-            if (snapshot.targets.isEmpty()) {
-                return PreparedMessageV2(groupRevision = snapshot.memberRevision, envelopes = emptyList())
-            }
-            val recipientUserIds = targetUserIds(snapshot.targets)
-            val content = decodeContent(message)
-            val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
-                token = token,
-                recipientIds = recipientUserIds.toList(),
-                plaintext = if (message.kind == KIND_SENDER_KEY) content.body else message.localPayload,
-                payloadType = if (message.kind == KIND_SENDER_KEY) TYPE_SENDER_KEY else KIND_KEY_REQUEST,
-                includeCurrentUserDevices = true,
-                requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
-            ).getOrThrow()
-            val envelopes = deviceEnvelopes(encrypted.ciphertexts)
-            check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_group_control_coverage_mismatch" }
-            PreparedMessageV2(
-                groupRevision = snapshot.memberRevision,
-                envelopes = envelopes,
+        return when (
+            decideEnvelopePrepareRoute(
+                snapshot.isGroup,
+                MessagingV2GroupControlPolicy.isGroupControl(message.kind),
             )
-        } else if (snapshot.isGroup) {
-            if (snapshot.targets.isNotEmpty()) {
-                ensureGroupReady(snapshot.conversationId, snapshot.memberRevision)
-            }
-            val senderKeyEnvelope = signalProtocol.encryptGroupContentEnvelope(
-                groupId = snapshot.conversationId,
-                plaintext = message.localPayload,
-                payloadType = message.kind,
-                epoch = snapshot.memberRevision,
-            ).getOrThrow()
-            PreparedMessageV2(
-                groupRevision = snapshot.memberRevision,
-                attachmentIds = outboxAttachmentIds(message.localPayload),
-                envelopes = senderKeyEnvelopes(snapshot.targets, senderKeyEnvelope),
-            )
-        } else {
-            if (snapshot.targets.isEmpty()) {
-                return PreparedMessageV2(
-                    groupRevision = null,
-                    attachmentIds = outboxAttachmentIds(message.localPayload),
-                    envelopes = emptyList(),
+        ) {
+            EnvelopePrepareRoute.GROUP_CONTROL -> {
+                if (snapshot.targets.isEmpty()) {
+                    return PreparedMessageV2(groupRevision = snapshot.memberRevision, envelopes = emptyList())
+                }
+                val recipientUserIds = targetUserIds(snapshot.targets)
+                val content = decodeContent(message)
+                val payload = decideGroupControlPayload(message.kind)
+                val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                    token = token,
+                    recipientIds = recipientUserIds.toList(),
+                    plaintext = if (payload.useDecodedBody) content.body else message.localPayload,
+                    payloadType = payload.payloadType,
+                    includeCurrentUserDevices = true,
+                    requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
+                ).getOrThrow()
+                val envelopes = deviceEnvelopes(encrypted.ciphertexts)
+                check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_group_control_coverage_mismatch" }
+                PreparedMessageV2(
+                    groupRevision = snapshot.memberRevision,
+                    envelopes = envelopes,
                 )
             }
-            val recipientUserIds = targetUserIds(snapshot.targets)
-            val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
-                token = token,
-                recipientIds = recipientUserIds.toList(),
-                plaintext = message.localPayload,
-                payloadType = message.kind,
-                includeCurrentUserDevices = true,
-                requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
-            ).getOrThrow().ciphertexts
-            val envelopes = deviceEnvelopes(encrypted)
-            check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_crypto_coverage_mismatch" }
-            PreparedMessageV2(groupRevision = null, attachmentIds = outboxAttachmentIds(message.localPayload), envelopes = envelopes)
+            EnvelopePrepareRoute.GROUP_SENDER_KEY -> {
+                if (snapshot.targets.isNotEmpty()) {
+                    ensureGroupReady(snapshot.conversationId, snapshot.memberRevision)
+                }
+                val senderKeyEnvelope = signalProtocol.encryptGroupContentEnvelope(
+                    groupId = snapshot.conversationId,
+                    plaintext = message.localPayload,
+                    payloadType = message.kind,
+                    epoch = snapshot.memberRevision,
+                ).getOrThrow()
+                PreparedMessageV2(
+                    groupRevision = snapshot.memberRevision,
+                    attachmentIds = outboxAttachmentIds(message.localPayload),
+                    envelopes = senderKeyEnvelopes(snapshot.targets, senderKeyEnvelope),
+                )
+            }
+            EnvelopePrepareRoute.DIRECT -> {
+                if (snapshot.targets.isEmpty()) {
+                    return PreparedMessageV2(
+                        groupRevision = null,
+                        attachmentIds = outboxAttachmentIds(message.localPayload),
+                        envelopes = emptyList(),
+                    )
+                }
+                val recipientUserIds = targetUserIds(snapshot.targets)
+                val encrypted = signalProtocol.encryptMultiRecipientContentEnvelopeWithTargets(
+                    token = token,
+                    recipientIds = recipientUserIds.toList(),
+                    plaintext = message.localPayload,
+                    payloadType = message.kind,
+                    includeCurrentUserDevices = true,
+                    requiredRecipientIds = requiredRecipientIds(recipientUserIds, snapshot.ownerUserId),
+                ).getOrThrow().ciphertexts
+                val envelopes = deviceEnvelopes(encrypted)
+                check(envelopeTargetsCovered(envelopes, snapshot.targets)) { "messaging_v2_crypto_coverage_mismatch" }
+                PreparedMessageV2(groupRevision = null, attachmentIds = outboxAttachmentIds(message.localPayload), envelopes = envelopes)
+            }
         }
     }
 
@@ -134,12 +147,6 @@ class SignalMessagingV2EnvelopePreparer(
 
     private fun decodeContent(message: MessagingV2OutboxEntity): MessagingV2Content =
         json.decodeFromString(message.localPayload)
-
-    private companion object {
-        const val KIND_SENDER_KEY = "SENDER_KEY"
-        const val KIND_KEY_REQUEST = "KEY_REQUEST"
-        const val TYPE_SENDER_KEY = "SK_DIST"
-    }
 }
 
 fun interface MessagingV2DomainSink {
