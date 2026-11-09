@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ResolvedOutgoingChat
 
 class ChatDetailViewModel(
     application: Application,
@@ -350,7 +351,6 @@ class ChatDetailViewModel(
     )
 
     internal fun observeAttachmentFinalizedEvents() = attachmentObservationController.observeAttachmentFinalizedEvents()
-
 
     fun sendNudge() = nudgeSender.sendNudge()
 

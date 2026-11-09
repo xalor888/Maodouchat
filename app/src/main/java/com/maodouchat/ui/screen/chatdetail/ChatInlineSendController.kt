@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
 // 内联内容发送（贴纸 / 实时位置 / 截屏告警文本）：乐观上屏 + V2 出站编排。
 // 从 ChatDetailViewModel 纯搬移；调用方（扩展函数、截屏告警控制器）走 VM 的同签名委托。

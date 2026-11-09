@@ -10,6 +10,7 @@ import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
 import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
+import com.maodouchat.domain.messaging.ChatOutgoingFacade
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -56,14 +57,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import com.maodouchat.core.model.toDomainChat
-/**
- * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
- * 依赖方向：`ChatDetailDeps` 持有 [ChatDetailViewModel] 的引用（构造时传入），
- * 在需要读 VM 状态或调用 VM 方法时用 `host.xxx`。反向调用只发生在 lambda / 方法引用里
- * （构造期不触碰），所以运行期不会形成环。本类是 `internal`，不对外暴露。
- *
- * 构造顺序有语义：后面的协调器引用前面构造出来的仓库。
- */
+// 构造顺序有语义：后面的协调器引用前面构造出来的仓库。
 internal class ChatDetailDeps(
     private val application: Application,
     private val host: ChatDetailViewModel,
