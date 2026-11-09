@@ -8,6 +8,7 @@ import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.domain.messaging.OutboxClaimAction
 import com.maodouchat.domain.messaging.OutboxFailurePolicy
+import com.maodouchat.domain.messaging.OutboxFlushLimits
 import com.maodouchat.domain.messaging.OutboxRetryPolicy
 import com.maodouchat.domain.messaging.decideOutboxClaimAction
 import com.maodouchat.domain.messaging.outboxAttachmentIds
@@ -34,10 +35,10 @@ class MessagingV2OutboxCoordinator(
             val now = clock()
             dao.recoverStaleOutboxClaims(
                 ownerUserId = ownerUserId,
-                staleBefore = now - STALE_CLAIM_MS,
+                staleBefore = now - OutboxFlushLimits.STALE_CLAIM_MS,
                 now = now,
             )
-            repeat(MAX_MESSAGES_PER_RUN) {
+            repeat(OutboxFlushLimits.MAX_MESSAGES_PER_RUN) {
                 val claimed = dao.claimNextOutbox(ownerUserId, clock()) ?: return
                 when (val action = decideOutboxClaimAction(claimed.state)) {
                     OutboxClaimAction.Prepare -> prepare(token, claimed)
@@ -160,8 +161,5 @@ class MessagingV2OutboxCoordinator(
         )
     }
 
-    private companion object {
-        const val MAX_MESSAGES_PER_RUN = 100
-        const val STALE_CLAIM_MS = 2L * 60L * 1_000L
-    }
+    // 刷写常量见 :domain:messaging 的 OutboxFlushLimits。
 }
