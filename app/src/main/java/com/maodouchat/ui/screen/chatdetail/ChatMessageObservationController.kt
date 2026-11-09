@@ -10,6 +10,7 @@ import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.conversation.ChatTimelineStateController
 
 // 本地消息观察一族：Room 时间线订阅 + 权威变更事件订阅。
 // 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。

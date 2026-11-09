@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.model.GroupMemberDto
@@ -7,7 +7,7 @@ import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDetailUiState
 
 /** Maps group and identity responses into the stable chat-detail UI contract. */
-internal class ChatGroupSecurityStateController {
+class ChatGroupSecurityStateController {
     fun presentGroup(
         state: ChatDetailUiState,
         chat: Chat,
