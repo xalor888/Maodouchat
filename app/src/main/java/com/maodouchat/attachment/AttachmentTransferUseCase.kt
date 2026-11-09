@@ -2,13 +2,14 @@ package com.maodouchat.attachment
 
 import android.util.Log
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AttachmentFinalizeOutcome
 import com.maodouchat.core.model.AttachmentTransferDisposition
 import com.maodouchat.data.local.dao.AttachmentTransferDao
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.domain.messaging.AttachmentFinalizeDispositionPolicy
 import com.maodouchat.domain.messaging.AttachmentTransferErrorPolicy
 import com.maodouchat.domain.messaging.AttachmentWorkerAction
+import com.maodouchat.domain.messaging.FinalizeDisposition
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CancellationException
@@ -40,7 +41,7 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
         // 8.34 修复：token 空时此前无限 Result.retry()（10s 起指数退避无上限）——会话异常
         // （token 被清空但 userId 仍匹配）会永久重试、反复唤醒进程。有界重试后按失败终止。
         if (token.isBlank()) {
-            return if (runAttemptCount >= MAX_RETRIES) AttachmentTransferDisposition.FAILURE
+            return if (runAttemptCount >= AttachmentFinalizeDispositionPolicy.MAX_TRANSFER_RETRIES) AttachmentTransferDisposition.FAILURE
             else AttachmentTransferDisposition.RETRY
         }
         val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return AttachmentTransferDisposition.SUCCESS
@@ -49,7 +50,7 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
         if (workerAction == AttachmentWorkerAction.STOP) return AttachmentTransferDisposition.SUCCESS
         if (workerAction == AttachmentWorkerAction.FAIL) {
             if (!sessionActive(ownerUserId)) return AttachmentTransferDisposition.SUCCESS
-            dao.markFailed(messageId, ERROR_INVALID_STATE, ownerUserId = ownerUserId)
+            dao.markFailed(messageId, AttachmentTransferErrorPolicy.ERROR_INVALID_STATE, ownerUserId = ownerUserId)
             return AttachmentTransferDisposition.FAILURE
         }
 
@@ -82,7 +83,7 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
         }.getOrDefault(false)
         if (!validPath || !encryptedFile.isFile || encryptedFile.length() != transfer.cipherSize) {
             if (!sessionActive(ownerUserId)) return AttachmentTransferDisposition.SUCCESS
-            dao.markFailed(messageId, ERROR_SOURCE_MISSING, ownerUserId = ownerUserId)
+            dao.markFailed(messageId, AttachmentTransferErrorPolicy.ERROR_SOURCE_MISSING, ownerUserId = ownerUserId)
             return AttachmentTransferDisposition.FAILURE
         }
 
@@ -146,7 +147,7 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
             }
             val code = AttachmentTransferErrorPolicy.transferErrorCode(error)
             Log.w(TAG, "Attachment transfer failed: $messageId ($code)", error)
-            if (runAttemptCount < MAX_RETRIES && AttachmentTransferErrorPolicy.isRetryableTransferError(error)) {
+            if (runAttemptCount < AttachmentFinalizeDispositionPolicy.MAX_TRANSFER_RETRIES && AttachmentTransferErrorPolicy.isRetryableTransferError(error)) {
                 // Soft-fail: leave QUEUED/UPLOADING (or requeue) without FAILED flash mid-retry.
                 val row = dao.get(messageId, ownerUserId = ownerUserId)
                 ensureSessionActive(ownerUserId)
@@ -168,29 +169,29 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
         ownerUserId: String,
         runAttemptCount: Int,
     ): AttachmentTransferDisposition = when (
-        val outcome = finalizeUseCase.finalize(messageId, ownerUserId)
+        val disposition = AttachmentFinalizeDispositionPolicy.finalizeDisposition(
+            finalizeUseCase.finalize(messageId, ownerUserId),
+            runAttemptCount,
+        )
     ) {
-        is AttachmentFinalizeOutcome.Sent,
-        AttachmentFinalizeOutcome.AlreadyClaimed,
-        AttachmentFinalizeOutcome.DiscardedTerminal -> AttachmentTransferDisposition.SUCCESS
-        // SK 轮换清 wire / 弱网：保持 READY 或已释放 claim，worker 重试
-        AttachmentFinalizeOutcome.ClaimInvalidated,
-        AttachmentFinalizeOutcome.ReuploadRequired,
-        is AttachmentFinalizeOutcome.Transient -> {
-            if (runAttemptCount >= MAX_RETRIES) {
+        FinalizeDisposition.Success -> AttachmentTransferDisposition.SUCCESS
+        FinalizeDisposition.Retry -> AttachmentTransferDisposition.RETRY
+        is FinalizeDisposition.Failure -> {
+            if (disposition.markRetryExhausted) {
                 try {
-                    dao.markFailed(messageId, "finalize_retry_exhausted", ownerUserId = ownerUserId)
+                    dao.markFailed(
+                        messageId,
+                        AttachmentFinalizeDispositionPolicy.FINALIZE_RETRY_EXHAUSTED_CODE,
+                        ownerUserId = ownerUserId,
+                    )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
                     // 标记失败为尽力而为；FAILURE 仍会终止本轮重试
                 }
-                AttachmentTransferDisposition.FAILURE
-            } else {
-                AttachmentTransferDisposition.RETRY
             }
+            AttachmentTransferDisposition.FAILURE
         }
-        is AttachmentFinalizeOutcome.Failed -> AttachmentTransferDisposition.FAILURE
     }
 
     private fun sessionActive(expectedOwnerUserId: String): Boolean =
@@ -206,9 +207,5 @@ class AttachmentTransferUseCase(private val app: MaodouchatApp) {
 
     private companion object {
         const val TAG = "AttachmentTransferWorker"
-        const val ERROR_SOURCE_MISSING = "SOURCE_MISSING"
-        const val ERROR_INVALID_STATE = "INVALID_STATE"
-        // 9.3xx：4→6——服务端限流窗口（429 Retry-After ≤60s）内不再烧光重试次数直接标 FAILED
-        const val MAX_RETRIES = 6
     }
 }

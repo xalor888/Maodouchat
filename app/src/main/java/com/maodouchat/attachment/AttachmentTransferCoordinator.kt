@@ -6,6 +6,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.canRetryWithoutUpload
 import com.maodouchat.data.local.entity.hasCompletedUpload
+import com.maodouchat.domain.messaging.AttachmentTransferErrorPolicy
+import com.maodouchat.domain.messaging.AttachmentTransferTiming
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.MediaCache
@@ -70,7 +72,7 @@ object AttachmentTransferCoordinator {
         }
         if (!isPrivateUploadFile(context, File(transfer.encryptedPath)) || !File(transfer.encryptedPath).isFile) {
             if (!isCurrentOwner(context, ownerUserId)) return false
-            dao.markFailed(messageId, "SOURCE_MISSING", ownerUserId = ownerUserId)
+            dao.markFailed(messageId, AttachmentTransferErrorPolicy.ERROR_SOURCE_MISSING, ownerUserId = ownerUserId)
             return false
         }
         if (dao.resume(messageId, ownerUserId = ownerUserId) != 1) return false
@@ -216,7 +218,7 @@ object AttachmentTransferCoordinator {
         val ownerUserId = currentOwner(context)
         if (ownerUserId.isBlank()) return
         // 只释放陈旧 SENDING：同进程内可能仍有 worker 持有 claim；整表 releaseAll 会双 finalize
-        val staleBefore = System.currentTimeMillis() - STALE_SENDING_MS
+        val staleBefore = System.currentTimeMillis() - AttachmentTransferTiming.STALE_SENDING_MS
         dao.releaseStaleSending(staleBeforeMs = staleBefore, ownerUserId = ownerUserId)
         if (!isCurrentOwner(context, ownerUserId)) return
         val transfers = dao.getAll(ownerUserId = ownerUserId)
@@ -239,17 +241,17 @@ object AttachmentTransferCoordinator {
         if (!isCurrentOwner(context, ownerUserId)) return
         uploadRoot.listFiles()?.filter { file ->
             val canonicalPath = runCatching { file.canonicalPath }.getOrNull()
-            file.isFile && canonicalPath != null && canonicalPath !in validPaths && now - file.lastModified() > ORPHAN_GRACE_MS
+            file.isFile && canonicalPath != null && canonicalPath !in validPaths && now - file.lastModified() > AttachmentTransferTiming.ORPHAN_GRACE_MS
         }?.forEach { it.delete() }
         sourceRoot.listFiles()?.filter { file ->
             val canonicalPath = runCatching { file.canonicalPath }.getOrNull()
-            file.isFile && canonicalPath != null && canonicalPath !in validSourcePaths && now - file.lastModified() > ORPHAN_GRACE_MS
+            file.isFile && canonicalPath != null && canonicalPath !in validSourcePaths && now - file.lastModified() > AttachmentTransferTiming.ORPHAN_GRACE_MS
         }?.forEach { it.delete() }
         transfers.forEach { transfer ->
             if (!isCurrentOwner(context, ownerUserId)) return
             val file = File(transfer.encryptedPath)
             if (!transfer.hasCompletedUpload() && (!isPrivateUploadFile(context, file) || !file.isFile || file.length() != transfer.cipherSize)) {
-                dao.markFailed(transfer.messageId, "SOURCE_MISSING", ownerUserId = ownerUserId)
+                dao.markFailed(transfer.messageId, AttachmentTransferErrorPolicy.ERROR_SOURCE_MISSING, ownerUserId = ownerUserId)
             }
         }
         if (!isCurrentOwner(context, ownerUserId)) return
@@ -281,8 +283,4 @@ object AttachmentTransferCoordinator {
 
     private fun isCurrentOwner(context: Context, expectedOwnerUserId: String): Boolean =
         currentOwner(context) == expectedOwnerUserId
-
-    private const val ORPHAN_GRACE_MS = 24L * 60L * 60L * 1_000L
-    /** SENDING claim older than this is assumed abandoned after process death. */
-    private const val STALE_SENDING_MS = 2L * 60L * 1_000L
 }
