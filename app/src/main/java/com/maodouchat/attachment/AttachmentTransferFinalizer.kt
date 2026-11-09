@@ -2,8 +2,11 @@ package com.maodouchat.attachment
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentFinalizeOutcome
-import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
 import com.maodouchat.core.model.User
+import com.maodouchat.domain.messaging.AttachmentFinalizeFailure
+import com.maodouchat.domain.messaging.decideFinalizeFailure
+import com.maodouchat.domain.messaging.isFinalizeEligible
+import com.maodouchat.domain.messaging.sendFailureCode
 import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
@@ -61,10 +64,14 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
                 messageRepo
             )
         ensureSessionActive(tokenManager, expectedOwnerUserId)
-        if (messageType !in RELIABLE_TYPES ||
-            !transfer.hasCompletedUpload() ||
-            original.senderId != expectedOwnerUserId ||
-            original.chatId != transfer.chatId
+        if (!isFinalizeEligible(
+                messageType = messageType,
+                hasCompletedUpload = transfer.hasCompletedUpload(),
+                senderId = original.senderId,
+                ownerUserId = expectedOwnerUserId,
+                messageChatId = original.chatId,
+                transferChatId = transfer.chatId,
+            )
         ) {
             return fail(
                 dao,
@@ -163,20 +170,19 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
             if (!sessionActive(tokenManager, expectedOwnerUserId)) {
                 throw CancellationException("attachment_session_changed").apply { initCause(error) }
             }
-            val staleUpload = !attachmentReadyVerified && error is ApiException && error.statusCode in setOf(400, 404, 410)
-            when {
-                staleUpload -> {
-                    dao.resetForReupload(messageId, "ATTACHMENT_${error.statusCode}", ownerUserId = expectedOwnerUserId)
+            when (decideFinalizeFailure(attachmentReadyVerified, error)) {
+                AttachmentFinalizeFailure.ReuploadRequired -> {
+                    dao.resetForReupload(messageId, "ATTACHMENT_${(error as ApiException).statusCode}", ownerUserId = expectedOwnerUserId)
                     AttachmentFinalizeOutcome.ReuploadRequired
                 }
-                isRetryable(error) -> {
+                AttachmentFinalizeFailure.Transient -> {
                     // Keep READY + message SENDING so weak-net does not flash FAILED mid-retry.
                     releaseSendingBestEffort(dao, messageId, expectedOwnerUserId)
                     AttachmentFinalizeOutcome.Transient(error)
                 }
-                else -> {
+                AttachmentFinalizeFailure.Failed -> {
                     ensureSessionActive(tokenManager, expectedOwnerUserId)
-                    dao.markFailed(messageId, "SEND_${error.javaClass.simpleName.take(60)}", ownerUserId = expectedOwnerUserId)
+                    dao.markFailed(messageId, sendFailureCode(error), ownerUserId = expectedOwnerUserId)
                     ensureSessionActive(tokenManager, expectedOwnerUserId)
                     messageRepo.insertMessage(original.copy(status = MessageStatus.FAILED))
                     AttachmentFinalizeOutcome.Failed(error)
@@ -216,8 +222,6 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
         disappearingMessageSeconds = disappearingMessageSeconds
     )
 
-    fun isRetryable(error: Throwable): Boolean = AttachmentSendAfterUploadPolicy.isRetryable(error)
-
     private suspend fun fail(
         dao: com.maodouchat.data.local.dao.AttachmentTransferDao,
         messageId: String,
@@ -227,7 +231,7 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
         messageRepo: LocalMessageStore? = null
     ): AttachmentFinalizeOutcome.Failed {
         ensureSessionActive(tokenManager, ownerUserId)
-        dao.markFailed(messageId, "SEND_${error.javaClass.simpleName.take(60)}", ownerUserId = ownerUserId)
+        dao.markFailed(messageId, sendFailureCode(error), ownerUserId = ownerUserId)
         // 与 catch 路径一致：把本地消息标为 FAILED，避免进程重启后永远停在 SENDING
         if (messageRepo != null) {
             ensureSessionActive(tokenManager, ownerUserId)
@@ -270,12 +274,4 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
         val encoded = JsonFormat.encodeMessageMeta(meta)
         return "$text${Message.META_TAG_PREFIX}$encoded</meta>"
     }
-
-    private val RELIABLE_TYPES = setOf(
-        MessageType.IMAGE,
-        MessageType.GIF,
-        MessageType.VIDEO,
-        MessageType.VOICE,
-        MessageType.FILE
-    )
 }
