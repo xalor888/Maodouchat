@@ -9,17 +9,12 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.maodouchat.data.local.dao.AttachmentTransferDao
+import com.maodouchat.domain.messaging.AttachmentTransferWorkNaming
 import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
 
 object AttachmentTransferScheduler {
-    // 传输作业 ID 净化：每次调用重复编译正则，提到对象级复用。
-    private val jobIdUnsafeCharsRegex = Regex("[^A-Za-z0-9_-]")
-    const val KEY_MESSAGE_ID = "message_id"
-    const val KEY_OWNER_USER_ID = "owner_user_id"
-    private const val TAG = "attachment_transfer"
     private const val TAG_LOG = "AttachmentTransferScheduler"
-    private const val WORK_PREFIX = "attachment_transfer_"
 
     private val constraints = Constraints.Builder()
         .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -30,13 +25,13 @@ object AttachmentTransferScheduler {
         val request = OneTimeWorkRequestBuilder<AttachmentTransferWorker>()
             .setInputData(
                 Data.Builder()
-                    .putString(KEY_MESSAGE_ID, messageId)
-                    .putString(KEY_OWNER_USER_ID, ownerUserId)
+                    .putString(AttachmentTransferWorkNaming.KEY_MESSAGE_ID, messageId)
+                    .putString(AttachmentTransferWorkNaming.KEY_OWNER_USER_ID, ownerUserId)
                     .build()
             )
             .setConstraints(constraints)
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
-            .addTag(TAG)
+            .addTag(AttachmentTransferWorkNaming.TAG)
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
             workName(ownerUserId, messageId),
@@ -53,7 +48,7 @@ object AttachmentTransferScheduler {
     }
 
     fun cancelAll(context: Context) {
-        WorkManager.getInstance(context.applicationContext).cancelAllWorkByTag(TAG)
+        WorkManager.getInstance(context.applicationContext).cancelAllWorkByTag(AttachmentTransferWorkNaming.TAG)
     }
 
     suspend fun reconcile(context: Context, dao: AttachmentTransferDao, ownerUserId: String) {
@@ -67,7 +62,6 @@ object AttachmentTransferScheduler {
         }
     }
 
-    private fun workName(ownerUserId: String, messageId: String): String = WORK_PREFIX +
-        ownerUserId.replace(jobIdUnsafeCharsRegex, "_") + "_" +
-        messageId.replace(jobIdUnsafeCharsRegex, "_")
+    private fun workName(ownerUserId: String, messageId: String): String =
+        AttachmentTransferWorkNaming.workName(ownerUserId, messageId)
 }
