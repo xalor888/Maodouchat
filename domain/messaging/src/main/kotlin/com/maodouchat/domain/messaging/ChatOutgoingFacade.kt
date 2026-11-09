@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
@@ -12,13 +12,13 @@ import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.domain.messaging.DefaultOutgoingConversationResolver
 import kotlinx.coroutines.CancellationException
 
-internal data class ResolvedOutgoingChat(
+data class ResolvedOutgoingChat(
     val chatId: String,
     val chat: Chat,
     val peerId: String?,
 )
 
-internal class ChatOutgoingFacade(
+class ChatOutgoingFacade(
     getCachedConversation: suspend (String) -> Chat?,
     fetchConversations: suspend (String) -> List<Chat>,
     createDirectConversation: suspend (String, String, Boolean) -> Chat,
@@ -36,7 +36,7 @@ internal class ChatOutgoingFacade(
     currentAuthToken: (() -> String)? = null,
     findCachedDirectConversation: (suspend (peerUserId: String) -> Chat?)? = null,
     createOfflineDirectConversation: (suspend (ownerUserId: String, peerUserId: String, isSecret: Boolean) -> Chat)? = null,
-    val commandFacade: com.maodouchat.domain.messaging.DefaultConversationCommandFacade? = null,
+    val commandFacade: DefaultConversationCommandFacade? = null,
 ) {
     val resolver = DefaultOutgoingConversationResolver(
         getCachedConversation = getCachedConversation,

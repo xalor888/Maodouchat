@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.messaging.ChatSendIntentFactory
+import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
 internal class ChatNudgeSender(
     private val scope: CoroutineScope,

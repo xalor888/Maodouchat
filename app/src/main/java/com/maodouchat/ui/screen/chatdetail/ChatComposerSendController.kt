@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.messaging.ChatSendGuard
 import com.maodouchat.domain.messaging.ChatSendIntentFactory
+import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
 // 发送流水线（文本/富文本主发送 + 静默发送开关）：准入判定、乐观上屏、V2 出站编排
 // 从 ChatDetailViewModel 纯搬移，日志 tag 保持 ChatDetailViewModel 不变。
