@@ -11,6 +11,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
+import com.maodouchat.domain.messaging.AttachmentIntentPolicy
 import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.domain.messaging.AttachmentPreparationService
 import com.maodouchat.domain.messaging.AttachmentTransfer
@@ -25,9 +26,7 @@ import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.util.StickerPreferences
-import com.maodouchat.core.model.ViewOncePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -73,8 +72,8 @@ class DefaultAttachmentIntentController(
 
     private suspend fun submitSticker(intent: AttachmentIntent, owner: String): String {
         requireFlag(RuntimeFlags.STICKERS, "stickers_disabled")
-        val stickerCode = intent.uri.removePrefix("sticker://").trim().take(32)
-        require(stickerCode.isNotBlank()) { "sticker_empty" }
+        val stickerCode = AttachmentIntentPolicy.parseStickerCode(intent.uri)
+        require(!stickerCode.isNullOrBlank()) { "sticker_empty" }
         runCatching { StickerPreferences.recordRecent(appContext, stickerCode) }
 
         if (commandFacade != null) {
@@ -104,16 +103,13 @@ class DefaultAttachmentIntentController(
 
     private suspend fun submitLocation(intent: AttachmentIntent, owner: String): String {
         requireFlag(RuntimeFlags.STATIC_LOCATION, "static_location_disabled")
-        val geoUri = intent.uri.removePrefix("geo:")
-        val parts = geoUri.split(",")
-        val lat = parts.getOrNull(0)?.toDoubleOrNull() ?: 0.0
-        val lng = parts.getOrNull(1)?.substringBefore("?")?.toDoubleOrNull() ?: 0.0
+        val location = AttachmentIntentPolicy.parseGeoLocation(intent.uri)
 
         if (commandFacade != null) {
             val res = commandFacade.send(
                 SendMessageCommand(
                     conversationId = intent.conversationId,
-                    content = ContentPayload.Location(latitude = lat, longitude = lng),
+                    content = ContentPayload.Location(latitude = location.latitude, longitude = location.longitude),
                     idempotencyKey = intent.idempotencyKey
                 )
             )
@@ -122,8 +118,8 @@ class DefaultAttachmentIntentController(
         }
         val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         val payload = LocationPayload(
-            latitude = lat,
-            longitude = lng,
+            latitude = location.latitude,
+            longitude = location.longitude,
             capturedAt = System.currentTimeMillis()
         )
         val content = kotlinx.serialization.json.Json.encodeToString(
@@ -145,22 +141,13 @@ class DefaultAttachmentIntentController(
 
     private suspend fun submitContact(intent: AttachmentIntent, owner: String): String {
         requireFlag(RuntimeFlags.CONTACT_CARD, "contact_card_disabled")
-        val raw = intent.uri
-        val withoutScheme = raw.substringAfter("://", "").ifEmpty { raw.substringAfter(":", "") }
-        val contactUserId = withoutScheme.substringBefore("?").trim()
-        val query = if (withoutScheme.contains("?")) withoutScheme.substringAfter("?") else ""
-        val displayName = query.split("&")
-            .firstOrNull { it.startsWith("name=") }
-            ?.substringAfter("name=")
-            ?.trim()
-            ?.ifBlank { null }
-            ?: intent.caption.orEmpty().ifBlank { "contact" }
+        val card = AttachmentIntentPolicy.parseContactCard(intent.uri, intent.caption)
 
         if (commandFacade != null) {
             val res = commandFacade.send(
                 SendMessageCommand(
                     conversationId = intent.conversationId,
-                    content = ContentPayload.Contact(userId = contactUserId, displayName = displayName),
+                    content = ContentPayload.Contact(userId = card.userId, displayName = card.displayName),
                     idempotencyKey = intent.idempotencyKey
                 )
             )
@@ -168,7 +155,7 @@ class DefaultAttachmentIntentController(
                 ?: intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
         }
         val messageId = intent.idempotencyKey.ifBlank { "m_${UUID.randomUUID()}" }
-        val cardContent = "👤 $displayName\n[contactUser:$contactUserId]"
+        val cardContent = "👤 ${card.displayName}\n[contactUser:${card.userId}]"
         val msg = Message(
             id = messageId,
             chatId = intent.conversationId,
@@ -214,23 +201,18 @@ class DefaultAttachmentIntentController(
             }
             ensureSessionActive(owner)
 
-            val msgType = when (intent.kind) {
-                AttachmentKind.IMAGE -> MessageType.IMAGE
-                AttachmentKind.VIDEO -> MessageType.VIDEO
-                AttachmentKind.VOICE -> MessageType.VOICE
-                AttachmentKind.FILE -> MessageType.FILE
-                AttachmentKind.GIF -> MessageType.GIF
-                else -> MessageType.FILE
-            }
+            val msgType = AttachmentIntentPolicy.messageTypeForKind(intent.kind)
 
+            val visibility = AttachmentIntentPolicy.resolveAttachmentVisibility(
+                msgType, intent.viewOnce, intent.spoilerMedia,
+            )
             val meta = MessageMeta(
                 fileName = prepared.fileName,
                 fileMimeType = prepared.mimeType,
                 fileSizeBytes = prepared.plainSize.takeIf { it > 0L },
                 voiceDurationMs = prepared.durationMs,
-                viewOnce = intent.viewOnce && ViewOncePolicy.supports(msgType),
-                spoilerMedia = intent.spoilerMedia && !intent.viewOnce &&
-                    SpoilerMediaPolicy.supports(msgType),
+                viewOnce = visibility.viewOnce,
+                spoilerMedia = visibility.spoilerMedia,
             )
 
             val optimisticMessage = Message(
