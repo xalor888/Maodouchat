@@ -1,4 +1,4 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.core.model
 
 /**
  * 消息回执的纯领域模型（送达/已读/播放三态时间戳）。

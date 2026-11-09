@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.MessageType
 import kotlinx.coroutines.CancellationException
@@ -8,7 +8,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.domain.messaging.ReadReceiptSource
+import com.maodouchat.core.model.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.PrefetchMessage
 import com.maodouchat.core.model.ReadCountUi
@@ -16,7 +16,7 @@ import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.core.model.ChatDetailUiState
 
-internal class ChatReadReceiptCoordinator(
+class ChatReadReceiptCoordinator(
     private val scope: CoroutineScope,
     private val dao: ReadReceiptSource,
     private val currentUserId: () -> String,

@@ -27,6 +27,7 @@ import com.maodouchat.core.model.AUTO_DOWNLOAD_MEDIA_TYPES
 import com.maodouchat.core.model.toDomainChat
 import com.maodouchat.domain.conversation.ChatDetailLoadCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
+import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatTimelineStateController
 
 // 消息加载/分页/刷新一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。

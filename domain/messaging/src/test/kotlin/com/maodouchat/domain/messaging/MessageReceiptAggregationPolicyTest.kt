@@ -1,4 +1,6 @@
 package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.MessageReceipt
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

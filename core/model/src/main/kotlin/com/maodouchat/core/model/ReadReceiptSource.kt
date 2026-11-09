@@ -1,4 +1,4 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.core.model
 
 import kotlinx.coroutines.flow.Flow
 

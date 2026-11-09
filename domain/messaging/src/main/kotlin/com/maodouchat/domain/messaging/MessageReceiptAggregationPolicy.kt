@@ -1,5 +1,7 @@
 package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.MessageReceipt
+
 /**
  * Pure policy for monotonic receipt timestamp aggregation.
  * Delivery, read, and playback receipts cannot move backward in time.

@@ -1,8 +1,8 @@
 package com.maodouchat.data.local
 
+import com.maodouchat.core.model.MessageReceipt
+import com.maodouchat.core.model.ReadReceiptSource
 import com.maodouchat.data.local.dao.MessagingV2Dao
-import com.maodouchat.domain.messaging.MessageReceipt
-import com.maodouchat.domain.messaging.ReadReceiptSource
 import com.maodouchat.messaging.v2.toMessageReceipt
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
