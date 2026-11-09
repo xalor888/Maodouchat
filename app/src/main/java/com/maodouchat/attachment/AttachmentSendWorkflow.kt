@@ -8,12 +8,11 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.ViewOncePolicy
-import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.AttachmentIntentPolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -70,16 +69,17 @@ internal class AttachmentSendWorkflow(
             throw AttachmentTooLargeException()
         }
 
+        val visibility = AttachmentIntentPolicy.resolveAttachmentVisibility(
+            command.type, command.viewOnce, command.spoilerMedia,
+        )
         val initialMeta = MessageMeta(
             forwardedFrom = command.forwardedFrom,
             voiceDurationMs = command.voiceDurationMs,
             fileName = initialMetadata.fileName,
             fileMimeType = initialMetadata.mimeType,
             fileSizeBytes = initialMetadata.sizeBytes.takeIf { it > 0 },
-            viewOnce = command.viewOnce &&
-                ViewOncePolicy.supports(command.type),
-            spoilerMedia = command.spoilerMedia && !command.viewOnce &&
-                SpoilerMediaPolicy.supports(command.type),
+            viewOnce = visibility.viewOnce,
+            spoilerMedia = visibility.spoilerMedia,
         )
         val optimistic = command.existingMessage?.copy(
             chatId = command.chatId,
