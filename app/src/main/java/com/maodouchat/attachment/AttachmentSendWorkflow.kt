@@ -5,9 +5,9 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AttachmentPreparationLease
 import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ViewOncePolicy
 import com.maodouchat.core.model.SpoilerMediaPolicy
 import com.maodouchat.data.repository.LocalMessageStore
@@ -145,11 +145,3 @@ internal class AttachmentSendWorkflow(
         }
     }
 }
-
-private val RELIABLE_ATTACHMENT_TYPES = setOf(
-    MessageType.IMAGE,
-    MessageType.GIF,
-    MessageType.VIDEO,
-    MessageType.VOICE,
-    MessageType.FILE,
-)
