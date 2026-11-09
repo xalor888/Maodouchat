@@ -4,6 +4,9 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.Summary
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.domain.messaging.AttachmentTransferCancelAction
+import com.maodouchat.domain.messaging.AttachmentTransferSummaryPolicy
+import com.maodouchat.domain.messaging.TransferSummaryRow
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,14 +24,7 @@ import kotlinx.coroutines.flow.map
  */
 object AttachmentTransferSummaryRepository {
 
-    /**
-     * 观察当前账号下所有 attachment 传输的最新统计。
-     * 当 [chatIdFilter] 不为空时只统计该聊天，便于聊天页内嵌浮窗使用。
-     *
-     * 8.49 修复：Room Flow 直查 + distinctUntilChanged 替代 750ms 无条件全表轮询——
-     * 旧实现即使完全无传输也持续唤醒 IO 线程查询；现在由 DB 变更驱动，
-     * 仅保留 5s 低频心跳感知账号切换后重建查询。
-     */
+    /** 观察当前账号下所有 attachment 传输的最新统计；chatIdFilter 非空时只统计该聊天。 */
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observe(app: MaodouchatApp, chatIdFilter: String? = null): Flow<Summary> {
         val dao = app.database.attachmentTransferDao()
@@ -51,14 +47,10 @@ object AttachmentTransferSummaryRepository {
         }
     }.flowOn(Dispatchers.IO)
 
-    private fun summarize(all: List<AttachmentTransferEntity>): Summary = Summary(
-        active = all.count { it.state == AttachmentTransferState.UPLOADING || it.state == AttachmentTransferState.SENDING || it.state == AttachmentTransferState.PREPARING },
-        queued = all.count { it.state == AttachmentTransferState.QUEUED || it.state == AttachmentTransferState.PAUSED },
-        failed = all.count { it.state == AttachmentTransferState.FAILED },
-        completed = all.count { it.state == AttachmentTransferState.READY },
-        totalBytes = all.sumOf { it.cipherSize },
-        uploadedBytes = all.sumOf { it.uploadedBytes }
-    )
+    private fun summarize(all: List<AttachmentTransferEntity>): Summary =
+        AttachmentTransferSummaryPolicy.summarize(all.map {
+            TransferSummaryRow(state = it.state, cipherSize = it.cipherSize, uploadedBytes = it.uploadedBytes)
+        })
 
     /**
      * 一键"重试所有失败任务"。返回成功重新调度的条数。
@@ -98,14 +90,11 @@ object AttachmentTransferSummaryRepository {
         if (TokenManager.getInstance(app).getUserId().orEmpty() != ownerUserId) return 0
         var cancelled = 0
         items.forEach { transfer ->
-            if (transfer.state == AttachmentTransferState.SENDING) {
-                // finalize 在途：不中断，但批量取消语义视为已处理，由 complete() 幂等收尾。
-                cancelled++
-            } else if (transfer.state == AttachmentTransferState.FAILED || transfer.state == AttachmentTransferState.PAUSED ||
-                transfer.state == AttachmentTransferState.UPLOADING ||
-                transfer.state == AttachmentTransferState.QUEUED || transfer.state == AttachmentTransferState.PREPARING
-            ) {
-                if (AttachmentTransferCoordinator.cancel(context, transfer.messageId, ownerUserId)) cancelled++
+            when (AttachmentTransferSummaryPolicy.cancelAction(transfer.state)) {
+                AttachmentTransferCancelAction.COUNTED_AS_HANDLED -> cancelled++
+                AttachmentTransferCancelAction.CANCEL ->
+                    if (AttachmentTransferCoordinator.cancel(context, transfer.messageId, ownerUserId)) cancelled++
+                AttachmentTransferCancelAction.SKIP -> Unit
             }
         }
         return cancelled
