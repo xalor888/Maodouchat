@@ -8,6 +8,12 @@ import java.io.IOException
 /** 附件上传错误处置（纯逻辑）：失败码、可重试判定与 claim 失败处置。 */
 object AttachmentTransferErrorPolicy {
 
+    /** 本地源文件缺失（加密路径不在私有上传目录、非文件或大小不符）。 */
+    const val ERROR_SOURCE_MISSING = "SOURCE_MISSING"
+
+    /** 传输行处于 worker 无法继续的状态。 */
+    const val ERROR_INVALID_STATE = "INVALID_STATE"
+
     fun transferErrorCode(error: Throwable): String = when (error) {
         is ApiException -> "${error.kind.name}_${error.statusCode ?: 0}"
         else -> error.javaClass.simpleName.take(80).ifBlank { "UNKNOWN" }
