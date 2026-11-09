@@ -11,6 +11,7 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.domain.messaging.DecryptPath
 import com.maodouchat.domain.messaging.DuplicateEnvelopeRecovery
+import com.maodouchat.domain.messaging.EnvelopeKind
 import com.maodouchat.domain.messaging.EnvelopePrepareRoute
 import com.maodouchat.domain.messaging.OutboxWireFormat
 import com.maodouchat.domain.messaging.PreparedMessageV2
@@ -167,7 +168,7 @@ class SignalMessagingV2EnvelopeProcessor(
     private val inboxDao: com.maodouchat.data.local.dao.MessagingV2Dao? = null,
 ) : MessagingV2EnvelopeProcessor {
     override suspend fun process(envelope: MessagingV2InboxEntity) {
-        if (envelope.kind == KIND_SERVICE) {
+        if (envelope.kind == EnvelopeKind.SERVICE) {
             serviceEnvelopeContent(
                 senderUserId = envelope.senderUserId,
                 senderDeviceId = envelope.senderDeviceId,
@@ -193,7 +194,7 @@ class SignalMessagingV2EnvelopeProcessor(
         }
         when (decrypted) {
             is DecryptResult.Success -> {
-                if (envelope.kind == KIND_SENDER_KEY) {
+                if (envelope.kind == EnvelopeKind.SENDER_KEY) {
                     if (
                         isSenderKeyInstallFailure(
                             signalProtocol.processSenderKeyDistributionEnvelope(
@@ -226,7 +227,7 @@ class SignalMessagingV2EnvelopeProcessor(
             DecryptResult.Duplicate -> {
                 // Sender-key installation is idempotent: a replayed distribution after a crash
                 // is already installed and must be acknowledged instead of dead-lettered.
-                if (envelope.kind == KIND_SENDER_KEY) return
+                if (envelope.kind == EnvelopeKind.SENDER_KEY) return
                 // The ratchet step survived a previous attempt. Recover the projection from the
                 // journal written before the original commit; otherwise acknowledge only when
                 // the message verifiably reached the timeline. Anything else is retried into
@@ -261,10 +262,5 @@ class SignalMessagingV2EnvelopeProcessor(
             DecryptResult.UnsupportedEnvelope -> error(decryptFailureMessage(decrypted))
             DecryptResult.Failed -> error(decryptFailureMessage(decrypted))
         }
-    }
-
-    private companion object {
-        const val KIND_SENDER_KEY = "SENDER_KEY"
-        const val KIND_SERVICE = "SERVICE"
     }
 }
