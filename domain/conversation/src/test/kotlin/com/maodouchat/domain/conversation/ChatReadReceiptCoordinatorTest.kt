@@ -1,6 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.domain.messaging.MessageReceipt
+import com.maodouchat.core.model.MessageReceipt
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
@@ -22,7 +22,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import com.maodouchat.domain.messaging.ReadReceiptSource
+import com.maodouchat.core.model.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ChatDetailUiState
 

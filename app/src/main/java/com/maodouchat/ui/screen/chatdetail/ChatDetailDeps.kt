@@ -18,6 +18,7 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
+import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
 import com.maodouchat.core.model.GroupLifecycleCoordinator
@@ -57,7 +58,6 @@ import kotlinx.coroutines.flow.update
 import com.maodouchat.core.model.toDomainChat
 /**
  * 聊天详情页的**装配**（G328c 从 `ChatDetailViewModel` 搬出，纯搬移不改判断）。
- *
  * 依赖方向：`ChatDetailDeps` 持有 [ChatDetailViewModel] 的引用（构造时传入），
  * 在需要读 VM 状态或调用 VM 方法时用 `host.xxx`。反向调用只发生在 lambda / 方法引用里
  * （构造期不触碰），所以运行期不会形成环。本类是 `internal`，不对外暴露。
