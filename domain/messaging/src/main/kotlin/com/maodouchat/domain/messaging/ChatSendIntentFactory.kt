@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.NudgeDecision
@@ -23,7 +23,7 @@ import com.maodouchat.core.model.ChatDetailUiState
  * 本对象是纯函数：不碰 Coroutine / Room / ApiService / Android 资源；
  * 需要资源的文案由调用方按 `reason` 自己映射。
  */
-internal object ChatSendIntentFactory {
+object ChatSendIntentFactory {
 
     /** 占位 owner：未登录或测试态下 `currentUserId` 会是它，此时绝不能发送。 */
     const val PLACEHOLDER_OWNER: String = "me"

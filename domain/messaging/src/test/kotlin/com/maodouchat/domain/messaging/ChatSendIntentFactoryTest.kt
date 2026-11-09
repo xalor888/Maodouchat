@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageStatus
