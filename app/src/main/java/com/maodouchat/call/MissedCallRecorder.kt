@@ -3,11 +3,8 @@ package com.maodouchat.call
 import com.maodouchat.notification.CallNotificationService
 import android.content.Context
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.MissedCall
 import com.maodouchat.core.model.MissedCallTimeoutPolicy
-import com.maodouchat.core.model.State
+import com.maodouchat.domain.calls.buildMissedCallRecord
 import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.NotificationPreferences
@@ -62,29 +59,20 @@ object MissedCallRecorder {
         ) {
             return
         }
-        repo.insert(
-            MissedCall(
-                id = missedId,
-                callerId = fromUserId,
-                callerName = callerName.ifBlank { fromUserId },
-                callType = if (isVideo) "VIDEO" else "AUDIO",
-                receivedAt = nowMs,
-            )
+        val record = buildMissedCallRecord(
+            missedId = missedId,
+            fromUserId = fromUserId,
+            callerName = callerName,
+            isVideo = isVideo,
+            nowMs = nowMs,
+            isGroup = isGroup,
         )
+        repo.insert(record.missedCall)
         // 8.52：同步写全量通话记录（未接来电入 CallLogStore）；
         // 传呼入时快照的 userId 作守卫，防 repo.insert 挂起点后换号写错账号
         CallLogStore.upsert(
             appCtx,
-            CallLogEntry(
-                id = missedId,
-                peerId = fromUserId,
-                peerName = callerName.ifBlank { fromUserId },
-                isVideo = isVideo,
-                direction = Direction.INCOMING,
-                state = State.MISSED,
-                startedAt = nowMs,
-                isGroup = isGroup
-            ),
+            record.callLogEntry,
             expectedUserId = userId
         )
         if (!BackgroundSessionGate.mayContinue(
