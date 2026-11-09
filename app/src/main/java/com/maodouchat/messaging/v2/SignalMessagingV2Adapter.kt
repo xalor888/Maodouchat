@@ -3,22 +3,24 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.crypto.SenderKeyDistOutcome
 import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.core.model.MessagingV2ContentPolicy
 import com.maodouchat.core.model.MessagingV2ConversationSnapshot
 import com.maodouchat.core.model.MessagingV2DeviceTarget
 import com.maodouchat.core.model.MessagingV2GroupControlPolicy
-import com.maodouchat.core.model.MessagingV2ServiceEnvelopePolicy
 import com.maodouchat.core.model.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.domain.messaging.DuplicateEnvelopeRecovery
 import com.maodouchat.domain.messaging.OutboxWireFormat
 import com.maodouchat.domain.messaging.PreparedMessageV2
+import com.maodouchat.domain.messaging.decideDuplicateRecovery
+import com.maodouchat.domain.messaging.decryptedEnvelopeContent
 import com.maodouchat.domain.messaging.deviceEnvelopes
 import com.maodouchat.domain.messaging.envelopeTargetsCovered
 import com.maodouchat.domain.messaging.outboxAttachmentIds
 import com.maodouchat.domain.messaging.requiredRecipientIds
 import com.maodouchat.domain.messaging.senderKeyEnvelopes
+import com.maodouchat.domain.messaging.serviceEnvelopeContent
 import com.maodouchat.domain.messaging.targetUserIds
 import com.maodouchat.network.ApiService
 import kotlinx.serialization.json.Json
@@ -152,21 +154,15 @@ class SignalMessagingV2EnvelopeProcessor(
     private val onSenderKeyMissing: suspend (MessagingV2InboxEntity, Long) -> Unit = { _, _ -> },
     private val inboxDao: com.maodouchat.data.local.dao.MessagingV2Dao? = null,
 ) : MessagingV2EnvelopeProcessor {
-    private val json = Json { ignoreUnknownKeys = false }
-
     override suspend fun process(envelope: MessagingV2InboxEntity) {
         if (envelope.kind == KIND_SERVICE) {
-            if (!MessagingV2ServiceEnvelopePolicy.accepts(
-                    senderUserId = envelope.senderUserId,
-                    senderDeviceId = envelope.senderDeviceId,
-                    ciphertextType = envelope.ciphertextType,
-                )
-            ) return
-            val content = runCatching {
-                json.decodeFromString<MessagingV2Content>(envelope.ciphertext)
-            }.getOrNull() ?: return
-            if (!MessagingV2ContentPolicy.accepts(envelope.kind, content)) return
-            domainSink.commit(envelope, content)
+            serviceEnvelopeContent(
+                senderUserId = envelope.senderUserId,
+                senderDeviceId = envelope.senderDeviceId,
+                ciphertextType = envelope.ciphertextType,
+                kind = envelope.kind,
+                ciphertext = envelope.ciphertext,
+            )?.let { domainSink.commit(envelope, it) }
             return
         }
         val decrypted = if (envelope.ciphertextType == CIPHERTEXT_SENDER_KEY) {
@@ -208,14 +204,12 @@ class SignalMessagingV2EnvelopeProcessor(
                         plaintext = decrypted.plaintext,
                         now = System.currentTimeMillis(),
                     )
-                    val content = runCatching {
-                        json.decodeFromString<MessagingV2Content>(decrypted.plaintext)
-                    }.getOrNull() ?: return
                     // The sender controls `kind`; binding it after authenticated decryption
                     // prevents DATA disguised as RECEIPT and ACKs poison payloads so they cannot
                     // permanently block the ordered inbox.
-                    if (!MessagingV2ContentPolicy.accepts(envelope.kind, content)) return
-                    domainSink.commit(envelope, content)
+                    decryptedEnvelopeContent(envelope.kind, decrypted.plaintext)?.let {
+                        domainSink.commit(envelope, it)
+                    }
                 }
             }
             DecryptResult.Duplicate -> {
@@ -226,21 +220,20 @@ class SignalMessagingV2EnvelopeProcessor(
                 // journal written before the original commit; otherwise acknowledge only when
                 // the message verifiably reached the timeline. Anything else is retried into
                 // the dead-letter path instead of silently losing the body.
-                val journaled = inboxDao?.plaintextJournal(envelope.envelopeId)?.takeIf(String::isNotBlank)
-                if (journaled == null) {
-                    if (inboxDao?.isMessageProjected(envelope.ownerUserId, envelope.messageId) != true) {
-                        error("messaging_v2_duplicate_uncommitted")
-                    }
-                } else {
-                    val content = runCatching {
-                        json.decodeFromString<MessagingV2Content>(journaled)
-                    }.getOrNull()
-                    if (content != null && MessagingV2ContentPolicy.accepts(envelope.kind, content)) {
-                        domainSink.commit(envelope, content)
+                val journaled = inboxDao?.plaintextJournal(envelope.envelopeId)
+                when (val recovery = decideDuplicateRecovery(envelope.kind, journaled) {
+                    inboxDao?.isMessageProjected(envelope.ownerUserId, envelope.messageId) == true
+                }) {
+                    DuplicateEnvelopeRecovery.Acknowledge -> Unit
+                    DuplicateEnvelopeRecovery.Uncommitted -> error("messaging_v2_duplicate_uncommitted")
+                    is DuplicateEnvelopeRecovery.Recover -> {
+                        domainSink.commit(envelope, recovery.content)
+                        inboxDao?.writePlaintextJournal(envelope.envelopeId, "", System.currentTimeMillis())
                     }
                     // Intentional skips (policy-rejected) and unrecoverable payloads are
                     // acknowledged with the journal cleared so they cannot replay forever.
-                    inboxDao.writePlaintextJournal(envelope.envelopeId, "", System.currentTimeMillis())
+                    DuplicateEnvelopeRecovery.DiscardJournal ->
+                        inboxDao?.writePlaintextJournal(envelope.envelopeId, "", System.currentTimeMillis())
                 }
             }
             DecryptResult.NoSession -> {
