@@ -4,6 +4,7 @@ import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.domain.messaging.InboxPullContinuation
 import com.maodouchat.domain.messaging.InboxRetryPolicy
+import com.maodouchat.domain.messaging.InboxSyncLimits
 import com.maodouchat.domain.messaging.decideInboxPullContinuation
 import com.maodouchat.domain.messaging.shouldFetchMoreAcknowledgements
 import com.maodouchat.network.ApiService
@@ -35,12 +36,12 @@ class MessagingV2InboxSynchronizer(
             dao.recoverStaleInboxClaims(
                 ownerUserId = ownerUserId,
                 deviceId = deviceId,
-                staleBefore = now - STALE_PROCESSING_MS,
+                staleBefore = now - InboxSyncLimits.STALE_PROCESSING_MS,
                 now = now,
             )
             flushAcknowledgements(token, ownerUserId, deviceId)
-            repeat(MAX_PULL_PAGES) {
-                val page = ApiService.getPendingInboxV2(token, PULL_LIMIT).getOrThrow()
+            repeat(InboxSyncLimits.MAX_PULL_PAGES) {
+                val page = ApiService.getPendingInboxV2(token, InboxSyncLimits.PULL_LIMIT).getOrThrow()
                 val pulledAt = clock()
                 dao.insertInbox(page.envelopes.map { it.toEntity(ownerUserId, deviceId, pulledAt) })
                 val batchCompleted = processAvailable(ownerUserId, deviceId)
@@ -91,24 +92,15 @@ class MessagingV2InboxSynchronizer(
 
     private suspend fun flushAcknowledgements(token: String, ownerUserId: String, deviceId: Int) {
         while (true) {
-            val ids = dao.ackPendingIds(ownerUserId, deviceId, ACK_LIMIT)
+            val ids = dao.ackPendingIds(ownerUserId, deviceId, InboxSyncLimits.ACK_LIMIT)
             if (ids.isEmpty()) return
             val response = ApiService.acknowledgeInboxV2(token, ids).getOrThrow()
             check(response.acknowledged == ids.size) { "messaging_v2_ack_incomplete" }
             dao.deleteAcknowledgedInbox(ownerUserId, deviceId, ids)
             dao.markDeadLettersAcknowledged(ownerUserId, deviceId, ids, clock())
-            if (!shouldFetchMoreAcknowledgements(ids.size, ACK_LIMIT)) return
+            if (!shouldFetchMoreAcknowledgements(ids.size, InboxSyncLimits.ACK_LIMIT)) return
         }
     }
 
-    /**
-     * 分页与兜底常量。刻意用 `internal` 而非 `private`：多页拉取循环的契约
-     * （每页大小、页数上限）必须能被测试**直接引用**，否则常量一改测试就成了复述旧数字的摆设。
-     */
-    internal companion object {
-        const val PULL_LIMIT = 200
-        const val ACK_LIMIT = 200
-        const val MAX_PULL_PAGES = 20
-        const val STALE_PROCESSING_MS = 2L * 60L * 1_000L
-    }
+    // 分页与兜底常量见 :domain:messaging 的 InboxSyncLimits；测试直接引用 domain 常量，值由其测试钉住。
 }

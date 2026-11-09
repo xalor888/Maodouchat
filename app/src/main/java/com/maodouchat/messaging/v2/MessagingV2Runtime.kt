@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import com.maodouchat.domain.messaging.InboxSyncLimits
 import com.maodouchat.domain.messaging.OutboxState
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.joinAll
@@ -139,7 +140,7 @@ class MessagingV2Runtime(
         pollJob = scope.launch {
             while (isActive) {
                 syncOnce(generation)
-                delay(POLL_INTERVAL_MS)
+                delay(InboxSyncLimits.POLL_INTERVAL_MS)
             }
         }
     }
@@ -248,6 +249,5 @@ class MessagingV2Runtime(
 
     private companion object {
         const val TAG = "MessagingV2Runtime"
-        const val POLL_INTERVAL_MS = 30_000L
     }
 }

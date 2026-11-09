@@ -5,6 +5,7 @@ import com.maodouchat.core.model.PendingEnvelopeV2Dto
 import com.maodouchat.core.model.PendingInboxResponseV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
+import com.maodouchat.domain.messaging.InboxSyncLimits
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.toEntity
 import io.mockk.coEvery
@@ -326,7 +327,7 @@ class MessagingV2InboxSynchronizerTest {
         )
 
         assertEquals(3, pulls.size, "三页必须全部拉完，一页都不能漏：$pulls")
-        assertTrue(pulls.all { it == MessagingV2InboxSynchronizer.PULL_LIMIT }, "每页都必须按 PULL_LIMIT 拉：$pulls")
+        assertTrue(pulls.all { it == InboxSyncLimits.PULL_LIMIT }, "每页都必须按 PULL_LIMIT 拉：$pulls")
         // 每页的信封恰好落盘一次，且顺序与页面顺序一致。
         val inserts = events.filter { it.startsWith("insertInbox:") }
         assertEquals(3, inserts.size, "每页只应落盘一次，多一次就是重复拉取：$inserts")
@@ -412,12 +413,12 @@ class MessagingV2InboxSynchronizerTest {
         )
 
         assertEquals(
-            MessagingV2InboxSynchronizer.MAX_PULL_PAGES,
+            InboxSyncLimits.MAX_PULL_PAGES,
             pulls.size,
             "必须被 MAX_PULL_PAGES 上限兜住，否则同步永不返回：$pulls",
         )
         assertEquals(
-            MessagingV2InboxSynchronizer.MAX_PULL_PAGES,
+            InboxSyncLimits.MAX_PULL_PAGES,
             events.count { it.startsWith("insertInbox:") },
             "上限内每一页仍须正常落盘：$events",
         )
