@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
-import com.maodouchat.R
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ContactsUiState
@@ -11,11 +10,11 @@ import kotlinx.coroutines.launch
 
 // 会话创建一族：私聊/密聊/群聊/频道创建。从 ContactsViewModel 纯搬移；
 // VM 只留同签名委托，状态经 lambda 注入。
-internal class ContactsChatCreationController(
+class ContactsChatCreationController(
     private val scope: CoroutineScope,
     private val updateState: ((ContactsUiState) -> ContactsUiState) -> Unit,
     private val isCreatingChat: () -> Boolean,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (ContactsMessage, Array<out Any>) -> String,
     private val conversationCreationPort: ConversationCreationPort,
     private val secretChatEnabled: () -> Boolean,
 ) {
@@ -27,7 +26,7 @@ internal class ContactsChatCreationController(
 
     fun startSecretChat(peer: User) {
         if (!secretChatEnabled()) {
-            updateState { it.copy(errorMessage = text(R.string.secret_chat_feature_disabled, emptyArray())) }
+            updateState { it.copy(errorMessage = text(ContactsMessage.SECRET_CHAT_FEATURE_DISABLED, emptyArray())) }
             return
         }
         launchChatCreation {
@@ -38,7 +37,7 @@ internal class ContactsChatCreationController(
     fun createGroupChat(groupName: String, members: List<User>) {
         val name = groupName.trim()
         if (name.isBlank()) {
-            updateState { it.copy(errorMessage = text(R.string.contacts_enter_group_name, emptyArray())) }
+            updateState { it.copy(errorMessage = text(ContactsMessage.CONTACTS_ENTER_GROUP_NAME, emptyArray())) }
             return
         }
         launchChatCreation {
@@ -49,7 +48,7 @@ internal class ContactsChatCreationController(
     fun createChannelChat(channelName: String, members: List<User>) {
         val name = channelName.trim()
         if (name.isBlank()) {
-            updateState { it.copy(errorMessage = text(R.string.chat_channel_name_hint, emptyArray())) }
+            updateState { it.copy(errorMessage = text(ContactsMessage.CHAT_CHANNEL_NAME_HINT, emptyArray())) }
             return
         }
         launchChatCreation {
@@ -72,7 +71,7 @@ internal class ContactsChatCreationController(
                         updateState {
                             it.copy(
                                 isCreatingChat = false,
-                                errorMessage = error.message ?: text(R.string.contacts_create_chat_failed, emptyArray())
+                                errorMessage = error.message ?: text(ContactsMessage.CONTACTS_CREATE_CHAT_FAILED, emptyArray())
                             )
                         }
                     }
@@ -84,7 +83,7 @@ internal class ContactsChatCreationController(
                 updateState {
                     it.copy(
                         isCreatingChat = false,
-                        errorMessage = error.message ?: text(R.string.contacts_create_chat_failed, emptyArray())
+                        errorMessage = error.message ?: text(ContactsMessage.CONTACTS_CREATE_CHAT_FAILED, emptyArray())
                     )
                 }
             }

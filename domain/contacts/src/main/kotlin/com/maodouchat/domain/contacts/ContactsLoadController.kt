@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
-import com.maodouchat.R
 import com.maodouchat.core.model.ContactsUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -9,10 +8,10 @@ import kotlinx.coroutines.launch
 
 // 联系人加载一族：好友流订阅、重载与错误投影。从 ContactsViewModel 纯搬移；
 // VM 只留同签名委托，状态经 lambda 注入。
-internal class ContactsLoadController(
+class ContactsLoadController(
     private val scope: CoroutineScope,
     private val updateState: ((ContactsUiState) -> ContactsUiState) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (ContactsMessage, Array<out Any>) -> String,
     private val contactsController: ContactsController,
 ) {
     private var friendsJob: Job? = null
@@ -39,7 +38,7 @@ internal class ContactsLoadController(
                 it.copy(
                     contacts = emptyList(),
                     isLoading = false,
-                    errorMessage = text(R.string.error_session_expired, emptyArray()),
+                    errorMessage = text(ContactsMessage.SESSION_EXPIRED, emptyArray()),
                 )
             }
             return
@@ -56,8 +55,8 @@ internal class ContactsLoadController(
                         isLoading = false,
                         errorMessage = when {
                             result.users.isNotEmpty() -> null
-                            result.sessionMissing -> text(R.string.error_session_expired, emptyArray())
-                            failure != null -> failure.message ?: text(R.string.contacts_load_failed, emptyArray())
+                            result.sessionMissing -> text(ContactsMessage.SESSION_EXPIRED, emptyArray())
+                            failure != null -> failure.message ?: text(ContactsMessage.CONTACTS_LOAD_FAILED, emptyArray())
                             else -> null
                         },
                     )
@@ -72,7 +71,7 @@ internal class ContactsLoadController(
                     updateState {
                         it.copy(
                             isLoading = false,
-                            errorMessage = error.message ?: text(R.string.contacts_load_failed, emptyArray()),
+                            errorMessage = error.message ?: text(ContactsMessage.CONTACTS_LOAD_FAILED, emptyArray()),
                         )
                     }
                 }
