@@ -1,20 +1,17 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import com.maodouchat.domain.groups.GroupAuditController
 import com.maodouchat.core.model.GroupDetailUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-/**
- * G370：群审计分页加载从 `GroupDetailViewModel` 抽出（纯搬移不改判断）——
- * `auditNextOffset` 仍由 VM 持有（loader 也写它），经 get/set lambda 共享。
- */
-internal class GroupAuditLoadController(
+/** 群审计分页加载（offset 语义），追加去重后写入审计列表。 */
+class GroupAuditLoadController(
     private val scope: CoroutineScope,
     private val currentState: () -> GroupDetailUiState,
     private val updateState: ((GroupDetailUiState) -> GroupDetailUiState) -> Unit,
     private val chatId: () -> String,
     private val ownerUserId: () -> String,
+    private val sessionActive: (String) -> Boolean,
     private val groupAuditController: GroupAuditController,
     private val auditOffsetGet: () -> Int,
     private val auditOffsetSet: (Int) -> Unit,
@@ -26,20 +23,14 @@ internal class GroupAuditLoadController(
         updateState { it.copy(isLoadingMoreAudit = true) }
         scope.launch {
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = auditOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(auditOwnerUserId)) {
                     updateState { it.copy(isLoadingMoreAudit = false) }
                     return@launch
                 }
                 val offset = auditOffsetGet()
                 val page = groupAuditController.fetchAuditLogs(chatId(), limit = 100, offset = offset).getOrNull().orEmpty()
                 auditOffsetSet(offset + page.size)
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = auditOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(auditOwnerUserId)) {
                     return@launch
                 }
                 updateState { st ->
@@ -63,5 +54,5 @@ internal class GroupAuditLoadController(
     }
 
     private fun isCurrentAuditOwner(expected: String): Boolean =
-        expected.isNotBlank() && com.maodouchat.session.CurrentSession.snapshot().userId == expected
+        expected.isNotBlank() && ownerUserId() == expected
 }
