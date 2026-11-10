@@ -355,7 +355,7 @@ class ChatDetailViewModel(
     fun sendNudge() = nudgeSender.sendNudge()
 
     /**
-     * 重发失败的消息——编排已抽到 [ChatRetrySender]（G346），纯搬移不改判断。
+     * 重发失败的消息——编排已抽到 ChatRetrySender（G346），纯搬移不改判断。
      */
     fun retrySendMessage(messageId: String) = retrySender.retrySendMessage(messageId)
 

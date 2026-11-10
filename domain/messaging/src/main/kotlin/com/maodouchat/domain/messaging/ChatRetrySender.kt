@@ -1,9 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.net.Uri
-import android.util.Log
-import androidx.core.net.toUri
-import com.maodouchat.R
 import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RetryRejectReason
@@ -11,15 +7,14 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.OutgoingMessageCommand
 import com.maodouchat.core.model.OutgoingMessageResult
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.messaging.ChatSendGuard
-import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
-internal class ChatRetrySender(
+class ChatRetrySender(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
     private val token: () -> String,
@@ -28,8 +23,10 @@ internal class ChatRetrySender(
     private val sessionActive: (String) -> Boolean,
     private val outgoingFacade: ChatOutgoingFacade,
     private val persistMessage: suspend (Message) -> Unit,
-    private val sendAttachmentRetry: (uri: Uri, type: MessageType, messageId: String, message: Message) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val sendAttachmentRetry: (uriString: String, type: MessageType, messageId: String, message: Message) -> Unit,
+    private val text: (ChatSenderMessage, Array<out Any>) -> String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val logWarning: (String, Throwable?) -> Unit = { _, _ -> },
 ) {
     /**
      * 重发失败的消息
@@ -43,7 +40,7 @@ internal class ChatRetrySender(
         val decision = ChatSendGuard.checkRetry(currentState(), messageId, retryOwnerUserId, token())
         if (decision is ChatRetryDecision.NeedsAttachmentRetry) {
             return sendAttachmentRetry(
-                decision.message.parsedContent().toUri(),
+                decision.message.parsedContent(),
                 decision.message.type,
                 messageId,
                 decision.message,
@@ -51,7 +48,7 @@ internal class ChatRetrySender(
         }
         if (decision is ChatRetryDecision.Reject) {
             if (decision.reason == RetryRejectReason.NO_SESSION) {
-                updateState { it.copy(groupEncryptionWarning = string(R.string.error_session_expired)) }
+                updateState { it.copy(groupEncryptionWarning = string(ChatSenderMessage.ERROR_SESSION_EXPIRED)) }
             }
             return
         }
@@ -61,7 +58,7 @@ internal class ChatRetrySender(
         updateState { st -> st.copy(messages = st.messages.map { m -> if (m.id == messageId) sendingMsg else m }) }
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result = withContext(ioDispatcher) {
                     outgoingFacade.retry(
                         OutgoingMessageCommand(
                             ownerUserId = retryOwnerUserId,
@@ -82,11 +79,7 @@ internal class ChatRetrySender(
                     })
                 }
                 if (result is OutgoingMessageResult.Failed) {
-                    Log.w(
-                        "ChatDetailViewModel",
-                        "v2 retry enqueue failed: ${result.error.message}",
-                        result.error,
-                    )
+                    logWarning("v2 retry enqueue failed: ${result.error.message}", result.error)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
@@ -95,11 +88,11 @@ internal class ChatRetrySender(
                     return@launch
                 }
                 updateState { st -> st.copy(messages = st.messages.map { m -> if (m.id == messageId) failedMsg else m }) }
-                withContext(Dispatchers.IO) { persistMessage(failedMsg) }
-                Log.w("ChatDetailViewModel", "v2 retry enqueue failed: ${error.message}", error)
+                withContext(ioDispatcher) { persistMessage(failedMsg) }
+                logWarning("v2 retry enqueue failed: ${error.message}", error)
             }
         }
     }
 
-    private fun string(resourceId: Int, vararg args: Any): String = text(resourceId, args)
+    private fun string(message: ChatSenderMessage, vararg args: Any): String = text(message, args)
 }

@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
+import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.AiConversationProfileSource
@@ -10,7 +11,9 @@ import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
 import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
+import com.maodouchat.domain.messaging.ChatNudgeSender
 import com.maodouchat.domain.messaging.ChatOutgoingFacade
+import com.maodouchat.domain.messaging.ChatRetrySender
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -367,7 +370,7 @@ internal class ChatDetailDeps(
         mergeMessages = ::mergeMessageVersions,
         emitListPreviewForDecrypted = messagePreviewController::emitListPreviewForDecrypted,
         outgoingFacade = outgoingFacade,
-        text = { id, args -> host.text(id, *args) },
+        text = { message, args -> host.text(chatSenderMessageResId(message), *args) },
     )
     internal val retrySender = ChatRetrySender(
         scope = host.viewModelScope,
@@ -382,10 +385,11 @@ internal class ChatDetailDeps(
         },
         outgoingFacade = outgoingFacade,
         persistMessage = messageRepo::insertMessage,
-        sendAttachmentRetry = { uri, type, messageId, message ->
-            host.sendEncryptedAttachment(uri, type, messageId, message)
+        sendAttachmentRetry = { uriString, type, messageId, message ->
+            host.sendEncryptedAttachment(uriString.toUri(), type, messageId, message)
         },
-        text = { id, args -> host.text(id, *args) },
+        text = { message, args -> host.text(chatSenderMessageResId(message), *args) },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val attachmentSender = ChatAttachmentSender(
         scope = host.viewModelScope,
@@ -573,8 +577,6 @@ internal class ChatDetailDeps(
         aiAutoRetryJobs = aiBookkeeping.aiAutoRetryJobs,
         aiAutoRetryAt = aiBookkeeping.aiAutoRetryAt,
     )
-    // G384：`observeAttachmentFinalizedEvents()`/`observeAttachmentTransfers()` 附件观察一族抽到
-    // ChatAttachmentObservationController——VM 侧只留同签名委托。
     internal val attachmentObservationController = ChatAttachmentObservationController(
         scope = host.viewModelScope,
         getApplication = { host.getApplication<android.app.Application>() },
@@ -597,8 +599,6 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         projectMessageMutation = host::projectMessageMutation,
     )
-    // G386：`observeMessageStatus()` 消息状态观察一族抽到
-    // ChatMessageStatusObservationController——VM 侧只留同签名委托。
     internal val messageStatusObservationController = ChatMessageStatusObservationController(
         uiState = host._uiState,
         scope = host.viewModelScope,
