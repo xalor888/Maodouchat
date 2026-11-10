@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import com.maodouchat.contacts.sync.ContactSyncEvent
 import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
+import com.maodouchat.domain.contacts.ContactsController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

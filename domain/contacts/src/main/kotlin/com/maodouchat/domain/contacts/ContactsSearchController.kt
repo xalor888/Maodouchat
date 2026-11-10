@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
-import com.maodouchat.R
 import com.maodouchat.core.model.ContactsUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -10,10 +9,10 @@ import kotlinx.coroutines.launch
 
 // 搜索一族：query 防抖、会话校验、网络/本地搜索结果投影。
 // 从 ContactsViewModel 纯搬移；VM 只留同签名委托，状态经 lambda 注入。
-internal class ContactsSearchController(
+class ContactsSearchController(
     private val scope: CoroutineScope,
     private val updateState: ((ContactsUiState) -> ContactsUiState) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (ContactsMessage, Array<out Any>) -> String,
     private val contactsController: ContactsController,
 ) {
     private var searchJob: Job? = null
@@ -33,7 +32,7 @@ internal class ContactsSearchController(
                     searchResults = emptyList(),
                     isSearching = false,
                     searchFailed = true,
-                    errorMessage = text(R.string.error_session_expired, emptyArray())
+                    errorMessage = text(ContactsMessage.SESSION_EXPIRED, emptyArray())
                 )
             }
             return
@@ -50,7 +49,7 @@ internal class ContactsSearchController(
                         searchResults = result.users,
                         isSearching = false,
                         searchFailed = result.users.isEmpty() && result.failure != null,
-                        errorMessage = if (result.users.isEmpty() && result.failure != null) text(R.string.contacts_search_failed, emptyArray()) else null
+                        errorMessage = if (result.users.isEmpty() && result.failure != null) text(ContactsMessage.CONTACTS_SEARCH_FAILED, emptyArray()) else null
                     )
                 }
             } catch (error: CancellationException) {
@@ -64,7 +63,7 @@ internal class ContactsSearchController(
                         it.copy(
                             isSearching = false,
                             searchFailed = true,
-                            errorMessage = text(R.string.contacts_search_failed, emptyArray())
+                            errorMessage = text(ContactsMessage.CONTACTS_SEARCH_FAILED, emptyArray())
                         )
                     }
                 }

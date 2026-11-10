@@ -15,6 +15,8 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.domain.contacts.ContactsController
+import com.maodouchat.domain.contacts.ContactsRepository
 import io.mockk.mockk
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
-import com.maodouchat.R
 import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.ContactMutationUseCase
 import com.maodouchat.core.model.ContactsUiState
@@ -11,12 +10,12 @@ import kotlinx.coroutines.launch
 
 // 好友动作一族：申请加载/接受/拒绝/撤销/删除/拉黑/发送/批量 + 备注修改。
 // 从 ContactsViewModel 纯搬移；VM 只留同签名委托，状态经 lambda 注入。
-internal class ContactsFriendActionController(
+class ContactsFriendActionController(
     private val scope: CoroutineScope,
     private val updateState: ((ContactsUiState) -> ContactsUiState) -> Unit,
     private val isFriendActionBusy: () -> Boolean,
     private val incomingRequestIds: () -> List<String>,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (ContactsMessage, Array<out Any>) -> String,
     private val friendRequestUseCase: FriendRequestUseCase,
     private val contactMutationUseCase: ContactMutationUseCase,
     private val friendRequestsEnabled: () -> Boolean,
@@ -37,7 +36,7 @@ internal class ContactsFriendActionController(
     }
 
     fun acceptFriendRequest(requestId: String) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_accepted, emptyArray()),
+        successMessage = text(ContactsMessage.CONTACTS_FRIEND_ACCEPTED, emptyArray()),
         refreshRequests = true,
         refreshContacts = true,
     ) {
@@ -45,7 +44,7 @@ internal class ContactsFriendActionController(
     }
 
     fun rejectFriendRequest(requestId: String) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_rejected, emptyArray()),
+        successMessage = text(ContactsMessage.CONTACTS_FRIEND_REJECTED, emptyArray()),
         refreshRequests = true,
     ) {
         friendRequestUseCase.rejectFriendRequest(requestId)
@@ -58,25 +57,25 @@ internal class ContactsFriendActionController(
     }
 
     fun removeFriend(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_removed, emptyArray()),
+        successMessage = text(ContactsMessage.CONTACTS_FRIEND_REMOVED, emptyArray()),
     ) {
         contactMutationUseCase.removeFriend(user.id)
     }
 
     fun blockUser(user: User) = launchFriendAction(
-        successMessage = text(R.string.contacts_friend_blocked, arrayOf(user.displayName)),
+        successMessage = text(ContactsMessage.CONTACTS_FRIEND_BLOCKED, arrayOf(user.displayName)),
     ) {
         contactMutationUseCase.blockUser(user.id)
     }
 
     fun sendFriendRequest(user: User, message: String = "") {
         if (!friendRequestsEnabled()) {
-            updateState { it.copy(errorMessage = text(R.string.friend_requests_disabled, emptyArray())) }
+            updateState { it.copy(errorMessage = text(ContactsMessage.FRIEND_REQUESTS_DISABLED, emptyArray())) }
             return
         }
         launchFriendAction(
-            successMessage = text(R.string.contacts_friend_request_sent, emptyArray()),
-            fallbackErrorMessage = text(R.string.contacts_friend_request_failed, emptyArray()),
+            successMessage = text(ContactsMessage.CONTACTS_FRIEND_REQUEST_SENT, emptyArray()),
+            fallbackErrorMessage = text(ContactsMessage.CONTACTS_FRIEND_REQUEST_FAILED, emptyArray()),
             refreshRequests = true,
         ) {
             friendRequestUseCase.sendFriendRequest(user.id, message.take(300))
@@ -84,14 +83,14 @@ internal class ContactsFriendActionController(
     }
 
     fun acceptAllFriendRequests() = launchFriendBatchAction(
-        allSucceededMessage = text(R.string.contacts_friend_accepted_all, emptyArray()),
+        allSucceededMessage = text(ContactsMessage.CONTACTS_FRIEND_ACCEPTED_ALL, emptyArray()),
         refreshContacts = true,
     ) { ids ->
         friendRequestUseCase.batchAcceptFriendRequests(ids)
     }
 
     fun rejectAllFriendRequests() = launchFriendBatchAction(
-        allSucceededMessage = text(R.string.contacts_friend_rejected_all, emptyArray()),
+        allSucceededMessage = text(ContactsMessage.CONTACTS_FRIEND_REJECTED_ALL, emptyArray()),
     ) { ids ->
         friendRequestUseCase.batchRejectFriendRequests(ids)
     }
@@ -101,10 +100,10 @@ internal class ContactsFriendActionController(
             val result = contactMutationUseCase.setNickname(user.id, nickname)
             result.fold(
                 onSuccess = {
-                    updateState { it.copy(infoMessage = text(R.string.contacts_nickname_saved, emptyArray())) }
+                    updateState { it.copy(infoMessage = text(ContactsMessage.CONTACTS_NICKNAME_SAVED, emptyArray())) }
                 },
                 onFailure = { error ->
-                    updateState { it.copy(errorMessage = error.message ?: text(R.string.error_operation_failed, emptyArray())) }
+                    updateState { it.copy(errorMessage = error.message ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())) }
                 }
             )
         }
@@ -134,7 +133,7 @@ internal class ContactsFriendActionController(
                             it.copy(
                                 isFriendActionBusy = false,
                                 errorMessage = error.message ?: fallbackErrorMessage
-                                ?: text(R.string.error_operation_failed, emptyArray())
+                                ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())
                             )
                         }
                     }
@@ -147,7 +146,7 @@ internal class ContactsFriendActionController(
                     it.copy(
                         isFriendActionBusy = false,
                         errorMessage = error.message ?: fallbackErrorMessage
-                        ?: text(R.string.error_operation_failed, emptyArray())
+                        ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())
                     )
                 }
             }
@@ -174,7 +173,7 @@ internal class ContactsFriendActionController(
                         infoMessage = if (failedCount == 0) {
                             allSucceededMessage
                         } else {
-                            text(R.string.contacts_friend_batch_partial, arrayOf(successCount, failedCount))
+                            text(ContactsMessage.CONTACTS_FRIEND_BATCH_PARTIAL, arrayOf(successCount, failedCount))
                         }
                     )
                 }
@@ -187,7 +186,7 @@ internal class ContactsFriendActionController(
                 updateState {
                     it.copy(
                         isFriendActionBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed, emptyArray())
+                        errorMessage = error.message ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())
                     )
                 }
             }

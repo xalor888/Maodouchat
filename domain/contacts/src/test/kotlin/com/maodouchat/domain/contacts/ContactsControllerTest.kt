@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.ContactsLoadResult
 import com.maodouchat.core.model.ContactsSession

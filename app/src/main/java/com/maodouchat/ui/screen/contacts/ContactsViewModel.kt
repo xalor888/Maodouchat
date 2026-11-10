@@ -20,6 +20,12 @@ import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
+import com.maodouchat.domain.contacts.ContactsChatCreationController
+import com.maodouchat.domain.contacts.ContactsController
+import com.maodouchat.domain.contacts.ContactsFriendActionController
+import com.maodouchat.domain.contacts.ContactsGroupInviteController
+import com.maodouchat.domain.contacts.ContactsLoadController
+import com.maodouchat.domain.contacts.ContactsSearchController
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,7 +81,7 @@ class ContactsViewModel @JvmOverloads constructor(
     private val loadController = ContactsLoadController(
         scope = viewModelScope,
         updateState = { transform -> _uiState.update(transform) },
-        text = { id, args -> text(id, *args) },
+        text = { message, args -> text(contactsMessageResId(message), *args) },
         contactsController = contactsController,
     )
 
@@ -83,7 +89,10 @@ class ContactsViewModel @JvmOverloads constructor(
         scope = viewModelScope,
         updateState = { transform -> _uiState.update(transform) },
         isGroupInviteBusy = { _uiState.value.isGroupInviteBusy },
-        text = { id, args -> text(id, *args) },
+        hasSession = { com.maodouchat.session.CurrentSession.hasSession() },
+        sessionOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        sessionMayContinue = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
+        text = { message, args -> text(contactsMessageResId(message), *args) },
         groupInviteLoader = groupInviteLoader,
         groupInviteAcceptor = groupInviteAcceptor,
         groupInviteDecliner = groupInviteDecliner,
@@ -95,7 +104,7 @@ class ContactsViewModel @JvmOverloads constructor(
         updateState = { transform -> _uiState.update(transform) },
         isFriendActionBusy = { _uiState.value.isFriendActionBusy },
         incomingRequestIds = { _uiState.value.incomingRequests.map { it.id } },
-        text = { id, args -> text(id, *args) },
+        text = { message, args -> text(contactsMessageResId(message), *args) },
         friendRequestUseCase = friendRequestUseCase,
         contactMutationUseCase = contactMutationUseCase,
         friendRequestsEnabled = {
@@ -108,7 +117,7 @@ class ContactsViewModel @JvmOverloads constructor(
         scope = viewModelScope,
         updateState = { transform -> _uiState.update(transform) },
         isCreatingChat = { _uiState.value.isCreatingChat },
-        text = { id, args -> text(id, *args) },
+        text = { message, args -> text(contactsMessageResId(message), *args) },
         conversationCreationPort = conversationCreationPort,
         secretChatEnabled = {
             RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.SECRET_CHAT)
@@ -118,7 +127,7 @@ class ContactsViewModel @JvmOverloads constructor(
     private val searchController = ContactsSearchController(
         scope = viewModelScope,
         updateState = { transform -> _uiState.update(transform) },
-        text = { id, args -> text(id, *args) },
+        text = { message, args -> text(contactsMessageResId(message), *args) },
         contactsController = contactsController,
     )
 

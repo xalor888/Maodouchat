@@ -1,40 +1,35 @@
-package com.maodouchat.ui.screen.contacts
+package com.maodouchat.domain.contacts
 
-import com.maodouchat.R
 import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.core.model.GroupInviteItem
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 // 群邀请流程一族：列表加载、接受/拒绝。从 ContactsViewModel 纯搬移；
 // VM 只留同签名委托，状态经 lambda 注入（与 Chat*Controller 同一装配模式）。
-internal class ContactsGroupInviteController(
+class ContactsGroupInviteController(
     private val scope: CoroutineScope,
     private val updateState: ((ContactsUiState) -> ContactsUiState) -> Unit,
     private val isGroupInviteBusy: () -> Boolean,
-    private val text: (Int, Array<out Any>) -> String,
+    private val hasSession: () -> Boolean,
+    private val sessionOwnerUserId: () -> String,
+    private val sessionMayContinue: (String) -> Boolean,
+    private val text: (ContactsMessage, Array<out Any>) -> String,
     private val groupInviteLoader: suspend () -> Result<List<GroupInvitationDto>>,
     private val groupInviteAcceptor: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse>,
     private val groupInviteDecliner: suspend (inviteId: String) -> Result<GroupInviteAcceptResponse>,
     private val onInviteAccepted: () -> Unit,
 ) {
     fun loadGroupInvites() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
+        val ownerUserId = sessionOwnerUserId()
+        if (!hasSession() || ownerUserId.isBlank()) return
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
+            if (!sessionMayContinue(ownerUserId)) return@launch
             val result = groupInviteLoader()
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
+            if (!sessionMayContinue(ownerUserId)) return@launch
             val invites = result.getOrNull() ?: return@launch
             updateState {
                 it.copy(
@@ -42,7 +37,7 @@ internal class ContactsGroupInviteController(
                         GroupInviteItem(
                             id = dto.id,
                             chatId = dto.chatId,
-                            chatName = dto.chatName.ifBlank { text(R.string.contacts_group_unnamed, emptyArray()) },
+                            chatName = dto.chatName.ifBlank { text(ContactsMessage.CONTACTS_GROUP_UNNAMED, emptyArray()) },
                             inviterName = dto.inviterName,
                             memberCount = dto.memberCount,
                             createdAt = dto.createdAt
@@ -62,13 +57,10 @@ internal class ContactsGroupInviteController(
     }
 
     private fun mutateGroupInvite(inviteId: String, accept: Boolean) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank() || isGroupInviteBusy()) return
+        val ownerUserId = sessionOwnerUserId()
+        if (!hasSession() || ownerUserId.isBlank() || isGroupInviteBusy()) return
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) return@launch
+            if (!sessionMayContinue(ownerUserId)) return@launch
             updateState { it.copy(isGroupInviteBusy = true, errorMessage = null, infoMessage = null) }
             try {
                 val result = if (accept) {
@@ -76,17 +68,14 @@ internal class ContactsGroupInviteController(
                 } else {
                     groupInviteDecliner(inviteId)
                 }
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) return@launch
+                if (!sessionMayContinue(ownerUserId)) return@launch
                 result.fold(
                     onSuccess = {
                         updateState { state ->
                             state.copy(
                                 isGroupInviteBusy = false,
                                 infoMessage = text(
-                                    if (accept) R.string.contacts_group_invite_accepted else R.string.contacts_group_invite_declined,
+                                    if (accept) ContactsMessage.CONTACTS_GROUP_INVITE_ACCEPTED else ContactsMessage.CONTACTS_GROUP_INVITE_DECLINED,
                                     emptyArray()
                                 ),
                                 groupInvites = state.groupInvites.filterNot { it.id == inviteId }
@@ -99,7 +88,7 @@ internal class ContactsGroupInviteController(
                         updateState {
                             it.copy(
                                 isGroupInviteBusy = false,
-                                errorMessage = error.message ?: text(R.string.error_operation_failed, emptyArray())
+                                errorMessage = error.message ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())
                             )
                         }
                     }
@@ -111,7 +100,7 @@ internal class ContactsGroupInviteController(
                 updateState {
                     it.copy(
                         isGroupInviteBusy = false,
-                        errorMessage = error.message ?: text(R.string.error_operation_failed, emptyArray())
+                        errorMessage = error.message ?: text(ContactsMessage.OPERATION_FAILED, emptyArray())
                     )
                 }
             }
