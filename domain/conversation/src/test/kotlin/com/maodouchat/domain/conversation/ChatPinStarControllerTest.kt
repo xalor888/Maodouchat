@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -72,7 +73,7 @@ class ChatPinStarControllerTest {
     private class Harness(
         initial: ChatDetailUiState,
         val gateway: FakePinStarGateway,
-        val dispatcher: StandardTestDispatcher,
+        val dispatcher: TestDispatcher,
     ) {
         var live: ChatDetailUiState = initial
         val controller = ChatPinStarController(
