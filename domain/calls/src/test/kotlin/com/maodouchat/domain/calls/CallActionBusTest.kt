@@ -96,7 +96,7 @@ class CallActionBusTest {
     }
 
     @Test
-    fun `pre-invalidate hangup carries distinguishable stale generation`() = runTest {
+    fun `stale and fresh hangups carry distinguishable generations`() = runTest {
         // 失效前发出的 hangup 携带旧 generation——收集方据此丢弃换号前的陈旧请求。
         val genBefore = 7L
         val staleCollected = async(start = CoroutineStart.UNDISPATCHED) {
