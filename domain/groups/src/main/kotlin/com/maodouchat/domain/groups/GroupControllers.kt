@@ -6,6 +6,7 @@ import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.core.model.GroupInviteResponse
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -53,12 +54,13 @@ class GroupInviteController(
 class GroupAuditController(
     private val tokenProvider: () -> String,
     private val gateway: GroupNetworkGateway,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend fun fetchAuditLogs(
         chatId: String,
         limit: Int = 50,
         offset: Int = 0,
-    ): Result<List<GroupAuditLogDto>> = withContext(Dispatchers.IO) {
+    ): Result<List<GroupAuditLogDto>> = withContext(ioDispatcher) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
         gateway.getGroupAudit(token, chatId, limit = limit, offset = offset)
@@ -107,11 +109,12 @@ class GroupEncryptionHealthController(
     private val maintenanceCoordinator: GroupSenderKeyMaintenanceCoordinator,
     private val tokenProvider: () -> String,
     private val gateway: GroupNetworkGateway,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend fun runManual(
         chatId: String,
         epoch: Long,
-    ): GroupSenderKeyMaintenanceOutcome = withContext(Dispatchers.IO) {
+    ): GroupSenderKeyMaintenanceOutcome = withContext(ioDispatcher) {
         maintenanceCoordinator.runManual(chatId, epoch)
     }
 
@@ -120,14 +123,14 @@ class GroupEncryptionHealthController(
         epoch: Long,
         currentStatus: SenderKeyDistributionStatusDto? = null,
         localHasSenderKeyHint: Boolean? = null,
-    ): GroupSenderKeyMaintenanceOutcome = withContext(Dispatchers.IO) {
+    ): GroupSenderKeyMaintenanceOutcome = withContext(ioDispatcher) {
         maintenanceCoordinator.runAutomatic(chatId, epoch, currentStatus, localHasSenderKeyHint)
     }
 
     suspend fun fetchSenderKeyStatus(
         chatId: String,
         epoch: Long? = null,
-    ): Result<SenderKeyDistributionStatusDto> = withContext(Dispatchers.IO) {
+    ): Result<SenderKeyDistributionStatusDto> = withContext(ioDispatcher) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
         gateway.getSenderKeyDistributionStatus(token, chatId, epoch = epoch)

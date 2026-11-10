@@ -7,9 +7,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.domain.groups.GroupAuditController
+import com.maodouchat.domain.groups.GroupAuditLoadController
 import com.maodouchat.domain.groups.GroupBotController
 import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.domain.groups.GroupInviteController
+import com.maodouchat.domain.groups.SenderKeyMaintenanceController
+import com.maodouchat.domain.groups.SenderKeyMessage
 import com.maodouchat.group.createAndroidGroupAuditController
 import com.maodouchat.group.createAndroidGroupBotController
 import com.maodouchat.group.createAndroidGroupEncryptionHealthController
@@ -77,6 +80,10 @@ class GroupDetailViewModel(
 
     private fun text(id: Int, vararg args: Any): String =
         getApplication<Application>().getString(id, *args)
+    private fun senderKeyMessageResId(message: SenderKeyMessage): Int =
+        if (message == SenderKeyMessage.SESSION_EXPIRED) R.string.error_session_expired
+        else if (message == SenderKeyMessage.KEY_REDISTRIBUTED) R.string.group_detail_key_redistributed
+        else R.string.group_detail_key_redistribute_failed
 
     private val _uiState = MutableStateFlow(GroupDetailUiState(currentUserId = currentUserId))
     val uiState: StateFlow<GroupDetailUiState> = _uiState.asStateFlow()
@@ -95,7 +102,6 @@ class GroupDetailViewModel(
     }
 
 
-    // G369：整页加载抽到 GroupDetailLoader（纯搬移不改判断）。
     private val loader: GroupDetailLoader by lazy {
         GroupDetailLoader(
             scope = viewModelScope,
@@ -128,10 +134,6 @@ class GroupDetailViewModel(
     fun load(feedbackMessage: String? = null) = loader.load(feedbackMessage)
 
 
-    /**
-     * 8.64：群审计分页加载下一页（offset = 已加载条数），追加到 auditLogs。
-     */
-    // G370：群审计分页加载抽到 GroupAuditLoadController（纯搬移不改判断）。
     private val auditLoadController by lazy {
         GroupAuditLoadController(
             scope = viewModelScope,
@@ -139,6 +141,7 @@ class GroupDetailViewModel(
             updateState = { transform -> _uiState.update(transform) },
             chatId = { chatId },
             ownerUserId = { currentUserId },
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
             groupAuditController = groupAuditController,
             auditOffsetGet = { auditNextOffset },
             auditOffsetSet = { offset -> auditNextOffset = offset },
@@ -148,7 +151,6 @@ class GroupDetailViewModel(
     fun loadMoreAudit() = auditLoadController.loadMoreAudit()
 
 
-    // G364：群变更一族抽到 GroupMutationController（纯搬移不改判断）。
     private val mutationController by lazy {
         GroupMutationController(
             scope = viewModelScope,
@@ -186,7 +188,6 @@ class GroupDetailViewModel(
     fun muteAllMembers(mutedUntil: Long) = mutationController.muteAllMembers(mutedUntil)
 
 
-    // G367：群邀请链接拉取/轮换抽到 GroupInviteLoadController（纯搬移不改判断）。
     private val inviteLoadController by lazy {
         GroupInviteLoadController(
             scope = viewModelScope,
@@ -205,21 +206,20 @@ class GroupDetailViewModel(
         inviteLoadController.loadGroupInvite(rotate, expiresInSeconds, maxUses)
 
 
-    // G365：头像上传（AVATAR 变更）并入 GroupMutationController（纯搬移不改判断）。
     fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri)
 
 
 
-    // G366：sender key 维护一族抽到 SenderKeyMaintenanceController（纯搬移不改判断）。
     private val senderKeyController by lazy {
         SenderKeyMaintenanceController(
             scope = viewModelScope,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
-            textFn = { id, args -> text(id, *args) },
+            text = { message -> text(senderKeyMessageResId(message)) },
             chatId = { chatId },
             token = { token },
             ownerUserId = { currentUserId },
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
             groupEncryptionHealthController = groupEncryptionHealthController,
             onCommitted = { message -> load(message) },
             pendingRetrySet = { retry -> pendingRetry = retry },
