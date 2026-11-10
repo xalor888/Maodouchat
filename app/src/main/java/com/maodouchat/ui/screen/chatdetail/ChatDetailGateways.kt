@@ -3,11 +3,15 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.UpdateChatSettingsRequest
+import com.maodouchat.data.repository.BotNetworkRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.data.repository.GroupNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
 import com.maodouchat.domain.conversation.ChatSettingsGateway
 import com.maodouchat.domain.conversation.PinStarGateway
 import com.maodouchat.domain.conversation.PinStarMessage
+import com.maodouchat.domain.groups.BotGroupActionGateway
+import com.maodouchat.domain.groups.BotGroupActionMessage
 
 /** 置顶/星标网络端口的 app 侧实现：直通 PinStarNetworkRepository。 */
 internal class PinStarNetworkGateway : PinStarGateway {
@@ -52,4 +56,50 @@ internal fun pinStarMessageResId(message: PinStarMessage): Int = when (message) 
     PinStarMessage.STARRED -> R.string.chat_starred_status
     PinStarMessage.UNSTARRED -> R.string.chat_unstarred_status
     PinStarMessage.STAR_FAILED -> R.string.chat_star_failed
+}
+
+/** 机器人群操作网络端口的 app 侧实现：直通 GroupNetworkRepository / BotNetworkRepository。 */
+internal class BotGroupActionNetworkGateway : BotGroupActionGateway {
+    private val groupRepository = GroupNetworkRepository()
+    private val botRepository = BotNetworkRepository()
+
+    override suspend fun allSearchableUsers(token: String) =
+        groupRepository.allSearchableUsers(token)
+
+    override suspend fun renameGroup(token: String, chatId: String, name: String) =
+        groupRepository.rename(token, chatId, name)
+
+    override suspend fun addMembers(token: String, chatId: String, userIds: List<String>) =
+        groupRepository.addMembers(token, chatId, userIds)
+
+    override suspend fun removeMember(token: String, chatId: String, userId: String) =
+        groupRepository.removeMember(token, chatId, userId)
+
+    override suspend fun postBotInbox(token: String, chatId: String, plaintext: String) =
+        botRepository.postInbox(token, chatId, plaintext)
+
+    override suspend fun chatCommands(token: String, chatId: String) =
+        botRepository.chatCommands(token, chatId)
+
+    override suspend fun listBots(token: String) = botRepository.listBots(token)
+
+    override suspend fun inviteBotToChat(token: String, chatId: String, botId: String) =
+        botRepository.inviteToChat(token, chatId, botId)
+}
+
+/** domain 侧 BotGroupActionMessage 到 app 字符串资源的映射。 */
+internal fun botGroupActionMessageResId(message: BotGroupActionMessage): Int = when (message) {
+    BotGroupActionMessage.SESSION_EXPIRED -> R.string.error_session_expired
+    BotGroupActionMessage.CONTACTS_LOAD_FAILED -> R.string.contacts_load_failed
+    BotGroupActionMessage.GROUP_NAME_LENGTH -> R.string.chat_group_name_length
+    BotGroupActionMessage.GROUP_NAME_UPDATED -> R.string.chat_group_name_updated
+    BotGroupActionMessage.GROUP_NAME_FAILED -> R.string.chat_group_name_failed
+    BotGroupActionMessage.GROUP_MEMBER_ADDED_KEY -> R.string.chat_group_member_added_key
+    BotGroupActionMessage.GROUP_MEMBER_REMOVED_KEY -> R.string.chat_group_member_removed_key
+    BotGroupActionMessage.GROUP_ADD_FAILED -> R.string.chat_group_add_failed
+    BotGroupActionMessage.GROUP_REMOVE_FAILED -> R.string.chat_group_remove_failed
+    BotGroupActionMessage.BOT_INVITE_FAILED -> R.string.group_play_bot_invite_failed
+    BotGroupActionMessage.BOT_INVITED -> R.string.group_play_bot_invited
+    BotGroupActionMessage.GROUP_FALLBACK_NAME -> R.string.chat_group
+    BotGroupActionMessage.CHAT_MEMBERS_COUNT -> R.plurals.chat_members_count
 }

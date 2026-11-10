@@ -1,11 +1,11 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import com.maodouchat.R
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,29 +16,52 @@ import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.toDomainChat
 
-internal class ChatBotGroupActionController(
+/**
+ * 机器人群操作向 UI 写入的文案种类。domain 侧只定种类，真正的本地化字符串由 app 侧
+ * botGroupActionMessageResId 映射提供——domain 模块不引用 app 的 R。
+ */
+enum class BotGroupActionMessage {
+    SESSION_EXPIRED,
+    CONTACTS_LOAD_FAILED,
+    GROUP_NAME_LENGTH,
+    GROUP_NAME_UPDATED,
+    GROUP_NAME_FAILED,
+    GROUP_MEMBER_ADDED_KEY,
+    GROUP_MEMBER_REMOVED_KEY,
+    GROUP_ADD_FAILED,
+    GROUP_REMOVE_FAILED,
+    BOT_INVITE_FAILED,
+    BOT_INVITED,
+    GROUP_FALLBACK_NAME,
+    CHAT_MEMBERS_COUNT,
+}
+
+class ChatBotGroupActionController(
     private val scope: CoroutineScope,
     private val groupLifecycleCoordinator: GroupLifecycleCoordinator,
+    private val botGroupActionGateway: BotGroupActionGateway,
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val activeChatId: () -> String,
     private val sessionActive: (String) -> Boolean,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
-    private val quantityText: (Int, Int, Array<out Any>) -> String,
+    private val text: (BotGroupActionMessage, Array<out Any>) -> String,
+    private val quantityText: (BotGroupActionMessage, Int, Array<out Any>) -> String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val logWarning: (String) -> Unit = {},
 ) {
     fun loadGroupCandidates() {
         val chat = currentState().chat ?: return
         val owner = ownerUserId()
         if (!chat.isGroup) return
         if (token().isBlank() || owner.isBlank()) {
-            warn(R.string.error_session_expired)
+            warn(BotGroupActionMessage.SESSION_EXPIRED)
             return
         }
         scope.launch {
             if (!sessionActive(owner)) return@launch
-            com.maodouchat.data.repository.GroupNetworkRepository().allSearchableUsers(token()).fold(
+            botGroupActionGateway.allSearchableUsers(token()).fold(
                 onSuccess = { users ->
                     if (!sessionActive(owner)) return@fold
                     val existingIds = currentState().chat?.participants.orEmpty().map { it.id }.toSet()
@@ -47,7 +70,7 @@ internal class ChatBotGroupActionController(
                         .map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) }
                     updateState { it.copy(groupCandidates = candidates) }
                 },
-                onFailure = { error -> warn(error.message ?: string(R.string.contacts_load_failed)) },
+                onFailure = { error -> warn(error.message ?: string(BotGroupActionMessage.CONTACTS_LOAD_FAILED)) },
             )
         }
     }
@@ -58,16 +81,16 @@ internal class ChatBotGroupActionController(
         val trimmed = newName.trim()
         if (!chat.isGroup) return
         if (trimmed.isBlank() || trimmed.length > 50) {
-            warn(R.string.chat_group_name_length)
+            warn(BotGroupActionMessage.GROUP_NAME_LENGTH)
             return
         }
         mutateGroup(
             chat = chat,
-            successMessage = string(R.string.chat_group_name_updated),
-            failureMessage = string(R.string.chat_group_name_failed),
+            successMessage = string(BotGroupActionMessage.GROUP_NAME_UPDATED),
+            failureMessage = string(BotGroupActionMessage.GROUP_NAME_FAILED),
             fallbackChat = { it.copy(groupName = trimmed) },
         ) { liveToken ->
-            com.maodouchat.data.repository.GroupNetworkRepository().rename(liveToken, chat.id, trimmed).getOrThrow()
+            botGroupActionGateway.renameGroup(liveToken, chat.id, trimmed).getOrThrow()
         }
     }
 
@@ -79,10 +102,10 @@ internal class ChatBotGroupActionController(
             chat = chat,
             rotateSenderKey = true,
             refreshCandidates = true,
-            successMessage = string(R.string.chat_group_member_added_key),
-            failureMessage = string(R.string.chat_group_add_failed),
+            successMessage = string(BotGroupActionMessage.GROUP_MEMBER_ADDED_KEY),
+            failureMessage = string(BotGroupActionMessage.GROUP_ADD_FAILED),
         ) { liveToken ->
-            com.maodouchat.data.repository.GroupNetworkRepository().addMembers(liveToken, chat.id, listOf(userId)).getOrThrow()
+            botGroupActionGateway.addMembers(liveToken, chat.id, listOf(userId)).getOrThrow()
         }
     }
 
@@ -95,10 +118,10 @@ internal class ChatBotGroupActionController(
             chat = chat,
             rotateSenderKey = true,
             refreshCandidates = true,
-            successMessage = string(R.string.chat_group_member_removed_key),
-            failureMessage = string(R.string.chat_group_remove_failed),
+            successMessage = string(BotGroupActionMessage.GROUP_MEMBER_REMOVED_KEY),
+            failureMessage = string(BotGroupActionMessage.GROUP_REMOVE_FAILED),
         ) { liveToken ->
-            com.maodouchat.data.repository.GroupNetworkRepository().removeMember(liveToken, chat.id, userId).getOrThrow()
+            botGroupActionGateway.removeMember(liveToken, chat.id, userId).getOrThrow()
         }
     }
 
@@ -115,19 +138,19 @@ internal class ChatBotGroupActionController(
             state.botCommands.isNotEmpty() || state.chat?.participants.orEmpty().any { BotCommandPolicy.isBotUserId(it.id) }
         )
         if (!BotCommandPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) return
-        com.maodouchat.data.repository.BotNetworkRepository().postInbox(liveToken, chatId, plaintext).onFailure { error ->
+        botGroupActionGateway.postBotInbox(liveToken, chatId, plaintext).onFailure { error ->
             if (error is CancellationException) throw error
-            android.util.Log.w("ChatDetail", "bot-inbox failed: ${error.message}")
+            logWarning("bot-inbox failed: ${error.message}")
         }
     }
 
     fun refreshBotCommands(chatId: String) {
         if (chatId.isBlank()) return
         val owner = ownerUserId()
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             val liveToken = token()
             if (liveToken.isBlank()) return@launch
-            val raw = com.maodouchat.data.repository.BotNetworkRepository().chatCommands(liveToken, chatId).getOrNull() ?: return@launch
+            val raw = botGroupActionGateway.chatCommands(liveToken, chatId).getOrNull() ?: return@launch
             if (!sessionActive(owner)) return@launch
             updateState { it.copy(botCommands = parseBotCommands(raw)) }
         }
@@ -137,10 +160,10 @@ internal class ChatBotGroupActionController(
         scope.launch {
             val liveToken = token()
             if (liveToken.isBlank()) {
-                warn(R.string.error_session_expired)
+                warn(BotGroupActionMessage.SESSION_EXPIRED)
                 return@launch
             }
-            withContext(Dispatchers.IO) { com.maodouchat.data.repository.BotNetworkRepository().listBots(liveToken) }
+            withContext(ioDispatcher) { botGroupActionGateway.listBots(liveToken) }
                 .onSuccess { raw ->
                     val array = runCatching { JSONArray(raw) }.getOrNull()
                     val firstId = if (array != null && array.length() > 0) {
@@ -148,9 +171,9 @@ internal class ChatBotGroupActionController(
                     } else {
                         ""
                     }
-                    if (firstId.isBlank()) warn(R.string.group_play_bot_invite_failed) else inviteBot(firstId)
+                    if (firstId.isBlank()) warn(BotGroupActionMessage.BOT_INVITE_FAILED) else inviteBot(firstId)
                 }
-                .onFailure { warn(R.string.group_play_bot_invite_failed) }
+                .onFailure { warn(BotGroupActionMessage.BOT_INVITE_FAILED) }
         }
     }
 
@@ -158,11 +181,11 @@ internal class ChatBotGroupActionController(
         val targetChatId = activeChatId()
         if (targetChatId.isBlank() || botId.isBlank()) return
         scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                com.maodouchat.data.repository.BotNetworkRepository().inviteToChat(token(), targetChatId, botId)
+            val result = withContext(ioDispatcher) {
+                botGroupActionGateway.inviteBotToChat(token(), targetChatId, botId)
             }
-            result.onSuccess { warn(R.string.group_play_bot_invited) }
-                .onFailure { warn(R.string.group_play_bot_invite_failed) }
+            result.onSuccess { warn(BotGroupActionMessage.BOT_INVITED) }
+                .onFailure { warn(BotGroupActionMessage.BOT_INVITE_FAILED) }
         }
     }
 
@@ -178,14 +201,14 @@ internal class ChatBotGroupActionController(
         val owner = ownerUserId()
         if (token().isBlank() || owner.isBlank() || !sessionActive(owner)) {
             updateState {
-                it.copy(isUpdatingGroup = false, groupEncryptionWarning = string(R.string.error_session_expired))
+                it.copy(isUpdatingGroup = false, groupEncryptionWarning = string(BotGroupActionMessage.SESSION_EXPIRED))
             }
             return
         }
         scope.launch {
             updateState { it.copy(isUpdatingGroup = true, groupEncryptionWarning = null) }
             try {
-                val commit = withContext(Dispatchers.IO) {
+                val commit = withContext(ioDispatcher) {
                     groupLifecycleCoordinator.mutate(
                         chatId = chat.id,
                         rotateSenderKey = rotateSenderKey,
@@ -199,10 +222,10 @@ internal class ChatBotGroupActionController(
                 val updated = commit.refreshedChat?.toDomainChat() ?: fallbackChat(chat)
                 val groupContact = User(
                     id = updated.id,
-                    name = updated.groupName ?: string(R.string.chat_group),
+                    name = updated.groupName ?: string(BotGroupActionMessage.GROUP_FALLBACK_NAME),
                     avatar = updated.groupAvatar,
                     status = quantityText(
-                        R.plurals.chat_members_count,
+                        BotGroupActionMessage.CHAT_MEMBERS_COUNT,
                         updated.participants.size,
                         arrayOf(updated.participants.size),
                     ),
@@ -252,11 +275,11 @@ internal class ChatBotGroupActionController(
         }
     }
 
-    private fun warn(resourceId: Int, vararg args: Any) = warn(string(resourceId, *args))
+    private fun warn(message: BotGroupActionMessage, vararg args: Any) = warn(string(message, *args))
 
     private fun warn(message: String) {
         updateState { it.copy(groupEncryptionWarning = message) }
     }
 
-    private fun string(resourceId: Int, vararg args: Any): String = text(resourceId, args)
+    private fun string(message: BotGroupActionMessage, vararg args: Any): String = text(message, args)
 }
