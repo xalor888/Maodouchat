@@ -1,12 +1,9 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.ui.screen.chatdetail.ChatMediaStateController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -330,21 +327,11 @@ class ChatMediaStateControllerTest {
         messageId: String,
         state: String,
         lastErrorCode: String? = null,
-    ) = AttachmentTransferEntity(
+    ) = AttachmentTransferSnapshot(
         messageId = messageId,
-        ownerUserId = "u1",
-        chatId = "c1",
-        sourceUri = "uri",
-        encryptedPath = "enc",
-        fileName = "file",
-        mimeType = "application/octet-stream",
-        plainSize = 1L,
-        keyBase64 = "k",
-        ivBase64 = "i",
-        cipherSha256 = "c",
-        plainSha256 = "p",
-        cipherSize = 100L,
         state = state,
+        uploadedBytes = 0L,
+        cipherSize = 100L,
         lastErrorCode = lastErrorCode,
     )
 

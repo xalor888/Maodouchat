@@ -19,6 +19,7 @@ import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
+import com.maodouchat.domain.conversation.ChatMediaStateController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
@@ -675,7 +676,6 @@ internal class ChatDetailDeps(
         uiState = host._uiState,
         text = host::text,
     )
-
     // G387：session cipher 占用一族抽到 ChatSessionCipherController——VM 侧只留同签名委托。
     internal val sessionCipherController = ChatSessionCipherController(
         initialChatId = host.chatId,

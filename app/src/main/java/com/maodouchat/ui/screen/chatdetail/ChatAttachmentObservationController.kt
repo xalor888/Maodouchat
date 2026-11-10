@@ -6,6 +6,8 @@ import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.chatdetail.ChatDetailDataAccess
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.domain.conversation.AttachmentTransferSnapshot
+import com.maodouchat.domain.conversation.ChatMediaStateController
 import com.maodouchat.core.model.Message
 import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CoroutineScope
@@ -57,7 +59,16 @@ internal class ChatAttachmentObservationController(
                     transfer.ownerUserId == liveOwnerUserId &&
                         (transfer.chatId == activeChatId() || transfer.messageId in visibleMessageIds)
                 }
-                updateState { state -> mediaStateController.applyTransfers(state, transfers) }
+                val snapshots = transfers.map {
+                    AttachmentTransferSnapshot(
+                        messageId = it.messageId,
+                        state = it.state,
+                        uploadedBytes = it.uploadedBytes,
+                        cipherSize = it.cipherSize,
+                        lastErrorCode = it.lastErrorCode,
+                    )
+                }
+                updateState { state -> mediaStateController.applyTransfers(state, snapshots) }
                 transfers.filter { it.chatId == activeChatId() && it.state == AttachmentTransferState.READY }.forEach { transfer ->
                     // Final send is owned by WorkManager so it survives navigation/process death.
                     AttachmentTransferScheduler.schedule(

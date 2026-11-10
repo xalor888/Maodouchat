@@ -1,16 +1,14 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.AttachmentProgressPolicy
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.MessageStatus
 
 /** Owns transient attachment/download state transitions used by chat detail. */
-internal class ChatMediaStateController {
+class ChatMediaStateController {
     fun applyTransfers(
         state: ChatDetailUiState,
-        transfers: List<AttachmentTransferEntity>,
+        transfers: List<AttachmentTransferSnapshot>,
     ): ChatDetailUiState {
         val byMessageId = transfers.associateBy { it.messageId }
         val progress = (state.fileTransferProgress - state.fileTransferStates.keys).toMutableMap()
@@ -85,7 +83,7 @@ internal class ChatMediaStateController {
         return state.copy(fileTransferProgress = state.fileTransferProgress + (messageId to progress))
     }
 
-    private fun AttachmentTransferEntity.uiProgress(): Float = when (state) {
+    private fun AttachmentTransferSnapshot.uiProgress(): Float = when (state) {
         AttachmentTransferState.QUEUED -> 0.35f
         AttachmentTransferState.UPLOADING -> 0.35f +
             (uploadedBytes.toDouble() / cipherSize.coerceAtLeast(1L)).coerceIn(0.0, 1.0).toFloat() * 0.55f
