@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -11,6 +12,7 @@ import com.maodouchat.domain.groups.GroupAuditLoadController
 import com.maodouchat.domain.groups.GroupBotController
 import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.domain.groups.GroupInviteController
+import com.maodouchat.domain.groups.GroupMutationController
 import com.maodouchat.domain.groups.SenderKeyMaintenanceController
 import com.maodouchat.domain.groups.SenderKeyMessage
 import com.maodouchat.group.createAndroidGroupAuditController
@@ -37,8 +39,6 @@ class GroupDetailViewModel(
 ) : AndroidViewModel(application) {
 
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    // 群消息协调器的 Android 装配收进非 ui 的 GroupDetailAccess（U02 延伸）——
-    // `createAndroidGroupMessagingCoordinator` 的工厂签名要求 app 本体，ui 不再引 app 符号。
     private val groupMessagingCoordinator =
         GroupDetailAccess.groupMessagingCoordinator(application)
     private val groupSenderKeyMaintenanceCoordinator = GroupSenderKeyMaintenanceCoordinator(
@@ -101,7 +101,6 @@ class GroupDetailViewModel(
         )
     }
 
-
     private val loader: GroupDetailLoader by lazy {
         GroupDetailLoader(
             scope = viewModelScope,
@@ -156,14 +155,15 @@ class GroupDetailViewModel(
             scope = viewModelScope,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
-            textFn = { id, args -> text(id, *args) },
+            text = { message, args -> text(groupMutationMessageResId(message), *args) },
             chatId = { chatId },
             token = { token },
             ownerUserId = { currentUserId },
             groupLifecycleService = groupLifecycleService,
             onCommitted = { message -> load(message) },
             pendingRetrySet = { retry -> pendingRetry = retry },
-            application = getApplication(),
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            encodeAvatar = { uriString -> com.maodouchat.util.ImagePicker.uriToBase64(getApplication(), uriString.toUri(), maxWidth = 800, quality = 84) },
         )
     }
 
@@ -206,7 +206,7 @@ class GroupDetailViewModel(
         inviteLoadController.loadGroupInvite(rotate, expiresInSeconds, maxUses)
 
 
-    fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri)
+    fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri.toString())
 
 
 

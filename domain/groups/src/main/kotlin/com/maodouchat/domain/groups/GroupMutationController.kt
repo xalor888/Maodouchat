@@ -1,45 +1,64 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import com.maodouchat.R
 import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupLifecycleService
-import android.net.Uri
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.core.model.GroupMutationCommit
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.util.ImagePicker
 
 /**
- * G364：群变更一族（改名 / 公告 / 昵称 / 增删成员 / 角色 / 转让 / 头衔 / 禁言，共 10 个公开入口 +
- * `updateGroup` 执行器）从 `GroupDetailViewModel` 抽出（纯搬移不改判断）。
- *
- * `pendingRetry` 由 VM 持有（load / loadGroupInvite / uploadGroupAvatar / redistributeSenderKey
- * 也写它），经 set lambda 共享；提交成功后经 `onCommitted` 回调 VM 的 `load`。
+ * 群变更向 UI 写入的文案种类。domain 侧只定种类，真正的本地化字符串由 app 侧
+ * groupMutationMessageResId 映射提供——domain 模块不引用 app 的 R。
  */
-internal class GroupMutationController(
+enum class GroupMutationMessage {
+    GROUP_NAME_UPDATED,
+    ANNOUNCEMENT_CLEARED,
+    ANNOUNCEMENT_UPDATED,
+    NICKNAME_UPDATED,
+    MEMBER_ADDED,
+    MEMBER_REMOVED,
+    ROLE_UPDATED,
+    TRANSFER_SUCCESS,
+    TITLE_UPDATED,
+    MUTE_SET,
+    MUTE_CLEARED,
+    MUTE_ALL_SET,
+    MUTE_ALL_CLEARED,
+    SESSION_EXPIRED,
+    OPERATION_FAILED,
+    IMAGE_PROCESS_FAILED,
+    AVATAR_UPDATED,
+    AVATAR_FAILED,
+}
+
+class GroupMutationController(
     private val scope: CoroutineScope,
     private val currentState: () -> GroupDetailUiState,
     private val updateState: ((GroupDetailUiState) -> GroupDetailUiState) -> Unit,
-    private val textFn: (Int, Array<out Any>) -> String,
+    private val text: (GroupMutationMessage, Array<out Any>) -> String,
     private val chatId: () -> String,
     private val token: () -> String,
     private val ownerUserId: () -> String,
+    private val sessionActive: (String) -> Boolean,
+    private val encodeAvatar: suspend (String) -> String?,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val groupLifecycleService: GroupLifecycleService,
     private val onCommitted: (String?) -> Unit,
+    // pendingRetry 由 VM 持有，经 set lambda 共享。
     private val pendingRetrySet: ((() -> Unit)?) -> Unit,
-    private val application: android.app.Application,
 ) {
     fun renameGroup(name: String) {
         val trimmed = name.trim()
         updateGroup(
             action = GroupMutationAction.RENAME,
-            successMessage = text(R.string.chat_group_name_updated),
+            successMessage = string(GroupMutationMessage.GROUP_NAME_UPDATED),
             retry = { renameGroup(trimmed) }
         ) { groupLifecycleService.updateGroupInfo(chatId(), name = trimmed, announcement = null, avatar = null) }
     }
@@ -49,9 +68,9 @@ internal class GroupMutationController(
         updateGroup(
             action = GroupMutationAction.ANNOUNCEMENT,
             successMessage = if (trimmed.isBlank()) {
-                text(R.string.group_detail_announcement_cleared)
+                string(GroupMutationMessage.ANNOUNCEMENT_CLEARED)
             } else {
-                text(R.string.chat_group_announcement_updated)
+                string(GroupMutationMessage.ANNOUNCEMENT_UPDATED)
             },
             retry = { updateAnnouncement(trimmed) }
         ) { groupLifecycleService.updateGroupInfo(chatId(), name = null, announcement = trimmed, avatar = null) }
@@ -61,7 +80,7 @@ internal class GroupMutationController(
         val trimmed = nickname.trim()
         updateGroup(
             action = GroupMutationAction.NICKNAME,
-            successMessage = text(R.string.chat_group_nickname_updated),
+            successMessage = string(GroupMutationMessage.NICKNAME_UPDATED),
             retry = { setMyNickname(trimmed) }
         ) { groupLifecycleService.updateMyNickname(chatId(), trimmed) }
     }
@@ -69,7 +88,7 @@ internal class GroupMutationController(
     fun addMember(userId: String) {
         updateGroup(
             action = GroupMutationAction.ADD_MEMBER,
-            successMessage = text(R.string.chat_group_member_added_key),
+            successMessage = string(GroupMutationMessage.MEMBER_ADDED),
             retry = { addMember(userId) }
         ) { groupLifecycleService.addMembers(chatId(), listOf(userId)) }
     }
@@ -78,7 +97,7 @@ internal class GroupMutationController(
         if (userId == ownerUserId()) return
         updateGroup(
             action = GroupMutationAction.REMOVE_MEMBER,
-            successMessage = text(R.string.chat_group_member_removed_key),
+            successMessage = string(GroupMutationMessage.MEMBER_REMOVED),
             retry = { removeMember(userId) }
         ) { groupLifecycleService.removeMember(chatId(), userId) }
     }
@@ -86,7 +105,7 @@ internal class GroupMutationController(
     fun updateRole(userId: String, role: String) {
         updateGroup(
             action = GroupMutationAction.ROLE,
-            successMessage = text(R.string.chat_group_role_updated),
+            successMessage = string(GroupMutationMessage.ROLE_UPDATED),
             retry = { updateRole(userId, role) }
         ) { groupLifecycleService.setRole(chatId(), userId, role) }
     }
@@ -95,7 +114,7 @@ internal class GroupMutationController(
         if (!currentState().isOwner || userId == ownerUserId()) return
         updateGroup(
             action = GroupMutationAction.TRANSFER_OWNER,
-            successMessage = text(R.string.group_detail_transfer_success),
+            successMessage = string(GroupMutationMessage.TRANSFER_SUCCESS),
             retry = { transferOwnership(userId) }
         ) { groupLifecycleService.transferOwnership(chatId(), userId) }
     }
@@ -104,7 +123,7 @@ internal class GroupMutationController(
         val trimmed = title.trim()
         updateGroup(
             action = GroupMutationAction.TITLE,
-            successMessage = text(R.string.chat_group_title_updated),
+            successMessage = string(GroupMutationMessage.TITLE_UPDATED),
             retry = { updateTitle(userId, trimmed) }
         ) { groupLifecycleService.setTitle(chatId(), userId, trimmed) }
     }
@@ -113,9 +132,9 @@ internal class GroupMutationController(
         updateGroup(
             action = GroupMutationAction.MUTE,
             successMessage = if (mutedUntil > System.currentTimeMillis()) {
-                text(R.string.group_detail_mute_set)
+                string(GroupMutationMessage.MUTE_SET)
             } else {
-                text(R.string.group_detail_mute_cleared)
+                string(GroupMutationMessage.MUTE_CLEARED)
             },
             retry = { updateMemberMute(userId, mutedUntil) }
         ) { groupLifecycleService.setMemberMute(chatId(), userId, mutedUntil) }
@@ -126,9 +145,9 @@ internal class GroupMutationController(
         updateGroup(
             action = GroupMutationAction.MUTE,
             successMessage = if (mutedUntil > System.currentTimeMillis()) {
-                text(R.string.group_detail_mute_all_set)
+                string(GroupMutationMessage.MUTE_ALL_SET)
             } else {
-                text(R.string.group_detail_mute_all_cleared)
+                string(GroupMutationMessage.MUTE_ALL_CLEARED)
             },
             retry = { muteAllMembers(mutedUntil) }
         ) { groupLifecycleService.setMuteAll(chatId(), muted = mutedUntil > System.currentTimeMillis()) }
@@ -145,10 +164,10 @@ internal class GroupMutationController(
             updateState {
                 it.copy(
                     isUpdating = false,
-                    message = text(R.string.error_session_expired),
+                    message = string(GroupMutationMessage.SESSION_EXPIRED),
                     feedback = GroupMutationFeedbackPolicy.fromThrowable(
                         action,
-                        IllegalStateException(text(R.string.error_session_expired))
+                        IllegalStateException(string(GroupMutationMessage.SESSION_EXPIRED))
                     )
                 )
             }
@@ -158,23 +177,20 @@ internal class GroupMutationController(
         scope.launch {
             updateState { it.copy(isUpdating = true, message = null, feedback = null) }
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = mutationOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(mutationOwnerUserId)) {
                     updateState {
                         it.copy(
                             isUpdating = false,
-                            message = text(R.string.error_session_expired),
+                            message = string(GroupMutationMessage.SESSION_EXPIRED),
                             feedback = GroupMutationFeedbackPolicy.fromThrowable(
                                 action,
-                                IllegalStateException(text(R.string.error_session_expired))
+                                IllegalStateException(string(GroupMutationMessage.SESSION_EXPIRED))
                             )
                         )
                     }
                     return@launch
                 }
-                val result = withContext(Dispatchers.IO) {
+                val result = withContext(ioDispatcher) {
                     try {
                         Result.success(mutation())
                     } catch (error: kotlinx.coroutines.CancellationException) {
@@ -185,10 +201,7 @@ internal class GroupMutationController(
                 }
                 result.fold(
                     onSuccess = { commit ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = mutationOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionActive(mutationOwnerUserId)) {
                             updateState { it.copy(isUpdating = false) }
                             return@fold
                         }
@@ -216,7 +229,7 @@ internal class GroupMutationController(
                         updateState {
                             it.copy(
                                 isUpdating = false,
-                                message = fb.detail ?: text(R.string.group_detail_operation_failed),
+                                message = fb.detail ?: string(GroupMutationMessage.OPERATION_FAILED),
                                 feedback = fb
                             )
                         }
@@ -229,16 +242,16 @@ internal class GroupMutationController(
         }
     }
 
-    fun uploadGroupAvatar(uri: Uri) {
+    fun uploadGroupAvatar(uri: String) {
         if (!currentState().canManageGroup) return
         if (token().isBlank() || chatId().isBlank()) {
             updateState {
                 it.copy(
                     isUploadingAvatar = false,
-                    message = text(R.string.error_session_expired),
+                    message = string(GroupMutationMessage.SESSION_EXPIRED),
                     feedback = GroupMutationFeedbackPolicy.fromThrowable(
                         GroupMutationAction.AVATAR,
-                        IllegalStateException(text(R.string.error_session_expired))
+                        IllegalStateException(string(GroupMutationMessage.SESSION_EXPIRED))
                     )
                 )
             }
@@ -248,31 +261,28 @@ internal class GroupMutationController(
         scope.launch {
             updateState { it.copy(isUploadingAvatar = true, message = null, feedback = null) }
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = avatarOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(avatarOwnerUserId)) {
                     updateState {
                         it.copy(
                             isUploadingAvatar = false,
-                            message = text(R.string.error_session_expired),
+                            message = string(GroupMutationMessage.SESSION_EXPIRED),
                             feedback = GroupMutationFeedbackPolicy.fromThrowable(
                                 GroupMutationAction.AVATAR,
-                                IllegalStateException(text(R.string.error_session_expired))
+                                IllegalStateException(string(GroupMutationMessage.SESSION_EXPIRED))
                             )
                         )
                     }
                     return@launch
                 }
-                val base64 = withContext(Dispatchers.IO) {
-                    ImagePicker.uriToBase64(application, uri, maxWidth = 800, quality = 84)
+                val base64 = withContext(ioDispatcher) {
+                    encodeAvatar(uri)
                 }
                 if (base64 == null) {
                     pendingRetrySet { uploadGroupAvatar(uri) }
                     val fb = GroupMutationFeedback(
                         kind = GroupMutationFeedbackKind.ERROR_RETRYABLE,
                         action = GroupMutationAction.AVATAR,
-                        detail = text(R.string.settings_image_process_failed),
+                        detail = string(GroupMutationMessage.IMAGE_PROCESS_FAILED),
                         canRetry = true,
                         shouldReload = false
                     )
@@ -281,17 +291,14 @@ internal class GroupMutationController(
                     }
                     return@launch
                 }
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = avatarOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(avatarOwnerUserId)) {
                     updateState {
                         it.copy(
                             isUploadingAvatar = false,
-                            message = text(R.string.error_session_expired),
+                            message = string(GroupMutationMessage.SESSION_EXPIRED),
                             feedback = GroupMutationFeedbackPolicy.fromThrowable(
                                 GroupMutationAction.AVATAR,
-                                IllegalStateException(text(R.string.error_session_expired))
+                                IllegalStateException(string(GroupMutationMessage.SESSION_EXPIRED))
                             )
                         )
                     }
@@ -299,15 +306,12 @@ internal class GroupMutationController(
                 }
                 groupLifecycleService.uploadAvatar(chatId(), base64).fold(
                     onSuccess = { url ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = avatarOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionActive(avatarOwnerUserId)) {
                             return@fold
                         }
                         pendingRetrySet(null)
                         updateState { it.copy(groupAvatar = url, isUploadingAvatar = false) }
-                        onCommitted(text(R.string.group_detail_avatar_updated))
+                        onCommitted(string(GroupMutationMessage.AVATAR_UPDATED))
                     },
                     onFailure = { error ->
                         val fb = GroupMutationFeedbackPolicy.fromThrowable(GroupMutationAction.AVATAR, error)
@@ -315,7 +319,7 @@ internal class GroupMutationController(
                         updateState {
                             it.copy(
                                 isUploadingAvatar = false,
-                                message = fb.detail ?: text(R.string.group_detail_avatar_failed),
+                                message = fb.detail ?: string(GroupMutationMessage.AVATAR_FAILED),
                                 feedback = fb
                             )
                         }
@@ -328,5 +332,6 @@ internal class GroupMutationController(
         }
     }
 
-    private fun text(id: Int, vararg args: Any): String = textFn(id, args)
+    private fun string(message: GroupMutationMessage, vararg args: Any): String =
+        text(message, args)
 }
