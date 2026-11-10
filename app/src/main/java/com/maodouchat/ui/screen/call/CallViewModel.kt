@@ -56,7 +56,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var activeGroupMemberIds: Set<String> = emptySet()
     private val signalingIdempotency = CallSignalingIdempotencyStore()
     private val outboundSignalingCursor = CallSignalingOutboundCursor()
-    private val hangUpSender = CallHangUpSender(outboundSignalingCursor)
+    private val hangUpSender = createCallHangUpSender(outboundSignalingCursor)
     /** Per sender last accepted (epoch, sequence) for the active call. */
     private val inboundSignalingCursors = mutableMapOf<String, Cursor>()
     // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，
