@@ -25,6 +25,7 @@ import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatSettingToggleController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
+import com.maodouchat.domain.groups.ChatBotGroupActionController
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.group.createAndroidGroupLifecycleService
@@ -422,6 +423,7 @@ internal class ChatDetailDeps(
     internal val botGroupActionController = ChatBotGroupActionController(
         scope = host.viewModelScope,
         groupLifecycleCoordinator = groupLifecycleCoordinator,
+        botGroupActionGateway = BotGroupActionNetworkGateway(),
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
@@ -432,8 +434,9 @@ internal class ChatDetailDeps(
         },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id, args -> host.text(id, *args) },
-        quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
+        text = { message, args -> host.text(botGroupActionMessageResId(message), *args) },
+        quantityText = { message, quantity, args -> host.quantityText(botGroupActionMessageResId(message), quantity, *args) },
+        logWarning = { android.util.Log.w("ChatDetail", it) },
     )
     internal val realtimeController = ChatRealtimeController(
         sessionContextProvider = com.maodouchat.session.SessionContexts.provider(application),
@@ -505,9 +508,6 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         featureDisabledText = { host.text(R.string.feature_disabled_by_admin) },
     )
-    // G378：`jumpToDate()`/`jumpToMessage()`/`jumpToPinnedMessage()` 跳转定位抽到 ChatJumpController，
-    // `notifyLocalCaptureDetected()`/`sendCaptureAlertToPeer()` 截屏告警抽到 ChatCaptureAlertController——
-    // VM 侧只留同签名委托。
     internal val chatJumpController = ChatJumpController(
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },

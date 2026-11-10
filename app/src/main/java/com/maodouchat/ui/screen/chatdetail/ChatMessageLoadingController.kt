@@ -30,6 +30,7 @@ import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatPinStarController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatTimelineStateController
+import com.maodouchat.domain.groups.ChatBotGroupActionController
 
 // 消息加载/分页/刷新一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
 internal class ChatMessageLoadingController(
