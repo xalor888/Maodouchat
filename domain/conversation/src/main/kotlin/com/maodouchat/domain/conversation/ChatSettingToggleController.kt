@@ -1,25 +1,24 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import android.app.Application
-import com.maodouchat.R
 import com.maodouchat.core.model.UpdateChatSettingsRequest
-import com.maodouchat.data.repository.ChatNetworkRepository
-import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import com.maodouchat.core.model.ChatDetailUiState
 
 // 会话级设置开关（置顶 / 标记未读）：乐观更新 UI，失败回滚。逻辑从 ChatDetailViewModel 纯搬移。
-internal class ChatSettingToggleController(
+class ChatSettingToggleController(
     private val scope: CoroutineScope,
-    private val getApplication: () -> Application,
+    private val chatPinEnabled: () -> Boolean,
+    private val sessionActive: (String) -> Boolean,
+    private val liveToken: () -> String,
+    private val chatSettingsGateway: ChatSettingsGateway,
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val chatId: () -> String,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
-    private val text: (Int) -> String,
+    private val featureDisabledText: () -> String,
 ) {
     fun toggleChatMarkedUnread() {
         val chat = currentState().chat ?: return
@@ -29,15 +28,12 @@ internal class ChatSettingToggleController(
         updateState { it.copy(chat = it.chat?.copy(markedUnread = next)) }
         scope.launch {
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerId,
-                )
-                ) {
+                if (!sessionActive(ownerId)) {
                     return@launch
                 }
-                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-                ChatNetworkRepository().updateChatSettings(
-                    liveToken,
+                val tokenNow = liveToken()
+                chatSettingsGateway.updateChatSettings(
+                    tokenNow,
                     chatId(),
                     UpdateChatSettingsRequest(markedUnread = next)
                 ).onFailure {
@@ -53,8 +49,8 @@ internal class ChatSettingToggleController(
 
     fun toggleChatPinned() {
         val chat = currentState().chat ?: return
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_PIN)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+        if (!chatPinEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = featureDisabledText()) }
             return
         }
         val ownerId = ownerUserId()
@@ -64,15 +60,12 @@ internal class ChatSettingToggleController(
         updateState { it.copy(chat = it.chat?.copy(pinnedAt = nextPinnedAt)) }
         scope.launch {
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerId,
-                )
-                ) {
+                if (!sessionActive(ownerId)) {
                     return@launch
                 }
-                val liveToken = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
-                ChatNetworkRepository().updateChatSettings(
-                    liveToken,
+                val tokenNow = liveToken()
+                chatSettingsGateway.updateChatSettings(
+                    tokenNow,
                     chatId(),
                     UpdateChatSettingsRequest(pinned = !wasPinned)
                 ).onFailure {

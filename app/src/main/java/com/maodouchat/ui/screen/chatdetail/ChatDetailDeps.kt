@@ -20,8 +20,10 @@ import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.domain.conversation.ChatPinStarController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
+import com.maodouchat.domain.conversation.ChatSettingToggleController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
@@ -88,8 +90,6 @@ internal class ChatDetailDeps(
             }
         },
     )
-    // G380：消息展示与搜索索引（列表预览文案、解密后回写预览、本地全文索引）
-    // 抽到 ChatMessagePreviewController——VM 侧四个函数直接搬出，无内部调用者留守。
     internal val messagePreviewController = ChatMessagePreviewController(
         chatProvider = { host._uiState.value.chat },
         contactProvider = { host._uiState.value.contact },
@@ -336,7 +336,10 @@ internal class ChatDetailDeps(
         errorMessage = { error -> error.message ?: host.text(R.string.chat_read_details_failed) },
     )
     internal val pinStarController = ChatPinStarController(
-        application = application,
+        messagePinEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.MESSAGE_PIN) },
+        messageStarringEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.MESSAGE_STARRING) },
+        secretStarBlockEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_STAR_BLOCK) },
+        pinStarGateway = PinStarNetworkGateway(),
         scope = host.viewModelScope,
         chatId = { host.chatId },
         ownerUserId = { host.currentUserId },
@@ -349,7 +352,7 @@ internal class ChatDetailDeps(
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         persistMessage = messageRepo::insertMessage,
-        text = { id, args -> host.text(id, *args) },
+        text = { message, args -> host.text(pinStarMessageResId(message), *args) },
     )
     internal val nudgeSender = ChatNudgeSender(
         scope = host.viewModelScope,
@@ -365,8 +368,6 @@ internal class ChatDetailDeps(
         outgoingFacade = outgoingFacade,
         text = { id, args -> host.text(id, *args) },
     )
-    // G346：`retrySendMessage()` 的重发编排抽到 ChatRetrySender，附件重发分流回 VM
-    // 的 `sendEncryptedAttachment`（仍在 VM 内的下一个待切片）。
     internal val retrySender = ChatRetrySender(
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },
@@ -385,8 +386,6 @@ internal class ChatDetailDeps(
         },
         text = { id, args -> host.text(id, *args) },
     )
-    // G349：`sendEncryptedAttachment()` 的附件发送编排抽到 ChatAttachmentSender——
-    // VM 侧只留同签名委托（默认参数保留在 VM）。
     internal val attachmentSender = ChatAttachmentSender(
         scope = host.viewModelScope,
         activeChatId = { host.activeChatId },
@@ -491,13 +490,20 @@ internal class ChatDetailDeps(
     )
     internal val chatSettingToggleController = ChatSettingToggleController(
         scope = host.viewModelScope,
-        getApplication = { host.getApplication<android.app.Application>() },
+        chatPinEnabled = { RuntimeFlags.isEnabled(host.getApplication<android.app.Application>(), RuntimeFlags.CHAT_PIN) },
+        sessionActive = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(
+                expectedUserId = ownerUserId,
+            )
+        },
+        liveToken = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
+        chatSettingsGateway = ChatSettingsNetworkGateway(),
         ownerUserId = { host.currentUserId },
         token = { host.token },
         chatId = { host.chatId },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id -> host.text(id) },
+        featureDisabledText = { host.text(R.string.feature_disabled_by_admin) },
     )
     // G378：`jumpToDate()`/`jumpToMessage()`/`jumpToPinnedMessage()` 跳转定位抽到 ChatJumpController，
     // `notifyLocalCaptureDetected()`/`sendCaptureAlertToPeer()` 截屏告警抽到 ChatCaptureAlertController——
@@ -521,8 +527,6 @@ internal class ChatDetailDeps(
         getLastPeerNotifyAt = { lastCapturePeerNotifyAt },
         setLastPeerNotifyAt = { lastCapturePeerNotifyAt = it },
     )
-    // G379：`sendMessage()`/`enqueueTextViaMessagingV2()`/`sendRejectMessage()`/`toggleSilentSend()`
-    // 发送流水线抽到 ChatComposerSendController——VM 侧只留同签名委托。
     internal val composerSendController = ChatComposerSendController(
         scope = host.viewModelScope,
         getApplication = { host.getApplication<android.app.Application>() },
@@ -540,8 +544,6 @@ internal class ChatDetailDeps(
         maybeForwardBotInbox = botGroupActionController::maybeForwardBotInbox,
         outgoingFacade = outgoingFacade,
     )
-    // G381：`sendInlineContent()`/`enqueueInlineViaMessagingV2()` 内联发送抽到 ChatInlineSendController——
-    // VM 侧只留同签名委托（扩展函数与截屏告警控制器仍走 VM 委托）。
     internal val inlineSendController = ChatInlineSendController(
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },
@@ -560,8 +562,6 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         sendMessage = { cardContent -> host.sendMessage(forceText = cardContent) },
     )
-    // G383：`observeAiOperations()`/`commitAiMessageResult()` AI 操作一族抽到
-    // ChatAiOperationsController——VM 侧只留同签名委托。
     internal val aiOperationsController = ChatAiOperationsController(
         scope = host.viewModelScope,
         updateState = { transform -> host._uiState.update(transform) },

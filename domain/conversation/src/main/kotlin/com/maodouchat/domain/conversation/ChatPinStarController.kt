@@ -1,11 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.data.repository.PinStarNetworkRepository
-import android.app.Application
-import com.maodouchat.R
 import com.maodouchat.core.model.Message
-import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.core.model.Flag
 import com.maodouchat.core.model.MessagePinPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -14,8 +9,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
 
-internal class ChatPinStarController(
-    private val application: Application,
+/**
+ * 置顶/星标操作向 UI 写入的文案种类。domain 侧只定种类，真正的本地化字符串由 app 侧
+ * pinStarMessageResId 映射提供——domain 模块不引用 app 的 R。
+ */
+enum class PinStarMessage {
+    FEATURE_DISABLED_BY_ADMIN,
+    SESSION_EXPIRED,
+    PIN_FORBIDDEN,
+    PIN_LIMIT,
+    PIN_SUCCESS,
+    UNPIN_SUCCESS,
+    PIN_FAILED,
+    BATCH_PIN_PARTIAL,
+    BATCH_UNPIN_PARTIAL,
+    BATCH_PIN_SUCCESS,
+    BATCH_UNPIN_SUCCESS,
+    STARRING_DISABLED,
+    SECRET_STAR_BLOCKED,
+    STARRED,
+    UNSTARRED,
+    STAR_FAILED,
+}
+
+class ChatPinStarController(
+    private val messagePinEnabled: () -> Boolean,
+    private val messageStarringEnabled: () -> Boolean,
+    private val secretStarBlockEnabled: () -> Boolean,
+    private val pinStarGateway: PinStarGateway,
     private val scope: CoroutineScope,
     private val chatId: () -> String,
     private val ownerUserId: () -> String,
@@ -24,14 +45,14 @@ internal class ChatPinStarController(
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val persistMessage: suspend (Message) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (PinStarMessage, Array<out Any>) -> String,
 ) {
     suspend fun refreshPinnedMessages(expectedUserId: String) {
         val targetChatId = chatId()
         if (expectedUserId.isBlank() || targetChatId.isBlank() || !sessionActive(expectedUserId)) return
         val liveToken = token()
         if (liveToken.isBlank()) return
-        PinStarNetworkRepository().pinned(liveToken, targetChatId).onSuccess { response ->
+        pinStarGateway.pinned(liveToken, targetChatId).onSuccess { response ->
             if (sessionActive(expectedUserId)) {
                 updateState { it.copy(pinnedMessages = response.pins) }
             }
@@ -39,8 +60,8 @@ internal class ChatPinStarController(
     }
 
     fun togglePinMessage(messageId: String) {
-        if (!enabled(RuntimeFlags.MESSAGE_PIN)) {
-            warn(R.string.feature_disabled_by_admin)
+        if (!messagePinEnabled()) {
+            warn(PinStarMessage.FEATURE_DISABLED_BY_ADMIN)
             return
         }
         val state = currentState()
@@ -48,16 +69,16 @@ internal class ChatPinStarController(
         val owner = ownerUserId()
         val targetChatId = chatId()
         if (token().isBlank() || owner.isBlank() || targetChatId.isBlank()) {
-            warn(R.string.error_session_expired)
+            warn(PinStarMessage.SESSION_EXPIRED)
             return
         }
         if (!MessagePinPolicy.canPin(state.chatIsGroup, state.myMemberRole, message.type)) {
-            warn(R.string.chat_pin_forbidden)
+            warn(PinStarMessage.PIN_FORBIDDEN)
             return
         }
         val alreadyPinned = state.pinnedMessages.any { it.messageId == messageId }
         if (MessagePinPolicy.wouldExceedLimit(state.pinnedMessages.size, alreadyPinned)) {
-            warn(R.string.chat_pin_limit, MessagePinPolicy.MAX_PINS)
+            warn(PinStarMessage.PIN_LIMIT, MessagePinPolicy.MAX_PINS)
             return
         }
         if (state.isTogglingPin) return
@@ -66,11 +87,11 @@ internal class ChatPinStarController(
             try {
                 if (!sessionActive(owner)) {
                     updateState {
-                        it.copy(isTogglingPin = false, groupEncryptionWarning = string(R.string.error_session_expired))
+                        it.copy(isTogglingPin = false, groupEncryptionWarning = string(PinStarMessage.SESSION_EXPIRED))
                     }
                     return@launch
                 }
-                PinStarNetworkRepository().togglePin(token(), targetChatId, messageId).fold(
+                pinStarGateway.togglePin(token(), targetChatId, messageId).fold(
                     onSuccess = { response ->
                         if (!sessionActive(owner)) return@fold
                         updateState {
@@ -78,7 +99,7 @@ internal class ChatPinStarController(
                                 isTogglingPin = false,
                                 pinnedMessages = response.pins,
                                 groupEncryptionWarning = string(
-                                    if (response.pinned) R.string.chat_pin_success else R.string.chat_unpin_success,
+                                    if (response.pinned) PinStarMessage.PIN_SUCCESS else PinStarMessage.UNPIN_SUCCESS,
                                 ),
                             )
                         }
@@ -87,7 +108,7 @@ internal class ChatPinStarController(
                         updateState {
                             it.copy(
                                 isTogglingPin = false,
-                                groupEncryptionWarning = error.message ?: string(R.string.chat_pin_failed),
+                                groupEncryptionWarning = error.message ?: string(PinStarMessage.PIN_FAILED),
                             )
                         }
                     },
@@ -99,7 +120,7 @@ internal class ChatPinStarController(
                 updateState {
                     it.copy(
                         isTogglingPin = false,
-                        groupEncryptionWarning = error.message ?: string(R.string.chat_pin_failed),
+                        groupEncryptionWarning = error.message ?: string(PinStarMessage.PIN_FAILED),
                     )
                 }
             }
@@ -107,15 +128,15 @@ internal class ChatPinStarController(
     }
 
     fun togglePinMessages(messageIds: List<String>, shouldPin: Boolean) {
-        if (!enabled(RuntimeFlags.MESSAGE_PIN)) {
-            warn(R.string.feature_disabled_by_admin)
+        if (!messagePinEnabled()) {
+            warn(PinStarMessage.FEATURE_DISABLED_BY_ADMIN)
             return
         }
         val state = currentState()
         val owner = ownerUserId()
         val targetChatId = chatId()
         if (token().isBlank() || owner.isBlank() || targetChatId.isBlank()) {
-            warn(R.string.error_session_expired)
+            warn(PinStarMessage.SESSION_EXPIRED)
             return
         }
         if (state.isTogglingPin) return
@@ -124,21 +145,21 @@ internal class ChatPinStarController(
         if (targetIds.isEmpty()) return
         val targets = state.messages.filter { it.id in targetIds }
         if (targets.size != targetIds.size) {
-            warn(R.string.chat_pin_failed)
+            warn(PinStarMessage.PIN_FAILED)
             return
         }
         val pinnableTargets = targets.filter {
             MessagePinPolicy.canPin(state.chatIsGroup, state.myMemberRole, it.type)
         }
         if (pinnableTargets.isEmpty()) {
-            warn(R.string.chat_pin_forbidden)
+            warn(PinStarMessage.PIN_FORBIDDEN)
             return
         }
         val effectiveTargetIds = pinnableTargets.map { it.id }
         if (shouldPin) {
             val newCount = pinnedIds.size + effectiveTargetIds.count { it !in pinnedIds }
             if (newCount > MessagePinPolicy.MAX_PINS) {
-                warn(R.string.chat_pin_limit, MessagePinPolicy.MAX_PINS)
+                warn(PinStarMessage.PIN_LIMIT, MessagePinPolicy.MAX_PINS)
                 return
             }
         }
@@ -153,7 +174,7 @@ internal class ChatPinStarController(
                         sessionExpired = true
                         break
                     }
-                    PinStarNetworkRepository().togglePin(token(), targetChatId, targetId).fold(
+                    pinStarGateway.togglePin(token(), targetChatId, targetId).fold(
                         onSuccess = { response ->
                             successCount += 1
                             currentPins = response.pins
@@ -168,7 +189,7 @@ internal class ChatPinStarController(
                 updateState {
                     it.copy(
                         isTogglingPin = false,
-                        groupEncryptionWarning = error.message ?: string(R.string.chat_pin_failed),
+                        groupEncryptionWarning = error.message ?: string(PinStarMessage.PIN_FAILED),
                     )
                 }
                 return@launch
@@ -179,17 +200,17 @@ internal class ChatPinStarController(
                     isTogglingPin = false,
                     pinnedMessages = currentPins,
                     groupEncryptionWarning = when {
-                        sessionExpired -> string(R.string.error_session_expired)
+                        sessionExpired -> string(PinStarMessage.SESSION_EXPIRED)
                         failedCount > 0 && successCount > 0 -> string(
-                            if (shouldPin) R.string.chat_batch_pin_partial else R.string.chat_batch_unpin_partial,
+                            if (shouldPin) PinStarMessage.BATCH_PIN_PARTIAL else PinStarMessage.BATCH_UNPIN_PARTIAL,
                             successCount,
                             failedCount,
                         )
                         successCount > 0 -> string(
-                            if (shouldPin) R.string.chat_batch_pin_success else R.string.chat_batch_unpin_success,
+                            if (shouldPin) PinStarMessage.BATCH_PIN_SUCCESS else PinStarMessage.BATCH_UNPIN_SUCCESS,
                             successCount,
                         )
-                        else -> string(R.string.chat_pin_failed)
+                        else -> string(PinStarMessage.PIN_FAILED)
                     },
                 )
             }
@@ -201,7 +222,7 @@ internal class ChatPinStarController(
         val original = currentState().messages.find { it.id == messageId } ?: return
         val owner = ownerUserId()
         if (token().isBlank() || owner.isBlank()) {
-            warn(R.string.error_session_expired)
+            warn(PinStarMessage.SESSION_EXPIRED)
             return
         }
         val optimistic = original.copy(starred = !original.starred)
@@ -209,21 +230,21 @@ internal class ChatPinStarController(
         scope.launch {
             try {
                 if (!sessionActive(owner)) {
-                    replaceMessage(original, string(R.string.error_session_expired))
+                    replaceMessage(original, string(PinStarMessage.SESSION_EXPIRED))
                     return@launch
                 }
-                PinStarNetworkRepository().toggleStar(token(), messageId).fold(
+                pinStarGateway.toggleStar(token(), messageId).fold(
                     onSuccess = { response ->
                         if (!sessionActive(owner)) return@fold
                         val updated = original.copy(starred = response.starred)
                         replaceMessage(
                             updated,
-                            string(if (response.starred) R.string.chat_starred_status else R.string.chat_unstarred_status),
+                            string(if (response.starred) PinStarMessage.STARRED else PinStarMessage.UNSTARRED),
                         )
                         withContext(Dispatchers.IO) { persistMessage(updated) }
                     },
                     onFailure = { error ->
-                        replaceMessage(original, error.message ?: string(R.string.chat_star_failed))
+                        replaceMessage(original, error.message ?: string(PinStarMessage.STAR_FAILED))
                     },
                 )
             } catch (error: CancellationException) {
@@ -237,7 +258,7 @@ internal class ChatPinStarController(
         if (!canStar()) return
         val owner = ownerUserId()
         if (token().isBlank() || owner.isBlank()) {
-            warn(R.string.error_session_expired)
+            warn(PinStarMessage.SESSION_EXPIRED)
             return
         }
         val idSet = messageIds.toSet()
@@ -252,10 +273,10 @@ internal class ChatPinStarController(
             try {
                 for (message in targets) {
                     if (!sessionActive(owner)) {
-                        warn(R.string.error_session_expired)
+                        warn(PinStarMessage.SESSION_EXPIRED)
                         return@launch
                     }
-                    PinStarNetworkRepository().toggleStar(token(), message.id).fold(
+                    pinStarGateway.toggleStar(token(), message.id).fold(
                         onSuccess = { response ->
                             val updated = message.copy(starred = response.starred)
                             replaceMessage(updated)
@@ -271,20 +292,20 @@ internal class ChatPinStarController(
                 throw error
             }
             warn(if (failed == 0) {
-                if (shouldStar) R.string.chat_starred_status else R.string.chat_unstarred_status
+                if (shouldStar) PinStarMessage.STARRED else PinStarMessage.UNSTARRED
             } else {
-                R.string.chat_star_failed
+                PinStarMessage.STAR_FAILED
             })
         }
     }
 
     private fun canStar(): Boolean {
-        if (!enabled(RuntimeFlags.MESSAGE_STARRING)) {
-            warn(R.string.message_starring_disabled)
+        if (!messageStarringEnabled()) {
+            warn(PinStarMessage.STARRING_DISABLED)
             return false
         }
-        if (currentState().isSecretChat == true && enabled(RuntimeFlags.SECRET_STAR_BLOCK)) {
-            warn(R.string.secret_star_blocked)
+        if (currentState().isSecretChat == true && secretStarBlockEnabled()) {
+            warn(PinStarMessage.SECRET_STAR_BLOCKED)
             return false
         }
         return true
@@ -299,11 +320,9 @@ internal class ChatPinStarController(
         }
     }
 
-    private fun enabled(flag: Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
-
-    private fun warn(resourceId: Int, vararg args: Any) {
-        updateState { it.copy(groupEncryptionWarning = string(resourceId, *args)) }
+    private fun warn(message: PinStarMessage, vararg args: Any) {
+        updateState { it.copy(groupEncryptionWarning = string(message, *args)) }
     }
 
-    private fun string(resourceId: Int, vararg args: Any): String = text(resourceId, args)
+    private fun string(message: PinStarMessage, vararg args: Any): String = text(message, args)
 }
