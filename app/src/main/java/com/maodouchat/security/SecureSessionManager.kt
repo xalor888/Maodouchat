@@ -170,9 +170,9 @@ class SecureSessionManager(
                 IncomingCallCoordinator.clear()
                 val activeCallId = com.maodouchat.service.CallForegroundService.getActiveCallId()
                 if (activeCallId.isNotBlank()) {
-                    com.maodouchat.call.CallActionBus.requestHangUp(activeCallId, notifyPeer = false)
+                    com.maodouchat.domain.calls.CallActionBus.requestHangUp(activeCallId, notifyPeer = false, sessionGeneration = MaodouchatApp.currentSessionGeneration())
                 } else if (pendingCallId.isNotBlank()) {
-                    com.maodouchat.call.CallActionBus.requestHangUp(pendingCallId, notifyPeer = false)
+                    com.maodouchat.domain.calls.CallActionBus.requestHangUp(pendingCallId, notifyPeer = false, sessionGeneration = MaodouchatApp.currentSessionGeneration())
                 }
                 com.maodouchat.service.CallForegroundService.stop(context)
             } catch (error: kotlinx.coroutines.CancellationException) {

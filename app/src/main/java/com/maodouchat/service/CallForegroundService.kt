@@ -13,7 +13,8 @@ import androidx.core.app.NotificationCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.security.AppLockManager
-import com.maodouchat.call.CallActionBus
+import com.maodouchat.domain.calls.CallActionBus
+import com.maodouchat.session.AppRuntime
 
 /**
  * 通话前台服务 — 把当前音视频通话提升为前台服务，避免后台时 WebRTC / 信令被系统休眠切断。
@@ -37,7 +38,7 @@ class CallForegroundService : Service() {
         if (intent.action == ACTION_HANG_UP) {
             val requestedCallId = intent.getStringExtra(EXTRA_CALL_ID).orEmpty()
             if (requestedCallId != activeCallId) return START_NOT_STICKY
-            CallActionBus.requestHangUp(requestedCallId)
+            CallActionBus.requestHangUp(requestedCallId, sessionGeneration = AppRuntime.currentSessionGeneration)
             stopSelf()
             return START_NOT_STICKY
         }

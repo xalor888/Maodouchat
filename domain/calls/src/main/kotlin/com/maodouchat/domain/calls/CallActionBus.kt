@@ -1,6 +1,5 @@
-package com.maodouchat.call
+package com.maodouchat.domain.calls
 
-import com.maodouchat.MaodouchatApp
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -10,12 +9,12 @@ object CallActionBus {
     private val _hangUpRequests = MutableSharedFlow<HangUpRequest>(extraBufferCapacity = 16)
     val hangUpRequests: SharedFlow<HangUpRequest> = _hangUpRequests.asSharedFlow()
 
-    fun requestHangUp(callId: String, notifyPeer: Boolean = true): Boolean =
+    fun requestHangUp(callId: String, notifyPeer: Boolean = true, sessionGeneration: Long): Boolean =
         _hangUpRequests.tryEmit(
             HangUpRequest(
                 callId = callId,
                 notifyPeer = notifyPeer,
-                sessionGeneration = MaodouchatApp.currentSessionGeneration(),
+                sessionGeneration = sessionGeneration,
             )
         )
 }

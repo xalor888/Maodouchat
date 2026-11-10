@@ -14,7 +14,8 @@ import android.telecom.StatusHints
 import android.telecom.TelecomManager
 import android.util.Log
 import com.maodouchat.MainActivity
-import com.maodouchat.call.CallActionBus
+import com.maodouchat.domain.calls.CallActionBus
+import com.maodouchat.session.AppRuntime
 import com.maodouchat.core.model.IncomingCallCoordinator
 
 /**
@@ -131,7 +132,7 @@ internal class MaodouchatConnection(
         Log.w("MaodouConn", "ring timeout self-destruct callId=$callId")
         runCatching { IncomingCallCoordinator.clear() }
         if (callId.isNotBlank()) {
-            runCatching { CallActionBus.requestHangUp(callId, notifyPeer = true) }
+            runCatching { CallActionBus.requestHangUp(callId, notifyPeer = true, sessionGeneration = AppRuntime.currentSessionGeneration) }
         }
         finish(DisconnectCause(DisconnectCause.CANCELED))
     }
@@ -229,7 +230,7 @@ internal class MaodouchatConnection(
         Log.i("MaodouConn", "onReject: rejecting callId=$callId")
         IncomingCallCoordinator.clear()
         if (callId.isNotBlank()) {
-            CallActionBus.requestHangUp(callId, notifyPeer = true)
+            CallActionBus.requestHangUp(callId, notifyPeer = true, sessionGeneration = AppRuntime.currentSessionGeneration)
         }
         finish(DisconnectCause(DisconnectCause.REJECTED))
     }
@@ -242,7 +243,7 @@ internal class MaodouchatConnection(
         Log.i("MaodouConn", "onDisconnect: callId=$callId")
         IncomingCallCoordinator.clear()
         if (callId.isNotBlank()) {
-            CallActionBus.requestHangUp(callId, notifyPeer = true)
+            CallActionBus.requestHangUp(callId, notifyPeer = true, sessionGeneration = AppRuntime.currentSessionGeneration)
         }
         finish(DisconnectCause(DisconnectCause.LOCAL))
     }
