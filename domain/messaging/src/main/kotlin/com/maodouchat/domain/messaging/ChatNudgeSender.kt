@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.R
 import com.maodouchat.core.model.NudgeDecision
 import com.maodouchat.core.model.NudgeRejectReason
 import com.maodouchat.core.model.Message
@@ -8,15 +7,14 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.OutgoingMessageCommand
 import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.core.model.mergeMessageVersions
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.messaging.ChatSendIntentFactory
-import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
-internal class ChatNudgeSender(
+class ChatNudgeSender(
     private val scope: CoroutineScope,
     private val nudgeEnabled: () -> Boolean,
     private val activeChatId: () -> String,
@@ -28,7 +26,8 @@ internal class ChatNudgeSender(
     private val mergeMessages: (List<Message>, List<Message>) -> List<Message>,
     private val emitListPreviewForDecrypted: (Message) -> Unit,
     private val outgoingFacade: ChatOutgoingFacade,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (ChatSenderMessage, Array<out Any>) -> String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     fun sendNudge() {
         // G68：nudge 守卫与待发意图构造都下沉到纯工厂（可单测），这里只编排副作用。
@@ -44,10 +43,10 @@ internal class ChatNudgeSender(
             // 资源字符串只出现在编排层：DISABLED 走 errorMessage，其余走 groupEncryptionWarning
             val disabled = decision.reason == NudgeRejectReason.DISABLED
             val message = when (decision.reason) {
-                NudgeRejectReason.SECRET_CHAT -> string(R.string.secret_chat_forward_blocked)
-                NudgeRejectReason.DISABLED -> string(R.string.nudge_disabled)
-                NudgeRejectReason.NO_CHAT -> string(R.string.chat_ws_send_failed)
-                NudgeRejectReason.NO_SESSION -> string(R.string.error_session_expired)
+                NudgeRejectReason.SECRET_CHAT -> string(ChatSenderMessage.SECRET_CHAT_FORWARD_BLOCKED)
+                NudgeRejectReason.DISABLED -> string(ChatSenderMessage.NUDGE_DISABLED)
+                NudgeRejectReason.NO_CHAT -> string(ChatSenderMessage.CHAT_WS_SEND_FAILED)
+                NudgeRejectReason.NO_SESSION -> string(ChatSenderMessage.ERROR_SESSION_EXPIRED)
             }
             updateState {
                 it.copy(
@@ -57,13 +56,13 @@ internal class ChatNudgeSender(
             }
             return
         }
-        val contactName = currentState().contact.name.ifBlank { string(R.string.chat_other_person) }
+        val contactName = currentState().contact.name.ifBlank { string(ChatSenderMessage.CHAT_OTHER_PERSON) }
         val optimistic = ChatSendIntentFactory.build(
             chatId = ChatSendIntentFactory.effectiveChatId(activeChatId(), chatId()),
             senderId = nudgeOwnerUserId,
             messageId = ChatSendIntentFactory.newMessageId(),
             timestamp = System.currentTimeMillis(),
-            content = string(R.string.chat_nudge_you_nudged, contactName),
+            content = string(ChatSenderMessage.CHAT_NUDGE_YOU_NUDGED, contactName),
             type = MessageType.NUDGE,
             meta = null,
         )
@@ -75,7 +74,7 @@ internal class ChatNudgeSender(
         }
         scope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result = withContext(ioDispatcher) {
                     outgoingFacade.enqueue(
                         OutgoingMessageCommand(
                             ownerUserId = nudgeOwnerUserId,
@@ -100,7 +99,7 @@ internal class ChatNudgeSender(
                                 if (it.id == result.message.id) result.message else it
                             },
                             groupEncryptionWarning = result.error.message?.take(120)
-                                ?: string(R.string.chat_send_failed),
+                                ?: string(ChatSenderMessage.CHAT_SEND_FAILED),
                         )
                     }
                 }
@@ -110,5 +109,5 @@ internal class ChatNudgeSender(
         }
     }
 
-    private fun string(resourceId: Int, vararg args: Any): String = text(resourceId, args)
+    private fun string(message: ChatSenderMessage, vararg args: Any): String = text(message, args)
 }

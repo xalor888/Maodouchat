@@ -12,6 +12,7 @@ import com.maodouchat.domain.conversation.PinStarGateway
 import com.maodouchat.domain.conversation.PinStarMessage
 import com.maodouchat.domain.groups.BotGroupActionGateway
 import com.maodouchat.domain.groups.BotGroupActionMessage
+import com.maodouchat.domain.messaging.ChatSenderMessage
 
 /** 置顶/星标网络端口的 app 侧实现：直通 PinStarNetworkRepository。 */
 internal class PinStarNetworkGateway : PinStarGateway {
@@ -102,4 +103,15 @@ internal fun botGroupActionMessageResId(message: BotGroupActionMessage): Int = w
     BotGroupActionMessage.BOT_INVITED -> R.string.group_play_bot_invited
     BotGroupActionMessage.GROUP_FALLBACK_NAME -> R.string.chat_group
     BotGroupActionMessage.CHAT_MEMBERS_COUNT -> R.plurals.chat_members_count
+}
+
+/** domain 侧 ChatSenderMessage 到 app 字符串资源的映射。 */
+internal fun chatSenderMessageResId(message: ChatSenderMessage): Int = when (message) {
+    ChatSenderMessage.SECRET_CHAT_FORWARD_BLOCKED -> R.string.secret_chat_forward_blocked
+    ChatSenderMessage.NUDGE_DISABLED -> R.string.nudge_disabled
+    ChatSenderMessage.CHAT_WS_SEND_FAILED -> R.string.chat_ws_send_failed
+    ChatSenderMessage.ERROR_SESSION_EXPIRED -> R.string.error_session_expired
+    ChatSenderMessage.CHAT_OTHER_PERSON -> R.string.chat_other_person
+    ChatSenderMessage.CHAT_NUDGE_YOU_NUDGED -> R.string.chat_nudge_you_nudged
+    ChatSenderMessage.CHAT_SEND_FAILED -> R.string.chat_send_failed
 }
