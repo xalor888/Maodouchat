@@ -40,6 +40,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.conversation.MediaExportUseCase
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -51,7 +52,6 @@ import kotlinx.coroutines.launch
 
 class MediaCenterViewModel(application: Application, savedStateHandle: SavedStateHandle) : AndroidViewModel(application) {
     val chatId: String = savedStateHandle["chatId"] ?: ""
-    // U02 延伸：仓库入口收进非 ui 的 AppRepositories（不再从 Application 强转后自取 database）。
     private val repository = com.maodouchat.data.repository.AppRepositories.messages
     private val chatLockRepo = com.maodouchat.data.repository.AppRepositories.chatLocks
 
