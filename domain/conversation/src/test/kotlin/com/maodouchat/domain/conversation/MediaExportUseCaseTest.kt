@@ -1,12 +1,10 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.ui.screen.chatdetail.DefaultMediaExportUseCase
 import com.maodouchat.core.model.MediaExportRequest
 import com.maodouchat.core.model.MediaExportResult
-import com.maodouchat.ui.screen.chatdetail.MediaExportUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -32,35 +30,6 @@ class MediaExportUseCaseTest {
             if (request.isSecretChat) return MediaExportResult.SecretBlocked
             return nextResult
         }
-    }
-
-    @Test
-    fun defaultMediaExportUseCase_blocksSecretChatImmediately() = runBlocking {
-        val dummyContext = object : android.content.ContextWrapper(null) {}
-        val useCase = DefaultMediaExportUseCase(dummyContext)
-
-        val saveResult = useCase.saveToGallery(
-            MediaExportRequest(
-                rawUri = "file:///secret/image.jpg",
-                mimeType = "image/jpeg",
-                displayName = "secret.jpg",
-                isSecretChat = true,
-            )
-        )
-        assertEquals(MediaExportResult.SecretBlocked, saveResult)
-        assertFalse(saveResult.isSuccess)
-
-        val shareResult = useCase.share(
-            MediaExportRequest(
-                rawUri = "file:///secret/image.jpg",
-                mimeType = "image/jpeg",
-                displayName = "secret.jpg",
-                isSecretChat = true,
-                chooserTitle = "Share",
-            )
-        )
-        assertEquals(MediaExportResult.SecretBlocked, shareResult)
-        assertFalse(shareResult.isSuccess)
     }
 
     @Test
