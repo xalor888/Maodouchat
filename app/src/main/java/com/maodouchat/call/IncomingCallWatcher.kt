@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.maodouchat.core.model.PolledIncomingBatchPolicy
 import com.maodouchat.data.repository.UserNetworkRepository
+import com.maodouchat.domain.calls.CallActionBus
 import com.maodouchat.navigation.AppNavigationEvents
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.security.BackgroundSessionGate
@@ -115,7 +116,7 @@ class IncomingCallWatcher(
                         }
                         // Ask CallViewModel to tear down if this call is prepared/active
                         // (RINGING may not have started the foreground service yet).
-                        CallActionBus.requestHangUp(event.callId, notifyPeer = false)
+                        CallActionBus.requestHangUp(event.callId, notifyPeer = false, sessionGeneration = AppRuntime.currentSessionGeneration)
                     }
                     return@collect
                 }
@@ -196,7 +197,8 @@ class IncomingCallWatcher(
                         if (signalingCallId.isNotBlank()) {
                             CallActionBus.requestHangUp(
                                 signalingCallId,
-                                notifyPeer = false
+                                notifyPeer = false,
+                                sessionGeneration = AppRuntime.currentSessionGeneration
                             )
                         }
                         val liveOwner = CurrentSession.ownerUserId()
@@ -287,7 +289,7 @@ class IncomingCallWatcher(
                     }
                     // Always bus hang-up so prepared RINGING/CONNECTED VM tears down
                     // (foreground service may not be up yet during pure ring UI).
-                    CallActionBus.requestHangUp(terminal.callId, notifyPeer = false)
+                    CallActionBus.requestHangUp(terminal.callId, notifyPeer = false, sessionGeneration = AppRuntime.currentSessionGeneration)
                 }
             }
             // offer 取舍接线到 PolledIncomingBatchPolicy 的决策：
