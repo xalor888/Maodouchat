@@ -306,7 +306,7 @@ class ChatListViewModel private constructor(
         deleteChat = ::deleteChat,
     )
 
-    private val localProjectionCoordinator = ChatListLocalProjectionCoordinator(
+    private val localProjectionCoordinator = createChatListLocalProjectionCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
