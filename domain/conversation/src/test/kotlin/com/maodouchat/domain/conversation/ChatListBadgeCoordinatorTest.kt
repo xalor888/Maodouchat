@@ -47,7 +47,7 @@ class ChatListBadgeCoordinatorTest {
     fun notificationCenterUnreadCountsUnreadItems() = runTest(dispatcher) {
         val harness = Harness()
         val coordinator = harness.build(this)
-        backgroundScope.launch { coordinator.notificationCenterUnread.collect() }
+        backgroundScope.launch { coordinator.notificationCenterUnread.collect {} }
         harness.notificationItems.value = listOf(item("a"), item("b", read = true), item("c"))
         advanceUntilIdle()
 
@@ -58,7 +58,7 @@ class ChatListBadgeCoordinatorTest {
     fun exploreBadgeCountCountsOnlyUnreadPostInteractions() = runTest(dispatcher) {
         val harness = Harness()
         val coordinator = harness.build(this)
-        backgroundScope.launch { coordinator.exploreBadgeCount.collect() }
+        backgroundScope.launch { coordinator.exploreBadgeCount.collect {} }
         harness.notificationItems.value = listOf(
             item("a", type = NotificationCenterType.POST_INTERACTION),
             item("b", type = NotificationCenterType.POST_INTERACTION, read = true),
