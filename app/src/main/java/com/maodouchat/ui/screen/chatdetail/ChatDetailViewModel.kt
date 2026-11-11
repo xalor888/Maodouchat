@@ -515,7 +515,7 @@ class ChatDetailViewModel(
 
     /**
      * Primary composer send for 1:1 and groups (text / markdown).
-     * 编排已抽到 [ChatComposerSendController]，纯搬移不改判断。
+     * 编排已抽到 [com.maodouchat.domain.messaging.ChatComposerSendController]，纯搬移不改判断。
      */
     internal fun sendMessage(
         replyTarget: Message? = null,

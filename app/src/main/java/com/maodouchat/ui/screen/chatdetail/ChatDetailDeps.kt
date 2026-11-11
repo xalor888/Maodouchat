@@ -17,6 +17,7 @@ import com.maodouchat.domain.messaging.ChatRetrySender
 import com.maodouchat.domain.messaging.ScheduledMessageController
 import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
+import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -77,14 +78,10 @@ internal class ChatDetailDeps(
     private val application: Application,
     private val host: ChatDetailViewModel,
 ) {
-    internal val aiConversationProfileSource: AiConversationProfileSource =
-        com.maodouchat.data.local.RoomAiConversationProfileSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
-    internal val aiChatClassificationSource: AiChatClassificationSource =
-        com.maodouchat.data.local.RoomAiChatClassificationSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
-    internal val aiEmotionReplySource: AiEmotionReplySource =
-        com.maodouchat.data.local.RoomAiEmotionReplySource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
-    internal val aiWeeklyReportSource: AiWeeklyReportSource =
-        com.maodouchat.data.local.RoomAiWeeklyReportSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
+    internal val aiConversationProfileSource: AiConversationProfileSource = com.maodouchat.data.local.RoomAiConversationProfileSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
+    internal val aiChatClassificationSource: AiChatClassificationSource = com.maodouchat.data.local.RoomAiChatClassificationSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
+    internal val aiEmotionReplySource: AiEmotionReplySource = com.maodouchat.data.local.RoomAiEmotionReplySource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
+    internal val aiWeeklyReportSource: AiWeeklyReportSource = com.maodouchat.data.local.RoomAiWeeklyReportSource(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase)
     internal val messageRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.messageRepo()
     internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
         context = application,
@@ -173,10 +170,8 @@ internal class ChatDetailDeps(
             }
         },
     )
-    internal val conversationMessageMutationCoordinator =
-        ConversationMessageMutationCoordinator(messagingMutationFacade)
-    internal val conversationReactionCoordinator =
-        ConversationReactionCoordinator(messagingMutationFacade)
+    internal val conversationMessageMutationCoordinator = ConversationMessageMutationCoordinator(messagingMutationFacade)
+    internal val conversationReactionCoordinator = ConversationReactionCoordinator(messagingMutationFacade)
     internal val aiSummaryRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiSummaryRepo()
     internal val aiTaskRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiTaskRepo()
     internal val aiOperationRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.aiOperationRepo()
@@ -202,9 +197,7 @@ internal class ChatDetailDeps(
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
             isOwnerSessionCurrent = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
+                com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
             },
             errors = OutgoingConversationErrors(
                 notLoggedIn = { host.text(R.string.chat_not_logged_in) },
@@ -255,8 +248,7 @@ internal class ChatDetailDeps(
     internal val recordingWaveformBuffer = VoiceRecordingWaveform()
     internal var recordingMeterJob: Job? = null
     internal val signalProtocol: SignalProtocol = com.maodouchat.crypto.SignalProtocolAccess.protocol
-    internal val groupMessagingCoordinator =
-        com.maodouchat.group.GroupDetailAccess.groupMessagingCoordinator(application)
+    internal val groupMessagingCoordinator = com.maodouchat.group.GroupDetailAccess.groupMessagingCoordinator(application)
     internal val groupLifecycleCoordinator = GroupLifecycleCoordinator(
         ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
@@ -533,7 +525,6 @@ internal class ChatDetailDeps(
     )
     internal val composerSendController = ChatComposerSendController(
         scope = host.viewModelScope,
-        getApplication = { host.getApplication<android.app.Application>() },
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
@@ -547,6 +538,14 @@ internal class ChatDetailDeps(
         clearDraft = { host.clearDraft() },
         maybeForwardBotInbox = botGroupActionController::maybeForwardBotInbox,
         outgoingFacade = outgoingFacade,
+        mentionsEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.MENTIONS) },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
+        sendInFlightRes = R.string.chat_send_in_flight,
+        sendEmptyRes = R.string.chat_send_empty,
+        sessionExpiredRes = R.string.error_session_expired,
+        blockedUserStatusRes = R.string.chat_blocked_user_status,
+        mentionEveryoneRestrictedRes = R.string.chat_mention_everyone_restricted,
+        sendFailedRes = R.string.chat_send_failed,
     )
     internal val inlineSendController = ChatInlineSendController(
         scope = host.viewModelScope,
