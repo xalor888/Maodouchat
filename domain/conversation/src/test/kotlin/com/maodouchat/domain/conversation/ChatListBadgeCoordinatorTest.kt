@@ -73,7 +73,7 @@ class ChatListBadgeCoordinatorTest {
     fun startResetsUnreadBadgeOnUiResetEvent() = runTest(dispatcher) {
         UnreadBadgeStore.totalUnread.value = 7
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
 
         coordinator.start()
         harness.uiResetEvents.emit(SessionUiResetEvent.UNREAD_BADGE)
@@ -86,7 +86,7 @@ class ChatListBadgeCoordinatorTest {
     fun startPushesUnreadChatTotalExcludingArchived() = runTest(dispatcher) {
         UnreadBadgeStore.totalUnread.value = 0
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
 
         coordinator.start()
         harness.chats.value = listOf(
@@ -103,7 +103,7 @@ class ChatListBadgeCoordinatorTest {
     fun startPushesExploreBadgeCount() = runTest(dispatcher) {
         ExploreBadgeStore.count.value = 0
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
 
         coordinator.start()
         harness.notificationItems.value = listOf(
@@ -119,7 +119,7 @@ class ChatListBadgeCoordinatorTest {
     @Test
     fun startProjectsTypingPresence() = runTest(dispatcher) {
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
 
         coordinator.start()
         harness.typingByChat.value = mapOf("c1" to "u1")
