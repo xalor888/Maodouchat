@@ -139,15 +139,15 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val ringingTimeout by lazy {
-        CallRingingTimeout(
+        createCallRingingTimeout(
             scope = viewModelScope,
-            context = app,
+            app = app,
             sessionGate = callSessionGate,
             activeCallSession = { activeCallSession },
             currentState = { _uiState.value },
             activeCallId = { activeCallId },
             timeoutMs = RINGING_TIMEOUT_MS,
-            text = errorMessages::text,
+            errorMessages = errorMessages,
             onNoAnswer = { message -> endCall(notifyPeer = true, errorMessage = message) },
         )
     }
@@ -412,8 +412,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     // G372：通话记录写入抽到 CallLogWriter（纯搬移不改判断）。
     private val callLogWriter by lazy {
-        CallLogWriter(
-            application = app,
+        createCallLogWriter(
+            app = app,
             currentState = { _uiState.value },
             activeCallId = { activeCallId },
             callLogOwnerUserId = { callLogOwnerUserId },
