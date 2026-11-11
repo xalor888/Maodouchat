@@ -19,6 +19,7 @@ import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
 import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.domain.messaging.ChatInlineSendController
+import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -102,11 +103,14 @@ internal class ChatDetailDeps(
         },
     )
     internal val messagePreviewController = ChatMessagePreviewController(
-        chatProvider = { host._uiState.value.chat },
-        contactProvider = { host._uiState.value.contact },
+        chatProvider = { host._uiState.value.chat }, contactProvider = { host._uiState.value.contact },
         currentUserId = { host.currentUserId },
         activeChatId = { host.activeChatId },
-        textProvider = host::text,
+        textProvider = { kind, args -> host.text(chatMessagePreviewTextResId(kind), *args) },
+        emitListPreview = { chatId, preview, typeName, playSendSound -> com.maodouchat.chatdetail.ChatDetailAccess.emitMessageSent(chatId, preview, typeName, playSendSound = playSendSound) },
+        allowsSearchIndex = { chatId -> com.maodouchat.domain.messaging.ConversationPrivacyPolicy.allows(com.maodouchat.security.SecretChatCapabilities.forChat(chatId), com.maodouchat.domain.messaging.PrivacyAction.SEARCH) },
+        indexMessage = { message -> com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchRepository().indexMessage(message) },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val messageGateway by lazy {
         MessagingV2MessageGateway(
@@ -669,7 +673,6 @@ internal class ChatDetailDeps(
         uiState = host._uiState,
         text = host::text,
     )
-    // G387：session cipher 占用一族抽到 ChatSessionCipherController——VM 侧只留同签名委托。
     internal val sessionCipherController = ChatSessionCipherController(
         initialChatId = host.chatId,
         getChatById = chatRepo::getChatById,
@@ -678,7 +681,6 @@ internal class ChatDetailDeps(
         releaseOccupancy = { lease -> com.maodouchat.crypto.SessionCipherOccupancy.release(lease) },
         currentUserId = { host.currentUserId },
     )
-    // G387：消息加载/分页/刷新一族抽到 ChatMessageLoadingController——VM 侧只留同签名委托。
     internal val messageLoadingController = ChatMessageLoadingController(
         uiState = host._uiState,
         scope = host.viewModelScope,
@@ -719,7 +721,6 @@ internal class ChatDetailDeps(
         text = { message, args -> host.text(chatOutgoingHydrationTextResId(message), *args) },
         quantityText = { message, quantity, args -> host.quantityText(chatOutgoingHydrationTextResId(message), quantity, *args) },
     )
-    // G388：群通话入口抽到 ChatGroupCallController——VM 只留同签名委托。
     internal val groupCallController = ChatGroupCallController(
         uiState = host._uiState,
         currentUserId = { host.currentUserId },
@@ -728,7 +729,6 @@ internal class ChatDetailDeps(
         voiceCallEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.VOICE_CALL) },
         text = { message -> host.text(chatGroupCallMessageResId(message)) },
     )
-    // G388：onCleared 收尾（媒体/任务清理 + 草稿持久化 + 最终已读水印）抽到 ChatSessionTeardownController——VM 只留 override 转发。
     internal val sessionTeardownController = ChatSessionTeardownController(
         uiState = host._uiState,
         application = application,
