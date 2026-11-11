@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
@@ -13,7 +14,10 @@ import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallUiState
+import com.maodouchat.domain.calls.CallConnectionStats
+import com.maodouchat.domain.calls.CallSessionTimersController
 import com.maodouchat.webrtc.WebRTCManager
+import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,8 +63,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val hangUpSender = createCallHangUpSender(outboundSignalingCursor)
     /** Per sender last accepted (epoch, sequence) for the active call. */
     private val inboundSignalingCursors = mutableMapOf<String, Cursor>()
-    // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，
-    // 通话中异地登出换号后旧通话不写进新账号 key
+    // 8.55：通话开始时的账号快照——writeCallLog 用其作 expectedUserId 守卫，通话中异地登出换号后旧通话不写进新账号 key
     private var callLogOwnerUserId: String = ""
 
     private companion object {
@@ -72,7 +75,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             scope = viewModelScope,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
-            webRTCManager = { webRTCManager },
+            getConnectionStats = { webRTCManager?.getConnectionStatsSnapshot()?.let { CallConnectionStats(rttMs = it.rttMs, packetLossPercent = it.packetLossPercent) } },
+            refreshIceServers = { servers -> webRTCManager?.refreshIceServers(servers) },
+            fetchIceServers = { liveToken -> WebRTCSignaling.fetchIceServers(liveToken) },
+            elapsedRealtimeMs = { SystemClock.elapsedRealtime() },
             activeCallSession = { activeCallSession },
             callSessionGate = callSessionGate,
             token = { token },
@@ -354,8 +360,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         lifecycleController.onStart()
     }
 
-    private fun beginCallSession(peerId: String, incoming: Boolean = false): Long =
-        sessionController.beginCallSession(peerId, incoming)
+    private fun beginCallSession(peerId: String, incoming: Boolean = false): Long = sessionController.beginCallSession(peerId, incoming)
 
     private fun isCurrentCallSession(session: Long, manager: WebRTCManager? = null): Boolean =
         sessionController.isCurrentCallSession(session, manager)
@@ -384,13 +389,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun rejectIncomingCall() = incomingCallController.rejectIncomingCall()
 
-    fun hangUp() {
-        endCall(notifyPeer = true)
-    }
+    fun hangUp() = endCall(notifyPeer = true)
 
-    fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
-    }
+    fun clearError() = _uiState.update { it.copy(errorMessage = null) }
 
     fun toggleMute(muted: Boolean) = mediaController.toggleMute(muted)
     fun toggleVideo(enabled: Boolean) = mediaController.toggleVideo(enabled)
@@ -422,7 +423,6 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun writeCallLog(state: com.maodouchat.core.model.State) =
         callLogWriter.writeCallLog(state)
-
 
     // 拆卸收尾簇已搬入 CallTeardownController；此处只留同签名委托，各 controller 的 endCall 接线不变。
     private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) =
