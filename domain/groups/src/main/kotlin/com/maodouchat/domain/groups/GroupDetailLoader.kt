@@ -1,15 +1,12 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import com.maodouchat.R
-import com.maodouchat.domain.groups.GroupAuditController
-import com.maodouchat.domain.groups.GroupBotController
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.core.model.GroupMessagingCoordinator
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -19,11 +16,15 @@ import kotlinx.coroutines.withContext
  * G369：群详情「整页加载」从 `GroupDetailViewModel` 抽出（纯搬移不改判断）——群信息/成员/
  * sender key 状态/审计首页/候选成员/机器人的 IO 拉取与状态写回，含 8.39/8.49 的既有修复。
  */
-internal class GroupDetailLoader(
+class GroupDetailLoader(
     private val scope: CoroutineScope,
     private val currentState: () -> GroupDetailUiState,
     private val updateState: ((GroupDetailUiState) -> GroupDetailUiState) -> Unit,
-    private val textFn: (Int, Array<out Any>) -> String,
+    private val text: (GroupDetailLoadMessage) -> String,
+    private val sessionActive: (String) -> Boolean,
+    private val isSecretChat: (String) -> Boolean,
+    private val markSecretSurfaceActive: (String) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val chatId: () -> String,
     private val token: () -> String,
     private val ownerUserId: () -> String,
@@ -43,10 +44,10 @@ internal class GroupDetailLoader(
             updateState {
                 it.copy(
                     isLoading = false,
-                    message = text(R.string.error_session_expired),
+                    message = text(GroupDetailLoadMessage.SESSION_EXPIRED),
                     feedback = GroupMutationFeedbackPolicy.fromThrowable(
                         GroupMutationAction.LOAD,
-                        IllegalStateException(text(R.string.error_session_expired))
+                        IllegalStateException(text(GroupDetailLoadMessage.SESSION_EXPIRED))
                     )
                 )
             }
@@ -55,28 +56,22 @@ internal class GroupDetailLoader(
         scope.launch {
             updateState { it.copy(isLoading = true, message = feedbackMessage, feedback = null) }
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = loadOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(loadOwnerUserId)) {
                     updateState {
                         it.copy(
                             isLoading = false,
-                            message = text(R.string.error_session_expired),
+                            message = text(GroupDetailLoadMessage.SESSION_EXPIRED),
                             feedback = GroupMutationFeedbackPolicy.fromThrowable(
                                 GroupMutationAction.LOAD,
-                                IllegalStateException(text(R.string.error_session_expired))
+                                IllegalStateException(text(GroupDetailLoadMessage.SESSION_EXPIRED))
                             )
                         )
                     }
                     return@launch
                 }
-                val loaded = withContext(Dispatchers.IO) {
+                val loaded = withContext(ioDispatcher) {
                     try {
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = loadOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionActive(loadOwnerUserId)) {
                             throw kotlinx.coroutines.CancellationException("group_load_session_changed")
                         }
                         val chat = groupLifecycleService.fetchGroupDetails(chatId()).getOrThrow()
@@ -92,19 +87,18 @@ internal class GroupDetailLoader(
                         val ownedBots = groupBotController.fetchCandidateBots().getOrDefault(emptyList())
                         val self = members.firstOrNull { it.userId == loadOwnerUserId }
                         val secret = try {
-                            chat?.isSecret == true ||
-                                com.maodouchat.security.SecretChatCapabilities.forChat(chatId()).isSecretChat
+                            chat?.isSecret == true || isSecretChat(chatId())
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (_: Exception) {
                             true
                         }
                         if (secret) {
-                            com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId())
+                            markSecretSurfaceActive(chatId())
                         }
                         Result.success(
                             GroupDetailUiState(
-                                groupName = chat?.groupName?.takeIf { it.isNotBlank() } ?: text(R.string.chat_group),
+                                groupName = chat?.groupName?.takeIf { it.isNotBlank() } ?: text(GroupDetailLoadMessage.CHAT_GROUP),
                                 groupAnnouncement = chat?.groupAnnouncement.orEmpty(),
                                 groupAvatar = chat?.groupAvatar,
                                 memberRevision = chat?.memberRevision ?: 0,
@@ -137,10 +131,7 @@ internal class GroupDetailLoader(
                 }
                 loaded.fold(
                     onSuccess = { next ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = loadOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionActive(loadOwnerUserId)) {
                             return@fold
                         }
                         pendingRetrySet(null)
@@ -171,7 +162,7 @@ internal class GroupDetailLoader(
                         updateState {
                             it.copy(
                                 isLoading = false,
-                                message = fb.detail ?: text(R.string.group_detail_load_failed),
+                                message = fb.detail ?: text(GroupDetailLoadMessage.LOAD_FAILED),
                                 feedback = fb.copy(canRetry = true)
                             )
                         }
@@ -183,6 +174,4 @@ internal class GroupDetailLoader(
             }
         }
     }
-
-    private fun text(id: Int, vararg args: Any): String = textFn(id, args)
 }
