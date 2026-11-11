@@ -10,8 +10,11 @@ import com.maodouchat.R
 import com.maodouchat.domain.groups.GroupAuditController
 import com.maodouchat.domain.groups.GroupAuditLoadController
 import com.maodouchat.domain.groups.GroupBotController
+import com.maodouchat.domain.groups.GroupDetailLoadMessage
+import com.maodouchat.domain.groups.GroupDetailLoader
 import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.domain.groups.GroupInviteController
+import com.maodouchat.domain.groups.GroupInviteLoadController
 import com.maodouchat.domain.groups.GroupMutationController
 import com.maodouchat.domain.groups.SenderKeyMaintenanceController
 import com.maodouchat.domain.groups.SenderKeyMessage
@@ -106,7 +109,10 @@ class GroupDetailViewModel(
             scope = viewModelScope,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
-            textFn = { id, args -> text(id, *args) },
+            text = { message -> text(groupDetailLoadMessageResId(message)) },
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            isSecretChat = { chatId -> com.maodouchat.security.SecretChatCapabilities.forChat(chatId).isSecretChat },
+            markSecretSurfaceActive = { chatId -> com.maodouchat.security.SecretChatSession.markSurfaceActive(chatId) },
             chatId = { chatId },
             token = { token },
             ownerUserId = { currentUserId },
@@ -126,12 +132,10 @@ class GroupDetailViewModel(
         realtimeObserver.start()
     }
 
-
     /** Last failed mutation params so the error dialog can offer a real retry. */
     private var pendingRetry: (() -> Unit)? = null
 
     fun load(feedbackMessage: String? = null) = loader.load(feedbackMessage)
-
 
     private val auditLoadController by lazy {
         GroupAuditLoadController(
@@ -148,7 +152,6 @@ class GroupDetailViewModel(
     }
 
     fun loadMoreAudit() = auditLoadController.loadMoreAudit()
-
 
     private val mutationController by lazy {
         GroupMutationController(
@@ -187,14 +190,15 @@ class GroupDetailViewModel(
 
     fun muteAllMembers(mutedUntil: Long) = mutationController.muteAllMembers(mutedUntil)
 
-
     private val inviteLoadController by lazy {
         GroupInviteLoadController(
             scope = viewModelScope,
-            application = getApplication(),
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
-            textFn = { id, args -> text(id, *args) },
+            text = { message -> text(groupDetailLoadMessageResId(message)) },
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            invitesEnabled = { com.maodouchat.util.RuntimeFlags.isEnabled(getApplication(), com.maodouchat.util.RuntimeFlags.GROUP_INVITES) },
+            groupInviteController = groupInviteController,
             chatId = { chatId },
             token = { token },
             ownerUserId = { currentUserId },
@@ -205,10 +209,7 @@ class GroupDetailViewModel(
     fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) =
         inviteLoadController.loadGroupInvite(rotate, expiresInSeconds, maxUses)
 
-
     fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri.toString())
-
-
 
     private val senderKeyController by lazy {
         SenderKeyMaintenanceController(
@@ -227,7 +228,6 @@ class GroupDetailViewModel(
     }
 
     fun redistributeSenderKey() = senderKeyController.redistributeSenderKey()
-
 
     fun consumeMessage() {
         pendingRetry = null

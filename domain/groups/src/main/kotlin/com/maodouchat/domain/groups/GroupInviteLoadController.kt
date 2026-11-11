@@ -1,44 +1,40 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import com.maodouchat.R
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.group.createAndroidGroupInviteController
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackPolicy
-import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
  * G367：群邀请链接的拉取/轮换从 `GroupDetailViewModel` 抽出（纯搬移不改判断）——
- * `groupInviteController` 的所有权随之内聚（原 VM 字段仅此一处使用）；
- * pendingRetry 经 set lambda 共享。
+ * 邀请控制器由调用方注入，pendingRetry 经 set lambda 共享。
  */
-internal class GroupInviteLoadController(
+class GroupInviteLoadController(
     private val scope: CoroutineScope,
-    private val application: android.app.Application,
     private val currentState: () -> GroupDetailUiState,
     private val updateState: ((GroupDetailUiState) -> GroupDetailUiState) -> Unit,
-    private val textFn: (Int, Array<out Any>) -> String,
+    private val text: (GroupDetailLoadMessage) -> String,
+    private val sessionActive: (String) -> Boolean,
+    private val invitesEnabled: () -> Boolean,
+    private val groupInviteController: GroupInviteController,
     private val chatId: () -> String,
     private val token: () -> String,
     private val ownerUserId: () -> String,
     private val pendingRetrySet: ((() -> Unit)?) -> Unit,
 ) {
-    private val groupInviteController = createAndroidGroupInviteController()
-
     fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
-        if (!RuntimeFlags.isEnabled(application, RuntimeFlags.GROUP_INVITES)) {
+        if (!invitesEnabled()) {
             return
         }
         if (chatId().isBlank() || token().isBlank()) {
             updateState {
                 it.copy(
                     isLoadingInvite = false,
-                    message = text(R.string.error_session_expired),
+                    message = text(GroupDetailLoadMessage.SESSION_EXPIRED),
                     feedback = GroupMutationFeedbackPolicy.fromThrowable(
                         GroupMutationAction.INVITE,
-                        IllegalStateException(text(R.string.error_session_expired))
+                        IllegalStateException(text(GroupDetailLoadMessage.SESSION_EXPIRED))
                     )
                 )
             }
@@ -48,17 +44,14 @@ internal class GroupInviteLoadController(
         scope.launch {
             updateState { it.copy(isLoadingInvite = true, message = null, feedback = null) }
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = inviteOwnerUserId,
-                )
-                ) {
+                if (!sessionActive(inviteOwnerUserId)) {
                     updateState {
                         it.copy(
                             isLoadingInvite = false,
-                            message = text(R.string.error_session_expired),
+                            message = text(GroupDetailLoadMessage.SESSION_EXPIRED),
                             feedback = GroupMutationFeedbackPolicy.fromThrowable(
                                 GroupMutationAction.INVITE,
-                                IllegalStateException(text(R.string.error_session_expired))
+                                IllegalStateException(text(GroupDetailLoadMessage.SESSION_EXPIRED))
                             )
                         )
                     }
@@ -71,15 +64,12 @@ internal class GroupInviteLoadController(
                 }
                 result.fold(
                     onSuccess = { res ->
-                        if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                            expectedUserId = inviteOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionActive(inviteOwnerUserId)) {
                             updateState { it.copy(isLoadingInvite = false) }
                             return@fold
                         }
                         pendingRetrySet(null)
-                        val msg = if (rotate) text(R.string.group_detail_invite_refreshed) else null
+                        val msg = if (rotate) text(GroupDetailLoadMessage.INVITE_REFRESHED) else null
                         updateState {
                             it.copy(
                                 isLoadingInvite = false,
@@ -101,7 +91,7 @@ internal class GroupInviteLoadController(
                         updateState {
                             it.copy(
                                 isLoadingInvite = false,
-                                message = fb.detail ?: text(R.string.group_detail_invite_failed),
+                                message = fb.detail ?: text(GroupDetailLoadMessage.INVITE_FAILED),
                                 feedback = fb.copy(canRetry = true)
                             )
                         }
@@ -113,6 +103,4 @@ internal class GroupInviteLoadController(
             }
         }
     }
-
-    private fun text(id: Int, vararg args: Any): String = textFn(id, args)
 }
