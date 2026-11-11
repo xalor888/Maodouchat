@@ -11,8 +11,11 @@ import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.core.model.Trigger
+import com.maodouchat.domain.conversation.ChatListAnnouncementCoordinator
+import com.maodouchat.domain.conversation.ChatListArchiveSuggestionCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadState
+import com.maodouchat.domain.conversation.ChatListLocalCleanupCoordinator
 import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
@@ -55,11 +58,12 @@ class ChatListViewModel private constructor(
         localStateCoordinator = conversationLocalStateCoordinator,
         deleteDraftForChat = ports.deleteDraftForChat,
         reloadChats = { loadCoordinator.loadChats(showLoading = false) },
+        cleanupSessionFor = { conversationLocalCleanupSession(it) },
+        logWarning = { message, error -> Log.w("ChatListViewModel", message, error) },
     )
 
     /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
-    fun clearLocalChatHistory(chatId: String) =
-        localCleanupCoordinator.clearLocalChatHistory(chatId)
+    fun clearLocalChatHistory(chatId: String) = localCleanupCoordinator.clearLocalChatHistory(chatId)
 
     private val _uiState = MutableStateFlow(ChatListUiState())
     val uiState: StateFlow<ChatListUiState> = _uiState.asStateFlow()
@@ -79,11 +83,8 @@ class ChatListViewModel private constructor(
         uiState = _uiState,
     )
 
-    /**
-     * 本 VM 生命周期内已成功删除（退出服务端）的会话 id。
-     * 用于防止删除竞态：删除先乐观从 UI 移除，但服务端 leave 尚未生效时同步快照仍可能
-     * 把会话重新带回。命中本集合的会话在合并时丢弃，并从本地清理。
-     */
+    /** 本 VM 生命周期内已成功删除（退出服务端）的会话 id：删除先乐观移除，
+     * 服务端 leave 未生效时同步快照可能重新带回，合并时丢弃。 */
     private val deletedChatIds = mutableSetOf<String>()
 
     private val previewCoordinator = createChatListPreviewCoordinator(
@@ -161,7 +162,11 @@ class ChatListViewModel private constructor(
 
     private val announcementCoordinator = ChatListAnnouncementCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        hasSession = { com.maodouchat.session.CurrentSession.hasSession() },
+        ownerUserId = { ownerSessionGuard.currentUserIdStr },
+        sessionMayContinue = { BackgroundSessionGate.mayContinue(expectedUserId = it) },
+        getActiveAnnouncements = { _uiState.value.activeAnnouncements },
+        updateActiveAnnouncements = { transform -> _uiState.update { it.copy(activeAnnouncements = transform(it.activeAnnouncements)) } },
         fetchActiveAnnouncements = ports.fetchActiveAnnouncements,
         ackAnnouncementRemote = ports.ackAnnouncementRemote,
         fetchPushVerifyKeyRaw = ports.fetchPushVerifyKeyRaw,
@@ -255,7 +260,10 @@ class ChatListViewModel private constructor(
 
     private val archiveSuggestionCoordinator = ChatListArchiveSuggestionCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getArchiveSuggestions = { _uiState.value.archiveSuggestions },
+        updateArchiveSuggestions = { transform -> _uiState.update { it.copy(archiveSuggestions = transform(it.archiveSuggestions)) } },
+        getChats = { _uiState.value.chats },
+        logWarning = { message, error -> Log.w("ChatListArchiveSuggest", message, error) },
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
         ownerSession = { ownerSessionGuard.ownerSession(it) },
         isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
@@ -332,16 +340,13 @@ class ChatListViewModel private constructor(
     fun loadArchiveSuggestions() = archiveSuggestionCoordinator.loadArchiveSuggestions()
 
     /** 忽略单条归档建议（持久化，进程重启后不重现）。 */
-    fun dismissArchiveSuggestion(chatId: String) =
-        archiveSuggestionCoordinator.dismissArchiveSuggestion(chatId)
+    fun dismissArchiveSuggestion(chatId: String) = archiveSuggestionCoordinator.dismissArchiveSuggestion(chatId)
 
     /** 忽略全部归档建议（持久化）。 */
-    fun dismissAllArchiveSuggestions() =
-        archiveSuggestionCoordinator.dismissAllArchiveSuggestions()
+    fun dismissAllArchiveSuggestions() = archiveSuggestionCoordinator.dismissAllArchiveSuggestions()
 
     /** 采纳智能归档建议：归档会话（复用 toggleArchived 服务端同步）并移除建议。 */
-    fun archiveChatFromSuggestion(chat: Chat) =
-        archiveSuggestionCoordinator.archiveChatFromSuggestion(chat)
+    fun archiveChatFromSuggestion(chat: Chat) = archiveSuggestionCoordinator.archiveChatFromSuggestion(chat)
 
     /** 经认证通道拉取推送 HMAC 校验密钥（P0 修复后续：密钥不再匿名暴露于 status 端点）。 */
     private fun fetchPushVerifyKey() = announcementCoordinator.fetchPushVerifyKey()
@@ -352,15 +357,13 @@ class ChatListViewModel private constructor(
 
     fun clearCreatedSecretChat() = mutationCoordinator.clearCreatedSecretChat()
 
-    fun startSecretChatWithPeer(peerId: String) =
-        mutationCoordinator.startSecretChatWithPeer(peerId)
+    fun startSecretChatWithPeer(peerId: String) = mutationCoordinator.startSecretChatWithPeer(peerId)
 
     /** 拉取服务端活跃公告 → 本地过滤（未读 + 生效窗口 + 合法级别）→ 展示列表。 */
     fun refreshAnnouncements() = announcementCoordinator.refreshAnnouncements()
 
     /** 公告已读确认：调服务端 ack 并从本地展示列表移除（inFlight 防重入）。 */
-    fun ackAnnouncement(announcementId: String) =
-        announcementCoordinator.ackAnnouncement(announcementId)
+    fun ackAnnouncement(announcementId: String) = announcementCoordinator.ackAnnouncement(announcementId)
 
     fun refreshUnreadPriorityPreference() = folderController.refreshUnreadPriorityPreference()
 
@@ -383,9 +386,7 @@ class ChatListViewModel private constructor(
 
     fun clearMissedCalls() = missedCallCoordinator.clearMissedCalls()
 
-    /**
-     * Resolve local 1:1 chat id for a missed-call peer (if a conversation already exists).
-     */
+    /** Resolve local 1:1 chat id for a missed-call peer, if a conversation already exists. */
     fun findDirectChatIdForUser(userId: String): String? =
         missedCallCoordinator.findDirectChatIdForUser(userId)
 
@@ -417,8 +418,7 @@ class ChatListViewModel private constructor(
 
     fun toggleArchived(chatId: String) = settingsToggleCoordinator.toggleArchived(chatId)
 
-    fun toggleMarkedUnread(chatId: String) =
-        settingsToggleCoordinator.toggleMarkedUnread(chatId)
+    fun toggleMarkedUnread(chatId: String) = settingsToggleCoordinator.toggleMarkedUnread(chatId)
 
     /**
      * 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。

@@ -1,11 +1,10 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
 import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalStateCoordinator
-import com.maodouchat.conversation.conversationLocalCleanupSession
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -13,20 +12,23 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** 本地数据清理（ChatList 瘦身：自 ChatListViewModel 抽出）。 */
-internal class ChatListLocalCleanupCoordinator(
+class ChatListLocalCleanupCoordinator(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
     private val localStateCoordinator: ConversationLocalStateCoordinator,
     private val deleteDraftForChat: suspend (ownerUserId: String, chatId: String) -> Unit,
     private val reloadChats: () -> Unit,
+    private val cleanupSessionFor: (String) -> ConversationLocalCleanupSession,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     /** 清空指定会话的本地明文（保留会话/PIN/草稿/同步游标）。不清游标，避免重拉密文 Duplicate。 */
     fun clearLocalChatHistory(chatId: String) {
         if (chatId.isBlank()) return
         val owner = ownerUserId()
         if (owner.isBlank()) return
-        val cleanupSession = conversationLocalCleanupSession(owner)
-        scope.launch(Dispatchers.IO) {
+        val cleanupSession = cleanupSessionFor(owner)
+        scope.launch(ioDispatcher) {
             val report = withContext(NonCancellable) {
                 localStateCoordinator.cleanup(
                     chatId = chatId,
@@ -35,8 +37,7 @@ internal class ChatListLocalCleanupCoordinator(
                 )
             }
             report.failures.forEach { failure ->
-                Log.w(
-                    "ChatListViewModel",
+                logWarning(
                     "local conversation cleanup failed at ${failure.step} for $chatId",
                     failure.error,
                 )
@@ -57,8 +58,7 @@ internal class ChatListLocalCleanupCoordinator(
             mode = ConversationLocalCleanupMode.DELETE_CONVERSATION,
         )
         report.failures.forEach { failure ->
-            Log.w(
-                "ChatListViewModel",
+            logWarning(
                 "conversation deletion cleanup failed at ${failure.step} for $chatId",
                 failure.error,
             )
