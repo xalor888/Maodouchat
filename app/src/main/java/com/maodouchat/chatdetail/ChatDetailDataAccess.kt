@@ -1,6 +1,9 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.conversation.AttachmentTransferObservation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * 会话详情的持久层访问口（U02 延伸）：DAO 直连与由此构造的仓库收进中立包，
@@ -25,6 +28,21 @@ object ChatDetailDataAccess {
 
     fun observeAllAttachmentTransfers() =
         MaodouchatApp.instance.database.attachmentTransferDao().observeAllAccounts()
+
+    fun observeAttachmentTransferObservations(): Flow<List<AttachmentTransferObservation>> =
+        observeAllAttachmentTransfers().map { transfers ->
+            transfers.map {
+                AttachmentTransferObservation(
+                    messageId = it.messageId,
+                    chatId = it.chatId,
+                    ownerUserId = it.ownerUserId,
+                    state = it.state,
+                    uploadedBytes = it.uploadedBytes,
+                    cipherSize = it.cipherSize,
+                    lastErrorCode = it.lastErrorCode,
+                )
+            }
+        }
 
     suspend fun chatUnreadCount(chatId: String): Int =
         MaodouchatApp.instance.database.chatDao().getChatById(chatId)?.unreadCount ?: 0

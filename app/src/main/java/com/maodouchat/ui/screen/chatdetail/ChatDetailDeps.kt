@@ -32,12 +32,14 @@ import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
+import com.maodouchat.domain.conversation.ChatAttachmentObservationController
 import com.maodouchat.domain.conversation.ChatCaptureAlertController
 import com.maodouchat.domain.conversation.ChatContactCardController
 import com.maodouchat.domain.conversation.ChatGroupCallController
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
 import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.domain.conversation.ChatMessageObservationController
 import com.maodouchat.domain.conversation.ChatModerationController
 import com.maodouchat.domain.conversation.ChatPinStarController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
@@ -462,7 +464,7 @@ internal class ChatDetailDeps(
     internal val chatSettingToggleController = ChatSettingToggleController(
         scope = host.viewModelScope,
         chatPinEnabled = { RuntimeFlags.isEnabled(host.getApplication<android.app.Application>(), RuntimeFlags.CHAT_PIN) },
-        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId,) },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         liveToken = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         chatSettingsGateway = ChatSettingsNetworkGateway(),
         ownerUserId = { host.currentUserId },
@@ -570,19 +572,25 @@ internal class ChatDetailDeps(
     )
     internal val attachmentObservationController = ChatAttachmentObservationController(
         scope = host.viewModelScope,
-        getApplication = { host.getApplication<android.app.Application>() },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         activeChatId = { host.activeChatId },
         mergeMessages = ::mergeMessageVersions,
         mediaStateController = mediaStateController,
+        attachmentFinalizedEvents = com.maodouchat.chatdetail.ChatDetailAccess.attachmentFinalizedEvents,
+        currentSessionGeneration = com.maodouchat.chatdetail.ChatDetailAccess::currentSessionGeneration,
+        attachmentTransfers = com.maodouchat.chatdetail.ChatDetailDataAccess.observeAttachmentTransferObservations(),
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        scheduleFinalSend = { messageId, ownerUserId -> com.maodouchat.attachment.AttachmentTransferScheduler.schedule(host.getApplication(), messageId, ownerUserId) },
     )
     internal val messageObservationController = ChatMessageObservationController(
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
-        messageRepo = messageRepo,
+        observeLocalMessages = messageRepo::getMessagesByChatId,
+        mutationEvents = com.maodouchat.chatdetail.ChatDetailAccess.messagingMutationEvents.events,
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
         timelineStateController = timelineStateController,
         mutationCoordinator = conversationMessageMutationCoordinator,
         updateState = { transform -> host._uiState.update(transform) },

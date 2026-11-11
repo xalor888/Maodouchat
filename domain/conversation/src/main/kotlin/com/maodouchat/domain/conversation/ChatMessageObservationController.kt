@@ -1,42 +1,41 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.chatdetail.ChatDetailAccess
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.security.BackgroundSessionGate
+import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.conversation.ChatTimelineStateController
 
 // 本地消息观察一族：Room 时间线订阅 + 权威变更事件订阅。
-// 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatMessageObservationController(
+// 本地流/变更事件流/会话门禁走端口；其余逻辑逐字平移。
+class ChatMessageObservationController(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
     private val activeChatId: () -> String,
     private val chatId: String,
-    private val messageRepo: LocalMessageStore,
+    private val observeLocalMessages: (String) -> Flow<List<Message>>,
+    private val mutationEvents: Flow<MessagingV2AuthoritativeMutation>,
+    private val sessionMayContinue: (String) -> Boolean,
     private val timelineStateController: ChatTimelineStateController,
     private val mutationCoordinator: ConversationMessageMutationCoordinator,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val projectMessageMutation: (MessageMutationProjection) -> Unit,
 ) {
     // history 解密可能回 Duplicate/占位符：用本地行持续合并，保住可读尾巴。
-    internal fun observeLocalMessages() {
+    fun observeLocalMessages() {
         val observedChatId = activeChatId().ifBlank { chatId }
         if (observedChatId.isBlank()) return
         val ownerId = ownerUserId()
         scope.launch {
-            messageRepo.getMessagesByChatId(observedChatId).collect { local ->
+            observeLocalMessages(observedChatId).collect { local ->
                 if (local.isEmpty()) return@collect
                 if (ownerId.isBlank() ||
-                    !BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerId,
-                    )
+                    !sessionMayContinue(ownerId)
                 ) {
                     return@collect
                 }
@@ -47,18 +46,16 @@ internal class ChatMessageObservationController(
         }
     }
 
-    internal fun observeAuthoritativeMessageMutations() {
+    fun observeAuthoritativeMessageMutations() {
         val observedChatId = activeChatId().ifBlank { chatId }
         if (observedChatId.isBlank()) return
         val ownerId = ownerUserId()
         scope.launch {
-            ChatDetailAccess.messagingMutationEvents.events.collect { mutation ->
+            mutationEvents.collect { mutation ->
                 if (
                     mutation.conversationId != observedChatId ||
                     ownerId.isBlank() ||
-                    !BackgroundSessionGate.mayContinue(
-                        expectedUserId = ownerId,
-                    )
+                    !sessionMayContinue(ownerId)
                 ) {
                     return@collect
                 }
