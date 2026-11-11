@@ -435,7 +435,8 @@ class ClientArchitectureTest {
         // 2026-11-10：发送出口门面簇迁入 :domain:messaging，ChatDetailDeps 加一行 import、精简类 KDoc（813 → 807 纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-11-11：发送流水线控制器迁入 :domain:messaging，ChatDetailDeps 接线 +8、纯格式并行 -9（807 → 806），上限同步收紧（两份 map 一起改）。
         // 2026-11-12：群通话入口迁入 :domain:conversation，ChatDetailDeps 接线 +3、纯格式并行 -4（806 → 805），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 805,
+        // 2026-11-12：群修订事件处理迁入 :domain:messaging，ChatDetailDeps 接线 +5、纯格式并行 -6（805 → 804），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 804,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -741,7 +742,8 @@ class ClientArchitectureTest {
         // 2026-11-10：发送出口门面簇迁入 :domain:messaging，ChatDetailDeps 加一行 import、精简类 KDoc（813 → 807 纯删行），上限同步收紧（两份 map 一起改）。
         // 2026-11-11：发送流水线控制器迁入 :domain:messaging，ChatDetailDeps 接线 +8、纯格式并行 -9（807 → 806），上限同步收紧（两份 map 一起改）。
             // 2026-11-12：群通话入口迁入 :domain:conversation，ChatDetailDeps 接线 +3、纯格式并行 -4（806 → 805），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 805,
+            // 2026-11-12：群修订事件处理迁入 :domain:messaging，ChatDetailDeps 接线 +5、纯格式并行 -6（805 → 804），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 804,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；

@@ -19,6 +19,7 @@ import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
 import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.domain.messaging.ChatInlineSendController
+import com.maodouchat.domain.messaging.ChatGroupRevisionHandler
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
@@ -339,9 +340,7 @@ internal class ChatDetailDeps(
         ownerUserId = { host.currentUserId },
         token = { host.token },
         sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
@@ -369,9 +368,7 @@ internal class ChatDetailDeps(
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         outgoingFacade = outgoingFacade,
         persistMessage = messageRepo::insertMessage,
@@ -419,9 +416,7 @@ internal class ChatDetailDeps(
         token = { host.token },
         activeChatId = { host.activeChatId },
         sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
@@ -617,9 +612,13 @@ internal class ChatDetailDeps(
         activeChatId = { host.activeChatId },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id -> host.text(id) },
+        text = { message -> host.text(chatGroupRevisionTextResId(message)) },
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        cleanupSessionFor = { ownerUserId -> com.maodouchat.conversation.conversationLocalCleanupSession(ownerUserId) },
+        ioDispatcher = kotlinx.coroutines.Dispatchers.IO,
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
         conversationLocalStateCoordinator = conversationLocalStateCoordinator,
-        realtimeController = realtimeController,
+        clearRemoteTyping = realtimeController::clearRemoteTyping,
         semanticSearchGate = aiBookkeeping.semanticSearchGate,
         aiRewriteGate = aiBookkeeping.aiRewriteGate,
         aiReplyGate = aiBookkeeping.aiReplyGate,
