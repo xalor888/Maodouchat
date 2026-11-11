@@ -168,7 +168,7 @@ class ChatListViewModel private constructor(
         applyPushVerifyKey = ports.applyPushVerifyKey,
     )
 
-    private val mutationCoordinator = ChatListMutationCoordinator(
+    private val mutationCoordinator = createChatListMutationCoordinator(
         scope = viewModelScope,
         uiState = _uiState,
         deletedChatIds = deletedChatIds,

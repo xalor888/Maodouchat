@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
-import com.maodouchat.R
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.UpdateChatSettingsRequest
@@ -14,29 +12,30 @@ import com.maodouchat.core.model.requiresGroupOwnershipTransfer
 import com.maodouchat.core.model.restoreChatSorted
 import com.maodouchat.core.model.applyConfirmedSettings
 import com.maodouchat.core.model.bumpOptimisticSettingsClock
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * 会话列表写路径协调器（ChatList 瘦身：设置 mutation / 删除 / 密聊创建）。
- *
- * 承接 `updateChatSettings`、打开会话清标未读、deleteChat、startSecretChat；
- * ApiService 经注入 lambda，ViewModel 保留 RuntimeFlags 门控与 toggle 构造。
- */
-internal class ChatListMutationCoordinator(
+/** 会话列表写路径协调器：设置 mutation / 删除 / 密聊创建。 */
+class ChatListMutationCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getChats: () -> List<Chat>,
+    private val updateChats: ((List<Chat>) -> List<Chat>) -> Unit,
+    private val showError: (String?) -> Unit,
+    private val isDeletingChat: (String) -> Boolean,
+    private val addDeletingChat: (String) -> Unit,
+    private val removeDeletingChat: (String) -> Unit,
+    private val setCreatedSecretChatId: (String?) -> Unit,
+    private val showOwnerTransferRequired: (String) -> Unit,
     private val deletedChatIds: MutableSet<String>,
     private val settingsInFlight: MutableSet<String>,
     private val ownerUserId: () -> String,
+    private val hasSession: () -> Boolean,
+    private val sessionMayContinue: (String) -> Boolean,
     private val cacheChats: suspend (List<Chat>) -> Unit,
     private val updateChatSettingsRemote: suspend (
         chatId: String,
@@ -53,30 +52,30 @@ internal class ChatListMutationCoordinator(
     private val cleanupLocalChat: suspend (chatId: String, session: ConversationLocalCleanupSession) -> Unit,
     private val cleanupSessionFor: (ownerUserId: String) -> ConversationLocalCleanupSession,
     private val onMuteApplied: (chatId: String) -> Unit,
-    private val text: (Int) -> String,
+    private val sessionExpiredText: () -> String,
+    private val settingsSyncFailedText: () -> String,
+    private val chatLeaveFailedText: () -> String,
     private val secretChatFeatureEnabled: () -> Boolean,
     private val secretChatDisabledMessage: () -> String,
     private val secretChatStartFailedMessage: () -> String,
+    private val logWarning: (String, Throwable?) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     fun updateChatSettings(chat: Chat, optimistic: Chat, request: UpdateChatSettingsRequest) {
         if (!settingsInFlight.add(chat.id)) return
         val settingsOwnerUserId = ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || settingsOwnerUserId.isBlank()) {
-            uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+        if (!hasSession() || settingsOwnerUserId.isBlank()) {
+            showError(sessionExpiredText())
             settingsInFlight.remove(chat.id)
             return
         }
-        uiState.update { state -> state.copy(chats = state.chats.map { if (it.id == chat.id) optimistic else it }) }
+        updateChats { chats -> chats.map { if (it.id == chat.id) optimistic else it } }
         if (optimistic.notificationsMuted && !chat.notificationsMuted) {
             onMuteApplied(chat.id)
         }
         scope.launch {
             try {
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = settingsOwnerUserId,
-                )
-                ) {
+                if (!sessionMayContinue(settingsOwnerUserId)) {
                     return@launch
                 }
                 try {
@@ -84,40 +83,26 @@ internal class ChatListMutationCoordinator(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
-                    Log.w(TAG, "optimistic cacheChats failed for ${chat.id}", error)
+                    logWarning("optimistic cacheChats failed for ${chat.id}", error)
                 }
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = settingsOwnerUserId,
-                )
-                ) {
+                if (!sessionMayContinue(settingsOwnerUserId)) {
                     return@launch
                 }
                 updateChatSettingsRemote(chat.id, request).fold(
                     onSuccess = { settings ->
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = settingsOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionMayContinue(settingsOwnerUserId)) {
                             return@fold
                         }
                         val confirmed = applyConfirmedSettings(optimistic, settings)
                         cacheChats(listOf(confirmed))
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = settingsOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionMayContinue(settingsOwnerUserId)) {
                             return@fold
                         }
-                        uiState.update { state ->
-                            state.copy(chats = state.chats.map { if (it.id == chat.id) confirmed else it })
-                        }
+                        updateChats { chats -> chats.map { if (it.id == chat.id) confirmed else it } }
                     },
                     onFailure = { error ->
                         if (error is CancellationException) throw error
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = settingsOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionMayContinue(settingsOwnerUserId)) {
                             return@fold
                         }
                         try {
@@ -126,18 +111,11 @@ internal class ChatListMutationCoordinator(
                             throw cacheError
                         } catch (_: Exception) {
                         }
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = settingsOwnerUserId,
-                        )
-                        ) {
+                        if (!sessionMayContinue(settingsOwnerUserId)) {
                             return@fold
                         }
-                        uiState.update { state ->
-                            state.copy(
-                                chats = state.chats.map { if (it.id == chat.id) chat else it },
-                                errorMessage = text(R.string.chat_settings_sync_failed),
-                            )
-                        }
+                        updateChats { chats -> chats.map { if (it.id == chat.id) chat else it } }
+                        showError(settingsSyncFailedText())
                     },
                 )
             } finally {
@@ -159,10 +137,7 @@ internal class ChatListMutationCoordinator(
             System.currentTimeMillis(),
         )
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = clearOwnerUserId,
-            )
-            ) {
+            if (!sessionMayContinue(clearOwnerUserId)) {
                 return@launch
             }
             try {
@@ -170,13 +145,10 @@ internal class ChatListMutationCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "clearMarkedUnread cache failed for ${chat.id}", error)
+                logWarning("clearMarkedUnread cache failed for ${chat.id}", error)
             }
-            if (!com.maodouchat.session.CurrentSession.hasSession() || clearOwnerUserId.isBlank()) return@launch
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = clearOwnerUserId,
-            )
-            ) {
+            if (!hasSession() || clearOwnerUserId.isBlank()) return@launch
+            if (!sessionMayContinue(clearOwnerUserId)) {
                 return@launch
             }
             updateChatSettingsRemote(
@@ -184,10 +156,7 @@ internal class ChatListMutationCoordinator(
                 UpdateChatSettingsRequest(markedUnread = false),
             ).fold(
                 onSuccess = { settings ->
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = clearOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionMayContinue(clearOwnerUserId)) {
                         return@fold
                     }
                     val confirmed = optimistic.copy(
@@ -198,15 +167,11 @@ internal class ChatListMutationCoordinator(
                         settingsUpdatedAt = settings.updatedAt,
                     )
                     cacheChats(listOf(confirmed))
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = clearOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionMayContinue(clearOwnerUserId)) {
                         return@fold
                     }
-                    uiState.update { state ->
-                        state.copy(
-                            chats = state.chats.map {
+                    updateChats { chats ->
+                        chats.map {
                                 if (it.id == chat.id) {
                                     it.copy(
                                         markedUnread = false,
@@ -219,19 +184,15 @@ internal class ChatListMutationCoordinator(
                                 } else {
                                     it
                                 }
-                            },
-                        )
+                        }
                     }
                 },
                 onFailure = { error ->
                     if (error is CancellationException) throw error
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = clearOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionMayContinue(clearOwnerUserId)) {
                         return@fold
                     }
-                    Log.w(TAG, "clearMarkedUnread REST failed for ${chat.id}: ${error.message}")
+                    logWarning("clearMarkedUnread REST failed for ${chat.id}: ${error.message}", null)
                 },
             )
         }
@@ -240,59 +201,42 @@ internal class ChatListMutationCoordinator(
     fun deleteChat(chatId: String) {
         val deleteOwnerUserId = ownerUserId()
         val cleanupSession = cleanupSessionFor(deleteOwnerUserId)
-        if (!com.maodouchat.session.CurrentSession.hasSession() || deleteOwnerUserId.isBlank()) {
-            uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+        if (!hasSession() || deleteOwnerUserId.isBlank()) {
+            showError(sessionExpiredText())
             return
         }
-        if (uiState.value.deletingChatIds.contains(chatId)) return
-        uiState.update { it.copy(deletingChatIds = it.deletingChatIds + chatId) }
+        if (isDeletingChat(chatId)) return
+        addDeletingChat(chatId)
         scope.launch {
             try {
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = deleteOwnerUserId,
-                )
-                ) {
+                if (!sessionMayContinue(deleteOwnerUserId)) {
                     return@launch
                 }
-                val previous = uiState.value.chats.find { it.id == chatId }
-                uiState.update { state ->
-                    state.copy(chats = state.chats.filterNot { it.id == chatId })
-                }
+                val previous = getChats().find { it.id == chatId }
+                updateChats { chats -> chats.filterNot { it.id == chatId } }
                 var leaveConfirmed = false
                 try {
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = deleteOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionMayContinue(deleteOwnerUserId)) {
                         return@launch
                     }
                     val result = deleteChatRemote(chatId)
                     val resultError = result.exceptionOrNull()
                     if (resultError is CancellationException) throw resultError
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = deleteOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionMayContinue(deleteOwnerUserId)) {
                         return@launch
                     }
                     if (result.isFailure) {
-                        Log.w(TAG, "deleteChat failed: " + (resultError?.message ?: "unknown"))
+                        logWarning("deleteChat failed: " + (resultError?.message ?: "unknown"), null)
                         deletedChatIds.remove(chatId)
                         if (previous != null) {
-                            uiState.update { st ->
-                                if (st.chats.none { it.id == chatId }) {
-                                    st.copy(chats = restoreChatSorted(st.chats, previous))
-                                } else {
-                                    st
-                                }
+                            updateChats { chats ->
+                                if (chats.none { it.id == chatId }) restoreChatSorted(chats, previous) else chats
                             }
                         }
                         if (requiresGroupOwnershipTransfer(resultError)) {
-                            uiState.update {
-                                it.copy(ownerTransferRequiredChatId = chatId, errorMessage = null)
-                            }
+                            showOwnerTransferRequired(chatId)
                         } else {
-                            uiState.update { it.copy(errorMessage = text(R.string.chat_leave_failed)) }
+                            showError(chatLeaveFailedText())
                         }
                         return@launch
                     }
@@ -304,23 +248,19 @@ internal class ChatListMutationCoordinator(
                 } catch (error: CancellationException) {
                     deletedChatIds.remove(chatId)
                     if (!leaveConfirmed && previous != null &&
-                        BackgroundSessionGate.mayContinue(
-                            expectedUserId = deleteOwnerUserId,
-                        ) &&
-                        uiState.value.chats.none { it.id == chatId }
+                        sessionMayContinue(deleteOwnerUserId) &&
+                        getChats().none { it.id == chatId }
                     ) {
-                        uiState.update { st ->
-                            st.copy(chats = restoreChatSorted(st.chats, previous))
-                        }
+                        updateChats { chats -> restoreChatSorted(chats, previous) }
                     }
                     throw error
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "deleteChat cleanup failed", error)
+                logWarning("deleteChat cleanup failed", error)
             } finally {
-                uiState.update { it.copy(deletingChatIds = it.deletingChatIds - chatId) }
+                removeDeletingChat(chatId)
             }
         }
     }
@@ -328,20 +268,17 @@ internal class ChatListMutationCoordinator(
     fun startSecretChatWithPeer(peerId: String) {
         if (peerId.isBlank()) return
         if (!secretChatFeatureEnabled()) {
-            uiState.update { it.copy(errorMessage = secretChatDisabledMessage()) }
+            showError(secretChatDisabledMessage())
             return
         }
         val owner = ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession() || owner.isBlank()) {
-            uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+        if (!hasSession() || owner.isBlank()) {
+            showError(sessionExpiredText())
             return
         }
         scope.launch(ioDispatcher) {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = owner,
-            )
-            ) {
-                uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
+            if (!sessionMayContinue(owner)) {
+                showError(sessionExpiredText())
                 return@launch
             }
             val result = createChatRemote(
@@ -384,12 +321,10 @@ internal class ChatListMutationCoordinator(
                             ),
                         )
                     }
-                    uiState.update { it.copy(createdSecretChatId = chat.id) }
+                    setCreatedSecretChatId(chat.id)
                 },
                 onFailure = { error ->
-                    uiState.update {
-                        it.copy(errorMessage = error.message ?: secretChatStartFailedMessage())
-                    }
+                    showError(error.message ?: secretChatStartFailedMessage())
                 },
             )
         }
@@ -397,10 +332,7 @@ internal class ChatListMutationCoordinator(
 
     /** 密聊建好并导航后清掉一次性跳转标记（与 startSecretChatWithPeer 配对）。 */
     fun clearCreatedSecretChat() {
-        uiState.update { it.copy(createdSecretChatId = null) }
+        setCreatedSecretChatId(null)
     }
 
-    private companion object {
-        const val TAG = "ChatListMutation"
-    }
 }
