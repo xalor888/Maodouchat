@@ -20,6 +20,7 @@ import com.maodouchat.domain.groups.BotGroupActionGateway
 import com.maodouchat.domain.groups.BotGroupActionMessage
 import com.maodouchat.domain.messaging.ChatSenderMessage
 import com.maodouchat.domain.messaging.ScheduledMessageText
+import com.maodouchat.domain.messaging.ChatOutgoingHydrationText
 
 /** 置顶/星标网络端口的 app 侧实现：直通 PinStarNetworkRepository。 */
 internal class PinStarNetworkGateway : PinStarGateway {
@@ -157,6 +158,13 @@ internal fun scheduledMessageResId(message: ScheduledMessageText): Int = when (m
     ScheduledMessageText.SESSION_EXPIRED -> R.string.error_session_expired
     ScheduledMessageText.BLOCKED -> R.string.chat_blocked_user_status
     ScheduledMessageText.LIMIT_REACHED -> R.string.schedule_limit_reached
+}
+
+/** domain 侧 ChatOutgoingHydrationText 到 app 字符串资源的映射。 */
+internal fun chatOutgoingHydrationTextResId(message: ChatOutgoingHydrationText): Int = when (message) {
+    ChatOutgoingHydrationText.RECIPIENT_NOT_READY -> R.string.chat_recipient_not_ready
+    ChatOutgoingHydrationText.GROUP_NAME -> R.string.chat_group
+    ChatOutgoingHydrationText.MEMBERS_COUNT -> R.plurals.chat_members_count
 }
 
 /** domain 侧 ChatModerationMessage 到 app 字符串资源的映射。 */

@@ -1,11 +1,16 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.data.repository.ChatRepository
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.Lease
 
-// Signal session cipher 占用一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatSessionCipherController(
+// Signal session cipher 占用一族：app 侧纯搬移；占用标记仍在 app 侧
+// SessionCipherOccupancy（写 MaodouchatApp 全局单例），这里只持租约、经端口调用。
+class ChatSessionCipherController(
     initialChatId: String,
-    private val chatRepo: ChatRepository,
+    private val getChatById: suspend (String) -> Chat?,
+    private val acquireOccupancy: (String) -> Lease,
+    private val occupyOccupancy: (Lease, String, String?, Boolean) -> Unit,
+    private val releaseOccupancy: (Lease) -> Unit,
     private val currentUserId: () -> String,
 ) {
     private val sessionOccupancyLock = Any()
@@ -13,10 +18,10 @@ internal class ChatSessionCipherController(
     private var sessionOccupancyLease = if (initialChatId.isBlank()) {
         null
     } else {
-        com.maodouchat.crypto.SessionCipherOccupancy.acquire(initialChatId)
+        acquireOccupancy(initialChatId)
     }
 
-    internal fun occupySessionCipher(
+    fun occupySessionCipher(
         targetChatId: String,
         peerUserId: String? = null,
         updatePeer: Boolean = false,
@@ -24,28 +29,23 @@ internal class ChatSessionCipherController(
         if (targetChatId.isBlank()) return
         synchronized(sessionOccupancyLock) {
             val lease = sessionOccupancyLease
-                ?: com.maodouchat.crypto.SessionCipherOccupancy.acquire(targetChatId).also {
+                ?: acquireOccupancy(targetChatId).also {
                     sessionOccupancyLease = it
                 }
-            com.maodouchat.crypto.SessionCipherOccupancy.occupy(
-                lease,
-                targetChatId,
-                peerUserId,
-                updatePeer,
-            )
+            occupyOccupancy(lease, targetChatId, peerUserId, updatePeer)
         }
     }
 
-    internal fun releaseSessionCipher() {
+    fun releaseSessionCipher() {
         val lease = synchronized(sessionOccupancyLock) {
             sessionOccupancyLease.also { sessionOccupancyLease = null }
         } ?: return
-        com.maodouchat.crypto.SessionCipherOccupancy.release(lease)
+        releaseOccupancy(lease)
     }
 
     /** Room already knows participants; pin 1:1 peer before getChats returns. */
-    internal suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
-        val cached = chatRepo.getChatById(targetChatId) ?: return
+    suspend fun pinSessionCipherPeerFromCache(targetChatId: String) {
+        val cached = getChatById(targetChatId) ?: return
         if (cached.isGroup) {
             occupySessionCipher(cached.id, peerUserId = null, updatePeer = true)
             return

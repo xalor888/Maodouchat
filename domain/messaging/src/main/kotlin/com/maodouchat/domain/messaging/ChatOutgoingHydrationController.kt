@@ -1,40 +1,40 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.R
-import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.model.User
-import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.core.session.OwnerSessionPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.messaging.ResolvedOutgoingChat
 
-// 会话水合一族：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatOutgoingHydrationController(
+// 会话水合一族：app 侧纯搬移；VM 只留同签名委托。
+class ChatOutgoingHydrationController(
     private val uiState: MutableStateFlow<ChatDetailUiState>,
-    private val userRepo: UserRepository,
     private val cipherController: ChatSessionCipherController,
     private val setActiveChatId: (String) -> Unit,
     private val currentUserId: () -> String,
-    private val text: (Int, Array<out Any>) -> String,
-    private val quantityText: (Int, Int, Array<out Any>) -> String,
+    private val getUserById: suspend (String) -> User?,
+    private val session: () -> SessionSnapshot,
+    private val sessionGeneration: () -> Long,
+    private val purgeInProgress: () -> Boolean,
+    private val text: (ChatOutgoingHydrationText, Array<out Any>) -> String,
+    private val quantityText: (ChatOutgoingHydrationText, Int, Array<out Any>) -> String,
 ) {
-    internal fun ownerSession(ownerUserId: String = currentUserId()): OwnerSessionSnapshot =
-        OwnerSessionSnapshot(ownerUserId, ChatDetailAccess.currentSessionGeneration())
+    fun ownerSession(ownerUserId: String = currentUserId()): OwnerSessionSnapshot =
+        OwnerSessionSnapshot(ownerUserId, sessionGeneration())
 
-    internal fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
+    fun isOwnerSessionCurrent(session: OwnerSessionSnapshot): Boolean =
         OwnerSessionPolicy.isCurrent(
             snapshot = session,
-            liveUserId = com.maodouchat.session.CurrentSession.snapshot().userId,
-            liveToken = com.maodouchat.session.CurrentSession.snapshot().token,
-            liveSessionGeneration = ChatDetailAccess.currentSessionGeneration(),
-            purgeInProgress = com.maodouchat.security.SecureSessionManager.isPurgeInProgress(),
+            liveUserId = this.session().userId,
+            liveToken = this.session().token,
+            liveSessionGeneration = sessionGeneration(),
+            purgeInProgress = purgeInProgress(),
         )
 
-    internal suspend fun hydrateOutgoingChat(
+    suspend fun hydrateOutgoingChat(
         chat: Chat,
         ownerUserId: String,
         resolvedPeerId: String?,
@@ -47,15 +47,15 @@ internal class ChatOutgoingHydrationController(
         val previousContact = uiState.value.contact
         val peerId = resolvedPeerId
         if (!localized.isGroup && peerId == null) {
-            throw IllegalStateException(text(R.string.chat_recipient_not_ready, arrayOf()))
+            throw IllegalStateException(text(ChatOutgoingHydrationText.RECIPIENT_NOT_READY, arrayOf()))
         }
         val contact = if (localized.isGroup) {
             User(
                 id = localized.id,
-                name = localized.groupName ?: text(R.string.chat_group, arrayOf()),
+                name = localized.groupName ?: text(ChatOutgoingHydrationText.GROUP_NAME, arrayOf()),
                 avatar = localized.groupAvatar,
                 status = quantityText(
-                    R.plurals.chat_members_count,
+                    ChatOutgoingHydrationText.MEMBERS_COUNT,
                     localized.participants.size,
                     arrayOf(localized.participants.size)
                 )
@@ -86,10 +86,10 @@ internal class ChatOutgoingHydrationController(
     }
 
     /** 合并本地备注名（服务端 UserDto 不含 nickname） */
-    internal suspend fun withLocalNickname(user: User): User {
+    suspend fun withLocalNickname(user: User): User {
         if (!user.nickname.isNullOrBlank()) return user
         val nick = try {
-            userRepo.getUserById(user.id)?.nickname
+            getUserById(user.id)?.nickname
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {
