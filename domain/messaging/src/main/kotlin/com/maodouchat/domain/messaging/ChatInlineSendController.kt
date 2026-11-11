@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.R
-import com.maodouchat.chatdetail.ChatDetailAccess
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
@@ -9,6 +7,7 @@ import com.maodouchat.core.model.OutgoingMessageCommand
 import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.core.model.mergeMessageVersions
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,11 +15,10 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
 // 内联内容发送（贴纸 / 实时位置 / 截屏告警文本）：乐观上屏 + V2 出站编排。
 // 从 ChatDetailViewModel 纯搬移；调用方（扩展函数、截屏告警控制器）走 VM 的同签名委托。
-internal class ChatInlineSendController(
+class ChatInlineSendController(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
     private val token: () -> String,
@@ -30,14 +28,18 @@ internal class ChatInlineSendController(
     private val mergeMessages: (List<Message>, List<Message>) -> List<Message>,
     private val completions: ConcurrentHashMap<String, CompletableDeferred<Boolean>>,
     private val outgoingFacade: ChatOutgoingFacade,
+    private val onMessageSent: (chatId: String, preview: String, typeName: String) -> Unit,
+    private val sessionExpiredRes: Int,
+    private val sendFailedRes: Int,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
 
-    internal fun sendInlineContent(content: String, type: MessageType, preview: String): String? {
+    fun sendInlineContent(content: String, type: MessageType, preview: String): String? {
         val sendOwnerUserId = ownerUserId()
         if (token().isBlank() || sendOwnerUserId.isBlank()) {
             updateState {
-                it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired))
+                it.copy(isSending = false, groupEncryptionWarning = text(sessionExpiredRes))
             }
             return null
         }
@@ -74,7 +76,7 @@ internal class ChatInlineSendController(
         completion: CompletableDeferred<Boolean>,
     ) {
         try {
-            val result = withContext(Dispatchers.IO) {
+            val result = withContext(ioDispatcher) {
                 outgoingFacade.enqueue(
                     OutgoingMessageCommand(
                         ownerUserId = optimistic.senderId,
@@ -94,7 +96,7 @@ internal class ChatInlineSendController(
                             isSending = false,
                         )
                     }
-                    ChatDetailAccess.emitMessageSent(result.message.chatId, preview, type.name)
+                    onMessageSent(result.message.chatId, preview, type.name)
                     completion.complete(true)
                 }
                 is OutgoingMessageResult.Failed -> {
@@ -105,7 +107,7 @@ internal class ChatInlineSendController(
                             },
                             isSending = false,
                             groupEncryptionWarning = result.error.message?.take(120)
-                                ?: text(R.string.chat_send_failed),
+                                ?: text(sendFailedRes),
                         )
                     }
                     completion.complete(false)

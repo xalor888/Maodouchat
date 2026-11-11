@@ -18,6 +18,7 @@ import com.maodouchat.domain.messaging.ScheduledMessageController
 import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
 import com.maodouchat.domain.messaging.ChatComposerSendController
+import com.maodouchat.domain.messaging.ChatInlineSendController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -253,9 +254,7 @@ internal class ChatDetailDeps(
         ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         fetchChat = { liveToken, targetChatId ->
             ChatNetworkRepository().chats(liveToken).map { chats ->
@@ -275,9 +274,7 @@ internal class ChatDetailDeps(
             ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
             token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
             sessionActive = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
+                com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
             },
             fetchTargets = { _ ->
                 val cached = chatRepo.getAllChats().first()
@@ -557,6 +554,9 @@ internal class ChatDetailDeps(
         mergeMessages = ::mergeMessageVersions,
         completions = inlineSendCompletions,
         outgoingFacade = outgoingFacade,
+        onMessageSent = { chatId, preview, typeName -> com.maodouchat.chatdetail.ChatDetailAccess.emitMessageSent(chatId, preview, typeName) },
+        sessionExpiredRes = R.string.error_session_expired,
+        sendFailedRes = R.string.chat_send_failed,
     )
     internal val contactCardController = ChatContactCardController(
         contactCardEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.CONTACT_CARD) },
