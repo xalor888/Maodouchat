@@ -14,6 +14,7 @@ import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
 import com.maodouchat.domain.messaging.ChatNudgeSender
 import com.maodouchat.domain.messaging.ChatOutgoingFacade
 import com.maodouchat.domain.messaging.ChatRetrySender
+import com.maodouchat.domain.messaging.ScheduledMessageController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -646,13 +647,13 @@ internal class ChatDetailDeps(
     internal val scheduledMessageController = ScheduledMessageController(
         chatScheduleController = chatScheduleController,
         uiState = host._uiState,
-        textProvider = host::text,
+        textProvider = { message, args -> host.text(scheduledMessageResId(message), *args) },
+        session = { com.maodouchat.session.CurrentSession.snapshot() },
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
         clearDraft = { host.clearDraft() },
         sendMessage = { forceText, onDurableCommit, onDurableFailure ->
-            host.sendMessage(forceText = forceText, onDurableCommit = onDurableCommit, onDurableFailure = onDurableFailure)
-        },
+            host.sendMessage(forceText = forceText, onDurableCommit = onDurableCommit, onDurableFailure = onDurableFailure) },
     )
     internal val chatReminderController = ChatReminderController(
         chatScheduleController = chatScheduleController,
@@ -729,8 +730,7 @@ internal class ChatDetailDeps(
         currentUserId = { host.currentUserId },
         text = { id, args -> host.text(id, *args) },
     )
-    // G388：onCleared 收尾（媒体/任务清理 + 草稿持久化 + 最终已读水印）抽到
-    // ChatSessionTeardownController——VM 只留 override 转发。
+    // G388：onCleared 收尾（媒体/任务清理 + 草稿持久化 + 最终已读水印）抽到 ChatSessionTeardownController——VM 只留 override 转发。
     internal val sessionTeardownController = ChatSessionTeardownController(
         uiState = host._uiState,
         application = application,
