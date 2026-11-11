@@ -20,6 +20,7 @@ import com.maodouchat.domain.messaging.ChatSessionCipherController
 import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.domain.messaging.ChatInlineSendController
 import com.maodouchat.domain.messaging.ChatGroupRevisionHandler
+import com.maodouchat.domain.messaging.ChatMessageMutationController
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
@@ -432,9 +433,7 @@ internal class ChatDetailDeps(
         token = { host.token },
         activeChatId = { host.activeChatId },
         sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
@@ -445,8 +444,7 @@ internal class ChatDetailDeps(
         },
         applyRealtimeVisibility = { event ->
             com.maodouchat.chatdetail.ChatDetailDataAccess.applyRealtimeVisibility(
-                userId = event.userId,
-                isOnline = event.isOnline,
+                userId = event.userId, isOnline = event.isOnline,
                 onlineRevoked = event.onlineRevoked,
                 statusRevoked = event.statusRevoked,
                 updatedAt = System.currentTimeMillis(),
@@ -464,18 +462,20 @@ internal class ChatDetailDeps(
     )
     internal val messageMutationController = ChatMessageMutationController(
         scope = host.viewModelScope,
-        getApplication = { host.getApplication<android.app.Application>() },
         ownerUserId = { host.currentUserId },
         token = { host.token },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id -> host.text(id) },
+        text = { message -> host.text(chatMessageMutationTextResId(message)) },
         currentGroupRevision = host::currentGroupRevision,
         composeContentWithMeta = host::composeContentWithMeta,
         requireReactions = host::requireReactions,
         projectMessageMutation = host::projectMessageMutation,
         mutationCoordinator = conversationMessageMutationCoordinator,
         reactionCoordinator = conversationReactionCoordinator,
+        messageRevokeEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.MESSAGE_REVOKE) },
+        messageEditEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.MESSAGE_EDIT) },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val chatSettingToggleController = ChatSettingToggleController(
         scope = host.viewModelScope,
