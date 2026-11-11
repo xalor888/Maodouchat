@@ -1,41 +1,51 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiOperationUi
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
-import com.maodouchat.data.repository.AiMessageResultStore
-import com.maodouchat.data.repository.AiOperationRepository
-import com.maodouchat.data.repository.AiSummaryRepository
-import com.maodouchat.data.repository.AiTaskRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.core.model.ChatDetailUiState
 
 // AI 操作观察与结果提交：操作流投屏、会话切走时丢弃，以及中断恢复/过期清理。
-// 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatAiOperationsController(
+// 从 ChatDetailViewModel 纯搬移；仓库/CurrentSession/会话门禁走端口，VM 只留同签名委托。
+// 操作记录以 AiOperationRecord 过界（Room 实体不出 domain）。
+data class AiOperationRecord(
+    val id: String,
+    val type: String,
+    val state: String,
+    val attempts: Int,
+    val lastErrorCode: String?,
+)
+
+class ChatAiOperationsController(
     private val scope: CoroutineScope,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val activeChatId: () -> String,
-    private val aiOperationRepo: AiOperationRepository,
-    private val aiMessageResultStore: AiMessageResultStore,
-    private val aiSummaryRepo: AiSummaryRepository,
-    private val aiTaskRepo: AiTaskRepository,
+    private val currentOwnerUserId: () -> String,
+    private val sessionMayContinue: (String) -> Boolean,
+    private val observeOperations: (String, String) -> Flow<List<AiOperationRecord>>,
+    private val recoverInterrupted: suspend (String, String) -> Int,
+    private val pruneTerminalOperations: suspend () -> Int,
+    private val pruneSummariesOlderThan: suspend (Long) -> Unit,
+    private val pruneCompletedTasksOlderThan: suspend (Long) -> Unit,
+    private val commitMessageResult: suspend (String?, Message) -> Boolean,
     private val aiAutoRetryJobs: MutableMap<String, Job>,
     private val aiAutoRetryAt: MutableMap<String, Long>,
 ) {
-    internal fun observeAiOperations() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId?.takeIf(String::isNotBlank) ?: return
-        aiOperationRepo.observeActionable(ownerUserId, activeChatId())
+    fun observeAiOperations() {
+        val ownerUserId = currentOwnerUserId().takeIf(String::isNotBlank) ?: return
+        observeOperations(ownerUserId, activeChatId())
             .onEach { operations ->
                 // Drop if logout/switch happened while Room Flow was still open.
-                if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@onEach
+                if (currentOwnerUserId() != ownerUserId) return@onEach
                 updateState { state ->
                     state.copy(
                         aiOperations = operations.map { operation ->
@@ -57,19 +67,19 @@ internal class ChatAiOperationsController(
             }
             .launchIn(scope)
         scope.launch(Dispatchers.IO) {
-            if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@launch
-            aiOperationRepo.recoverInterrupted(ownerUserId, activeChatId())
-            aiOperationRepo.pruneTerminal()
+            if (currentOwnerUserId() != ownerUserId) return@launch
+            recoverInterrupted(ownerUserId, activeChatId())
+            pruneTerminalOperations()
             // AI 本地缓存保留期清理：总结缓存 90 天，已完成任务 90 天
             val cutoff = System.currentTimeMillis() - 90L * 24L * 60L * 60L * 1_000L
             try {
-                aiSummaryRepo.pruneOlderThan(cutoff)
+                pruneSummariesOlderThan(cutoff)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
             }
             try {
-                aiTaskRepo.pruneCompletedOlderThan(cutoff)
+                pruneCompletedTasksOlderThan(cutoff)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -77,25 +87,21 @@ internal class ChatAiOperationsController(
         }
     }
 
-    internal suspend fun commitAiMessageResult(
+    suspend fun commitAiMessageResult(
         operationId: String?,
         message: Message,
         expectedUserId: String,
         expectedChatId: String,
     ): Boolean {
         if (message.chatId != expectedChatId || activeChatId() != expectedChatId ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-            )
+            !sessionMayContinue(expectedUserId)
         ) throw CancellationException("ai_result_context_changed")
         val committed = withContext(Dispatchers.IO) {
-            aiMessageResultStore.commit(operationId, message)
+            commitMessageResult(operationId, message)
         }
         if (!committed) return false
         if (activeChatId() != expectedChatId ||
-            !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedUserId,
-            )
+            !sessionMayContinue(expectedUserId)
         ) return false
         if (operationId != null) {
             aiAutoRetryJobs.remove(operationId)?.cancel()

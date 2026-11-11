@@ -11,12 +11,15 @@ import com.maodouchat.attachment.DefaultAttachmentIntentController
 import com.maodouchat.attachment.DefaultAttachmentPreparationService
 import com.maodouchat.attachment.RoomTransferRepository
 import com.maodouchat.domain.messaging.DefaultConversationCommandFacade
+import com.maodouchat.domain.messaging.AiOperationRecord
+import com.maodouchat.domain.messaging.ChatAiOperationsController
 import com.maodouchat.domain.messaging.ChatNudgeSender
 import com.maodouchat.domain.messaging.ChatOutgoingFacade
 import com.maodouchat.domain.messaging.ChatRetrySender
 import com.maodouchat.domain.messaging.ScheduledMessageController
 import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
+import com.maodouchat.domain.messaging.ChatVoicePlaybackReporter
 import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.domain.messaging.ChatInlineSendController
 import com.maodouchat.domain.messaging.ChatGroupRevisionHandler
@@ -74,7 +77,9 @@ import com.maodouchat.core.model.ReactionMutationPolicy
 import com.maodouchat.core.model.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
 import com.maodouchat.core.model.toDomainChat
@@ -91,16 +96,11 @@ internal class ChatDetailDeps(
     internal val attachmentDownloadCoordinator = AttachmentDownloadCoordinator(
         context = application,
         messageStore = messageRepo,
-        isSecretChat = { message ->
-            host._uiState.value.isSecretChat == true ||
-                com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId).isSecretChat
-        },
+        isSecretChat = { message -> host._uiState.value.isSecretChat == true || com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId).isSecretChat },
         onProgress = host::updateFileTransferProgress,
         onMessageUpdated = { updated ->
             host._uiState.update { state ->
-                state.copy(messages = state.messages.map { current ->
-                    if (current.id == updated.id) updated else current
-                })
+                state.copy(messages = state.messages.map { current -> if (current.id == updated.id) updated else current })
             }
         },
     )
@@ -170,11 +170,7 @@ internal class ChatDetailDeps(
         cleanupAttachment = host::cleanupAttachmentForMessage,
         refreshConversationPreview = com.maodouchat.chatdetail.ChatDetailAccess::emitChatListPreviewRefresh,
         isOwnerSessionCurrent = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
-        cleanupTerminalNotification = { message ->
-            if (com.maodouchat.notification.NotificationCenterAccess.repository.removeMessageReferences(message.id)) {
-                com.maodouchat.notification.MessageNotificationService.cancelMessage(application, message.chatId)
-            }
-        },
+        cleanupTerminalNotification = { message -> if (com.maodouchat.notification.NotificationCenterAccess.repository.removeMessageReferences(message.id)) { com.maodouchat.notification.MessageNotificationService.cancelMessage(application, message.chatId) } },
     )
     internal val conversationMessageMutationCoordinator = ConversationMessageMutationCoordinator(messagingMutationFacade)
     internal val conversationReactionCoordinator = ConversationReactionCoordinator(messagingMutationFacade)
@@ -187,9 +183,7 @@ internal class ChatDetailDeps(
     internal val outgoingFacade by lazy {
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
-            fetchConversations = { liveToken ->
-                ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() }
-            },
+            fetchConversations = { liveToken -> ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() } },
             createDirectConversation = { liveToken, recipientId, secret ->
                 ChatNetworkRepository().createChat(
                     liveToken,
@@ -202,9 +196,7 @@ internal class ChatDetailDeps(
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
-            isOwnerSessionCurrent = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-            },
+            isOwnerSessionCurrent = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
             errors = OutgoingConversationErrors(
                 notLoggedIn = { host.text(R.string.chat_not_logged_in) },
                 recipientNotReady = { host.text(R.string.chat_recipient_not_ready) },
@@ -223,12 +215,8 @@ internal class ChatDetailDeps(
                 )
             },
             hydrateConversation = host::hydrateOutgoingChat,
-            stageDurableMessage = { message, groupRevision, body, type ->
-                messageGateway.stageAndEnqueue(message, groupRevision, body, type)
-            },
-            retryDurableMessage = { message, groupRevision, body, type ->
-                messageGateway.retry(message, groupRevision, body, type)
-            },
+            stageDurableMessage = { message, groupRevision, body, type -> messageGateway.stageAndEnqueue(message, groupRevision, body, type) },
+            retryDurableMessage = { message, groupRevision, body, type -> messageGateway.retry(message, groupRevision, body, type) },
             persistFailedMessage = messageRepo::insertMessage,
             currentOwnerUserId = { host.currentUserId },
             currentAuthToken = { host.token },
@@ -258,12 +246,8 @@ internal class ChatDetailDeps(
     internal val groupLifecycleCoordinator = GroupLifecycleCoordinator(
         ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
         token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
-        fetchChat = { liveToken, targetChatId ->
-            ChatNetworkRepository().chats(liveToken).map { chats -> chats.firstOrNull { it.id == targetChatId } }
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
+        fetchChat = { liveToken, targetChatId -> ChatNetworkRepository().chats(liveToken).map { chats -> chats.firstOrNull { it.id == targetChatId } } },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
     internal val groupLifecycleService: GroupLifecycleService by lazy {
@@ -276,16 +260,12 @@ internal class ChatDetailDeps(
         DefaultConversationForwardCoordinator(
             ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
             token = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
-            sessionActive = { ownerUserId ->
-                com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-            },
+            sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
             fetchTargets = { _ ->
                 val cached = chatRepo.getAllChats().first()
                 Result.success(cached)
             },
-            resolveTargets = { _, targets ->
-                targets.mapNotNull { chatRepo.getChatById(it.id) ?: it }
-            },
+            resolveTargets = { _, targets -> targets.mapNotNull { chatRepo.getChatById(it.id) ?: it } },
             stageMessage = { message, groupRevision ->
                 messageGateway.stageAndEnqueue(
                     message = message,
@@ -305,9 +285,7 @@ internal class ChatDetailDeps(
                     }
                 }
             },
-            onMessageSent = { targetChatId, preview, type ->
-                com.maodouchat.chatdetail.ChatDetailAccess.emitMessageSent(targetChatId, preview, type.name)
-            },
+            onMessageSent = { targetChatId, preview, type -> com.maodouchat.chatdetail.ChatDetailAccess.emitMessageSent(targetChatId, preview, type.name) },
             preview = { type, content -> host.forwardPreview(type, content) },
         )
     }
@@ -340,9 +318,7 @@ internal class ChatDetailDeps(
         chatId = { host.chatId },
         ownerUserId = { host.currentUserId },
         token = { host.token },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         persistMessage = messageRepo::insertMessage,
@@ -368,14 +344,10 @@ internal class ChatDetailDeps(
         token = { host.token },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         outgoingFacade = outgoingFacade,
         persistMessage = messageRepo::insertMessage,
-        sendAttachmentRetry = { uriString, type, messageId, message ->
-            host.sendEncryptedAttachment(uriString.toUri(), type, messageId, message)
-        },
+        sendAttachmentRetry = { uriString, type, messageId, message -> host.sendEncryptedAttachment(uriString.toUri(), type, messageId, message) },
         text = { message, args -> host.text(chatSenderMessageResId(message), *args) },
         logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
@@ -416,9 +388,7 @@ internal class ChatDetailDeps(
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         text = { message, args -> host.text(botGroupActionMessageResId(message), *args) },
@@ -432,9 +402,7 @@ internal class ChatDetailDeps(
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         persistDisappearingMessages = { targetChatId, seconds ->
@@ -459,6 +427,20 @@ internal class ChatDetailDeps(
         currentState = host._uiState::value,
         activeChatId = { host.activeChatId },
         chatId = { host.chatId },
+        playingMessageIds = com.maodouchat.util.VoicePlayer.state
+            .filter { it.isPlaying && it.messageId != null }
+            .mapNotNull { it.messageId },
+        sessionMayContinue = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
+        },
+        enqueuePlayReceipt = { conversationId, messageId, groupRevision ->
+            com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueuePlayReceipt(
+                conversationId = conversationId,
+                messageId = messageId,
+                groupRevision = groupRevision,
+            )
+        },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val messageMutationController = ChatMessageMutationController(
         scope = host.viewModelScope,
@@ -480,11 +462,7 @@ internal class ChatDetailDeps(
     internal val chatSettingToggleController = ChatSettingToggleController(
         scope = host.viewModelScope,
         chatPinEnabled = { RuntimeFlags.isEnabled(host.getApplication<android.app.Application>(), RuntimeFlags.CHAT_PIN) },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId,) },
         liveToken = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
         chatSettingsGateway = ChatSettingsNetworkGateway(),
         ownerUserId = { host.currentUserId },
@@ -565,10 +543,28 @@ internal class ChatDetailDeps(
         scope = host.viewModelScope,
         updateState = { transform -> host._uiState.update(transform) },
         activeChatId = { host.activeChatId },
-        aiOperationRepo = aiOperationRepo,
-        aiMessageResultStore = aiMessageResultStore,
-        aiSummaryRepo = aiSummaryRepo,
-        aiTaskRepo = aiTaskRepo,
+        currentOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        sessionMayContinue = { ownerUserId ->
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
+        },
+        observeOperations = { ownerUserId, chatId ->
+            aiOperationRepo.observeActionable(ownerUserId, chatId).map { operations ->
+                operations.map { operation ->
+                    AiOperationRecord(
+                        id = operation.id,
+                        type = operation.type,
+                        state = operation.state,
+                        attempts = operation.attempts,
+                        lastErrorCode = operation.lastErrorCode,
+                    )
+                }
+            }
+        },
+        recoverInterrupted = { ownerUserId, chatId -> aiOperationRepo.recoverInterrupted(ownerUserId, chatId) },
+        pruneTerminalOperations = { aiOperationRepo.pruneTerminal() },
+        pruneSummariesOlderThan = { before -> aiSummaryRepo.pruneOlderThan(before) },
+        pruneCompletedTasksOlderThan = { before -> aiTaskRepo.pruneCompletedOlderThan(before) },
+        commitMessageResult = { operationId, message -> aiMessageResultStore.commit(operationId, message) },
         aiAutoRetryJobs = aiBookkeeping.aiAutoRetryJobs,
         aiAutoRetryAt = aiBookkeeping.aiAutoRetryAt,
     )
@@ -645,8 +641,7 @@ internal class ChatDetailDeps(
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
         clearDraft = { host.clearDraft() },
-        sendMessage = { forceText, onDurableCommit, onDurableFailure ->
-            host.sendMessage(forceText = forceText, onDurableCommit = onDurableCommit, onDurableFailure = onDurableFailure) },
+        sendMessage = { forceText, onDurableCommit, onDurableFailure -> host.sendMessage(forceText = forceText, onDurableCommit = onDurableCommit, onDurableFailure = onDurableFailure) },
     )
     internal val chatReminderController = ChatReminderController(
         chatScheduleController = chatScheduleController,
