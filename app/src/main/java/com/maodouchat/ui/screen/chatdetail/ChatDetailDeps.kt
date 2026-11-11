@@ -26,8 +26,10 @@ import com.maodouchat.domain.conversation.ChatContactCardController
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
 import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.domain.conversation.ChatModerationController
 import com.maodouchat.domain.conversation.ChatPinStarController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
+import com.maodouchat.domain.conversation.ChatReminderController
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatSettingToggleController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
@@ -413,19 +415,16 @@ internal class ChatDetailDeps(
         text = { id, args -> host.text(id, *args) },
     )
     internal val moderationController = ChatModerationController(
-        application = application,
+        moderationGateway = ChatModerationNetworkGateway(),
+        moderationEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.BLOCK_REPORT) },
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
-        sessionActive = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-        },
+        sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id, args -> host.text(id, *args) },
+        text = { message, args -> host.text(chatModerationMessageResId(message), *args) },
     )
     internal val botGroupActionController = ChatBotGroupActionController(
         scope = host.viewModelScope,
@@ -658,7 +657,8 @@ internal class ChatDetailDeps(
     internal val chatReminderController = ChatReminderController(
         chatScheduleController = chatScheduleController,
         uiState = host._uiState,
-        textProvider = host::text,
+        text = { message, args -> host.text(chatReminderMessageResId(message), *args) },
+        relativeTimeText = ::reminderRelativeTimeText,
         activeChatId = { host.activeChatId },
         chatId = host.chatId,
     )
