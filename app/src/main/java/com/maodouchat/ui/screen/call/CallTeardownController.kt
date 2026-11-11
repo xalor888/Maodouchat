@@ -12,6 +12,7 @@ import com.maodouchat.core.model.State
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.domain.calls.CallHangUpSender
 import com.maodouchat.domain.calls.CallIceRecovery
+import com.maodouchat.domain.calls.CallRingingTimeout
 
 // 通话拆卸簇：从 CallViewModel 纯搬移——endCall 全量收尾（job 停摆、媒体释放、
 // 通知/Telecom 清理、通话记录回写、对端挂断信令、会话字段复位）。

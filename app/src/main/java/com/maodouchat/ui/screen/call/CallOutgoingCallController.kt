@@ -15,6 +15,7 @@ import com.maodouchat.core.model.State
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.WebRtcNativeLoadException
+import com.maodouchat.domain.calls.CallRingingTimeout
 import com.maodouchat.domain.calls.CallSignalingSender
 
 // 呼出一族：从 CallViewModel 纯搬移；VM 留同签名委托。
