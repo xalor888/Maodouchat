@@ -9,6 +9,7 @@ import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
+import com.maodouchat.domain.calls.CallSignalingSender
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -172,10 +173,10 @@ internal class CallGroupMesh(
                     peerUserId = peerId,
                     type = currentState().callType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(peerId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(peerId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                     },
                     onOfferCreated = { sdp ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(peerId, "offer", sdp, groupInvite = false)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(peerId, "offer", sdp.description, groupInvite = false)
                     }
                 )
             }

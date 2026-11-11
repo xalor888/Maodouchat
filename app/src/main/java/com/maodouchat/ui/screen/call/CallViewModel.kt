@@ -81,7 +81,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val signalingSender by lazy {
-        CallSignalingSender(
+        createCallSignalingSender(
             scope = viewModelScope,
             token = { token },
             activeCallId = { activeCallId },
@@ -91,7 +91,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             callSessionGate = callSessionGate,
             outboundSignalingCursor = outboundSignalingCursor,
             updateState = { transform -> _uiState.update(transform) },
-            text = errorMessages::text,
+            errorMessages = errorMessages,
             failureReason = errorMessages::failureReason,
             onEndCall = { errorMessage -> endCall(notifyPeer = false, errorMessage = errorMessage) },
         )
@@ -122,19 +122,19 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val iceRecovery by lazy {
-        CallIceRecovery(
+        createCallIceRecovery(
             scope = viewModelScope,
             endingCall = { endingCall },
             callSessionMachine = callSessionMachine,
             activeDomainSession = { activeDomainSession },
-            timersController = timersController,
+            startTimers = { timersController.startDurationTimer(); timersController.startNetworkStatsPolling() },
             activeCallSession = { activeCallSession },
             callSessionGate = callSessionGate,
             updateState = { transform -> _uiState.update(transform) },
             currentState = { _uiState.value },
             onIceGiveUp = { message -> endCall(notifyPeer = false, errorMessage = message) },
-            text = errorMessages::text,
-            webRTCManager = { webRTCManager },
+            errorMessages = errorMessages,
+            restartIce = { webRTCManager?.restartIce() },
         )
     }
 
