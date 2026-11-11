@@ -18,6 +18,7 @@ import com.maodouchat.domain.conversation.ChatListLoadCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadState
 import com.maodouchat.domain.conversation.ChatListLocalCleanupCoordinator
 import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
+import com.maodouchat.domain.conversation.ChatListOwnerSessionGuard
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
@@ -51,7 +52,13 @@ class ChatListViewModel private constructor(
     private val conversationLocalStateCoordinator = ports.conversationLocalStateCoordinator
     private val notificationRepo = ports.notificationCenter
 
-    private val ownerSessionGuard = ChatListOwnerSessionGuard(ports = ports)
+    private val ownerSessionGuard = ChatListOwnerSessionGuard(
+        currentUserId = { com.maodouchat.session.CurrentSession.snapshot().userId },
+        currentToken = { com.maodouchat.session.CurrentSession.snapshot().token },
+        sessionGeneration = ports.sessionGeneration,
+        isPurgeInProgress = ports.isPurgeInProgress,
+        withRoomTransaction = ports.withRoomTransaction,
+    )
 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
@@ -85,11 +92,7 @@ class ChatListViewModel private constructor(
     val notificationCenterUnread: StateFlow<Int> = badgeCoordinator.notificationCenterUnread
     val exploreBadgeCount: StateFlow<Int> = badgeCoordinator.exploreBadgeCount
 
-    private val folderController = ChatFolderController(
-        context = application,
-        scope = viewModelScope,
-        uiState = _uiState,
-    )
+    private val folderController = ChatFolderController(context = application, scope = viewModelScope, uiState = _uiState)
 
     /** 本 VM 生命周期内已成功删除（退出服务端）的会话 id：删除先乐观移除，服务端 leave 未生效时同步快照可能重新带回，合并时丢弃。 */
     private val deletedChatIds = mutableSetOf<String>()
@@ -115,8 +118,7 @@ class ChatListViewModel private constructor(
         scope = viewModelScope,
         getState = {
             ChatListLoadState(
-                chats = _uiState.value.chats,
-                isLoading = _uiState.value.isLoading,
+                chats = _uiState.value.chats, isLoading = _uiState.value.isLoading,
                 errorMessage = _uiState.value.errorMessage,
                 secretChatIds = _uiState.value.secretChatIds,
                 missedCalls = _uiState.value.missedCalls,
@@ -299,9 +301,7 @@ class ChatListViewModel private constructor(
 
     private val selectionCoordinator = ChatListSelectionCoordinator(
         getSelection = { ChatListSelection(_uiState.value.selectionMode, _uiState.value.selectedChatIds) },
-        updateSelection = { next ->
-            _uiState.update { it.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds) }
-        },
+        updateSelection = { next -> _uiState.update { it.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds) } },
         togglePinned = ::togglePinned,
         deleteChat = ::deleteChat,
     )
