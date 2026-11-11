@@ -14,6 +14,7 @@ import com.maodouchat.domain.groups.GroupDetailLoadMessage
 import com.maodouchat.domain.groups.GroupDetailLoader
 import com.maodouchat.domain.groups.GroupDetailRealtimeObserver
 import com.maodouchat.domain.groups.GroupEncryptionHealthController
+import com.maodouchat.domain.groups.GroupInviteBotController
 import com.maodouchat.domain.groups.GroupInviteController
 import com.maodouchat.domain.groups.GroupInviteLoadController
 import com.maodouchat.domain.groups.GroupMutationController
@@ -27,13 +28,10 @@ import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.group.GroupDetailAccess
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupDetailUiState
 
@@ -246,41 +244,19 @@ class GroupDetailViewModel(
         load()
     }
 
-    fun inviteOwnedBot(botId: String) {
-        if (botId.isBlank() || chatId.isBlank() || _uiState.value.isInvitingBot) return
-        val ownerUserId = currentUserId
-        viewModelScope.launch {
-            _uiState.update { it.copy(isInvitingBot = true, message = null) }
-            try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) return@launch
-                val result = withContext(Dispatchers.IO) {
-                    groupBotController.inviteBot(chatId, botId)
-                }
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerUserId,
-                )
-                ) return@launch
-                result.fold(
-                    onSuccess = {
-                        _uiState.update { it.copy(isInvitingBot = false) }
-                        load(text(R.string.group_play_bot_invited))
-                    },
-                    onFailure = {
-                        _uiState.update {
-                            it.copy(
-                                isInvitingBot = false,
-                                message = text(R.string.group_play_bot_invite_failed)
-                            )
-                        }
-                    }
-                )
-            } catch (error: kotlinx.coroutines.CancellationException) {
-                _uiState.update { it.copy(isInvitingBot = false) }
-                throw error
-            }
-        }
+    private val inviteBotController by lazy {
+        GroupInviteBotController(
+            scope = viewModelScope,
+            currentState = { _uiState.value },
+            updateState = { transform -> _uiState.update(transform) },
+            chatId = { chatId },
+            ownerUserId = { currentUserId },
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            inviteBot = { targetChatId, botId -> groupBotController.inviteBot(targetChatId, botId) },
+            text = { message -> text(groupInviteBotMessageResId(message)) },
+            reload = { message -> load(message) },
+        )
     }
+
+    fun inviteOwnedBot(botId: String) = inviteBotController.inviteOwnedBot(botId)
 }
