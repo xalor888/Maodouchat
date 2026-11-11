@@ -15,6 +15,8 @@ import com.maodouchat.domain.messaging.ChatNudgeSender
 import com.maodouchat.domain.messaging.ChatOutgoingFacade
 import com.maodouchat.domain.messaging.ChatRetrySender
 import com.maodouchat.domain.messaging.ScheduledMessageController
+import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
+import com.maodouchat.domain.messaging.ChatSessionCipherController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -131,25 +133,19 @@ internal class ChatDetailDeps(
             messageStore = messageRepo,
                 commandFacade = commandFacade,
             ownerUserId = { host.currentUserId },
-            onProgress = { id, completed, total ->
-                host.updateFileTransferProgress(id, completed, total, 0f, 0.35f)
-            },
+            onProgress = { id, completed, total -> host.updateFileTransferProgress(id, completed, total, 0f, 0.35f) },
         )
     }
     internal val chatLockRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.chatLockRepo()
     internal val secretTtlRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.secretTtlRepo()
     internal val messageTerminalStore = MessageTerminalStore(
-        deleteCachedMedia = { messageId ->
-            MediaCache.deleteCachedMediaForMessage(application, messageId)
-        },
+        deleteCachedMedia = { messageId -> MediaCache.deleteCachedMediaForMessage(application, messageId) },
         deleteSearchDocument = com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchDao()::deleteDocument,
         deleteLocalMessage = messageRepo::deleteMessage,
         upsertLocalMessage = { message -> messageRepo.applyRevokedMessage(message) }
     )
     internal val messagingMutationFacade = MessagingV2MutationFacade(
-        eventOutbox = MessagingV2EventOutbox { conversationId, event, groupRevision ->
-            com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueueEvent(conversationId, event, groupRevision)
-        },
+        eventOutbox = MessagingV2EventOutbox { conversationId, event, groupRevision -> com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueueEvent(conversationId, event, groupRevision) },
         persistDeleted = messageTerminalStore::persistDeleted,
         persistRevoked = messageTerminalStore::persistRevoked,
         persistEdited = messageRepo::applyEditedMessage,
@@ -169,9 +165,7 @@ internal class ChatDetailDeps(
         cleanupAttachment = host::cleanupAttachmentForMessage,
         refreshConversationPreview = com.maodouchat.chatdetail.ChatDetailAccess::emitChatListPreviewRefresh,
         isOwnerSessionCurrent = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
+            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         cleanupTerminalNotification = { message ->
             if (com.maodouchat.notification.NotificationCenterAccess.repository.removeMessageReferences(message.id)) {
@@ -682,7 +676,10 @@ internal class ChatDetailDeps(
     // G387：session cipher 占用一族抽到 ChatSessionCipherController——VM 侧只留同签名委托。
     internal val sessionCipherController = ChatSessionCipherController(
         initialChatId = host.chatId,
-        chatRepo = chatRepo,
+        getChatById = chatRepo::getChatById,
+        acquireOccupancy = com.maodouchat.crypto.SessionCipherOccupancy::acquire,
+        occupyOccupancy = { lease, chatId, peerId, updatePeer -> com.maodouchat.crypto.SessionCipherOccupancy.occupy(lease, chatId, peerId, updatePeer) },
+        releaseOccupancy = { lease -> com.maodouchat.crypto.SessionCipherOccupancy.release(lease) },
         currentUserId = { host.currentUserId },
     )
     // G387：消息加载/分页/刷新一族抽到 ChatMessageLoadingController——VM 侧只留同签名委托。
@@ -716,12 +713,15 @@ internal class ChatDetailDeps(
     )
     internal val outgoingHydrationController = ChatOutgoingHydrationController(
         uiState = host._uiState,
-        userRepo = userRepo,
         cipherController = sessionCipherController,
         setActiveChatId = { host.activeChatId = it },
         currentUserId = { host.currentUserId },
-        text = { id, args -> host.text(id, *args) },
-        quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
+        getUserById = userRepo::getUserById,
+        session = { com.maodouchat.session.CurrentSession.snapshot() },
+        sessionGeneration = com.maodouchat.chatdetail.ChatDetailAccess::currentSessionGeneration,
+        purgeInProgress = com.maodouchat.security.SecureSessionManager::isPurgeInProgress,
+        text = { message, args -> host.text(chatOutgoingHydrationTextResId(message), *args) },
+        quantityText = { message, quantity, args -> host.quantityText(chatOutgoingHydrationTextResId(message), quantity, *args) },
     )
     // G388：群通话入口抽到 ChatGroupCallController——VM 只留同签名委托。
     internal val groupCallController = ChatGroupCallController(

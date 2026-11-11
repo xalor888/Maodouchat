@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatSessionCipherController
 
 // onCleared 收尾一族：从 ChatDetailViewModel 纯搬移；VM 只留 override 转发。
 internal class ChatSessionTeardownController(
