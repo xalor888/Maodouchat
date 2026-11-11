@@ -1,8 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.app.Application
-import android.util.Log
-import com.maodouchat.R
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
 import com.maodouchat.core.model.ConversationMessageMutationOutcome
 import com.maodouchat.core.model.ConversationReactionCoordinator
@@ -13,37 +11,38 @@ import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.toOptimisticEdit
 import com.maodouchat.core.model.toRevokedPlaceholder
-import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import com.maodouchat.core.model.ChatDetailUiState
 
 // 消息变更命令（删除/批量删除/撤回/编辑）与表情回应：从 ChatDetailViewModel 纯搬移，逻辑一行未动。
-internal class ChatMessageMutationController(
+// Application/RuntimeFlags/Log/R.string 走端口；ViewModel 只做接线。
+class ChatMessageMutationController(
     private val scope: CoroutineScope,
-    private val getApplication: () -> Application,
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
-    private val text: (Int) -> String,
+    private val text: (ChatMessageMutationText) -> String,
     private val currentGroupRevision: () -> Long?,
     private val composeContentWithMeta: (String, MessageMeta) -> String,
     private val requireReactions: () -> Boolean,
     private val projectMessageMutation: (MessageMutationProjection) -> Unit,
     private val mutationCoordinator: ConversationMessageMutationCoordinator,
     private val reactionCoordinator: ConversationReactionCoordinator,
+    private val messageRevokeEnabled: () -> Boolean,
+    private val messageEditEnabled: () -> Boolean,
+    private val logWarning: (String, Throwable?) -> Unit,
 ) {
     /** Optimistically hides a message after its encrypted delete event is staged. */
-    internal fun deleteMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+    fun deleteMessage(messageId: String) {
+        if (!messageRevokeEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.FEATURE_DISABLED)) }
             return
         }
         val deleteOwnerUserId = ownerUserId()
         if (token().isBlank() || deleteOwnerUserId.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.SESSION_EXPIRED)) }
             return
         }
         scope.launch {
@@ -53,13 +52,13 @@ internal class ChatMessageMutationController(
 
     /** Serializes batch mutation commands so UI rollback and outbox order stay deterministic. */
     fun deleteMessagesBatch(messageIds: List<String>) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+        if (!messageRevokeEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.FEATURE_DISABLED)) }
             return
         }
         val deleteOwnerUserId = ownerUserId()
         if (token().isBlank() || deleteOwnerUserId.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.SESSION_EXPIRED)) }
             return
         }
         if (messageIds.isEmpty()) return
@@ -71,7 +70,7 @@ internal class ChatMessageMutationController(
                     throw error
                 } catch (error: Throwable) {
                     // deleteOneMessage 内部已处理回滚与日志，单条失败不中断后续
-                    Log.w("ChatDetailViewModel", "batch delete item failed: $id", error)
+                    logWarning("batch delete item failed: $id", error)
                 }
             }
         }
@@ -89,23 +88,23 @@ internal class ChatMessageMutationController(
         applyMessageMutationOutcome(
             outcome = outcome,
             messageId = messageId,
-            failureText = text(R.string.chat_delete_server_failed),
+            failureText = text(ChatMessageMutationText.DELETE_SERVER_FAILED),
         )
     }
 
     fun revokeMessage(messageId: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_REVOKE)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+        if (!messageRevokeEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.FEATURE_DISABLED)) }
             return
         }
         val revokeOwnerUserId = ownerUserId()
         if (token().isBlank() || revokeOwnerUserId.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.SESSION_EXPIRED)) }
             return
         }
         scope.launch {
             val original = currentState().messages.find { it.id == messageId } ?: return@launch
-            val revoked = original.toRevokedPlaceholder(text(R.string.chat_message_revoked_placeholder))
+            val revoked = original.toRevokedPlaceholder(text(ChatMessageMutationText.MESSAGE_REVOKED_PLACEHOLDER))
             val outcome = mutationCoordinator.revoke(
                 original = original,
                 revoked = revoked,
@@ -116,21 +115,21 @@ internal class ChatMessageMutationController(
             applyMessageMutationOutcome(
                 outcome = outcome,
                 messageId = messageId,
-                failureText = text(R.string.chat_revoke_failed),
+                failureText = text(ChatMessageMutationText.REVOKE_FAILED),
             )
         }
     }
 
     fun editTextMessage(messageId: String, newText: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MESSAGE_EDIT)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.feature_disabled_by_admin)) }
+        if (!messageEditEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.FEATURE_DISABLED)) }
             return
         }
         val trimmed = newText.trim()
         val original = currentState().messages.find { it.id == messageId } ?: return
         val editOwnerUserId = ownerUserId()
         if (trimmed.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.chat_edit_empty)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.EDIT_EMPTY)) }
             return
         }
         if (
@@ -138,11 +137,11 @@ internal class ChatMessageMutationController(
             original.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN) ||
             System.currentTimeMillis() - original.timestamp >= 300_000
         ) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.chat_edit_not_allowed)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.EDIT_NOT_ALLOWED)) }
             return
         }
         if (token().isBlank() || editOwnerUserId.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.SESSION_EXPIRED)) }
             return
         }
         scope.launch {
@@ -159,7 +158,7 @@ internal class ChatMessageMutationController(
             applyMessageMutationOutcome(
                 outcome = outcome,
                 messageId = messageId,
-                failureText = text(R.string.chat_edit_failed),
+                failureText = text(ChatMessageMutationText.EDIT_FAILED),
             )
         }
     }
@@ -178,7 +177,7 @@ internal class ChatMessageMutationController(
                         state.pinnedMessages
                     },
                     groupEncryptionWarning = if (outcome.localProjectionError != null) {
-                        text(R.string.chat_mutation_committed_local_sync_pending)
+                        text(ChatMessageMutationText.MUTATION_COMMITTED_LOCAL_SYNC_PENDING)
                     } else {
                         state.groupEncryptionWarning
                     },
@@ -195,7 +194,7 @@ internal class ChatMessageMutationController(
         if (!requireReactions()) return
         val reactionUserId = ownerUserId()
         if (token().isBlank() || reactionUserId.isBlank()) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.error_session_expired)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.SESSION_EXPIRED)) }
             return
         }
         scope.launch {
@@ -213,7 +212,7 @@ internal class ChatMessageMutationController(
                     updateState {
                         it.copy(
                             groupEncryptionWarning = text(
-                                R.string.chat_mutation_committed_local_sync_pending,
+                                ChatMessageMutationText.MUTATION_COMMITTED_LOCAL_SYNC_PENDING,
                             ),
                         )
                     }
@@ -221,7 +220,7 @@ internal class ChatMessageMutationController(
                 is ConversationReactionOutcome.Failed -> updateState {
                     it.copy(
                         groupEncryptionWarning = outcome.error.message
-                            ?: text(R.string.chat_reaction_failed),
+                            ?: text(ChatMessageMutationText.REACTION_FAILED),
                     )
                 }
                 ConversationReactionOutcome.Ignored -> Unit
