@@ -15,8 +15,10 @@ import com.maodouchat.domain.conversation.ChatListLoadCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadState
 import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
+import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
 import com.maodouchat.security.BackgroundSessionGate
+import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -96,12 +98,8 @@ class ChatListViewModel private constructor(
         getRecentMessages = { chatId, limit -> messageRepo.getRecentMessages(chatId, limit) },
         text = { text(it) },
         nudgeYouNudged = { target -> getApplication<Application>().getString(R.string.chat_nudge_you_nudged, target) },
-        nudgeTheyNudgedYou = { sender ->
-            getApplication<Application>().getString(R.string.chat_nudge_they_nudged_you, sender)
-        },
-        nudgeTheyNudgedTarget = { sender, target ->
-            getApplication<Application>().getString(R.string.chat_nudge_they_nudged_target, sender, target)
-        },
+        nudgeTheyNudgedYou = { sender -> getApplication<Application>().getString(R.string.chat_nudge_they_nudged_you, sender) },
+        nudgeTheyNudgedTarget = { sender, target -> getApplication<Application>().getString(R.string.chat_nudge_they_nudged_target, sender, target) },
     )
 
     private val loadCoordinator = ChatListLoadCoordinator(
@@ -205,9 +203,13 @@ class ChatListViewModel private constructor(
     )
 
     private val settingsToggleCoordinator = ChatListSettingsToggleCoordinator(
-        uiState = _uiState,
-        isFlagEnabled = ports.isFlagEnabled,
-        text = { text(it) },
+        getChats = { _uiState.value.chats },
+        showError = { message -> _uiState.update { it.copy(errorMessage = message) } },
+        pinEnabled = { ports.isFlagEnabled(RuntimeFlags.CHAT_PIN) },
+        muteEnabled = { ports.isFlagEnabled(RuntimeFlags.CHAT_MUTE) },
+        archiveEnabled = { ports.isFlagEnabled(RuntimeFlags.CHAT_ARCHIVE) },
+        markedUnreadEnabled = { ports.isFlagEnabled(RuntimeFlags.MARKED_UNREAD) },
+        featureDisabledText = { text(R.string.feature_disabled_by_admin) },
         updateChatSettings = mutationCoordinator::updateChatSettings,
     )
 
@@ -284,9 +286,7 @@ class ChatListViewModel private constructor(
         withOwnerRoomWrite = { session, block -> ownerSessionGuard.withOwnerRoomWrite(session, block) },
         getCachedChat = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
-        getLatestIncomingMessage = { chatId, owner ->
-            messageRepo.getLatestIncomingMessage(chatId, owner)
-        },
+        getLatestIncomingMessage = { chatId, owner -> messageRepo.getLatestIncomingMessage(chatId, owner) },
         enqueueReadReceipt = ports.enqueueReadReceipt,
         cancelMessageNotification = ports.cancelMessageNotification,
         hasSession = { com.maodouchat.session.CurrentSession.hasSession() },
@@ -423,8 +423,7 @@ class ChatListViewModel private constructor(
 
     fun togglePinned(chatId: String) = settingsToggleCoordinator.togglePinned(chatId)
 
-    fun toggleNotificationsMuted(chatId: String) =
-        settingsToggleCoordinator.toggleNotificationsMuted(chatId)
+    fun toggleNotificationsMuted(chatId: String) = settingsToggleCoordinator.toggleNotificationsMuted(chatId)
 
     fun toggleArchived(chatId: String) = settingsToggleCoordinator.toggleArchived(chatId)
 
