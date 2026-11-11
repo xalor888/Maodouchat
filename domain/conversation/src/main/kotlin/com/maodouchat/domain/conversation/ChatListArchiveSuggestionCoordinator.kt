@@ -1,17 +1,12 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
 import com.maodouchat.core.model.ArchiveSuggestion
-import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.core.model.Chat
-import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -21,9 +16,12 @@ import kotlinx.coroutines.withContext
  * Room dismissal 与 AiArchiveSuggestion 打分经注入端口；ViewModel 只转发 intent
  * 并提供 archiveChat 回调（复用 settings toggle）。
  */
-internal class ChatListArchiveSuggestionCoordinator(
+class ChatListArchiveSuggestionCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getArchiveSuggestions: () -> List<ArchiveSuggestion>,
+    private val updateArchiveSuggestions: ((List<ArchiveSuggestion>) -> List<ArchiveSuggestion>) -> Unit,
+    private val getChats: () -> List<Chat>,
+    private val logWarning: (String, Throwable?) -> Unit,
     private val ownerUserId: () -> String,
     private val ownerSession: (ownerUserId: String) -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
@@ -38,7 +36,7 @@ internal class ChatListArchiveSuggestionCoordinator(
 
     fun start() {
         scope.launch {
-            val userId = CurrentSession.ownerUserId()
+            val userId = ownerUserId()
             if (userId.isBlank()) return@launch
             val ids = try {
                 withContext(ioDispatcher) { loadDismissedIds(userId) }
@@ -50,12 +48,8 @@ internal class ChatListArchiveSuggestionCoordinator(
             if (ids.isEmpty()) return@launch
             dismissedArchiveSuggestions += ids
             // 加载完成前已展示的建议里可能混入已忽略项，重新过滤一次。
-            uiState.update { state ->
-                state.copy(
-                    archiveSuggestions = state.archiveSuggestions.filter { s ->
-                        s.chatId !in dismissedArchiveSuggestions
-                    }
-                )
+            updateArchiveSuggestions { current ->
+                current.filter { s -> s.chatId !in dismissedArchiveSuggestions }
             }
         }
     }
@@ -72,16 +66,12 @@ internal class ChatListArchiveSuggestionCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "loadArchiveSuggestions failed", error)
+                logWarning("loadArchiveSuggestions failed", error)
                 emptyList()
             }
             if (!isOwnerSessionCurrent(session)) return@launch
-            uiState.update {
-                it.copy(
-                    archiveSuggestions = suggestions.filter { s ->
-                        s.chatId !in dismissedArchiveSuggestions
-                    }
-                )
+            updateArchiveSuggestions {
+                suggestions.filter { s -> s.chatId !in dismissedArchiveSuggestions }
             }
         }
     }
@@ -91,30 +81,30 @@ internal class ChatListArchiveSuggestionCoordinator(
         if (chatId.isBlank()) return
         dismissedArchiveSuggestions += chatId
         persistDismissal(chatId)
-        uiState.update {
-            it.copy(archiveSuggestions = it.archiveSuggestions.filter { s -> s.chatId != chatId })
+        updateArchiveSuggestions { current ->
+            current.filter { s -> s.chatId != chatId }
         }
     }
 
     /** 忽略全部归档建议（持久化）。 */
     fun dismissAllArchiveSuggestions() {
-        val ids = uiState.value.archiveSuggestions.map { it.chatId }.filter { it.isNotBlank() }
+        val ids = getArchiveSuggestions().map { it.chatId }.filter { it.isNotBlank() }
         if (ids.isEmpty()) return
         dismissedArchiveSuggestions += ids
         persistDismissals(ids)
-        uiState.update { it.copy(archiveSuggestions = emptyList()) }
+        updateArchiveSuggestions { emptyList() }
     }
 
     /** 采纳智能归档建议：归档会话（复用 toggleArchived 服务端同步）并移除建议。 */
     fun archiveChatFromSuggestion(chat: Chat) {
         // 8.48 修复：建议卡片只在 init+3s 计算一次，本地 archived 可能已陈旧——
         // 若该会话已被（长按菜单/他端/服务端）归档，点「归档」不得反向取消归档，仅移除建议
-        val fresh = uiState.value.chats.firstOrNull { it.id == chat.id }
+        val fresh = getChats().firstOrNull { it.id == chat.id }
         if (fresh != null && !fresh.archived) onArchiveChat(chat)
         dismissArchiveSuggestion(chat.id)
     }
 
-    private fun dismissalOwnerId(): String = CurrentSession.ownerUserId()
+    private fun dismissalOwnerId(): String = ownerUserId()
 
     private fun persistDismissal(chatId: String) {
         val userId = dismissalOwnerId()
@@ -125,7 +115,7 @@ internal class ChatListArchiveSuggestionCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                Log.w(TAG, "persist archive dismissal failed for $chatId")
+                logWarning("persist archive dismissal failed for $chatId", null)
             }
         }
     }
@@ -142,23 +132,8 @@ internal class ChatListArchiveSuggestionCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
-                Log.w(TAG, "persist archive dismissals failed")
+                logWarning("persist archive dismissals failed", null)
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "ChatListArchiveSuggest"
-
-        fun dismissalEntity(
-            ownerUserId: String,
-            chatId: String,
-            atMillis: Long,
-        ): ArchiveSuggestionDismissalEntity =
-            ArchiveSuggestionDismissalEntity(
-                ownerUserId = ownerUserId,
-                chatId = chatId,
-                dismissedAtMillis = atMillis,
-            )
     }
 }

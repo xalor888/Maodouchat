@@ -1,10 +1,8 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.AnnouncementData
 import com.maodouchat.core.model.AnnouncementPolicy
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -13,9 +11,13 @@ import kotlinx.coroutines.launch
  * 承接活跃公告拉取/ack 与 push verify key 刷新；ViewModel 只委托入口，
  * 不直接拼 JSON 或调用 ApiService。
  */
-internal class ChatListAnnouncementCoordinator(
+class ChatListAnnouncementCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val hasSession: () -> Boolean,
+    private val ownerUserId: () -> String,
+    private val sessionMayContinue: (String) -> Boolean,
+    private val getActiveAnnouncements: () -> List<AnnouncementData>,
+    private val updateActiveAnnouncements: ((List<AnnouncementData>) -> List<AnnouncementData>) -> Unit,
     /** 端口不再接令牌：凭据由仓库自己取（见 `data/repository/SessionTokens.kt`）。 */
     private val fetchActiveAnnouncements: suspend () -> Result<String>,
     private val ackAnnouncementRemote: suspend (announcementId: String) -> Result<*>,
@@ -26,32 +28,26 @@ internal class ChatListAnnouncementCoordinator(
     private val announcementAckInFlight = mutableSetOf<String>()
 
     fun refreshAnnouncements() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession()) return
+        val owner = ownerUserId()
+        if (!hasSession()) return
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) {
+            if (!sessionMayContinue(owner)) {
                 return@launch
             }
             val raw = fetchActiveAnnouncements().getOrNull().orEmpty()
             if (raw.isBlank()) return@launch
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) {
+            if (!sessionMayContinue(owner)) {
                 return@launch
             }
             val list = AnnouncementPolicy.parseAndFilterActivePayload(raw, nowMs())
-            if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@launch
-            uiState.update { it.copy(activeAnnouncements = list) }
+            if (ownerUserId() != owner) return@launch
+            updateActiveAnnouncements { list }
         }
     }
 
     fun ackAnnouncement(announcementId: String) {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession()) return
+        val owner = ownerUserId()
+        if (!hasSession()) return
         if (!announcementAckInFlight.add(announcementId)) return
         scope.launch {
             try {
@@ -59,21 +55,18 @@ internal class ChatListAnnouncementCoordinator(
             } finally {
                 announcementAckInFlight.remove(announcementId)
             }
-            if (com.maodouchat.session.CurrentSession.ownerUserId() != ownerUserId) return@launch
-            uiState.update {
-                it.copy(activeAnnouncements = it.activeAnnouncements.filterNot { a -> a.id == announcementId })
+            if (ownerUserId() != owner) return@launch
+            updateActiveAnnouncements { current ->
+                current.filterNot { a -> a.id == announcementId }
             }
         }
     }
 
     fun fetchPushVerifyKey() {
-        val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-        if (!com.maodouchat.session.CurrentSession.hasSession()) return
+        val owner = ownerUserId()
+        if (!hasSession()) return
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = ownerUserId,
-            )
-            ) {
+            if (!sessionMayContinue(owner)) {
                 return@launch
             }
             val raw = fetchPushVerifyKeyRaw().getOrNull().orEmpty()
