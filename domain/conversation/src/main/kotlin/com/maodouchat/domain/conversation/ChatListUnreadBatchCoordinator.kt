@@ -1,4 +1,4 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.selectUnreadBatchTargets
@@ -7,19 +7,20 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * 会话列表批量已读（ChatList 瘦身：全部已读 / 多选已读）。
  *
  * 乐观 UI 归零 → Room 投影 → tray 清理 → 普通会话 durable v2 read watermark。
+ * 会话列表状态经端口读写，`ChatListUiState` 仍在 app 侧；登录态判断走 `hasSession` 端口。
  * 密聊只清本地角标，不发已读回执。
  */
-internal class ChatListUnreadBatchCoordinator(
+class ChatListUnreadBatchCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getChats: () -> List<Chat>,
+    private val updateChats: ((List<Chat>) -> List<Chat>) -> Unit,
+    private val getSelectedChatIds: () -> Set<String>,
     private val ownerUserId: () -> String,
     private val ownerSession: (ownerUserId: String) -> OwnerSessionSnapshot,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
@@ -33,13 +34,14 @@ internal class ChatListUnreadBatchCoordinator(
         groupRevision: Long?,
     ) -> Unit,
     private val cancelMessageNotification: (chatId: String) -> Unit,
+    private val hasSession: () -> Boolean,
 ) {
     /**
      * 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。
      * 乐观投影会落 Room，保证列表即时收敛且进程死亡不复活角标。
      */
     fun markAllUnreadChatsRead() {
-        val chats = uiState.value.chats
+        val chats = getChats()
         markReadBatch(
             chatIds = chats.map { it.id }.toSet(),
             excludeArchived = true,
@@ -48,7 +50,7 @@ internal class ChatListUnreadBatchCoordinator(
 
     /** Batch local read projection plus one durable v2 read watermark per conversation. */
     fun batchMarkReadSelected() {
-        val selected = uiState.value.selectedChatIds
+        val selected = getSelectedChatIds()
         if (selected.isEmpty()) return
         markReadBatch(chatIds = selected, excludeArchived = false)
     }
@@ -57,7 +59,7 @@ internal class ChatListUnreadBatchCoordinator(
         val owner = ownerUserId()
         if (owner.isBlank() || chatIds.isEmpty()) return
         val targets = selectUnreadBatchTargets(
-            uiState.value.chats,
+            getChats(),
             chatIds,
             excludeArchived = excludeArchived,
         )
@@ -66,15 +68,13 @@ internal class ChatListUnreadBatchCoordinator(
         val ordinary = targets.ordinary
         val session = ownerSession(owner)
         val allReadIds = toRead.map { it.id }.toSet()
-        uiState.update { state ->
-            state.copy(chats = zeroChatsUnread(state.chats, allReadIds))
-        }
+        updateChats { zeroChatsUnread(it, allReadIds) }
         scope.launch {
             toRead.forEach { chat ->
                 if (!isOwnerSessionCurrent(session)) return@launch
                 // 这里读令牌**只是**为了判断「还在不在登录态」（读到的值从未被使用），
                 // 所以用会话层的判断而不是取凭据（G332）。
-                if (!com.maodouchat.session.CurrentSession.hasSession()) return@launch
+                if (!hasSession()) return@launch
                 try {
                     withOwnerRoomWrite(session) {
                         val cached = getCachedChat(chat.id)
