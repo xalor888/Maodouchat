@@ -86,9 +86,10 @@ class ChatListViewModel private constructor(
      */
     private val deletedChatIds = mutableSetOf<String>()
 
-    private val previewCoordinator = ChatListPreviewCoordinator(
+    private val previewCoordinator = createChatListPreviewCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getChats = { _uiState.value.chats },
+        updateChats = { transform -> _uiState.update { it.copy(chats = transform(it.chats)) } },
         currentUserId = { ownerSessionGuard.currentUserIdStr },
         currentSessionGeneration = ports.sessionGeneration,
         isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
@@ -139,9 +140,7 @@ class ChatListViewModel private constructor(
         getChatById = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
         fetchRemoteChats = ports.fetchRemoteChats,
-        enrichServerChatPreview = { chat, ownerUserId ->
-            previewCoordinator.enrichServerChatPreview(chat, ownerUserId)
-        },
+        enrichServerChatPreview = { chat, ownerUserId -> previewCoordinator.enrichServerChatPreview(chat, ownerUserId) },
         cleanupLocalChat = { chatId, session -> localCleanupCoordinator.cleanupLocalChat(chatId, session) },
         cleanupSessionFor = { conversationLocalCleanupSession(it) },
         activeChatId = ports.activeChatId,
@@ -230,18 +229,9 @@ class ChatListViewModel private constructor(
         text = { text(it) },
         onRequestLoadChats = { loadCoordinator.requestLoadChats(it) },
         onApplyChatListPreview = { chatId, previewText, messageType, timestamp, ownerUserId, sessionGeneration ->
-            previewCoordinator.applyChatListPreview(
-                chatId = chatId,
-                previewText = previewText,
-                messageType = messageType,
-                timestamp = timestamp,
-                ownerUserId = ownerUserId,
-                sessionGeneration = sessionGeneration,
-            )
+            previewCoordinator.applyChatListPreview(chatId, previewText, messageType, timestamp, ownerUserId = ownerUserId, sessionGeneration = sessionGeneration)
         },
-        onRefreshPreviewFromLocal = { chatId, ownerUserId, sessionGeneration ->
-            previewCoordinator.refreshChatListPreviewFromLocal(chatId, ownerUserId, sessionGeneration)
-        },
+        onRefreshPreviewFromLocal = { chatId, ownerUserId, sessionGeneration -> previewCoordinator.refreshChatListPreviewFromLocal(chatId, ownerUserId, sessionGeneration) },
         onClearMarkedUnreadAfterOpen = { mutationCoordinator.clearMarkedUnreadAfterOpen(it) },
         onRequestBacklogSync = ports.requestBacklogSync,
     )

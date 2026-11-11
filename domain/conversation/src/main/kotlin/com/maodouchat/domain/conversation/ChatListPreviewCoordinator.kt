@@ -1,7 +1,5 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
-import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
@@ -13,16 +11,13 @@ import com.maodouchat.core.model.applyPreviewToChats
 import com.maodouchat.core.model.listSenderLabel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * 会话列表 last-message 预览（ChatList 瘦身：内存投影 / Room 回写 / 服务端占位本地化）。
- */
-internal class ChatListPreviewCoordinator(
+/** 会话列表 last-message 预览（ChatList 瘦身：内存投影 / Room 回写 / 服务端占位本地化）。 */
+class ChatListPreviewCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getChats: () -> List<Chat>,
+    private val updateChats: ((List<Chat>) -> List<Chat>) -> Unit,
     private val currentUserId: () -> String,
     private val currentSessionGeneration: () -> Long,
     private val isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean,
@@ -30,17 +25,18 @@ internal class ChatListPreviewCoordinator(
     private val getCachedChat: suspend (chatId: String) -> Chat?,
     private val cacheChats: suspend (List<Chat>) -> Unit,
     private val getRecentMessages: suspend (chatId: String, limit: Int) -> List<Message>,
-    private val text: (Int) -> String,
+    private val mediaPreviewText: (MessageType) -> String,
+    private val encryptedPlaceholder: String,
+    private val revokedPlaceholder: String,
+    private val nudgePlaceholder: String,
+    private val systemPlaceholder: String,
+    private val logWarning: (String, Throwable?) -> Unit,
     private val nudgeYouNudged: (target: String) -> String,
     private val nudgeTheyNudgedYou: (sender: String) -> String,
     private val nudgeTheyNudgedTarget: (sender: String, target: String) -> String,
 ) {
-    /**
-     * Update list preview + sort key in memory and Room.
-     * [unreadDelta] is applied only when the chat is already on the list (incoming path).
-     * [forceTimestamp] uses the given time as-is (delete/revoke/empty tail); default keeps
-     * monotonic max so late WS cannot rewind sort order for ordinary sends.
-     */
+    // 更新内存与 Room 里的列表预览与排序键：unreadDelta 只在会话已在列表时应用
+    //（incoming 路径）；forceTimestamp 原样取给定时间，默认取单调最大值，迟到的 WS 不能倒退排序。
     fun applyChatListPreview(
         chatId: String,
         previewText: String,
@@ -53,17 +49,15 @@ internal class ChatListPreviewCoordinator(
     ) {
         val session = OwnerSessionSnapshot(ownerUserId, sessionGeneration)
         if (chatId.isBlank() || !isOwnerSessionCurrent(session)) return
-        uiState.update { state ->
-            state.copy(
-                chats = applyPreviewToChats(
-                    chats = state.chats,
-                    chatId = chatId,
-                    previewText = previewText,
-                    messageType = messageType,
-                    timestamp = timestamp,
-                    unreadDelta = unreadDelta,
-                    forceTimestamp = forceTimestamp,
-                )
+        updateChats { chats ->
+            applyPreviewToChats(
+                chats = chats,
+                chatId = chatId,
+                previewText = previewText,
+                messageType = messageType,
+                timestamp = timestamp,
+                unreadDelta = unreadDelta,
+                forceTimestamp = forceTimestamp,
             )
         }
         scope.launch {
@@ -80,7 +74,7 @@ internal class ChatListPreviewCoordinator(
                                 unreadCount = if (unreadDelta != 0) {
                                     (cached.unreadCount + unreadDelta).coerceAtLeast(0)
                                 } else {
-                                    uiState.value.chats.find { it.id == chatId }?.unreadCount
+                                    getChats().find { it.id == chatId }?.unreadCount
                                         ?: cached.unreadCount
                                 }
                             )
@@ -90,25 +84,14 @@ internal class ChatListPreviewCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "Failed to persist last-message preview", error)
+                logWarning("Failed to persist last-message preview", error)
             }
         }
     }
 
-    fun mediaPreviewLabel(type: MessageType): String = when (type) {
-        MessageType.IMAGE -> text(R.string.message_preview_image)
-        MessageType.GIF -> text(R.string.message_preview_gif)
-        MessageType.STICKER -> text(R.string.message_preview_sticker)
-        MessageType.LOCATION -> text(R.string.message_preview_location)
-        MessageType.VOICE -> text(R.string.message_preview_voice)
-        MessageType.VIDEO -> text(R.string.message_preview_video)
-        MessageType.FILE -> text(R.string.message_preview_file)
-        MessageType.NUDGE -> text(R.string.message_preview_nudge)
-        MessageType.SYSTEM -> text(R.string.message_preview_system)
-        else -> text(R.string.message_preview_encrypted)
-    }
+    fun mediaPreviewLabel(type: MessageType): String = mediaPreviewText(type)
 
-    /** Recipient-facing NUDGE copy; stored body is always sender-centric from server. */
+    // 收件人视角的 NUDGE 文案；服务端存的 body 恒为发送者视角。
     fun listNudgePreview(
         isOwnMessage: Boolean,
         storedContent: String,
@@ -116,7 +99,7 @@ internal class ChatListPreviewCoordinator(
         chatId: String,
         chatHint: Chat? = null,
     ): String {
-        val chat = chatHint ?: uiState.value.chats.find { it.id == chatId }
+        val chat = chatHint ?: getChats().find { it.id == chatId }
         val senderName = listSenderLabel(chat, senderId)
         return NudgeDisplayPolicy.displayText(
             isOwnMessage = isOwnMessage,
@@ -131,10 +114,7 @@ internal class ChatListPreviewCoordinator(
         )
     }
 
-    /**
-     * Server list uses type placeholders (NUDGE → "[提醒]", TEXT → encrypted label,
-     * media → Chinese e2ee labels). Prefer local Room tail + client-localized media labels.
-     */
+    // 服务端列表用类型占位符，优先取本地 Room 尾巴与客户端本地化媒体文案。
     suspend fun enrichServerChatPreview(
         server: Chat,
         ownerUserId: String = currentUserId(),
@@ -150,7 +130,7 @@ internal class ChatListPreviewCoordinator(
             MessageType.FILE -> server.copy(lastMessage = mediaPreviewLabel(server.lastMessageType))
             MessageType.NUDGE -> {
                 // Server placeholder is Chinese "[提醒]"; prefer local POV or localized label.
-                val localizedLabel = text(R.string.message_preview_nudge)
+                val localizedLabel = nudgePlaceholder
                 if (server.lastMessage.isBlank() ||
                     server.lastMessage == "[提醒]" ||
                     server.lastMessage == localizedLabel
@@ -164,13 +144,13 @@ internal class ChatListPreviewCoordinator(
                 // Server placeholder is Chinese "[系统]"; keep real system body when present.
                 val body = server.lastMessage.trim()
                 if (body.isBlank() || body == "[系统]") {
-                    server.copy(lastMessage = text(R.string.message_preview_system))
+                    server.copy(lastMessage = systemPlaceholder)
                 } else {
                     server
                 }
             }
             MessageType.REVOKED -> server.copy(
-                lastMessage = text(R.string.chat_message_revoked_placeholder)
+                lastMessage = revokedPlaceholder
             )
             else -> server
         }
@@ -185,8 +165,8 @@ internal class ChatListPreviewCoordinator(
             val preview = ChatListPreviewPolicy.fromLatestMessages(
                 candidatesNewestFirst = recent,
                 mediaLabel = { mediaPreviewLabel(it) },
-                encryptedPlaceholder = text(R.string.message_preview_encrypted),
-                revokedPlaceholder = text(R.string.chat_message_revoked_placeholder),
+                encryptedPlaceholder = encryptedPlaceholder,
+                revokedPlaceholder = revokedPlaceholder,
                 nudgeText = { msg ->
                     listNudgePreview(
                         isOwnMessage = msg.senderId == ownerUserId,
@@ -204,7 +184,7 @@ internal class ChatListPreviewCoordinator(
                     localizedMedia.copy(
                         lastMessage = ChatListPreviewPolicy.listVisibleText(
                             localizedMedia.lastMessage,
-                            text(R.string.message_preview_encrypted)
+                            encryptedPlaceholder
                         )
                     )
                 } else {
@@ -220,12 +200,12 @@ internal class ChatListPreviewCoordinator(
                 MessageType.TEXT, MessageType.MARKDOWN -> {
                     // Only replace when local has readable plaintext (own send / decrypted).
                     val looksEncrypted = ChatListPreviewPolicy.looksLikeLeftoverPreviewGarbage(preview.text) ||
-                        preview.text == text(R.string.message_preview_encrypted)
+                        preview.text == encryptedPlaceholder
                     if (looksEncrypted) {
                         localizedMedia.copy(
                             lastMessage = ChatListPreviewPolicy.listVisibleText(
                                 localizedMedia.lastMessage,
-                                text(R.string.message_preview_encrypted)
+                                encryptedPlaceholder
                             )
                         )
                     } else {
@@ -257,10 +237,7 @@ internal class ChatListPreviewCoordinator(
         }
     }
 
-    /**
-     * Recompute list last-message from local Room after delete/revoke (and optional head edit).
-     * Absolute write so empty/older tails replace a stale head without waiting for getChats.
-     */
+    // 删除/撤回后从本地 Room 重算列表 last-message：绝对写入，空/旧尾巴直接替换陈旧 head。
     fun refreshChatListPreviewFromLocal(
         chatId: String,
         ownerUserId: String = currentUserId(),
@@ -276,8 +253,8 @@ internal class ChatListPreviewCoordinator(
                 val preview = ChatListPreviewPolicy.fromLatestMessages(
                     candidatesNewestFirst = recent,
                     mediaLabel = { mediaPreviewLabel(it) },
-                    encryptedPlaceholder = text(R.string.message_preview_encrypted),
-                    revokedPlaceholder = text(R.string.chat_message_revoked_placeholder),
+                    encryptedPlaceholder = encryptedPlaceholder,
+                    revokedPlaceholder = revokedPlaceholder,
                     nudgeText = { msg ->
                         listNudgePreview(
                             isOwnMessage = msg.senderId == ownerUserId,
@@ -299,12 +276,8 @@ internal class ChatListPreviewCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "Failed to refresh list preview from local", error)
+                logWarning("Failed to refresh list preview from local", error)
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "ChatListPreview"
     }
 }

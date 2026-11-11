@@ -1,24 +1,18 @@
-package com.maodouchat.chatlist
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.session.OwnerSessionSnapshot
-import com.maodouchat.ui.screen.chatlist.ChatListPreviewCoordinator
-import com.maodouchat.ui.screen.chatlist.ChatListUiState
-import io.mockk.every
-import io.mockk.mockkStatic
-import io.mockk.unmockkAll
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -28,22 +22,10 @@ class ChatListPreviewCoordinatorTest {
 
     private val dispatcher = StandardTestDispatcher()
 
-    @BeforeTest
-    fun setUp() {
-        mockkStatic(android.util.Log::class)
-        every { android.util.Log.w(any(), any<String>()) } returns 0
-        every { android.util.Log.w(any(), any<String>(), any()) } returns 0
-    }
-
-    @AfterTest
-    fun tearDown() {
-        unmockkAll()
-    }
-
     @Test
     fun enrichServerChatPreviewLocalizesMediaPlaceholder() = runTest(dispatcher) {
-        val uiState = MutableStateFlow(ChatListUiState())
-        val coordinator = buildCoordinator(uiState)
+        val chats = MutableStateFlow<List<Chat>>(emptyList())
+        val coordinator = buildCoordinator(chats)
         val server = Chat(
             id = "c1",
             lastMessage = "[图片]",
@@ -60,10 +42,10 @@ class ChatListPreviewCoordinatorTest {
     @Test
     fun applyChatListPreviewUpdatesMemoryAndPersists() = runTest(dispatcher) {
         val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L, unreadCount = 2)
-        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val chats = MutableStateFlow(listOf(chat))
         val persisted = mutableListOf<Chat>()
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             getCachedChat = { chat },
             cacheChats = { persisted += it },
             withOwnerRoomWrite = { _, block ->
@@ -83,8 +65,8 @@ class ChatListPreviewCoordinatorTest {
         )
         advanceUntilIdle()
 
-        assertEquals("hello", uiState.value.chats.single().lastMessage)
-        assertEquals(3, uiState.value.chats.single().unreadCount)
+        assertEquals("hello", chats.value.single().lastMessage)
+        assertEquals(3, chats.value.single().unreadCount)
         assertEquals(1, persisted.size)
         assertEquals("hello", persisted.single().lastMessage)
         assertEquals(99L, persisted.single().lastMessageTime)
@@ -92,7 +74,7 @@ class ChatListPreviewCoordinatorTest {
 
     @Test
     fun enrichPrefersLocalPlaintextTailOverEncryptedPlaceholder() = runTest(dispatcher) {
-        val uiState = MutableStateFlow(ChatListUiState())
+        val chats = MutableStateFlow<List<Chat>>(emptyList())
         val local = Message(
             id = "m1",
             chatId = "c1",
@@ -102,7 +84,7 @@ class ChatListPreviewCoordinatorTest {
             timestamp = 50L,
         )
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             getRecentMessages = { _, _ -> listOf(local) },
         )
         val server = Chat(
@@ -121,10 +103,10 @@ class ChatListPreviewCoordinatorTest {
     @Test
     fun applyChatListPreviewStaleSessionReturnsEarly() = runTest(dispatcher) {
         val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
-        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val chats = MutableStateFlow(listOf(chat))
         val persisted = mutableListOf<Chat>()
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             isOwnerSessionCurrent = { false },
             getCachedChat = { chat },
             cacheChats = { persisted += it },
@@ -140,7 +122,7 @@ class ChatListPreviewCoordinatorTest {
         )
         advanceUntilIdle()
 
-        assertEquals("old", uiState.value.chats.single().lastMessage)
+        assertEquals("old", chats.value.single().lastMessage)
         assertTrue(persisted.isEmpty())
     }
 
@@ -148,10 +130,10 @@ class ChatListPreviewCoordinatorTest {
     fun applyChatListPreviewRoomWriteFailureKeepsMemoryProjection() = runTest(dispatcher) {
         // Room 回写失败只打日志：内存投影已完成，不崩。
         val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
-        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val chats = MutableStateFlow(listOf(chat))
         val persisted = mutableListOf<Chat>()
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             getCachedChat = { chat },
             cacheChats = { persisted += it },
             withOwnerRoomWrite = { _, _ -> throw RuntimeException("room down") },
@@ -167,15 +149,15 @@ class ChatListPreviewCoordinatorTest {
         )
         advanceUntilIdle()
 
-        assertEquals("hello", uiState.value.chats.single().lastMessage)
+        assertEquals("hello", chats.value.single().lastMessage)
         assertTrue(persisted.isEmpty())
     }
 
     @Test
     fun enrichServerChatPreviewCancellationPropagates() = runTest(dispatcher) {
-        val uiState = MutableStateFlow(ChatListUiState())
+        val chats = MutableStateFlow<List<Chat>>(emptyList())
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             getRecentMessages = { _, _ -> throw CancellationException("gone") },
         )
         val server = Chat(
@@ -194,10 +176,10 @@ class ChatListPreviewCoordinatorTest {
     fun applyChatListPreviewStaleTimestampDoesNotRewindPersistedSortKey() =
         runTest(dispatcher) {
             val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 100L)
-            val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+            val chats = MutableStateFlow(listOf(chat))
             val persisted = mutableListOf<Chat>()
             val coordinator = buildCoordinator(
-                uiState = uiState,
+                chats = chats,
                 getCachedChat = { chat },
                 cacheChats = { persisted += it },
             )
@@ -219,21 +201,21 @@ class ChatListPreviewCoordinatorTest {
     @Test
     fun refreshChatListPreviewFromLocalFailureIsSwallowed() = runTest(dispatcher) {
         val chat = Chat(id = "c1", lastMessage = "old", lastMessageTime = 1L)
-        val uiState = MutableStateFlow(ChatListUiState(chats = listOf(chat)))
+        val chats = MutableStateFlow(listOf(chat))
         val coordinator = buildCoordinator(
-            uiState = uiState,
+            chats = chats,
             getRecentMessages = { _, _ -> throw RuntimeException("db gone") },
         )
 
         coordinator.refreshChatListPreviewFromLocal(chatId = "c1")
         advanceUntilIdle()
 
-        assertEquals("old", uiState.value.chats.single().lastMessage)
-        assertEquals(1L, uiState.value.chats.single().lastMessageTime)
+        assertEquals("old", chats.value.single().lastMessage)
+        assertEquals(1L, chats.value.single().lastMessageTime)
     }
 
     private fun buildCoordinator(
-        uiState: MutableStateFlow<ChatListUiState>,
+        chats: MutableStateFlow<List<Chat>>,
         isOwnerSessionCurrent: (OwnerSessionSnapshot) -> Boolean = { true },
         getCachedChat: suspend (String) -> Chat? = { null },
         cacheChats: suspend (List<Chat>) -> Unit = {},
@@ -243,10 +225,12 @@ class ChatListPreviewCoordinatorTest {
                 block()
                 true
             },
+        warnings: MutableList<String> = mutableListOf(),
     ): ChatListPreviewCoordinator =
         ChatListPreviewCoordinator(
-            scope = kotlinx.coroutines.CoroutineScope(dispatcher),
-            uiState = uiState,
+            scope = CoroutineScope(dispatcher),
+            getChats = { chats.value },
+            updateChats = { transform -> chats.update { transform(it) } },
             currentUserId = { "me" },
             currentSessionGeneration = { 1L },
             isOwnerSessionCurrent = isOwnerSessionCurrent,
@@ -254,16 +238,25 @@ class ChatListPreviewCoordinatorTest {
             getCachedChat = getCachedChat,
             cacheChats = cacheChats,
             getRecentMessages = getRecentMessages,
-            text = { id ->
-                when (id) {
-                    R.string.message_preview_image -> "preview_image"
-                    R.string.message_preview_encrypted -> "preview_encrypted"
-                    R.string.chat_message_revoked_placeholder -> "revoked"
-                    R.string.message_preview_nudge -> "nudge"
-                    R.string.message_preview_system -> "system"
-                    else -> "str_$id"
+            mediaPreviewText = { type ->
+                when (type) {
+                    MessageType.IMAGE -> "preview_image"
+                    MessageType.GIF -> "preview_gif"
+                    MessageType.STICKER -> "preview_sticker"
+                    MessageType.LOCATION -> "preview_location"
+                    MessageType.VOICE -> "preview_voice"
+                    MessageType.VIDEO -> "preview_video"
+                    MessageType.FILE -> "preview_file"
+                    MessageType.NUDGE -> "nudge"
+                    MessageType.SYSTEM -> "system"
+                    else -> "preview_encrypted"
                 }
             },
+            encryptedPlaceholder = "preview_encrypted",
+            revokedPlaceholder = "revoked",
+            nudgePlaceholder = "nudge",
+            systemPlaceholder = "system",
+            logWarning = { message, _ -> warnings += message },
             nudgeYouNudged = { "you->$it" },
             nudgeTheyNudgedYou = { "$it->you" },
             nudgeTheyNudgedTarget = { s, t -> "$s->$t" },
