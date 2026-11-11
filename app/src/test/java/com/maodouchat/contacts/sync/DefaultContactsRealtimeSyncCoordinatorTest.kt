@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.contacts.ContactSyncEvent
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk

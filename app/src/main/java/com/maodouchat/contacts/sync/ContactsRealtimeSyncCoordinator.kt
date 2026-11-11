@@ -5,6 +5,8 @@ import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.contacts.ContactSyncEvent
+import com.maodouchat.domain.contacts.ContactsRealtimeSyncCoordinator
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -16,31 +18,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-/**
- * 实时同步协调领域事件
- */
-sealed class ContactSyncEvent {
-    object FriendRequestsNeedsRefresh : ContactSyncEvent()
-    object GroupInvitesNeedsRefresh : ContactSyncEvent()
-    data class FriendAccepted(val friendId: String, val friendName: String?) : ContactSyncEvent()
-    data class FriendRemoved(val friendId: String) : ContactSyncEvent()
-}
-
-/**
- * 通讯录与关系实时同步协调器契约
- */
-interface ContactsRealtimeSyncCoordinator {
-    val syncEvents: Flow<ContactSyncEvent>
-
-    suspend fun handleEvent(event: RealtimeDomainEvent, expectedOwnerUserId: String, currentToken: String)
-
-    fun startObserving(
-        scope: CoroutineScope,
-        eventsFlow: Flow<RealtimeDomainEvent>,
-        sessionProvider: () -> Pair<String?, String?>
-    ): Job
-}
 
 /**
  * 默认实时同步协调器实现。

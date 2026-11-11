@@ -3,7 +3,6 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.createAndroidContactMutationUseCase
 import com.maodouchat.contacts.createAndroidFriendRequestUseCase
@@ -25,6 +24,8 @@ import com.maodouchat.domain.contacts.ContactsController
 import com.maodouchat.domain.contacts.ContactsFriendActionController
 import com.maodouchat.domain.contacts.ContactsGroupInviteController
 import com.maodouchat.domain.contacts.ContactsLoadController
+import com.maodouchat.domain.contacts.ContactsRealtimeController
+import com.maodouchat.domain.contacts.ContactsRealtimeSyncCoordinator
 import com.maodouchat.domain.contacts.ContactsSearchController
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -133,7 +134,13 @@ class ContactsViewModel @JvmOverloads constructor(
 
     private val realtimeController = ContactsRealtimeController(
         scope = viewModelScope,
-        application = application,
+        eventsFlow = com.maodouchat.session.AppRuntime
+            .realtimeDispatcherOrNull(application)
+            ?.allEvents,
+        currentSession = {
+            com.maodouchat.session.CurrentSession.snapshot()
+                .let { Pair(it.userId, it.token) }
+        },
         realtimeSyncCoordinator = realtimeSyncCoordinator,
         contactsController = contactsController,
         onFriendRequestsNeedsRefresh = ::loadFriendRequests,
