@@ -13,14 +13,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChatListBadgeCoordinatorTest {
 
-    private val dispatcher = StandardTestDispatcher()
+    private val dispatcher = UnconfinedTestDispatcher()
 
     private fun item(id: String, type: String = NotificationCenterType.MESSAGE, read: Boolean = false) =
         NotificationCenterItem(id = id, type = type, mergeKey = id, title = "t", read = read)
@@ -46,10 +45,9 @@ class ChatListBadgeCoordinatorTest {
     @Test
     fun notificationCenterUnreadCountsUnreadItems() = runTest(dispatcher) {
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
         backgroundScope.launch { coordinator.notificationCenterUnread.collect {} }
         harness.notificationItems.value = listOf(item("a"), item("b", read = true), item("c"))
-        advanceUntilIdle()
 
         assertEquals(2, coordinator.notificationCenterUnread.value)
     }
@@ -57,14 +55,13 @@ class ChatListBadgeCoordinatorTest {
     @Test
     fun exploreBadgeCountCountsOnlyUnreadPostInteractions() = runTest(dispatcher) {
         val harness = Harness()
-        val coordinator = harness.build(this)
+        val coordinator = harness.build(backgroundScope)
         backgroundScope.launch { coordinator.exploreBadgeCount.collect {} }
         harness.notificationItems.value = listOf(
             item("a", type = NotificationCenterType.POST_INTERACTION),
             item("b", type = NotificationCenterType.POST_INTERACTION, read = true),
             item("c"),
         )
-        advanceUntilIdle()
 
         assertEquals(1, coordinator.exploreBadgeCount.value)
     }
@@ -77,7 +74,6 @@ class ChatListBadgeCoordinatorTest {
 
         coordinator.start()
         harness.uiResetEvents.emit(SessionUiResetEvent.UNREAD_BADGE)
-        advanceUntilIdle()
 
         assertEquals(0, UnreadBadgeStore.totalUnread.value)
     }
@@ -94,7 +90,6 @@ class ChatListBadgeCoordinatorTest {
             Chat(id = "c2", unreadCount = 5, archived = true),
             Chat(id = "c3", unreadCount = 2),
         )
-        advanceUntilIdle()
 
         assertEquals(5, UnreadBadgeStore.totalUnread.value)
     }
@@ -111,7 +106,6 @@ class ChatListBadgeCoordinatorTest {
             item("b", type = NotificationCenterType.POST_INTERACTION),
             item("c"),
         )
-        advanceUntilIdle()
 
         assertEquals(2, ExploreBadgeStore.count.value)
     }
@@ -123,7 +117,6 @@ class ChatListBadgeCoordinatorTest {
 
         coordinator.start()
         harness.typingByChat.value = mapOf("c1" to "u1")
-        advanceUntilIdle()
 
         assertEquals(mapOf("c1" to "u1"), harness.projectedTyping)
     }
