@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
@@ -10,8 +11,12 @@ import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.core.model.Trigger
+import com.maodouchat.domain.conversation.ChatListLoadCoordinator
+import com.maodouchat.domain.conversation.ChatListLoadState
+import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
+import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -101,7 +106,35 @@ class ChatListViewModel private constructor(
 
     private val loadCoordinator = ChatListLoadCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getState = {
+            ChatListLoadState(
+                chats = _uiState.value.chats,
+                isLoading = _uiState.value.isLoading,
+                errorMessage = _uiState.value.errorMessage,
+                secretChatIds = _uiState.value.secretChatIds,
+                missedCalls = _uiState.value.missedCalls,
+            )
+        },
+        updateState = { transform ->
+            _uiState.update {
+                val next = transform(
+                    ChatListLoadState(
+                        chats = it.chats,
+                        isLoading = it.isLoading,
+                        errorMessage = it.errorMessage,
+                        secretChatIds = it.secretChatIds,
+                        missedCalls = it.missedCalls,
+                    ),
+                )
+                it.copy(
+                    chats = next.chats,
+                    isLoading = next.isLoading,
+                    errorMessage = next.errorMessage,
+                    secretChatIds = next.secretChatIds,
+                    missedCalls = next.missedCalls,
+                )
+            }
+        },
         deletedChatIds = deletedChatIds,
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
         getAllChats = { chatRepo.getAllChats() },
@@ -120,6 +153,10 @@ class ChatListViewModel private constructor(
         onRefreshIdentityWarnings = { localProjectionCoordinator.refreshIdentityWarnings() },
         sessionExpiredMessageRes = R.string.error_session_expired,
         refreshFailedCachedMessageRes = R.string.chat_refresh_failed_cached,
+        sessionActive = { BackgroundSessionGate.mayContinue(expectedUserId = it) },
+        hasSession = { com.maodouchat.session.CurrentSession.hasSession() },
+        currentOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        logWarning = { message, error -> Log.w("ChatListLoad", message, error) },
     )
 
     // 设置开关（置顶/静音/归档/标未读）入口级重入保护：防止同帧连点发出方向相反的两笔请求
@@ -209,13 +246,19 @@ class ChatListViewModel private constructor(
 
     private val missedCallCoordinator = ChatListMissedCallCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getMissedCalls = { _uiState.value.missedCalls },
+        getChats = { _uiState.value.chats },
+        updateMissedCalls = { transform ->
+            _uiState.update { it.copy(missedCalls = transform(it.missedCalls)) }
+        },
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
         markAllRead = { missedRepo.markAllRead() },
         clearAll = { missedRepo.clearAll() },
         deleteCall = { missedRepo.delete(it) },
         cancelMissedCallNotification = ports.cancelMissedCallNotification,
         removeCenterItem = { id -> notificationRepo.remove(id) },
+        sessionActive = { BackgroundSessionGate.mayContinue(expectedUserId = it) },
+        logWarning = { message, error -> Log.w("ChatListMissedCall", message, error) },
     )
 
     private val archiveSuggestionCoordinator = ChatListArchiveSuggestionCoordinator(
