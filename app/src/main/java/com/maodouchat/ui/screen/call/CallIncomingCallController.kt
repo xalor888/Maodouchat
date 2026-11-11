@@ -10,6 +10,7 @@ import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.WebRtcNativeLoadException
+import com.maodouchat.domain.calls.CallSignalingSender
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -153,14 +154,14 @@ internal class CallIncomingCallController(
                         remoteOfferSdp = targetOfferSdp,
                         type = targetCallType,
                         onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
+                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                         },
                         onAnswerCreated = { sdp ->
                             if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
                             ringingTimeout.cancel()
                             clearPendingOfferSdp()
                             updateState { it.copy(isInitializing = false) }
-                            signalingSender.sendSdp(targetContactId, "answer", sdp)
+                            signalingSender.sendSdp(targetContactId, "answer", sdp.description)
                         }
                     )
                     groupMesh.startDeterministicMeshEdges(manager, targetContactId, session)
@@ -171,14 +172,14 @@ internal class CallIncomingCallController(
                     remoteOfferSdp = targetOfferSdp,
                     type = targetCallType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                     },
                     onAnswerCreated = { sdp ->
                         if (!isCurrentCallSession(session, manager)) return@answerCall
                         ringingTimeout.cancel()
                         clearPendingOfferSdp()
                         updateState { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(targetContactId, "answer", sdp)
+                        signalingSender.sendSdp(targetContactId, "answer", sdp.description)
                     }
                 )
                 observeSignaling()

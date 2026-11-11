@@ -1,22 +1,15 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import com.maodouchat.R
-import com.maodouchat.core.session.CallSignalingOutboundCursor
-import com.maodouchat.core.model.SignalingException
-import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.webrtc.WebRTCSignaling
+import com.maodouchat.core.model.CallUiState
+import com.maodouchat.core.model.SignalingException
+import com.maodouchat.core.session.CallSignalingOutboundCursor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import org.webrtc.IceCandidate
-import org.webrtc.SessionDescription
 
-/**
- * 出站信令发送（offer/answer/ice-candidate/busy/hang-up…）：WS-first，
- * 关键类型按 `CallReliabilityPolicy` 始终补 REST；函数体从 `CallViewModel` 逐字搬入。
- */
-internal class CallSignalingSender(
+// 出站信令发送一族：从 app 侧 CallViewModel 纯搬移；VM 留同签名委托。
+class CallSignalingSender(
     private val scope: CoroutineScope,
     private val token: () -> String,
     private val activeCallId: () -> String,
@@ -25,24 +18,25 @@ internal class CallSignalingSender(
     private val activeCallSession: () -> Long,
     private val callSessionGate: CallSessionGate,
     private val outboundSignalingCursor: CallSignalingOutboundCursor,
+    private val gateway: CallSignalingGateway,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (CallSignalingMessage, Array<out Any>) -> String,
     private val failureReason: (Throwable) -> String,
     private val onEndCall: (errorMessage: String?) -> Unit,
 ) {
-    fun sendSdp(toUserId: String, type: String, sdp: SessionDescription, groupInvite: Boolean = false) {
+    fun sendSdp(toUserId: String, type: String, sdpDescription: String, groupInvite: Boolean = false) {
         sendSignalWithFallback(
             toUserId,
             type,
-            sdp.description,
-            text(R.string.call_send_sdp_failed, arrayOf(type.uppercase())),
+            sdpDescription,
+            text(CallSignalingMessage.SEND_SDP_FAILED, arrayOf(type.uppercase())),
             groupInvite = groupInvite
         )
     }
 
-    fun sendIceCandidate(toUserId: String, candidate: IceCandidate) {
-        val payload = "${candidate.sdpMid}|${candidate.sdpMLineIndex}|${candidate.sdp}"
-        sendSignalWithFallback(toUserId, "ice-candidate", payload, text(R.string.call_send_candidate_failed, emptyArray()))
+    fun sendIceCandidate(toUserId: String, sdpMid: String?, sdpMLineIndex: Int, sdp: String) {
+        val payload = "${sdpMid}|${sdpMLineIndex}|${sdp}"
+        sendSignalWithFallback(toUserId, "ice-candidate", payload, text(CallSignalingMessage.SEND_CANDIDATE_FAILED, emptyArray()))
     }
 
     fun sendSignalWithFallback(
@@ -63,7 +57,7 @@ internal class CallSignalingSender(
         scope.launch {
             if (token().isBlank()) {
                 if (callSessionGate.isCurrent(sourceSession)) {
-                    updateState { it.copy(errorMessage = text(R.string.call_session_expired, emptyArray())) }
+                    updateState { it.copy(errorMessage = text(CallSignalingMessage.SESSION_EXPIRED, emptyArray())) }
                 }
                 return@launch
             }
@@ -71,18 +65,18 @@ internal class CallSignalingSender(
             // 关键信令（offer/answer/hang-up 等）不能只信 OkHttp 本地 enqueue 成功；
             // WS 缓冲接受 ≠ 服务端处理。关键类型始终补 REST，ICE 保持 WS-first。
             val normalizedType = CallReliabilityPolicy.normalizeSignalingType(type)
-            val sentByWebSocket = WebRTCSignaling.sendViaWebSocket(
+            val sentByWebSocket = gateway.sendViaWebSocket(
                 toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
                 ticket.epoch, ticket.sequence, ticket.idempotencyKey,
             )
             val needRest = CallReliabilityPolicy.isCriticalSignalingType(normalizedType) || !sentByWebSocket
             if (needRest) {
-                WebRTCSignaling.sendViaRest(
+                gateway.sendViaRest(
                     token(), toUserId, type, payload, callId, groupId, groupMembers, groupInvite,
                     ticket.epoch, ticket.sequence, ticket.idempotencyKey,
                 ).onFailure { error ->
                     if (!callSessionGate.isCurrent(sourceSession) && normalizedType != "hang-up") return@onFailure
-                    val message = text(R.string.call_error_with_reason, arrayOf(errorPrefix, failureReason(error)))
+                    val message = text(CallSignalingMessage.ERROR_WITH_REASON, arrayOf(errorPrefix, failureReason(error)))
                     if (
                         normalizedType == "offer" &&
                         error is SignalingException &&

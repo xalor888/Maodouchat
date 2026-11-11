@@ -15,6 +15,7 @@ import com.maodouchat.core.model.State
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.WebRtcNativeLoadException
+import com.maodouchat.domain.calls.CallSignalingSender
 
 // 呼出一族：从 CallViewModel 纯搬移；VM 留同签名委托。
 internal class CallOutgoingCallController(
@@ -137,12 +138,12 @@ internal class CallOutgoingCallController(
                 manager.startCall(
                     type = callType,
                     onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(contactId, candidate)
+                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(contactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                     },
                     onOfferCreated = { sdp ->
                         if (!isCurrentCallSession(session, manager)) return@startCall
                         updateState { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(contactId, "offer", sdp)
+                        signalingSender.sendSdp(contactId, "offer", sdp.description)
                         ringingTimeout.start(contactId)
                     }
                 )
@@ -228,11 +229,11 @@ internal class CallOutgoingCallController(
                         peerUserId = memberId,
                         type = type,
                         onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(memberId, candidate)
+                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(memberId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                         },
                         onOfferCreated = { sdp ->
                             if (isCurrentCallSession(session, manager)) {
-                                signalingSender.sendSdp(memberId, "offer", sdp, groupInvite = true)
+                                signalingSender.sendSdp(memberId, "offer", sdp.description, groupInvite = true)
                                 if (!firstOfferSent) {
                                     firstOfferSent = true
                                     ringingTimeout.start(chatId)

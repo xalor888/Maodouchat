@@ -17,6 +17,7 @@ import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
+import com.maodouchat.domain.calls.CallSignalingSender
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CancellationException
@@ -180,10 +181,10 @@ internal class CallSignalingIngressController(
                 remoteOfferSdp = sdp,
                 type = currentState().callType,
                 onIceCandidate = { candidate ->
-                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate)
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                 },
                 onAnswerCreated = { sdp2 ->
-                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp2)
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp2.description)
                 }
             )
         }
@@ -397,10 +398,10 @@ internal class CallSignalingIngressController(
                                 remoteOfferSdp = payload,
                                 type = st.callType,
                                 onIceCandidate = { candidate ->
-                                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate)
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
                                 },
                                 onAnswerCreated = { sdp ->
-                                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp)
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp.description)
                                 }
                             )
                         }
