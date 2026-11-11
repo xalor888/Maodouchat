@@ -8,11 +8,15 @@ import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.core.model.Trigger
+import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
+import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /** 会话列表 ViewModel：组合与分发调度层，业务逻辑在各 Coordinator。主构造器保持 private，测试走 createForTest。 */
@@ -228,7 +232,9 @@ class ChatListViewModel private constructor(
 
     private val unreadBatchCoordinator = ChatListUnreadBatchCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getChats = { _uiState.value.chats },
+        updateChats = { transform -> _uiState.update { it.copy(chats = transform(it.chats)) } },
+        getSelectedChatIds = { _uiState.value.selectedChatIds },
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
         ownerSession = { ownerSessionGuard.ownerSession(it) },
         isOwnerSessionCurrent = { ownerSessionGuard.isOwnerSessionCurrent(it) },
@@ -240,10 +246,14 @@ class ChatListViewModel private constructor(
         },
         enqueueReadReceipt = ports.enqueueReadReceipt,
         cancelMessageNotification = ports.cancelMessageNotification,
+        hasSession = { com.maodouchat.session.CurrentSession.hasSession() },
     )
 
     private val selectionCoordinator = ChatListSelectionCoordinator(
-        uiState = _uiState,
+        getSelection = { ChatListSelection(_uiState.value.selectionMode, _uiState.value.selectedChatIds) },
+        updateSelection = { next ->
+            _uiState.update { it.copy(selectionMode = next.selectionMode, selectedChatIds = next.selectedChatIds) }
+        },
         togglePinned = ::togglePinned,
         deleteChat = ::deleteChat,
     )
