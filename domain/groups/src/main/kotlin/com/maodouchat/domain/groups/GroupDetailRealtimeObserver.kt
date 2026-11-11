@@ -1,54 +1,57 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.groups
 
-import android.app.Application
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.resolveUserVisibility
+import com.maodouchat.core.realtime.RealtimeDomainEvent
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * G368：群详情的实时事件观察（Presence 可见性 / GroupRevision 失效与重载）从
- * `GroupDetailViewModel` 抽出（纯搬移不改判断）——在 VM 的 init 处启动。
- */
-internal class GroupDetailRealtimeObserver(
+// 群详情实时事件观察（Presence 可见性 / GroupRevision 失效与重载），由 app 侧纯搬移；
+// 实时事件流、会话门禁与可见性写库走端口（app 侧接线），时钟走写库默认值。
+class GroupDetailRealtimeObserver(
     private val scope: CoroutineScope,
-    private val application: Application,
     private val currentState: () -> GroupDetailUiState,
     private val updateState: ((GroupDetailUiState) -> GroupDetailUiState) -> Unit,
     private val chatId: () -> String,
     private val ownerUserId: () -> String,
     private val groupMessagingCoordinator: GroupMessagingCoordinator,
     private val onRevisionReload: () -> Unit,
+    private val eventsFlow: Flow<RealtimeDomainEvent>?,
+    private val sessionActive: (String) -> Boolean,
+    private val applyRealtimeVisibility: suspend (
+        userId: String,
+        isOnline: Boolean,
+        onlineRevoked: Boolean,
+        statusRevoked: Boolean,
+    ) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     fun start() {
         val revisionOwnerUserId = ownerUserId()
-        // ui 不直接依赖 app 单例：实时事件分发器经 AppRuntime 取（非本应用实例 → 不订阅，
+        // ui 不直接依赖 app 单例：实时事件流由 app 侧经 AppRuntime 取（非本应用实例 → 不订阅，
         // 与原 `as MaodouchatApp` 的生产语义一致；测试替身下静默跳过）。
-        val eventsFlow = com.maodouchat.session.AppRuntime
-            .realtimeDispatcherOrNull(application)
-            ?.allEvents ?: return
+        val flow = eventsFlow ?: return
         scope.launch {
-            eventsFlow.collect { event ->
+            flow.collect { event ->
                 if (
                     revisionOwnerUserId.isBlank() ||
-                    !com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = revisionOwnerUserId,
-                    )
+                    !sessionActive(revisionOwnerUserId)
                 ) {
                     return@collect
                 }
                 if (event is RealtimeDomainEvent.Presence) {
                     if (event.onlineRevoked || event.statusRevoked) {
-                        com.maodouchat.data.repository.AppRepositories.users.applyRealtimeVisibility(
-                            userId = event.userId,
-                            isOnline = event.isOnline,
-                            onlineRevoked = event.onlineRevoked,
-                            statusRevoked = event.statusRevoked,
-                            updatedAt = System.currentTimeMillis()
+                        // 函数类型值不接受具名实参：按声明顺序位置传参。
+                        applyRealtimeVisibility(
+                            event.userId,
+                            event.isOnline,
+                            event.onlineRevoked,
+                            event.statusRevoked,
                         )
                     }
                     updateState { state ->
@@ -96,11 +99,8 @@ internal class GroupDetailRealtimeObserver(
                 }
                 if (event is RealtimeDomainEvent.GroupRevision && event.chatId == chatId()) {
                     if (event.memberRevision > currentState().memberRevision) {
-                        withContext(Dispatchers.IO) {
-                            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                                expectedUserId = revisionOwnerUserId,
-                            )
-                            ) {
+                        withContext(ioDispatcher) {
+                            if (!sessionActive(revisionOwnerUserId)) {
                                 return@withContext
                             }
                             groupMessagingCoordinator.invalidateSenderKey(
@@ -110,10 +110,7 @@ internal class GroupDetailRealtimeObserver(
                             )
                         }
                     }
-                    if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                        expectedUserId = revisionOwnerUserId,
-                    )
-                    ) {
+                    if (!sessionActive(revisionOwnerUserId)) {
                         return@collect
                     }
                     onRevisionReload()
