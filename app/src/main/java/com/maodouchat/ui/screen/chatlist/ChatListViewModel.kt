@@ -13,6 +13,7 @@ import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.core.model.Trigger
 import com.maodouchat.domain.conversation.ChatListAnnouncementCoordinator
 import com.maodouchat.domain.conversation.ChatListArchiveSuggestionCoordinator
+import com.maodouchat.domain.conversation.ChatListBadgeCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadCoordinator
 import com.maodouchat.domain.conversation.ChatListLoadState
 import com.maodouchat.domain.conversation.ChatListLocalCleanupCoordinator
@@ -21,11 +22,14 @@ import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
 import com.maodouchat.security.BackgroundSessionGate
+import com.maodouchat.security.SecureSessionAccess
 import com.maodouchat.util.RuntimeFlags
+import com.maodouchat.util.TypingPresenceStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -70,8 +74,12 @@ class ChatListViewModel private constructor(
 
     private val badgeCoordinator = ChatListBadgeCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
-        notificationCenter = notificationRepo,
+        notificationItems = notificationRepo.items,
+        initialNotificationUnreadCount = notificationRepo::unreadCount,
+        uiResetEvents = SecureSessionAccess.manager.uiResetEvents,
+        chats = _uiState.map { it.chats },
+        typingByChat = TypingPresenceStore.typingByChat,
+        updateTypingByChat = { typing -> _uiState.update { it.copy(typingByChat = typing) } },
     )
 
     val notificationCenterUnread: StateFlow<Int> = badgeCoordinator.notificationCenterUnread
@@ -83,8 +91,7 @@ class ChatListViewModel private constructor(
         uiState = _uiState,
     )
 
-    /** 本 VM 生命周期内已成功删除（退出服务端）的会话 id：删除先乐观移除，
-     * 服务端 leave 未生效时同步快照可能重新带回，合并时丢弃。 */
+    /** 本 VM 生命周期内已成功删除（退出服务端）的会话 id：删除先乐观移除，服务端 leave 未生效时同步快照可能重新带回，合并时丢弃。 */
     private val deletedChatIds = mutableSetOf<String>()
 
     private val previewCoordinator = createChatListPreviewCoordinator(
@@ -387,16 +394,11 @@ class ChatListViewModel private constructor(
     fun clearMissedCalls() = missedCallCoordinator.clearMissedCalls()
 
     /** Resolve local 1:1 chat id for a missed-call peer, if a conversation already exists. */
-    fun findDirectChatIdForUser(userId: String): String? =
-        missedCallCoordinator.findDirectChatIdForUser(userId)
+    fun findDirectChatIdForUser(userId: String): String? = missedCallCoordinator.findDirectChatIdForUser(userId)
 
-    /**
-     * 1.289：从会话列表移除单条通话记录。
-     * 同步删除 Room missed_calls（保持角标一致）+ 更新本地 state（弹窗即时消失）。
-     * CallLogStore 已由调用方删除。
-     */
-    fun removeMissedCallLocally(callId: String) =
-        missedCallCoordinator.removeMissedCallLocally(callId)
+    /** 1.289：从会话列表移除单条通话记录：同步删 Room missed_calls + 更新本地 state（弹窗即时消失）。
+     * CallLogStore 已由调用方删除。 */
+    fun removeMissedCallLocally(callId: String) = missedCallCoordinator.removeMissedCallLocally(callId)
 
     fun refreshScheduledCounts() = localProjectionCoordinator.refreshScheduledCounts()
 
@@ -420,10 +422,8 @@ class ChatListViewModel private constructor(
 
     fun toggleMarkedUnread(chatId: String) = settingsToggleCoordinator.toggleMarkedUnread(chatId)
 
-    /**
-     * 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。
-     * 乐观投影会落 Room，保证列表即时收敛且进程死亡不复活角标。
-     */
+    /** 未读文件夹「全部已读」：本地原子清零，再为每个普通会话写入持久 v2 已读水位。
+     * 乐观投影会落 Room，保证列表即时收敛且进程死亡不复活角标。 */
     fun markAllUnreadChatsRead() = unreadBatchCoordinator.markAllUnreadChatsRead()
 
     fun enterSelectionMode() = selectionCoordinator.enterSelectionMode()
