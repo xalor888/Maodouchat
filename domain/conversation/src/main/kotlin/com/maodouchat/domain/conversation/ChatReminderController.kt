@@ -1,29 +1,25 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.R
-import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ChatReminderOutcome
 import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ChatScheduleRejection
-import com.maodouchat.core.model.MessageReminderRequest
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageReminder
+import com.maodouchat.core.model.MessageReminderRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import com.maodouchat.core.model.ChatDetailUiState
 
-/**
- * 消息「稍后提醒」控制器。从 ChatDetailViewModel 抽出，只依赖注入的
- * ChatScheduleController / uiState / text，不依赖 ViewModel 或 Application 单例。
- */
+// 消息「稍后提醒」：排期结果映射与提醒列表直通 ChatScheduleController；
+// 相对时间文案走 relativeTimeText 端口（app 侧用 DateUtils 实现）。
 class ChatReminderController(
     private val chatScheduleController: ChatScheduleController,
     private val uiState: MutableStateFlow<ChatDetailUiState>,
-    private val textProvider: (Int, Array<out Any>) -> String,
+    private val text: (ChatReminderMessage, Array<out Any>) -> String,
+    private val relativeTimeText: (remindAtMillis: Long, nowMillis: Long) -> String,
     private val activeChatId: () -> String,
     private val chatId: String,
 ) {
-    private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
-    /** 消息「稍后提醒」——本地 WorkManager 到点发通知，点击直达本聊天并高亮原消息。 */
     fun scheduleMessageReminder(message: Message, remindAtMillis: Long) {
         val chat = activeChatId().ifBlank { chatId }
         if (chat.isBlank()) return
@@ -37,12 +33,11 @@ class ChatReminderController(
         )) {
             is ChatReminderOutcome.Scheduled -> uiState.update {
                 it.copy(
-                    groupEncryptionWarning = text(
-                        R.string.message_reminder_scheduled,
-                        android.text.format.DateUtils.getRelativeTimeSpanString(
+                    groupEncryptionWarning = string(
+                        ChatReminderMessage.REMINDER_SCHEDULED,
+                        relativeTimeText(
                             result.reminder.remindAtMillis,
                             System.currentTimeMillis(),
-                            android.text.format.DateUtils.MINUTE_IN_MILLIS,
                         ),
                     ),
                 )
@@ -50,9 +45,9 @@ class ChatReminderController(
             is ChatReminderOutcome.Rejected -> uiState.update {
                 it.copy(
                     groupEncryptionWarning = if (result.reason == ChatScheduleRejection.SESSION_MISSING) {
-                        text(R.string.error_session_expired)
+                        string(ChatReminderMessage.SESSION_EXPIRED)
                     } else {
-                        text(R.string.schedule_failed)
+                        string(ChatReminderMessage.SCHEDULE_FAILED)
                     },
                 )
             }
@@ -69,4 +64,6 @@ class ChatReminderController(
     fun clearRemindersForChat(chatId: String) {
         chatScheduleController.clearReminders(chatId)
     }
+
+    private fun string(message: ChatReminderMessage, vararg args: Any): String = text(message, args)
 }

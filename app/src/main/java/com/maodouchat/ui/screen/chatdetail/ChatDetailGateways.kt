@@ -1,12 +1,18 @@
 package com.maodouchat.ui.screen.chatdetail
 
+import android.text.format.DateUtils
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.UpdateChatSettingsRequest
+import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.data.repository.BotNetworkRepository
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.GroupNetworkRepository
+import com.maodouchat.data.repository.ModerationNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
+import com.maodouchat.domain.conversation.ChatModerationGateway
+import com.maodouchat.domain.conversation.ChatModerationMessage
+import com.maodouchat.domain.conversation.ChatReminderMessage
 import com.maodouchat.domain.conversation.ChatSettingsGateway
 import com.maodouchat.domain.conversation.PinStarGateway
 import com.maodouchat.domain.conversation.PinStarMessage
@@ -104,6 +110,55 @@ internal fun botGroupActionMessageResId(message: BotGroupActionMessage): Int = w
     BotGroupActionMessage.GROUP_FALLBACK_NAME -> R.string.chat_group
     BotGroupActionMessage.CHAT_MEMBERS_COUNT -> R.plurals.chat_members_count
 }
+
+/** 拉黑/举报网络端口的 app 侧实现：直通 ModerationNetworkRepository / AccountSecurityNetworkRepository。 */
+internal class ChatModerationNetworkGateway : ChatModerationGateway {
+    private val moderationRepository = ModerationNetworkRepository()
+    private val accountSecurityRepository = AccountSecurityNetworkRepository()
+
+    override suspend fun blockedUserIds(token: String) =
+        moderationRepository.blockedUserIds(token)
+
+    override suspend fun blockUser(token: String, userId: String) =
+        moderationRepository.blockUser(token, userId)
+
+    override suspend fun unblockUser(token: String, userId: String) =
+        accountSecurityRepository.unblock(token, userId)
+
+    override suspend fun createReport(
+        token: String,
+        targetType: String,
+        targetId: String,
+        chatId: String?,
+        messageId: String?,
+        reason: String,
+        description: String?,
+    ): Result<Unit> =
+        moderationRepository.createReport(token, targetType, targetId, chatId, messageId, reason, description).map { }
+}
+
+/** domain 侧 ChatReminderMessage 到 app 字符串资源的映射。 */
+internal fun chatReminderMessageResId(message: ChatReminderMessage): Int = when (message) {
+    ChatReminderMessage.REMINDER_SCHEDULED -> R.string.message_reminder_scheduled
+    ChatReminderMessage.SESSION_EXPIRED -> R.string.error_session_expired
+    ChatReminderMessage.SCHEDULE_FAILED -> R.string.schedule_failed
+}
+
+/** domain 侧 ChatModerationMessage 到 app 字符串资源的映射。 */
+internal fun chatModerationMessageResId(message: ChatModerationMessage): Int = when (message) {
+    ChatModerationMessage.FEATURE_DISABLED_BY_ADMIN -> R.string.feature_disabled_by_admin
+    ChatModerationMessage.SESSION_EXPIRED -> R.string.error_session_expired
+    ChatModerationMessage.CHAT_BLOCKED_USER_STATUS -> R.string.chat_blocked_user_status
+    ChatModerationMessage.CHAT_BLOCK_FAILED -> R.string.chat_block_failed
+    ChatModerationMessage.CHAT_UNBLOCKED_USER_STATUS -> R.string.chat_unblocked_user_status
+    ChatModerationMessage.CHAT_UNBLOCK_FAILED -> R.string.chat_unblock_failed
+    ChatModerationMessage.CHAT_REPORT_SUBMITTED -> R.string.chat_report_submitted
+    ChatModerationMessage.CHAT_REPORT_FAILED -> R.string.chat_report_failed
+}
+
+/** 提醒文案里的相对时间：app 侧用 DateUtils 实现，domain 侧只拿字符串。 */
+internal fun reminderRelativeTimeText(remindAtMillis: Long, nowMillis: Long): String =
+    DateUtils.getRelativeTimeSpanString(remindAtMillis, nowMillis, DateUtils.MINUTE_IN_MILLIS).toString()
 
 /** domain 侧 ChatSenderMessage 到 app 字符串资源的映射。 */
 internal fun chatSenderMessageResId(message: ChatSenderMessage): Int = when (message) {
