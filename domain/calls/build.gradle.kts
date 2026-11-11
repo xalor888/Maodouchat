@@ -8,6 +8,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:session"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.json:json:20240303")
 
