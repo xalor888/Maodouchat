@@ -19,6 +19,7 @@ import com.maodouchat.domain.conversation.PinStarMessage
 import com.maodouchat.domain.groups.BotGroupActionGateway
 import com.maodouchat.domain.groups.BotGroupActionMessage
 import com.maodouchat.domain.messaging.ChatSenderMessage
+import com.maodouchat.domain.messaging.ScheduledMessageText
 
 /** 置顶/星标网络端口的 app 侧实现：直通 PinStarNetworkRepository。 */
 internal class PinStarNetworkGateway : PinStarGateway {
@@ -142,6 +143,20 @@ internal fun chatReminderMessageResId(message: ChatReminderMessage): Int = when 
     ChatReminderMessage.REMINDER_SCHEDULED -> R.string.message_reminder_scheduled
     ChatReminderMessage.SESSION_EXPIRED -> R.string.error_session_expired
     ChatReminderMessage.SCHEDULE_FAILED -> R.string.schedule_failed
+}
+
+/** domain 侧 ScheduledMessageText 到 app 字符串资源的映射。 */
+internal fun scheduledMessageResId(message: ScheduledMessageText): Int = when (message) {
+    ScheduledMessageText.QUEUED_AT -> R.string.schedule_queued_at
+    ScheduledMessageText.CANCELLED -> R.string.schedule_cancelled
+    ScheduledMessageText.FAILED -> R.string.schedule_failed
+    ScheduledMessageText.SENT_NOW -> R.string.schedule_sent_now
+    ScheduledMessageText.CANCELLED_ALL -> R.string.schedule_cancelled_all
+    ScheduledMessageText.RESCHEDULED -> R.string.schedule_rescheduled
+    ScheduledMessageText.DISABLED -> R.string.scheduled_messages_disabled
+    ScheduledMessageText.SESSION_EXPIRED -> R.string.error_session_expired
+    ScheduledMessageText.BLOCKED -> R.string.chat_blocked_user_status
+    ScheduledMessageText.LIMIT_REACHED -> R.string.schedule_limit_reached
 }
 
 /** domain 侧 ChatModerationMessage 到 app 字符串资源的映射。 */

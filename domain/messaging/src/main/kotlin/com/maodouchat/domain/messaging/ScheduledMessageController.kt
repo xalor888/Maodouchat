@@ -1,12 +1,12 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.R
 import com.maodouchat.core.model.ChatScheduleCommand
 import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ChatScheduleImmediateOutcome
 import com.maodouchat.core.model.ChatScheduleMutationOutcome
 import com.maodouchat.core.model.ChatScheduleRejection
 import com.maodouchat.core.model.ScheduledMessagePolicy
+import com.maodouchat.core.model.SessionSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import com.maodouchat.core.model.ChatDetailUiState
@@ -18,13 +18,15 @@ import com.maodouchat.core.model.ChatDetailUiState
 class ScheduledMessageController(
     private val chatScheduleController: ChatScheduleController,
     private val uiState: MutableStateFlow<ChatDetailUiState>,
-    private val textProvider: (Int, Array<out Any>) -> String,
+    private val textProvider: (ScheduledMessageText, Array<out Any>) -> String,
+    private val session: () -> SessionSnapshot,
     private val activeChatId: () -> String,
     private val chatId: String,
     private val clearDraft: () -> Unit,
     private val sendMessage: (forceText: String?, onDurableCommit: (() -> Unit)?, onDurableFailure: (() -> Unit)?) -> Boolean,
 ) {
-    private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
+    private fun text(message: ScheduledMessageText, vararg args: Any): String =
+        textProvider(message, args)
 
     fun refreshScheduledMessages() {
         val chat = activeChatId().ifBlank { chatId }
@@ -50,7 +52,7 @@ class ScheduledMessageController(
                 peerUserId = state.contact.id,
                 text = state.inputText.trim(),
                 isGroup = state.chat?.isGroup == true,
-                sessionAvailable = com.maodouchat.session.CurrentSession.hasSession(),
+                sessionAvailable = !session().userId.isNullOrBlank(),
                 blocked = state.isContactBlocked,
                 sendAtMillis = sendAtMillis,
                 repeatIntervalMs = repeatIntervalMs,
@@ -65,7 +67,7 @@ class ScheduledMessageController(
                         inputText = "",
                         scheduledMessages = result.scheduledMessages,
                         scheduledInfoMessage = text(
-                            R.string.schedule_queued_at,
+                            ScheduledMessageText.QUEUED_AT,
                             formatScheduleTimeHint(requireNotNull(result.effectiveAtMillis)),
                         ),
                     )
@@ -93,12 +95,12 @@ class ScheduledMessageController(
                 uiState.update {
                     it.copy(
                         scheduledMessages = result.scheduledMessages,
-                        scheduledInfoMessage = text(R.string.schedule_cancelled),
+                        scheduledInfoMessage = text(ScheduledMessageText.CANCELLED),
                     )
                 }
             }
             is ChatScheduleMutationOutcome.Rejected -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_failed))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED))
             }
         }
     }
@@ -112,14 +114,14 @@ class ScheduledMessageController(
                     result.item.text,
                     {
                         chatScheduleController.completeImmediateSend(scheduleOwnerUserId, id)
-                        if (com.maodouchat.session.CurrentSession.ownerUserId() == scheduleOwnerUserId) {
+                        if (session().userId.orEmpty() == scheduleOwnerUserId) {
                             refreshScheduledMessages()
-                            uiState.update { it.copy(scheduledInfoMessage = text(R.string.schedule_sent_now)) }
+                            uiState.update { it.copy(scheduledInfoMessage = text(ScheduledMessageText.SENT_NOW)) }
                         }
                     },
                     {
                         chatScheduleController.restoreImmediateSend(scheduleOwnerUserId, id)
-                        if (com.maodouchat.session.CurrentSession.ownerUserId() == scheduleOwnerUserId) {
+                        if (session().userId.orEmpty() == scheduleOwnerUserId) {
                             refreshScheduledMessages()
                         }
                     },
@@ -127,11 +129,11 @@ class ScheduledMessageController(
                 if (!accepted) {
                     chatScheduleController.restoreImmediateSend(scheduleOwnerUserId, id)
                     refreshScheduledMessages()
-                    uiState.update { it.copy(scheduledInfoMessage = text(R.string.schedule_failed)) }
+                    uiState.update { it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED)) }
                 }
             }
             is ChatScheduleImmediateOutcome.Rejected -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_failed))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED))
             }
         }
     }
@@ -145,12 +147,12 @@ class ScheduledMessageController(
                 uiState.update {
                     it.copy(
                         scheduledMessages = result.scheduledMessages,
-                        scheduledInfoMessage = text(R.string.schedule_cancelled_all),
+                        scheduledInfoMessage = text(ScheduledMessageText.CANCELLED_ALL),
                     )
                 }
             }
             is ChatScheduleMutationOutcome.Rejected -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_failed))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED))
             }
         }
     }
@@ -172,14 +174,14 @@ class ScheduledMessageController(
                     it.copy(
                         scheduledMessages = result.scheduledMessages,
                         scheduledInfoMessage = text(
-                            R.string.schedule_rescheduled,
+                            ScheduledMessageText.RESCHEDULED,
                             formatScheduleTimeHint(requireNotNull(result.effectiveAtMillis)),
                         ),
                     )
                 }
             }
             is ChatScheduleMutationOutcome.Rejected -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_failed))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED))
             }
         }
     }
@@ -188,20 +190,20 @@ class ScheduledMessageController(
         when (reason) {
             ChatScheduleRejection.INVALID_REQUEST -> Unit
             ChatScheduleRejection.DISABLED -> uiState.update {
-                it.copy(groupEncryptionWarning = text(R.string.scheduled_messages_disabled))
+                it.copy(groupEncryptionWarning = text(ScheduledMessageText.DISABLED))
             }
             ChatScheduleRejection.SESSION_MISSING -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.error_session_expired))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.SESSION_EXPIRED))
             }
             ChatScheduleRejection.BLOCKED -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.chat_blocked_user_status, it.contact.displayName))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.BLOCKED, it.contact.displayName))
             }
             ChatScheduleRejection.LIMIT_REACHED -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_limit_reached))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.LIMIT_REACHED))
             }
             ChatScheduleRejection.NOT_FOUND,
             ChatScheduleRejection.STORAGE -> uiState.update {
-                it.copy(scheduledInfoMessage = text(R.string.schedule_failed))
+                it.copy(scheduledInfoMessage = text(ScheduledMessageText.FAILED))
             }
         }
     }
