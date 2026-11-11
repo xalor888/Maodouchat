@@ -1,30 +1,23 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.app.Application
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.core.model.SendDecision
-import com.maodouchat.core.model.SendRejectReason
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.OutgoingMessageCommand
 import com.maodouchat.core.model.OutgoingMessageResult
+import com.maodouchat.core.model.SendDecision
+import com.maodouchat.core.model.SendRejectReason
 import com.maodouchat.core.model.mergeMessageVersions
-import com.maodouchat.util.RuntimeFlags
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.messaging.ChatSendGuard
-import com.maodouchat.domain.messaging.ChatSendIntentFactory
-import com.maodouchat.domain.messaging.ChatOutgoingFacade
 
-// 发送流水线（文本/富文本主发送 + 静默发送开关）：准入判定、乐观上屏、V2 出站编排
-// 从 ChatDetailViewModel 纯搬移，日志 tag 保持 ChatDetailViewModel 不变。
-internal class ChatComposerSendController(
+// 发送流水线（文本/富文本主发送 + 静默发送开关）：准入判定、乐观上屏、V2 出站编排。
+// Application/CurrentSession/Log/R.string 走端口；ViewModel 只做接线。
+class ChatComposerSendController(
     private val scope: CoroutineScope,
-    private val getApplication: () -> Application,
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val activeChatId: () -> String,
@@ -38,6 +31,15 @@ internal class ChatComposerSendController(
     private val clearDraft: () -> Unit,
     private val maybeForwardBotInbox: suspend (liveToken: String, chatId: String, plaintext: String, isGroup: Boolean, peerId: String) -> Unit,
     private val outgoingFacade: ChatOutgoingFacade,
+    private val mentionsEnabled: () -> Boolean,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val sendInFlightRes: Int,
+    private val sendEmptyRes: Int,
+    private val sessionExpiredRes: Int,
+    private val blockedUserStatusRes: Int,
+    private val mentionEveryoneRestrictedRes: Int,
+    private val sendFailedRes: Int,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
 
@@ -47,12 +49,7 @@ internal class ChatComposerSendController(
         updateState { it.copy(silentSend = next) }
     }
 
-    /**
-     * Primary composer send for 1:1 and groups (text / markdown).
-     * [replyTarget] embeds replyToId into E2EE MessageMeta.
-     * [silent] overrides composer silentSend when non-null.
-     */
-    internal fun sendMessage(
+    fun sendMessage(
         replyTarget: Message? = null,
         silent: Boolean? = null,
         forceText: String? = null,
@@ -68,7 +65,7 @@ internal class ChatComposerSendController(
             token = token(),
             silent = silent,
             forceText = forceText,
-            mentionsEnabled = RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.MENTIONS),
+            mentionsEnabled = mentionsEnabled(),
             replyTarget = replyTarget,
             forcedMeta = forcedMeta,
         )
@@ -117,7 +114,7 @@ internal class ChatComposerSendController(
         onDurableFailure: (() -> Unit)?,
     ) {
         try {
-            val result = withContext(Dispatchers.IO) {
+            val result = withContext(ioDispatcher) {
                 outgoingFacade.enqueue(
                     command = OutgoingMessageCommand(
                         ownerUserId = optimistic.senderId,
@@ -131,7 +128,7 @@ internal class ChatComposerSendController(
                         try {
                             // 函数类型值不支持命名参数，按声明顺序传位置参数。
                             maybeForwardBotInbox(
-                                com.maodouchat.session.CurrentSession.snapshot().token.orEmpty(),
+                                token(),
                                 conversation.conversationId,
                                 plaintext,
                                 conversation.isGroup,
@@ -140,7 +137,7 @@ internal class ChatComposerSendController(
                         } catch (error: kotlinx.coroutines.CancellationException) {
                             throw error
                         } catch (error: Exception) {
-                            Log.w("ChatDetailViewModel", "bot inbox follow-up failed", error)
+                            logWarning("bot inbox follow-up failed", error)
                         }
                     },
                 )
@@ -162,11 +159,10 @@ internal class ChatComposerSendController(
                             },
                             isSending = false,
                             groupEncryptionWarning = result.error.message?.take(120)
-                                ?: text(R.string.chat_send_failed),
+                                ?: text(sendFailedRes),
                         )
                     }
-                    Log.w(
-                        "ChatDetailViewModel",
+                    logWarning(
                         "v2 text enqueue failed: ${result.error.message}",
                         result.error,
                     )
@@ -180,12 +176,12 @@ internal class ChatComposerSendController(
 
     /** G66：把守卫拒绝原因映射成用户可见文案（资源字符串只应出现在编排层）。 */
     private fun sendRejectMessage(reason: SendRejectReason): String = when (reason) {
-        SendRejectReason.ALREADY_SENDING -> text(R.string.chat_send_in_flight)
-        SendRejectReason.BLANK -> text(R.string.chat_send_empty)
-        SendRejectReason.NO_SESSION -> text(R.string.error_session_expired)
+        SendRejectReason.ALREADY_SENDING -> text(sendInFlightRes)
+        SendRejectReason.BLANK -> text(sendEmptyRes)
+        SendRejectReason.NO_SESSION -> text(sessionExpiredRes)
         SendRejectReason.BLOCKED ->
-            text(R.string.chat_blocked_user_status, currentState().contact.displayName)
+            text(blockedUserStatusRes, currentState().contact.displayName)
         SendRejectReason.MENTION_EVERYONE_FORBIDDEN ->
-            text(R.string.chat_mention_everyone_restricted)
+            text(mentionEveryoneRestrictedRes)
     }
 }
