@@ -2,8 +2,8 @@ package com.maodouchat.ui.screen.contacts
 
 import android.app.Application
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.contacts.sync.ContactSyncEvent
-import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
+import com.maodouchat.domain.contacts.ContactSyncEvent
+import com.maodouchat.domain.contacts.ContactsRealtimeSyncCoordinator
 import com.maodouchat.core.model.ContactsLoadResult
 import com.maodouchat.core.model.ContactsSession
 import com.maodouchat.core.model.FriendRequestItem

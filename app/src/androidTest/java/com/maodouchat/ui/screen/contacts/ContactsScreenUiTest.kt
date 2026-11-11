@@ -15,8 +15,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
 import com.maodouchat.core.model.ConversationCreationPort
-import com.maodouchat.contacts.sync.ContactSyncEvent
-import com.maodouchat.contacts.sync.ContactsRealtimeSyncCoordinator
+import com.maodouchat.domain.contacts.ContactSyncEvent
+import com.maodouchat.domain.contacts.ContactsRealtimeSyncCoordinator
 import com.maodouchat.domain.contacts.ContactsController
 import com.maodouchat.domain.contacts.ContactsRepository
 import com.maodouchat.core.model.ContactsLoadResult
