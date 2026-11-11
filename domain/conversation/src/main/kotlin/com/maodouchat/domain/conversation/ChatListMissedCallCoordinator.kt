@@ -1,57 +1,53 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
+import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * 未接来电列表动作（ChatList 瘦身：mark/clear/remove + 通知中心清理）。
  *
  * ViewModel 只转发 UI intent；Room / tray / center 清理经注入端口执行。
+ * 未接列表与会话列表经端口读写，`ChatListUiState` 仍在 app 侧；会话门禁走端口。
  */
-internal class ChatListMissedCallCoordinator(
+class ChatListMissedCallCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getMissedCalls: () -> List<MissedCall>,
+    private val getChats: () -> List<Chat>,
+    private val updateMissedCalls: ((List<MissedCall>) -> List<MissedCall>) -> Unit,
     private val ownerUserId: () -> String,
     private val markAllRead: suspend () -> Unit,
     private val clearAll: suspend () -> Unit,
     private val deleteCall: suspend (callId: String) -> Unit,
     private val cancelMissedCallNotification: (callId: String) -> Unit,
     private val removeCenterItem: suspend (id: String) -> Unit,
+    private val sessionActive: (String) -> Boolean,
+    private val logWarning: (String, Throwable?) -> Unit,
 ) {
     fun markMissedCallsRead() {
         val markOwnerUserId = ownerUserId()
         if (
             markOwnerUserId.isBlank() ||
-            !BackgroundSessionGate.mayContinue(
-                expectedUserId = markOwnerUserId,
-            )
+            !sessionActive(markOwnerUserId)
         ) {
             return
         }
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = markOwnerUserId,
-            )
+            if (!sessionActive(markOwnerUserId)
             ) {
                 return@launch
             }
-            val snapshot = uiState.value.missedCalls
+            val snapshot = getMissedCalls()
             try {
                 markAllRead()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "markMissedCallsRead failed", error)
+                logWarning("markMissedCallsRead failed", error)
             }
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = markOwnerUserId,
-            )
+            if (!sessionActive(markOwnerUserId)
             ) {
                 return@launch
             }
@@ -64,30 +60,24 @@ internal class ChatListMissedCallCoordinator(
         val clearOwnerUserId = ownerUserId()
         if (
             clearOwnerUserId.isBlank() ||
-            !BackgroundSessionGate.mayContinue(
-                expectedUserId = clearOwnerUserId,
-            )
+            !sessionActive(clearOwnerUserId)
         ) {
             return
         }
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = clearOwnerUserId,
-            )
+            if (!sessionActive(clearOwnerUserId)
             ) {
                 return@launch
             }
-            val snapshot = uiState.value.missedCalls
+            val snapshot = getMissedCalls()
             try {
                 clearAll()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "clearMissedCalls failed", error)
+                logWarning("clearMissedCalls failed", error)
             }
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = clearOwnerUserId,
-            )
+            if (!sessionActive(clearOwnerUserId)
             ) {
                 return@launch
             }
@@ -100,7 +90,7 @@ internal class ChatListMissedCallCoordinator(
      */
     fun findDirectChatIdForUser(userId: String): String? {
         if (userId.isBlank()) return null
-        return uiState.value.chats.firstOrNull { chat ->
+        return getChats().firstOrNull { chat ->
             !chat.isGroup && chat.participants.any { it.id == userId }
         }?.id
     }
@@ -113,14 +103,10 @@ internal class ChatListMissedCallCoordinator(
     fun removeMissedCallLocally(callId: String) {
         if (callId.isBlank()) return
         val owner = ownerUserId()
-        uiState.update { st ->
-            st.copy(missedCalls = st.missedCalls.filterNot { it.id == callId })
-        }
+        updateMissedCalls { it.filterNot { call -> call.id == callId } }
         if (owner.isBlank()) return
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = owner,
-            )
+            if (!sessionActive(owner)
             ) {
                 return@launch
             }
@@ -151,11 +137,8 @@ internal class ChatListMissedCallCoordinator(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            Log.w(TAG, "missed-call center cleanup failed", error)
+            logWarning("missed-call center cleanup failed", error)
         }
     }
 
-    companion object {
-        private const val TAG = "ChatListMissedCall"
-    }
 }

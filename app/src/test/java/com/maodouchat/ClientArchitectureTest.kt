@@ -508,6 +508,9 @@ class ClientArchitectureTest {
         // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
         // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移；AlertDialog/TextField 随迁后在母文件变闲置一并删除；另收尾部 9 空行为 2），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 474,
+        // 2026-11-11：会话列表加载与未接来电动作簇迁入 :domain:conversation，ChatListViewModel
+        // 只改接线与 import（423 → 466）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatlist/ChatListViewModel.kt" to 466,
         // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
         "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；
@@ -783,6 +786,9 @@ class ClientArchitectureTest {
                 // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
                 // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移），上限同步收紧。
                 "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 474,
+                // 2026-11-11：会话列表加载与未接来电动作簇迁入 :domain:conversation，ChatListViewModel
+                // 只改接线与 import（423 → 466）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
+                "com/maodouchat/ui/screen/chatlist/ChatListViewModel.kt" to 466,
             // 2026-10-14：MdBlock 密封簇纯搬入 MarkdownMessageModels.kt（162 → 152）；2026-10-16：删 8 个闲置 import（152 → 144），两处上限同步收紧。
                 "com/maodouchat/ui/component/MarkdownMessage.kt" to 144,
         // G172：vendored 的 Compose 图标文件（androidx 包，非本项目代码）；

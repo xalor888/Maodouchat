@@ -1,6 +1,5 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MissedCall
@@ -8,7 +7,6 @@ import com.maodouchat.core.model.ChatListReloadPolicy
 import com.maodouchat.core.model.Trigger
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.ChatListRemoteMergePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -18,9 +16,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -30,10 +26,12 @@ import kotlinx.coroutines.withContext
  * Owns getChats request coalescing, silent vs visible reload, stale cleanup orchestration,
  * and missed-call Room projection. Preview enrichment and identity refresh stay callbacks
  * so ViewModel keeps those domain helpers without owning the load job machine.
+ * 列表状态经端口读写，`ChatListUiState` 仍在 app 侧；会话门禁与登录态走端口。
  */
-internal class ChatListLoadCoordinator(
+class ChatListLoadCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getState: () -> ChatListLoadState,
+    private val updateState: ((ChatListLoadState) -> ChatListLoadState) -> Unit,
     private val deletedChatIds: MutableSet<String>,
     private val ownerUserId: () -> String,
     private val getAllChats: suspend () -> Flow<List<Chat>>,
@@ -50,6 +48,10 @@ internal class ChatListLoadCoordinator(
     private val onRefreshIdentityWarnings: () -> Unit,
     private val sessionExpiredMessageRes: Int,
     private val refreshFailedCachedMessageRes: Int,
+    private val sessionActive: (String) -> Boolean,
+    private val hasSession: () -> Boolean,
+    private val currentOwnerUserId: () -> String,
+    private val logWarning: (String, Throwable?) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var debouncedLoadChatsJob: Job? = null
@@ -81,19 +83,17 @@ internal class ChatListLoadCoordinator(
         val loadOwnerUserId = ownerUserId()
         val loadCleanupSession = cleanupSessionFor(loadOwnerUserId)
         if (showLoading) {
-            uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            updateState { it.copy(isLoading = true, errorMessage = null) }
         } else {
-            uiState.update { it.copy(isLoading = false) }
+            updateState { it.copy(isLoading = false) }
         }
         loadChatsJob = scope.launch {
             fun stillCurrent(): Boolean = requestId == loadChatsRequestId &&
-                BackgroundSessionGate.mayContinue(
-                    expectedUserId = loadOwnerUserId,
-                )
+                sessionActive(loadOwnerUserId)
 
             fun finishIfCurrent(errorMessage: String? = null, chats: List<Chat>? = null) {
                 if (requestId != loadChatsRequestId) return
-                uiState.update { state ->
+                updateState { state ->
                     state.copy(
                         chats = chats ?: state.chats,
                         isLoading = false,
@@ -103,20 +103,20 @@ internal class ChatListLoadCoordinator(
             }
 
             try {
-                if (!com.maodouchat.session.CurrentSession.hasSession() || loadOwnerUserId.isBlank()) {
+                if (!hasSession() || loadOwnerUserId.isBlank()) {
                     val chats = getAllChats().firstOrNull() ?: emptyList()
                     // 三次校验：请求还是不是最新的、账号还是不是同一个、
                     // 以及**会话是不是在等待期间出现了**（出现了就该走远端，别再拿本地兜底）。
                     // 最后一条原来是 `!token.isNullOrBlank()`——极性是「有令牌才放弃」，
                     // 改写时我写成了 `!hasSession()`，正好反了（G332 修）。
                     if (requestId != loadChatsRequestId ||
-                        com.maodouchat.session.CurrentSession.ownerUserId() != loadOwnerUserId ||
-                        com.maodouchat.session.CurrentSession.hasSession()
+                        currentOwnerUserId() != loadOwnerUserId ||
+                        hasSession()
                     ) {
                         finishIfCurrent()
                         return@launch
                     }
-                    uiState.update {
+                    updateState {
                         it.copy(
                             chats = chats,
                             isLoading = false,
@@ -141,9 +141,9 @@ internal class ChatListLoadCoordinator(
                             finishIfCurrent(errorMessage = text(sessionExpiredMessageRes))
                             return@fold
                         }
-                        val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+                        val currentUserId = currentOwnerUserId()
                         val localById = getAllChats().firstOrNull().orEmpty().associateBy { it.id }
-                        val uiById = uiState.value.chats.associateBy { it.id }
+                        val uiById = getState().chats.associateBy { it.id }
                         val activeId = activeChatId()
                         val chats = chatDtos.map { dto ->
                             val local = uiById[dto.id] ?: localById[dto.id]
@@ -187,7 +187,7 @@ internal class ChatListLoadCoordinator(
                                 if (requestId == loadChatsRequestId) finishIfCurrent()
                                 throw cleanupError
                             } catch (cleanupError: Exception) {
-                                Log.w(TAG, "Chat cleanup failed", cleanupError)
+                                logWarning("Chat cleanup failed", cleanupError)
                             }
                             if (requestId != loadChatsRequestId) return@withContext
                             if (!stillCurrent()) {
@@ -202,7 +202,7 @@ internal class ChatListLoadCoordinator(
                                 finishIfCurrent(errorMessage = text(sessionExpiredMessageRes))
                                 return@withContext
                             }
-                            uiState.update {
+                            updateState {
                                 it.copy(
                                     chats = nickMerged,
                                     isLoading = false,
@@ -229,7 +229,7 @@ internal class ChatListLoadCoordinator(
                         val nextError = ChatListRemoteMergePolicy.nextErrorOnFailure(
                             showLoading = showLoading,
                             rateLimited = rateLimited,
-                            currentError = uiState.value.errorMessage,
+                            currentError = getState().errorMessage,
                             failureMessage = error.message,
                             fallback = text(refreshFailedCachedMessageRes),
                         )
@@ -241,7 +241,7 @@ internal class ChatListLoadCoordinator(
                 if (requestId == loadChatsRequestId) finishIfCurrent()
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "loadChats failed", error)
+                logWarning("loadChats failed", error)
                 if (requestId != loadChatsRequestId) throw error
                 val chats = runCatching { getAllChats().firstOrNull() ?: emptyList() }
                     .getOrDefault(emptyList())
@@ -257,9 +257,7 @@ internal class ChatListLoadCoordinator(
     private fun observeMissedCallsInternal() {
         val missedOwnerUserId = ownerUserId()
         scope.launch {
-            if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = missedOwnerUserId,
-            )
+            if (!sessionActive(missedOwnerUserId)
             ) {
                 return@launch
             }
@@ -268,21 +266,16 @@ internal class ChatListLoadCoordinator(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w(TAG, "missed-call trim failed", error)
+                logWarning("missed-call trim failed", error)
             }
             observeMissedCalls().collect { list ->
-                if (!BackgroundSessionGate.mayContinue(
-                    expectedUserId = missedOwnerUserId,
-                )
+                if (!sessionActive(missedOwnerUserId)
                 ) {
                     return@collect
                 }
-                uiState.update { it.copy(missedCalls = list) }
+                updateState { it.copy(missedCalls = list) }
             }
         }
     }
 
-    companion object {
-        private const val TAG = "ChatListLoad"
-    }
 }
