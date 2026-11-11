@@ -3,12 +3,10 @@ package com.maodouchat.ui.screen.chatlist
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.core.model.AppLinkDestination
-import com.maodouchat.core.model.AppLinkRouter
-import com.maodouchat.core.model.parseLegacyCenterDeeplink
+import com.maodouchat.domain.conversation.NotificationTrayDismissAction
+import com.maodouchat.domain.conversation.NotificationTrayDismissPolicy
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
@@ -29,20 +27,8 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
         dismissTrayFor(snapshot)
     }
 
-    /**
-     * Merge can rewrite [NotificationCenterItem.id] to the incoming head while Compose
-     * still holds the pre-merge id. Resolve by id first, then type + mergeKey.
-     */
-    private fun resolveLiveItem(id: String, hint: NotificationCenterItem? = null): NotificationCenterItem? {
-        val snapshot = repo.snapshot()
-        snapshot.firstOrNull { it.id == id }?.let { return it }
-        val type = hint?.type
-        val mergeKey = hint?.mergeKey
-        if (!type.isNullOrBlank() && !mergeKey.isNullOrBlank()) {
-            snapshot.firstOrNull { it.type == type && it.mergeKey == mergeKey }?.let { return it }
-        }
-        return null
-    }
+    private fun resolveLiveItem(id: String, hint: NotificationCenterItem? = null): NotificationCenterItem? =
+        NotificationTrayDismissPolicy.resolveLiveItem(repo.snapshot(), id, hint)
 
     fun markRead(id: String, hint: NotificationCenterItem? = null) {
         val item = resolveLiveItem(id, hint)
@@ -66,14 +52,7 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
     /** 1.170：清除某个会话的全部通知（含托盘通知）。 */
     fun removeChat(chatId: String) {
         if (chatId.isBlank()) return
-        val affected = repo.snapshot().filter { item ->
-            NotificationCenterReadPolicy.belongsToChat(
-                chatId = chatId,
-                mergeKey = item.mergeKey,
-                deeplink = item.deeplink,
-                extraChatId = item.extra["chatId"]
-            )
-        }
+        val affected = NotificationTrayDismissPolicy.affectedItemsForChat(repo.snapshot(), chatId)
         repo.removeChatItems(chatId)
         dismissTrayFor(affected)
     }
@@ -88,54 +67,24 @@ class NotificationCenterViewModel(application: Application) : AndroidViewModel(a
         val ctx = getApplication<Application>()
         for (item in items) {
             try {
-                when {
-                    item.type == "MISSED_CALL" -> {
-                        val callId = item.extra["callId"].orEmpty()
-                        if (callId.isNotBlank()) {
-                            com.maodouchat.notification.CallNotificationService.cancelMissedCall(ctx, callId)
-                        }
-                    }
-                    item.type == "AI_TASK" -> {
-                        val taskId = item.extra["taskId"].orEmpty()
-                        val chatId = item.extra["chatId"].orEmpty()
-                        when {
-                            // 8.44：优先按 chat 整组清理（含 group-summary）——cancelAiTaskReminder
-                            // 单任务不清理 summary，会造成托盘残留
-                            chatId.isNotBlank() ->
-                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(ctx, chatId)
-                            taskId.isNotBlank() ->
-                                com.maodouchat.notification.ReminderNotificationService.cancelAiTaskReminder(ctx, taskId)
-                        }
-                    }
-                    item.type == "MESSAGE" || item.deeplink?.startsWith("maodouchat:chat:") == true -> {
-                        val chatId = item.extra["chatId"]
-                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                                as? AppLinkDestination.ChatDetail)?.chatId
-                            ?: item.mergeKey.removePrefix("msg_")
-                        if (chatId.isNotBlank()) {
-                            com.maodouchat.notification.MessageNotificationService.cancelMessage(ctx, chatId)
-                        }
-                    }
-                    item.type == "POST_INTERACTION" ||
-                        item.deeplink?.startsWith("maodouchat:post:") == true -> {
-                        val postId = item.extra["postId"]
-                            ?: (AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                                as? AppLinkDestination.PostDetail)?.postId
-                            ?: item.mergeKey.removePrefix("post_")
-                        if (postId.isNotBlank()) {
-                            com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(ctx, postId)
-                        }
-                    }
-                    item.type == "FRIEND_REQUEST" ||
-                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                            is AppLinkDestination.ContactsTab -> {
+                val action = NotificationTrayDismissPolicy.dismissActionFor(item) ?: continue
+                when (action) {
+                    is NotificationTrayDismissAction.CancelMissedCall ->
+                        com.maodouchat.notification.CallNotificationService.cancelMissedCall(ctx, action.callId)
+                    is NotificationTrayDismissAction.CancelAiTaskRemindersForChat ->
+                        // 8.44：优先按 chat 整组清理（含 group-summary）——cancelAiTaskReminder
+                        // 单任务不清理 summary，会造成托盘残留
+                        com.maodouchat.notification.ReminderNotificationService.cancelAiTaskRemindersForChat(ctx, action.chatId)
+                    is NotificationTrayDismissAction.CancelAiTaskReminder ->
+                        com.maodouchat.notification.ReminderNotificationService.cancelAiTaskReminder(ctx, action.taskId)
+                    is NotificationTrayDismissAction.CancelMessage ->
+                        com.maodouchat.notification.MessageNotificationService.cancelMessage(ctx, action.chatId)
+                    is NotificationTrayDismissAction.CancelPostInteraction ->
+                        com.maodouchat.notification.SocialNotificationService.cancelPostInteraction(ctx, action.postId)
+                    NotificationTrayDismissAction.CancelAllFriendRequests ->
                         com.maodouchat.notification.SocialNotificationService.cancelAllFriendRequests(ctx)
-                    }
-                    item.type == "GROUP_INVITE" ||
-                        AppLinkRouter.parseLegacyCenterDeeplink(item.deeplink.orEmpty())
-                            is AppLinkDestination.GroupInvitesTab -> {
+                    NotificationTrayDismissAction.CancelAllGroupInvites ->
                         com.maodouchat.notification.SocialNotificationService.cancelAllGroupInvites(ctx)
-                    }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
