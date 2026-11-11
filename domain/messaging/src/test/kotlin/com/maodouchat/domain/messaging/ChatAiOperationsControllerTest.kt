@@ -150,7 +150,7 @@ class ChatAiOperationsControllerTest {
         val msg = message()
         val ok = harness.controller().commitAiMessageResult("op1", msg, "owner-1", "c1")
         assertTrue(ok)
-        assertEquals(listOf("op1" to msg), harness.committed)
+        assertEquals(listOf<Pair<String?, Message>>("op1" to msg), harness.committed)
         assertTrue(harness.retryJobs.isEmpty())
         assertTrue(harness.retryAt.isEmpty())
         assertTrue(job.isCancelled)
@@ -191,6 +191,6 @@ class ChatAiOperationsControllerTest {
         val msg = message()
         val ok = harness.controller().commitAiMessageResult(null, msg, "owner-1", "c1")
         assertTrue(ok)
-        assertEquals(listOf(null to msg), harness.committed)
+        assertEquals(listOf<Pair<String?, Message>>(null to msg), harness.committed)
     }
 }

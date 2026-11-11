@@ -76,7 +76,7 @@ class ChatVoicePlaybackReporterTest {
         val harness = Harness(chat = groupChat(), messages = listOf(message("m1", "u2")))
         harness.reporter().markVoiceMessagePlayed("m1")
         harness.settle()
-        assertEquals(listOf(Triple("c1", "m1", 42L)), harness.enqueued)
+        assertEquals(listOf(Triple<String, String, Long?>("c1", "m1", 42L)), harness.enqueued)
     }
 
     @Test
@@ -141,7 +141,7 @@ class ChatVoicePlaybackReporterTest {
         )
         harness.reporter().markVoiceMessagePlayed("m1")
         harness.settle()
-        assertEquals(listOf(Triple("c9", "m1", 42L)), harness.enqueued)
+        assertEquals(listOf(Triple<String, String, Long?>("c9", "m1", 42L)), harness.enqueued)
     }
 
     @Test
@@ -167,7 +167,7 @@ class ChatVoicePlaybackReporterTest {
         harness.reporter(playingIds = flowOf("m1", "m1", "m2", "m1")).observeVoicePlayback()
         harness.settle()
         assertEquals(
-            listOf(Triple("c1", "m1", 42L), Triple("c1", "m2", 42L)),
+            listOf(Triple<String, String, Long?>("c1", "m1", 42L), Triple<String, String, Long?>("c1", "m2", 42L)),
             harness.enqueued,
         )
     }
