@@ -1,21 +1,21 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import android.app.Application
 import com.maodouchat.core.model.CaptureAlertPolicy
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.MessageType
 
 // 截屏/录屏检测的本地提示 + 对端 E2EE 告警（仅密聊或阅后即焚的 1:1 会话才告警，8s 节流）：
 // 逻辑从 ChatDetailViewModel 纯搬移。
-internal class ChatCaptureAlertController(
-    private val getApplication: () -> Application,
+class ChatCaptureAlertController(
     private val activeChatId: () -> String,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val sendInlineContent: (String, MessageType, String) -> String?,
     private val getLastPeerNotifyAt: () -> Long,
     private val setLastPeerNotifyAt: (Long) -> Unit,
+    private val captureAlertEnabled: () -> Boolean,
+    private val currentUserLabel: () -> String,
+    private val nowMillis: () -> Long = { System.currentTimeMillis() },
 ) {
     fun notifyLocalCaptureDetected(message: String) {
         val msg = message.trim()
@@ -36,13 +36,13 @@ internal class ChatCaptureAlertController(
     }
 
     private fun sendCaptureAlertToPeer() {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CAPTURE_ALERT)) return
-        val now = System.currentTimeMillis()
+        if (!captureAlertEnabled()) return
+        val now = nowMillis()
         if (now - getLastPeerNotifyAt() < 8_000L) return
         setLastPeerNotifyAt(now)
         if (activeChatId().isBlank()) return
         if (currentState().chat?.isGroup == true) return
-        val label = com.maodouchat.session.CurrentSession.snapshot().userId?.take(8) ?: "me"
+        val label = currentUserLabel()
         val content = CaptureAlertPolicy.format(label, "screenshot")
         // Reuse sticker/nudge-like inline send pipeline (E2EE TEXT envelope).
         sendInlineContent(content, MessageType.TEXT, content)

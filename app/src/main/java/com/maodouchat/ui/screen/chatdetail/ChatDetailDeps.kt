@@ -21,7 +21,10 @@ import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
+import com.maodouchat.domain.conversation.ChatCaptureAlertController
+import com.maodouchat.domain.conversation.ChatContactCardController
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
+import com.maodouchat.domain.conversation.ChatJumpController
 import com.maodouchat.domain.conversation.ChatMediaStateController
 import com.maodouchat.domain.conversation.ChatPinStarController
 import com.maodouchat.domain.conversation.ChatReadReceiptCoordinator
@@ -518,18 +521,21 @@ internal class ChatDetailDeps(
         activeChatId = { host.activeChatId },
         chatId = { host.chatId },
         updateState = { transform -> host._uiState.update(transform) },
-        text = { id -> host.text(id) },
-        messageRepo = messageRepo,
+        text = { message -> host.text(chatJumpMessageResId(message)) },
+        sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        getFirstMessageAtOrAfter = { targetChatId, dayStart -> messageRepo.getFirstMessageAtOrAfter(targetChatId, dayStart)?.id },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
         searchSelectionStateController = searchSelectionStateController,
     )
     internal val chatCaptureAlertController = ChatCaptureAlertController(
-        getApplication = { host.getApplication<android.app.Application>() },
         activeChatId = { host.activeChatId },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         sendInlineContent = host::sendInlineContent,
         getLastPeerNotifyAt = { lastCapturePeerNotifyAt },
         setLastPeerNotifyAt = { lastCapturePeerNotifyAt = it },
+        captureAlertEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.CAPTURE_ALERT) },
+        currentUserLabel = { com.maodouchat.session.CurrentSession.snapshot().userId?.take(8) ?: "me" },
     )
     internal val composerSendController = ChatComposerSendController(
         scope = host.viewModelScope,
@@ -560,8 +566,8 @@ internal class ChatDetailDeps(
         outgoingFacade = outgoingFacade,
     )
     internal val contactCardController = ChatContactCardController(
-        getApplication = { host.getApplication<android.app.Application>() },
-        textProvider = host::text,
+        contactCardEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.CONTACT_CARD) },
+        text = { message -> host.text(chatContactCardMessageResId(message)) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
         sendMessage = { cardContent -> host.sendMessage(forceText = cardContent) },
@@ -586,8 +592,6 @@ internal class ChatDetailDeps(
         mergeMessages = ::mergeMessageVersions,
         mediaStateController = mediaStateController,
     )
-    // G385：`observeLocalMessages()`/`observeAuthoritativeMessageMutations()` 本地消息观察一族抽到
-    // ChatMessageObservationController——VM 侧只留同签名委托。
     internal val messageObservationController = ChatMessageObservationController(
         scope = host.viewModelScope,
         ownerUserId = { host.currentUserId },
@@ -614,8 +618,6 @@ internal class ChatDetailDeps(
         setMarkReadJob = { readReceiptBookkeeping.markReadJob = it },
         armSecretDisappearing = host::armSecretDisappearing,
     )
-    // G350：`handleGroupRevisionChanged()` 的群修订编排抽到 ChatGroupRevisionHandler——
-    // VM 侧只留同签名委托。
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
         ownerUserId = { host.currentUserId },
         activeChatId = { host.activeChatId },
@@ -711,8 +713,6 @@ internal class ChatDetailDeps(
         armSecretDisappearing = host::armSecretDisappearing,
         showNewDeviceHistoryBanner = host::maybeShowNewDeviceHistoryBanner,
     )
-    // G388：会话水合一族（hydrateOutgoingChat + ownerSession/isOwnerSessionCurrent +
-    // withLocalNickname）抽到 ChatOutgoingHydrationController——VM 只留同签名委托。
     internal val outgoingHydrationController = ChatOutgoingHydrationController(
         uiState = host._uiState,
         userRepo = userRepo,

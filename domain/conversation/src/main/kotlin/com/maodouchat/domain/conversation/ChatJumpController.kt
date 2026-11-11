@@ -1,24 +1,25 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.core.model.ChatDetailUiState
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 
 // 会话内跳转定位（日期跳转 / 引用预览跳转 / 置顶跳转）：逻辑从 ChatDetailViewModel 纯搬移。
-internal class ChatJumpController(
+class ChatJumpController(
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
     private val activeChatId: () -> String,
     private val chatId: () -> String,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
-    private val text: (Int) -> String,
-    private val messageRepo: LocalMessageStore,
+    private val text: (ChatJumpMessage) -> String,
+    private val sessionActive: (String) -> Boolean,
+    private val getFirstMessageAtOrAfter: suspend (String, Long) -> String?,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     private val searchSelectionStateController: ChatSearchSelectionStateController,
 ) {
     fun jumpToDate(dayStartMillis: Long) {
@@ -26,28 +27,25 @@ internal class ChatJumpController(
         if (targetChatId.isBlank() || dayStartMillis <= 0L) return
         val ownerId = ownerUserId()
         if (ownerId.isBlank() || ownerId == "me") return
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             try {
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(
-                    expectedUserId = ownerId,
-                )
-                ) {
+                if (!sessionActive(ownerId)) {
                     return@launch
                 }
-                val anchorId = messageRepo.getFirstMessageAtOrAfter(targetChatId, dayStartMillis)?.id
+                val anchorId = getFirstMessageAtOrAfter(targetChatId, dayStartMillis)
                 if (anchorId.isNullOrBlank()) {
-                    withContext(Dispatchers.Main.immediate) {
-                        updateState { it.copy(groupEncryptionWarning = text(R.string.chat_jump_date_empty)) }
+                    withContext(mainDispatcher) {
+                        updateState { it.copy(groupEncryptionWarning = text(ChatJumpMessage.DATE_EMPTY)) }
                     }
                     return@launch
                 }
-                withContext(Dispatchers.Main.immediate) {
+                withContext(mainDispatcher) {
                     updateState { it.copy(navigationTargetMessageId = anchorId) }
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.w("ChatDetailViewModel", "jumpToDate failed", error)
+                logWarning("jumpToDate failed", error)
             }
         }
     }

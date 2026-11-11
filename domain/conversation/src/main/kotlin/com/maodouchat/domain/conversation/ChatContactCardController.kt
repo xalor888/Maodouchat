@@ -1,28 +1,23 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import android.app.Application
-import com.maodouchat.R
-import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
 
 // 名片发送：功能开关 / 密聊拦截 / 内容拼装，然后调发送流水线。
 // 从 ChatDetailViewModel 纯搬移；调用方（作曲区扩展）仍走 VM 的同签名委托。
-internal class ChatContactCardController(
-    private val getApplication: () -> Application,
-    private val textProvider: (Int, Array<out Any>) -> String,
+class ChatContactCardController(
+    private val contactCardEnabled: () -> Boolean,
+    private val text: (ChatContactCardMessage) -> String,
     private val currentState: () -> ChatDetailUiState,
     private val updateState: ((ChatDetailUiState) -> ChatDetailUiState) -> Unit,
     private val sendMessage: (String) -> Unit,
 ) {
-    private fun text(id: Int, vararg args: Any): String = textProvider(id, args)
-
-    internal fun sendContactCard(targetUserId: String, displayName: String) {
-        if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CONTACT_CARD)) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.contact_card_disabled)) }
+    fun sendContactCard(targetUserId: String, displayName: String) {
+        if (!contactCardEnabled()) {
+            updateState { it.copy(groupEncryptionWarning = text(ChatContactCardMessage.CONTACT_CARD_DISABLED)) }
             return
         }
         if (currentState().isSecretChat == true) {
-            updateState { it.copy(groupEncryptionWarning = text(R.string.contact_card_secret_blocked)) }
+            updateState { it.copy(groupEncryptionWarning = text(ChatContactCardMessage.CONTACT_CARD_SECRET_BLOCKED)) }
             return
         }
         if (targetUserId.isBlank()) return
