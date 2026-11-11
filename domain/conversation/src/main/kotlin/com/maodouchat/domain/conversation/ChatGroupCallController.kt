@@ -1,20 +1,19 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.conversation
 
-import android.app.Application
-import com.maodouchat.R
-import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.CallOrchestrator
 import com.maodouchat.core.model.CallType
+import com.maodouchat.core.model.ChatDetailUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
-import com.maodouchat.core.model.ChatDetailUiState
 
 // 群通话入口：从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatGroupCallController(
+class ChatGroupCallController(
     private val uiState: MutableStateFlow<ChatDetailUiState>,
-    private val application: Application,
     private val currentUserId: () -> String,
-    private val text: (Int, Array<out Any>) -> String,
+    private val callsEnabled: () -> Boolean,
+    private val videoCallEnabled: () -> Boolean,
+    private val voiceCallEnabled: () -> Boolean,
+    private val text: (ChatGroupCallMessage) -> String,
 ) {
     /** 群通话入口：把当前群除自己外的成员挨个邀请 */
     fun startGroupCallFromChat(
@@ -23,21 +22,20 @@ internal class ChatGroupCallController(
     ) {
         val chat = uiState.value.chat ?: return
         if (!chat.isGroup) return
-        if (!RuntimeFlags.isEnabled(application, RuntimeFlags.CALLS)) {
-            uiState.update { it.copy(errorMessage = text(R.string.calls_disabled, arrayOf())) }
+        if (!callsEnabled()) {
+            uiState.update { it.copy(errorMessage = text(ChatGroupCallMessage.CALLS_DISABLED)) }
             return
         }
         val fineOk = when (callType) {
-            CallType.VIDEO -> RuntimeFlags.isEnabled(application, RuntimeFlags.VIDEO_CALL)
-            else -> RuntimeFlags.isEnabled(application, RuntimeFlags.VOICE_CALL)
+            CallType.VIDEO -> videoCallEnabled()
+            else -> voiceCallEnabled()
         }
         if (!fineOk) {
             uiState.update {
                 it.copy(
                     errorMessage = text(
-                        if (callType == CallType.VIDEO) R.string.video_call_disabled
-                        else R.string.voice_call_disabled,
-                        arrayOf()
+                        if (callType == CallType.VIDEO) ChatGroupCallMessage.VIDEO_CALL_DISABLED
+                        else ChatGroupCallMessage.VOICE_CALL_DISABLED
                     )
                 )
             }
@@ -47,7 +45,7 @@ internal class ChatGroupCallController(
             it != currentUserId() && (selectedMemberIds == null || it in selectedMemberIds)
         }
         if (memberIds.isEmpty()) {
-            uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_call_empty, arrayOf())) }
+            uiState.update { it.copy(groupEncryptionWarning = text(ChatGroupCallMessage.GROUP_CALL_EMPTY)) }
             return
         }
         // 委派给 CallViewModel 处理（CallViewModel 需通过 NavGraph 注入；这里用单例 fallback）
