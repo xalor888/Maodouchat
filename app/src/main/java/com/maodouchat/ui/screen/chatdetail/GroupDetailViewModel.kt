@@ -12,6 +12,7 @@ import com.maodouchat.domain.groups.GroupAuditLoadController
 import com.maodouchat.domain.groups.GroupBotController
 import com.maodouchat.domain.groups.GroupDetailLoadMessage
 import com.maodouchat.domain.groups.GroupDetailLoader
+import com.maodouchat.domain.groups.GroupDetailRealtimeObserver
 import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.domain.groups.GroupInviteController
 import com.maodouchat.domain.groups.GroupInviteLoadController
@@ -72,9 +73,7 @@ class GroupDetailViewModel(
     private val groupInviteController = createAndroidGroupInviteController()
     private val groupAuditController = createAndroidGroupAuditController()
     private val groupBotController = createAndroidGroupBotController()
-    private val groupEncryptionHealthController = createAndroidGroupEncryptionHealthController(
-        maintenanceCoordinator = groupSenderKeyMaintenanceCoordinator,
-    )
+    private val groupEncryptionHealthController = createAndroidGroupEncryptionHealthController(maintenanceCoordinator = groupSenderKeyMaintenanceCoordinator)
 
     private val token: String get() = com.maodouchat.session.CurrentSession.snapshot().token.orEmpty()
     private val currentUserId: String get() = com.maodouchat.session.CurrentSession.ownerUserId()
@@ -94,13 +93,15 @@ class GroupDetailViewModel(
     private val realtimeObserver by lazy {
         GroupDetailRealtimeObserver(
             scope = viewModelScope,
-            application = getApplication(),
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             chatId = { chatId },
             ownerUserId = { currentUserId },
             groupMessagingCoordinator = groupMessagingCoordinator,
             onRevisionReload = { load() },
+            eventsFlow = com.maodouchat.session.AppRuntime.realtimeDispatcherOrNull(getApplication())?.allEvents,
+            sessionActive = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            applyRealtimeVisibility = { userId, isOnline, onlineRevoked, statusRevoked -> com.maodouchat.data.repository.AppRepositories.users.applyRealtimeVisibility(userId, isOnline, onlineRevoked, statusRevoked) },
         )
     }
 
@@ -244,7 +245,6 @@ class GroupDetailViewModel(
         consumeMessage()
         load()
     }
-
 
     fun inviteOwnedBot(botId: String) {
         if (botId.isBlank() || chatId.isBlank() || _uiState.value.isInvitingBot) return
