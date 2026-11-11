@@ -28,6 +28,7 @@ import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.conversation.ChatCaptureAlertController
 import com.maodouchat.domain.conversation.ChatContactCardController
+import com.maodouchat.domain.conversation.ChatGroupCallController
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
 import com.maodouchat.domain.conversation.ChatMediaStateController
@@ -162,9 +163,7 @@ internal class ChatDetailDeps(
         indexMessage = messagePreviewController::indexSearchableMessage,
         cleanupAttachment = host::cleanupAttachmentForMessage,
         refreshConversationPreview = com.maodouchat.chatdetail.ChatDetailAccess::emitChatListPreviewRefresh,
-        isOwnerSessionCurrent = { ownerUserId ->
-            com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
-        },
+        isOwnerSessionCurrent = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         cleanupTerminalNotification = { message ->
             if (com.maodouchat.notification.NotificationCenterAccess.repository.removeMessageReferences(message.id)) {
                 com.maodouchat.notification.MessageNotificationService.cancelMessage(application, message.chatId)
@@ -257,9 +256,7 @@ internal class ChatDetailDeps(
             com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)
         },
         fetchChat = { liveToken, targetChatId ->
-            ChatNetworkRepository().chats(liveToken).map { chats ->
-                chats.firstOrNull { it.id == targetChatId }
-            }
+            ChatNetworkRepository().chats(liveToken).map { chats -> chats.firstOrNull { it.id == targetChatId } }
         },
         invalidateEpoch = groupMessagingCoordinator::invalidateSenderKey,
     )
@@ -725,9 +722,11 @@ internal class ChatDetailDeps(
     // G388：群通话入口抽到 ChatGroupCallController——VM 只留同签名委托。
     internal val groupCallController = ChatGroupCallController(
         uiState = host._uiState,
-        application = application,
         currentUserId = { host.currentUserId },
-        text = { id, args -> host.text(id, *args) },
+        callsEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.CALLS) },
+        videoCallEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.VIDEO_CALL) },
+        voiceCallEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.VOICE_CALL) },
+        text = { message -> host.text(chatGroupCallMessageResId(message)) },
     )
     // G388：onCleared 收尾（媒体/任务清理 + 草稿持久化 + 最终已读水印）抽到 ChatSessionTeardownController——VM 只留 override 转发。
     internal val sessionTeardownController = ChatSessionTeardownController(
