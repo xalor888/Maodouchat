@@ -19,6 +19,7 @@ import com.maodouchat.domain.conversation.ChatListLoadState
 import com.maodouchat.domain.conversation.ChatListLocalCleanupCoordinator
 import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
 import com.maodouchat.domain.conversation.ChatListOwnerSessionGuard
+import com.maodouchat.domain.conversation.ChatListRealtimeCoordinator
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
@@ -118,10 +119,8 @@ class ChatListViewModel private constructor(
         scope = viewModelScope,
         getState = {
             ChatListLoadState(
-                chats = _uiState.value.chats, isLoading = _uiState.value.isLoading,
-                errorMessage = _uiState.value.errorMessage,
-                secretChatIds = _uiState.value.secretChatIds,
-                missedCalls = _uiState.value.missedCalls,
+                chats = _uiState.value.chats, isLoading = _uiState.value.isLoading, errorMessage = _uiState.value.errorMessage,
+                secretChatIds = _uiState.value.secretChatIds, missedCalls = _uiState.value.missedCalls,
             )
         },
         updateState = { transform ->
@@ -136,8 +135,7 @@ class ChatListViewModel private constructor(
                     ),
                 )
                 it.copy(
-                    chats = next.chats,
-                    isLoading = next.isLoading,
+                    chats = next.chats, isLoading = next.isLoading,
                     errorMessage = next.errorMessage,
                     secretChatIds = next.secretChatIds,
                     missedCalls = next.missedCalls,
@@ -200,14 +198,12 @@ class ChatListViewModel private constructor(
                 ports.cancelMessageNotification(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
             try {
                 ports.markChatMessagesRead(chatId)
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) { }
         },
         text = { text(it) },
         secretChatFeatureEnabled = ports.secretChatFeatureEnabled,
@@ -228,9 +224,11 @@ class ChatListViewModel private constructor(
 
     private val realtimeCoordinator = ChatListRealtimeCoordinator(
         scope = viewModelScope,
-        uiState = _uiState,
+        getChats = { _uiState.value.chats },
+        updateChats = { transform -> _uiState.update { it.copy(chats = transform(it.chats)) } },
+        setRealtimeBanner = { banner -> _uiState.update { it.copy(realtimeBanner = banner) } },
         realtimeEventDispatcher = ports.realtimeEventDispatcher,
-        notificationCenter = notificationRepo,
+        addNotification = { item, userId -> notificationRepo.add(item, expectedUserId = userId) },
         chatReadEvents = ports.chatReadEvents,
         chatMessageSentEvents = ports.chatMessageSentEvents,
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
@@ -240,7 +238,11 @@ class ChatListViewModel private constructor(
         getCachedChat = { chatRepo.getChatById(it) },
         cacheChats = { chatRepo.cacheChats(it) },
         applyRealtimeVisibility = ports.applyRealtimeVisibility,
-        text = { text(it) },
+        wsConnectionFailedText = text(R.string.chat_ws_connection_failed),
+        adminBroadcastDefaultTitle = text(R.string.notification_admin_broadcast_default_title),
+        adminBroadcastSenderLabel = text(R.string.notification_admin_broadcast_sender),
+        sessionActive = { BackgroundSessionGate.mayContinue(expectedUserId = it) },
+        logWarning = { message, error -> Log.w("ChatListRealtime", message, error) },
         onRequestLoadChats = { loadCoordinator.requestLoadChats(it) },
         onApplyChatListPreview = { chatId, previewText, messageType, timestamp, ownerUserId, sessionGeneration ->
             previewCoordinator.applyChatListPreview(chatId, previewText, messageType, timestamp, ownerUserId = ownerUserId, sessionGeneration = sessionGeneration)
@@ -254,9 +256,7 @@ class ChatListViewModel private constructor(
         scope = viewModelScope,
         getMissedCalls = { _uiState.value.missedCalls },
         getChats = { _uiState.value.chats },
-        updateMissedCalls = { transform ->
-            _uiState.update { it.copy(missedCalls = transform(it.missedCalls)) }
-        },
+        updateMissedCalls = { transform -> _uiState.update { it.copy(missedCalls = transform(it.missedCalls)) } },
         ownerUserId = { ownerSessionGuard.currentUserIdStr },
         markAllRead = { missedRepo.markAllRead() },
         clearAll = { missedRepo.clearAll() },
