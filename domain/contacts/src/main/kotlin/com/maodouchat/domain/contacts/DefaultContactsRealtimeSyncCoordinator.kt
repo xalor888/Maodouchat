@@ -1,13 +1,6 @@
-package com.maodouchat.contacts.sync
+package com.maodouchat.domain.contacts
 
-import android.content.Context
 import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.data.local.dao.UserDao
-import com.maodouchat.data.repository.FriendCacheStore
-import com.maodouchat.data.repository.UserRepository
-import com.maodouchat.domain.contacts.ContactSyncEvent
-import com.maodouchat.domain.contacts.ContactsRealtimeSyncCoordinator
-import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,13 +17,16 @@ import kotlinx.coroutines.sync.withLock
  *
  * 核心设计：
  * 1. 消除无序竞争：内部使用 Mutex 对写库与好友缓存操作串行化。
- * 2. 账号安全隔离：校验 BackgroundSessionGate，丢弃过期或串号事件。
- * 3. 单一真实来源：状态变更直接下沉至 Room (UserDao)，由 Room Flow 驱动 UI，消除 ViewModel 双重状态竞争。
+ * 2. 账号安全隔离：校验会话门禁，丢弃过期或串号事件。
+ * 3. 单一真实来源：状态变更直接下沉至 Room，由 Room Flow 驱动 UI，消除 ViewModel 双重状态竞争。
+ *
+ * 写库、好友缓存、会话门禁与时钟均走构造端口，domain 不依赖 Android / Room。
  */
 class DefaultContactsRealtimeSyncCoordinator(
-    private val context: Context,
-    private val userDao: UserDao,
-    private val userRepository: UserRepository,
+    private val applyRealtimeVisibility: suspend (userId: String, isOnline: Boolean, onlineRevoked: Boolean, statusRevoked: Boolean, updatedAt: Long) -> Unit,
+    private val addFriendToCache: (friendId: String, ownerUserId: String) -> Unit,
+    private val sessionMayContinue: (expectedUserId: String, liveToken: String?, liveUserId: String?) -> Boolean,
+    private val nowMs: () -> Long = { System.currentTimeMillis() },
     private val onNotificationCenterItem: ((id: String, title: String, subtitle: String, message: String?) -> Unit)? = null
 ) : ContactsRealtimeSyncCoordinator {
 
@@ -41,12 +37,8 @@ class DefaultContactsRealtimeSyncCoordinator(
     override suspend fun handleEvent(event: RealtimeDomainEvent, expectedOwnerUserId: String, currentToken: String) {
         if (expectedOwnerUserId.isBlank() || currentToken.isBlank()) return
 
-        if (!BackgroundSessionGate.mayContinue(
-                expectedUserId = expectedOwnerUserId,
-                liveToken = currentToken,
-                liveUserId = expectedOwnerUserId
-            )
-        ) {
+        // 函数类型值调用不允许具名实参，改位置实参。
+        if (!sessionMayContinue(expectedOwnerUserId, currentToken, expectedOwnerUserId)) {
             return
         }
 
@@ -55,12 +47,12 @@ class DefaultContactsRealtimeSyncCoordinator(
                 when (event) {
                     is RealtimeDomainEvent.Presence -> {
                         // 写入 Room，单向触发 Room 数据库 Flow 刷新
-                        userDao.applyRealtimeVisibility(
-                            userId = event.userId,
-                            isOnline = event.isOnline,
-                            onlineRevoked = event.onlineRevoked,
-                            statusRevoked = event.statusRevoked,
-                            updatedAt = System.currentTimeMillis()
+                        applyRealtimeVisibility(
+                            event.userId,
+                            event.isOnline,
+                            event.onlineRevoked,
+                            event.statusRevoked,
+                            nowMs()
                         )
                     }
 
@@ -75,7 +67,7 @@ class DefaultContactsRealtimeSyncCoordinator(
                                     event.fromUserId
                                 }
                                 if (!friendId.isNullOrBlank()) {
-                                    FriendCacheStore.add(context, friendId, expectedOwnerUserId)
+                                    addFriendToCache(friendId, expectedOwnerUserId)
                                     _syncEvents.emit(ContactSyncEvent.FriendAccepted(friendId, event.fromUserName))
                                 }
                             } else if (event.action == "CREATED" && event.toUserId == expectedOwnerUserId) {

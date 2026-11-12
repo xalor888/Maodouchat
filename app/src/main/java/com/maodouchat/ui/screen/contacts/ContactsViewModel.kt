@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.contacts
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.contacts.sync.DefaultContactsRealtimeSyncCoordinator
+import com.maodouchat.contacts.sync.createAndroidContactsRealtimeSyncCoordinator
 import com.maodouchat.contacts.createAndroidContactMutationUseCase
 import com.maodouchat.contacts.createAndroidFriendRequestUseCase
 import com.maodouchat.conversation.createAndroidConversationCreationPort
@@ -42,10 +42,9 @@ class ContactsViewModel @JvmOverloads constructor(
     private val friendRequestUseCase: FriendRequestUseCase = createAndroidFriendRequestUseCase(application),
     private val contactMutationUseCase: ContactMutationUseCase = createAndroidContactMutationUseCase(application),
     private val conversationCreationPort: ConversationCreationPort = createAndroidConversationCreationPort(application),
-    private val realtimeSyncCoordinator: ContactsRealtimeSyncCoordinator = DefaultContactsRealtimeSyncCoordinator(
+    private val realtimeSyncCoordinator: ContactsRealtimeSyncCoordinator = createAndroidContactsRealtimeSyncCoordinator(
         context = application,
         userDao = AppRepositories.userDao,
-        userRepository = AppRepositories.users,
         onNotificationCenterItem = { id, title, subtitle, msg ->
             val uid = com.maodouchat.session.CurrentSession.ownerUserId()
             if (uid.isNotBlank()) {
