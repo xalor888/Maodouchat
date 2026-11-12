@@ -10,6 +10,7 @@ import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.domain.calls.CallSessionTimersController
+import com.maodouchat.domain.calls.CallSignalingGroupMesh
 import com.maodouchat.domain.calls.CallSignalingSender
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +43,7 @@ internal class CallGroupMesh(
     private val signalingSender: CallSignalingSender,
     private val text: (Int, Array<out Any>) -> String,
     private val onNoActivePeers: (String) -> Unit,
-) {
+) : CallSignalingGroupMesh {
     private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
     private val groupReconnectJobs = mutableMapOf<String, Job>()
     fun updateGroupParticipant(userId: String, transform: (GroupCallParticipantUi) -> GroupCallParticipantUi) {
@@ -124,7 +125,7 @@ internal class CallGroupMesh(
         }
     }
 
-    fun markGroupPeerTerminal(userId: String, state: GroupPeerConnectionState) {
+    override fun markGroupPeerTerminal(userId: String, state: GroupPeerConnectionState) {
         groupInviteTimeoutJobs.remove(userId)?.cancel()
         groupReconnectJobs.remove(userId)?.cancel()
         updateGroupParticipant(userId) { it.copy(connectionState = state, videoAvailable = false) }
@@ -139,7 +140,7 @@ internal class CallGroupMesh(
         }
     }
 
-    fun cancelInviteTimeout(userId: String) {
+    override fun cancelInviteTimeout(userId: String) {
         groupInviteTimeoutJobs.remove(userId)?.cancel()
     }
 
@@ -150,7 +151,7 @@ internal class CallGroupMesh(
         groupReconnectJobs.clear()
     }
 
-    fun scheduleGroupPeerTimeout(userId: String) {
+    override fun scheduleGroupPeerTimeout(userId: String) {
         groupInviteTimeoutJobs.remove(userId)?.cancel()
         val session = activeCallSession()
         groupInviteTimeoutJobs[userId] = scope.launch {

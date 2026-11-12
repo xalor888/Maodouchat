@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.call
 
 import android.app.Application
 import android.os.SystemClock
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
@@ -10,17 +11,21 @@ import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import com.maodouchat.core.session.CallSessionResetController
 import com.maodouchat.session.AppRuntime
+import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.call.CallSystemIntegration
+import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallUiState
+import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.domain.calls.CallConnectionStats
 import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallLifecycleController
 import com.maodouchat.domain.calls.CallSessionController
 import com.maodouchat.domain.calls.CallSessionTimersController
+import com.maodouchat.domain.calls.CallSignalingIngressController
 import com.maodouchat.domain.calls.CallTeardownController
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.telecom.MaodouchatConnectionService
@@ -53,10 +58,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val callSystemIntegration = CallSystemIntegration(application)
     private val foregroundService by lazy {
         CallForegroundServiceController(
-            startCallForeground = callSystemIntegration::startCallForeground,
-            stopCallForeground = callSystemIntegration::stopCallForeground,
-            currentState = { _uiState.value },
-            activeCallId = { activeCallId },
+            startCallForeground = callSystemIntegration::startCallForeground, stopCallForeground = callSystemIntegration::stopCallForeground,
+            currentState = { _uiState.value }, activeCallId = { activeCallId },
             unknownCallerLabel = errorMessages.text(R.string.call_unknown_caller),
         )
     }
@@ -203,7 +206,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             groupMesh = groupMesh,
             sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
             isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
-            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(manager, session) },
+            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(WebRtcCallSignalingWebRtc(manager), session) },
             signalingSender = signalingSender,
             ringingTimeout = ringingTimeout,
             foregroundService = foregroundService,
@@ -232,7 +235,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             mediaBridge = mediaBridge,
             sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
             isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
-            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(manager, session) },
+            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(WebRtcCallSignalingWebRtc(manager), session) },
             callSessionMachine = callSessionMachine,
             activeDomainSession = { activeDomainSession },
             ringingTimeout = ringingTimeout,
@@ -245,32 +248,35 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val signalingIngress: CallSignalingIngressController by lazy {
         CallSignalingIngressController(
             scope = viewModelScope,
-            app = app,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
-            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
+            ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+            mayContinueSession = { userId -> BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            signalingEvents = AppRuntime.realtimeDispatcherOrNull(app)?.allEvents,
+            fetchPendingSignaling = { liveToken -> WebRTCSignaling.fetchPending(liveToken) },
+            isCurrentCallSession = { session, webRtc -> isCurrentCallSession(session, (webRtc as? WebRtcCallSignalingWebRtc)?.manager) },
             lastAcceptedCursor = { key -> inboundSignalingCursors[key] },
             recordAcceptedCursor = { key, cursor -> inboundSignalingCursors[key] = cursor },
             rememberSignaling = { callId, fromUserId, type, payload, idempotencyKey ->
-                signalingIdempotency.remember(
-                    callId = callId, fromUserId = fromUserId,
-                    type = type, payload = payload, idempotencyKey = idempotencyKey,
-                )
+                signalingIdempotency.remember(callId, fromUserId, type, payload, idempotencyKey)
             },
             activeCallId = { activeCallId },
             activeGroupId = { activeGroupId },
             meshGroupMemberIds = { meshGroupMemberIds },
             groupMemberIds = { activeGroupMemberIds },
             activeCallSession = { activeCallSession },
-            webRTCManager = { webRTCManager },
+            webRtc = { webRTCManager?.let { WebRtcCallSignalingWebRtc(it) } },
             groupMesh = groupMesh,
             signalingSender = signalingSender,
             ringingTimeout = ringingTimeout,
             prepareIncomingCall = { contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds ->
                 incomingCallController.prepareIncomingCall(contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds)
             },
-            text = errorMessages::text,
+            recordMissedCall = { signalingCallId, fromUserId, callerName, isVideo, isGroup -> MissedCallRecorder.recordRingTimeout(app, signalingCallId, fromUserId, callerName, isVideo, isGroup = isGroup) },
+            clearIncomingCall = { IncomingCallCoordinator.clear() },
+            logWarning = { message, error -> Log.w("CallViewModel", message, error) },
+            text = { message, args -> errorMessages.text(callSignalingIngressMessageResId(message), *args) },
             failureReason = errorMessages::failureReason,
             endCall = { notifyPeer, errorMessage -> endCall(notifyPeer, errorMessage) },
         )
@@ -318,11 +324,9 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val sessionController by lazy {
         CallSessionController(
-            callSessionGate = callSessionGate,
-            callSessionMachine = callSessionMachine,
+            callSessionGate = callSessionGate, callSessionMachine = callSessionMachine,
             resetIceRecoveryAttempts = { iceRecovery.resetAttempts() },
-            clearSignalingIdempotency = { signalingIdempotency.clear() },
-            clearInboundSignalingCursors = { inboundSignalingCursors.clear() },
+            clearSignalingIdempotency = { signalingIdempotency.clear() }, clearInboundSignalingCursors = { inboundSignalingCursors.clear() },
             beginOutboundSignalingCursor = { outboundSignalingCursor.begin() },
             setActiveDomainSession = { activeDomainSession = it },
             setActiveCallSession = { activeCallSession = it },
@@ -348,8 +352,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val lifecycleController by lazy {
         CallLifecycleController(
-            scope = viewModelScope,
-            currentState = { _uiState.value },
+            scope = viewModelScope, currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             activeCallId = { activeCallId },
             cancelTimers = { timersController.cancelTimers() },
@@ -383,13 +386,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         contactAvatar: String?,
         callType: CallType,
         offerSdp: String,
-        callId: String = "",
-        groupId: String = "",
+        callId: String = "", groupId: String = "",
         groupMemberIds: List<String> = emptyList()
     ) = incomingCallController.prepareIncomingCall(contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds)
 
-    fun answerCall(contactId: String? = null, contactName: String? = null, contactAvatar: String? = null, callType: CallType? = null, offerSdp: String? = null) =
-        incomingCallController.answerCall(contactId, contactName, contactAvatar, callType, offerSdp)
+    fun answerCall(contactId: String? = null, contactName: String? = null, contactAvatar: String? = null, callType: CallType? = null, offerSdp: String? = null) = incomingCallController.answerCall(contactId, contactName, contactAvatar, callType, offerSdp)
 
     fun rejectIncomingCall() = incomingCallController.rejectIncomingCall()
 
@@ -407,8 +408,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) = mediaController.attachGroupRemoteRenderer(userId, renderer)
     fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) = mediaController.detachGroupRemoteRenderer(userId, renderer)
     fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) = mediaController.detachLocalRenderer(renderer)
-    fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.detachRemoteRenderer(renderer)
+    fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) = mediaController.detachRemoteRenderer(renderer)
 
     // G372：通话记录写入抽到 CallLogWriter（纯搬移不改判断）。
     private val callLogWriter by lazy {

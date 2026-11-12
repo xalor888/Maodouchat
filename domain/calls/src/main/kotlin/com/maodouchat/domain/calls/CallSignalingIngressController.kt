@@ -1,45 +1,34 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import android.app.Application
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.core.session.CallSignalingAdmissionPolicy
-import com.maodouchat.core.session.Cursor
-import com.maodouchat.core.session.Decision
-import com.maodouchat.core.model.IncomingCallCoordinator
-import com.maodouchat.call.MissedCallRecorder
-import com.maodouchat.core.model.MissedCallTimeoutPolicy
-import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.session.AppRuntime
 import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
-import com.maodouchat.domain.calls.CallRingingTimeout
-import com.maodouchat.domain.calls.CallSignalingSender
-import com.maodouchat.webrtc.WebRTCManager
-import com.maodouchat.webrtc.WebRTCSignaling
+import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.core.model.MissedCallTimeoutPolicy
+import com.maodouchat.core.model.SignalMessage
+import com.maodouchat.core.realtime.RealtimeDomainEvent
+import com.maodouchat.core.session.CallSignalingAdmissionPolicy
+import com.maodouchat.core.session.Cursor
+import com.maodouchat.core.session.Decision
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
-import org.webrtc.IceCandidate
 
-/**
- * 入站信令簇：WS/轮询双路接收、准入/幂等/排序门闩、按信令类型分发、
- * 群边 offer 缓冲与统一 flush——函数体从 `CallViewModel` 逐字搬入，
- * VM 状态经 lambda 注入（与同包其它 controller 同一装配模式），零行为改动。
- */
-internal class CallSignalingIngressController(
+// 入站信令：WS/轮询双路接收、准入/幂等/排序门闩、按类型分发、群边 offer 缓冲与统一 flush。
+class CallSignalingIngressController(
     private val scope: CoroutineScope,
-    private val app: Application,
     private val currentState: () -> CallUiState,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
     private val token: () -> String,
-    private val isCurrentCallSession: (Long, WebRTCManager?) -> Boolean,
+    private val ownerUserId: () -> String,
+    private val mayContinueSession: (String) -> Boolean,
+    private val signalingEvents: Flow<RealtimeDomainEvent>?,
+    private val fetchPendingSignaling: suspend (String) -> Result<List<SignalMessage>>,
+    private val isCurrentCallSession: (Long, CallSignalingWebRtc?) -> Boolean,
     private val lastAcceptedCursor: (String) -> Cursor?,
     private val recordAcceptedCursor: (String, Cursor) -> Unit,
     private val rememberSignaling: (String, String, String, String, String) -> Boolean,
@@ -48,12 +37,21 @@ internal class CallSignalingIngressController(
     private val meshGroupMemberIds: () -> List<String>,
     private val groupMemberIds: () -> Set<String>,
     private val activeCallSession: () -> Long,
-    private val webRTCManager: () -> WebRTCManager?,
-    private val groupMesh: CallGroupMesh,
+    private val webRtc: () -> CallSignalingWebRtc?,
+    private val groupMesh: CallSignalingGroupMesh,
     private val signalingSender: CallSignalingSender,
     private val ringingTimeout: CallRingingTimeout,
     private val prepareIncomingCall: (String, String, String?, CallType, String, String, String, List<String>) -> Unit,
-    private val text: (Int, Array<out Any>) -> String,
+    private val recordMissedCall: suspend (
+        signalingCallId: String,
+        fromUserId: String,
+        callerName: String,
+        isVideo: Boolean,
+        isGroup: Boolean,
+    ) -> Unit,
+    private val clearIncomingCall: () -> Unit,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val text: (CallSignalingIngressMessage, Array<out Any>) -> String,
     private val failureReason: (Throwable) -> String,
     private val endCall: (Boolean, String?) -> Unit,
 ) {
@@ -66,16 +64,14 @@ internal class CallSignalingIngressController(
     fun observeSignaling() {
         // 独立管理两个 job：一个死掉不影响另一个；避免"WS  collector 死了但 polling 还活着导致永远不重连"
         if (webSocketJob?.isActive != true) {
-            val signalOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            val dispatcher = AppRuntime.realtimeDispatcherOrNull(app)
-            if (dispatcher != null) {
+            val signalOwnerUserId = ownerUserId()
+            val events = signalingEvents
+            if (events != null) {
                 webSocketJob = scope.launch {
-                    dispatcher.allEvents.collect { event ->
+                    events.collect { event ->
                         if (
                             signalOwnerUserId.isBlank() ||
-                            !BackgroundSessionGate.mayContinue(
-                                expectedUserId = signalOwnerUserId,
-                            )
+                            !mayContinueSession(signalOwnerUserId)
                         ) {
                             return@collect
                         }
@@ -101,7 +97,7 @@ internal class CallSignalingIngressController(
                                 ) {
                                     endCall(
                                         false,
-                                        text(R.string.call_rate_limited, arrayOf(event.retryAfterSeconds ?: 60))
+                                        text(CallSignalingIngressMessage.RATE_LIMITED, arrayOf(event.retryAfterSeconds ?: 60))
                                     )
                                 }
                             }
@@ -113,23 +109,21 @@ internal class CallSignalingIngressController(
         }
 
         if (pollingJob?.isActive != true) {
-            val pollOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+            val pollOwnerUserId = ownerUserId()
             pollingJob = scope.launch {
                 while (currentState().callState != CallState.DISCONNECTED) {
                     delay(2000)
                     if (
                         pollOwnerUserId.isBlank() ||
-                        !BackgroundSessionGate.mayContinue(
-                            expectedUserId = pollOwnerUserId,
-                        )
+                        !mayContinueSession(pollOwnerUserId)
                     ) {
                         continue
                     }
                     val liveToken = token()
                     if (liveToken.isBlank()) continue
-                    WebRTCSignaling.fetchPending(liveToken)
+                    fetchPendingSignaling(liveToken)
                         .onSuccess { messages ->
-                            if (!BackgroundSessionGate.mayContinue(expectedUserId = pollOwnerUserId)) {
+                            if (!mayContinueSession(pollOwnerUserId)) {
                                 return@onSuccess
                             }
                             messages.forEach {
@@ -148,10 +142,10 @@ internal class CallSignalingIngressController(
                             }
                         }
                         .onFailure { error ->
-                            if (!BackgroundSessionGate.mayContinue(expectedUserId = pollOwnerUserId)) {
+                            if (!mayContinueSession(pollOwnerUserId)) {
                                 return@onFailure
                             }
-                            updateState { it.copy(errorMessage = text(R.string.call_fetch_signaling_failed, arrayOf(failureReason(error)))) }
+                            updateState { it.copy(errorMessage = text(CallSignalingIngressMessage.FETCH_SIGNALING_FAILED, arrayOf(failureReason(error)))) }
                         }
                 }
             }
@@ -170,7 +164,7 @@ internal class CallSignalingIngressController(
      * 8.56：群 mesh——本端 manager 就绪后统一处理被缓冲的成员边 offer
      * （成员先接听、本端尚在 RINGING/CALLING 时，offer 曾被打消）。
      */
-    fun flushPendingGroupOffers(manager: WebRTCManager, session: Long) {
+    fun flushPendingGroupOffers(manager: CallSignalingWebRtc, session: Long) {
         if (pendingGroupOffers.isEmpty()) return
         val entries = pendingGroupOffers.toList()
         pendingGroupOffers.clear()
@@ -181,11 +175,11 @@ internal class CallSignalingIngressController(
                 peerUserId = fromUserId,
                 remoteOfferSdp = sdp,
                 type = currentState().callType,
-                onIceCandidate = { candidate ->
-                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, sdpMid, sdpMLineIndex, sdp)
                 },
-                onAnswerCreated = { sdp2 ->
-                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp2.description)
+                onAnswerCreated = { description ->
+                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", description)
                 }
             )
         }
@@ -237,7 +231,7 @@ internal class CallSignalingIngressController(
                         fromUserId,
                         "busy",
                         "",
-                        text(R.string.call_notify_busy_failed, emptyArray()),
+                        text(CallSignalingIngressMessage.NOTIFY_BUSY_FAILED, emptyArray()),
                         callId,
                         groupId,
                         groupMemberIds
@@ -270,9 +264,9 @@ internal class CallSignalingIngressController(
                     ringingTimeout.cancel()
                     if (st.isGroupCall) {
                         groupMesh.cancelInviteTimeout(fromUserId)
-                        webRTCManager()?.handleGroupAnswer(fromUserId, payload)
+                        webRtc()?.handleGroupAnswer(fromUserId, payload)
                     } else {
-                        webRTCManager()?.handleAnswer(payload)
+                        webRtc()?.handleAnswer(payload)
                     }
                     // BUG 3 fix: 不在此处设 CONNECTED，等 ICE onIceConnectionChange 回调设
                     updateState { it.copy(isInitializing = false) }
@@ -282,11 +276,10 @@ internal class CallSignalingIngressController(
                     if (parts.size == 3) {
                         val sdpMLineIndex = parts[1].toIntOrNull()
                         if (sdpMLineIndex != null) {
-                            val candidate = IceCandidate(parts[0], sdpMLineIndex, parts[2])
                             if (currentState.isGroupCall) {
-                                webRTCManager()?.addGroupIceCandidate(fromUserId, candidate)
+                                webRtc()?.addGroupIceCandidate(fromUserId, parts[0], sdpMLineIndex, parts[2])
                             } else {
-                                webRTCManager()?.addIceCandidate(candidate)
+                                webRtc()?.addIceCandidate(parts[0], sdpMLineIndex, parts[2])
                             }
                         }
                     }
@@ -302,28 +295,23 @@ internal class CallSignalingIngressController(
                             // same missed-call semantics as the 1:1 caller-gave-up path.
                             scope.launch {
                                 try {
-                                    MissedCallRecorder.recordRingTimeout(
-                                        context = app,
-                                        signalingCallId = activeCallId().ifBlank { callId },
-                                        fromUserId = currentState.contactId.ifBlank { fromUserId },
-                                        callerName = currentState.contactName,
-                                        isVideo = currentState.callType == CallType.VIDEO,
-                                        isGroup = currentState.isGroupCall,
+                                    recordMissedCall(
+                                        activeCallId().ifBlank { callId },
+                                        currentState.contactId.ifBlank { fromUserId },
+                                        currentState.contactName,
+                                        currentState.callType == CallType.VIDEO,
+                                        currentState.isGroupCall,
                                     )
                                 } catch (error: CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
-                                    Log.w(
-                                        "CallViewModel",
-                                        "missed-call record on group initiator hang-up failed",
-                                        error
-                                    )
+                                    logWarning("missed-call record on group initiator hang-up failed", error)
                                 }
                             }
-                            IncomingCallCoordinator.clear()
+                            clearIncomingCall()
                             endCall(false, null)
                         } else {
-                            webRTCManager()?.removeGroupPeer(fromUserId)
+                            webRtc()?.removeGroupPeer(fromUserId)
                             groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.DISCONNECTED)
                         }
                     } else {
@@ -337,42 +325,38 @@ internal class CallSignalingIngressController(
                         ) {
                             scope.launch {
                                 try {
-                                    MissedCallRecorder.recordRingTimeout(
-                                        context = app,
-                                        signalingCallId = activeCallId().ifBlank { callId },
-                                        fromUserId = currentState.contactId.ifBlank { fromUserId },
-                                        callerName = currentState.contactName,
-                                        isVideo = currentState.callType == CallType.VIDEO,
+                                    recordMissedCall(
+                                        activeCallId().ifBlank { callId },
+                                        currentState.contactId.ifBlank { fromUserId },
+                                        currentState.contactName,
+                                        currentState.callType == CallType.VIDEO,
+                                        false,
                                     )
                                 } catch (error: CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
-                                    Log.w(
-                                        "CallViewModel",
-                                        "missed-call record on peer hang-up failed",
-                                        error
-                                    )
+                                    logWarning("missed-call record on peer hang-up failed", error)
                                 }
                             }
-                            IncomingCallCoordinator.clear()
+                            clearIncomingCall()
                         }
                         endCall(false, null)
                     }
                 }
                 "reject" -> {
                     if (currentState.isGroupCall) {
-                        webRTCManager()?.removeGroupPeer(fromUserId)
+                        webRtc()?.removeGroupPeer(fromUserId)
                         groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.REJECTED)
                     } else {
-                        endCall(false, text(R.string.call_peer_rejected, emptyArray()))
+                        endCall(false, text(CallSignalingIngressMessage.PEER_REJECTED, emptyArray()))
                     }
                 }
                 "busy" -> {
                     if (currentState.isGroupCall) {
-                        webRTCManager()?.removeGroupPeer(fromUserId)
+                        webRtc()?.removeGroupPeer(fromUserId)
                         groupMesh.markGroupPeerTerminal(fromUserId, GroupPeerConnectionState.BUSY)
                     } else {
-                        endCall(false, text(R.string.call_peer_busy, emptyArray()))
+                        endCall(false, text(CallSignalingIngressMessage.PEER_BUSY, emptyArray()))
                     }
                 }
                 "offer" -> {
@@ -384,10 +368,10 @@ internal class CallSignalingIngressController(
                         st.isGroupCall &&
                         groupId == activeGroupId() &&
                         fromUserId in groupMemberIds() &&
-                        webRTCManager()?.hasGroupPeer(fromUserId) != true
+                        webRtc()?.hasGroupPeer(fromUserId) != true
                     ) {
                         groupMesh.scheduleGroupPeerTimeout(fromUserId)
-                        val manager = webRTCManager()
+                        val manager = webRtc()
                         if (manager == null) {
                             // 8.56：本端 manager 尚未创建（成员先接听）——缓冲该边 offer，
                             // 接听/建 manager 后统一 flush，避免边永久丢失
@@ -398,11 +382,11 @@ internal class CallSignalingIngressController(
                                 peerUserId = fromUserId,
                                 remoteOfferSdp = payload,
                                 type = st.callType,
-                                onIceCandidate = { candidate ->
-                                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                                onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(fromUserId, sdpMid, sdpMLineIndex, sdp)
                                 },
-                                onAnswerCreated = { sdp ->
-                                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", sdp.description)
+                                onAnswerCreated = { description ->
+                                    if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(fromUserId, "answer", description)
                                 }
                             )
                         }
@@ -411,7 +395,7 @@ internal class CallSignalingIngressController(
                             fromUserId,
                             "busy",
                             "",
-                            text(R.string.call_notify_busy_failed, emptyArray()),
+                            text(CallSignalingIngressMessage.NOTIFY_BUSY_FAILED, emptyArray()),
                             callId,
                             groupId,
                             groupMemberIds
@@ -422,7 +406,7 @@ internal class CallSignalingIngressController(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            updateState { it.copy(errorMessage = text(R.string.call_handle_signaling_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray())))) }
+            updateState { it.copy(errorMessage = text(CallSignalingIngressMessage.HANDLE_SIGNALING_FAILED, arrayOf(e.message ?: text(CallSignalingIngressMessage.UNKNOWN_ERROR, emptyArray())))) }
         }
     }
 }
