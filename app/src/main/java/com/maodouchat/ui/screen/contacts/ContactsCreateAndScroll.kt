@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.User
+import com.maodouchat.domain.contacts.ContactMemberCandidates
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -77,16 +78,7 @@ internal fun NewGroupDialog(
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     val selectedMembers = remember(selectedIds, contacts) { contacts.filter { it.id in selectedIds } }
     val filteredContacts = remember(contacts, memberQuery) {
-        val q = memberQuery.trim()
-        val base = if (q.isEmpty()) contacts
-        else contacts.filter { user ->
-            user.displayName.contains(q, ignoreCase = true) ||
-                user.name.contains(q, ignoreCase = true) ||
-                user.id.contains(q, ignoreCase = true) ||
-                user.email.contains(q, ignoreCase = true) ||
-                user.nickname?.contains(q, ignoreCase = true) == true
-        }
-        base.sortedWith(compareByDescending<User> { it.isOnline }.thenBy { it.displayName.lowercase() })
+        ContactMemberCandidates.filterAndSort(contacts, memberQuery)
     }
     val canCreate = groupName.trim().isNotEmpty()
 
@@ -189,16 +181,7 @@ internal fun NewChannelDialog(
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     val selectedMembers = remember(selectedIds, contacts) { contacts.filter { it.id in selectedIds } }
     val filteredContacts = remember(contacts, memberQuery) {
-        val q = memberQuery.trim()
-        val base = if (q.isEmpty()) contacts
-        else contacts.filter { user ->
-            user.displayName.contains(q, ignoreCase = true) ||
-                user.name.contains(q, ignoreCase = true) ||
-                user.id.contains(q, ignoreCase = true) ||
-                user.email.contains(q, ignoreCase = true) ||
-                user.nickname?.contains(q, ignoreCase = true) == true
-        }
-        base.sortedWith(compareByDescending<User> { it.isOnline }.thenBy { it.displayName.lowercase() })
+        ContactMemberCandidates.filterAndSort(contacts, memberQuery)
     }
     val canCreate = channelName.trim().isNotEmpty()
 
