@@ -27,6 +27,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -104,8 +105,8 @@ class ChatMessageLoadingControllerTest {
         override suspend fun uploadAvatar(chatId: String, base64: String): Result<String> = error("unused")
     }
 
-    private class Harness(
-        private val dispatcher: UnconfinedTestDispatcher,
+    private inner class Harness(
+        private val dispatcher: CoroutineDispatcher,
     ) {
         val uiState = MutableStateFlow(ChatDetailUiState(contact = peer))
         val scopeJob = Job()

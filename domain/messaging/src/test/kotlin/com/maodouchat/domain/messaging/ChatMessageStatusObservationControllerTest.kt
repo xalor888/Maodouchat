@@ -12,6 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -48,7 +49,7 @@ class ChatMessageStatusObservationControllerTest {
 
     private class Harness(
         initial: ChatDetailUiState,
-        private val dispatcher: UnconfinedTestDispatcher,
+        private val dispatcher: CoroutineDispatcher,
     ) {
         val uiState = MutableStateFlow(initial)
         val scopeJob = Job()
