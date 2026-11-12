@@ -31,11 +31,15 @@ import com.maodouchat.domain.messaging.IdentityVerificationController
 import com.maodouchat.domain.messaging.ChatSessionTeardownController
 import com.maodouchat.domain.messaging.ChatExportController
 import com.maodouchat.domain.messaging.ChatFileTransferController
+import com.maodouchat.domain.messaging.ChatRealtimeController
+import com.maodouchat.domain.messaging.ChatRealtimeText
+import com.maodouchat.domain.messaging.UserPresenceSnapshot
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.repository.AiMessageResultStore
 import com.maodouchat.data.repository.ChatNetworkRepository
+import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.conversation.ChatAttachmentObservationController
@@ -108,9 +112,7 @@ internal class ChatDetailDeps(
         messageStore = messageRepo,
         isSecretChat = { message -> host._uiState.value.isSecretChat == true || com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId).isSecretChat },
         onProgress = host::updateFileTransferProgress,
-        onMessageUpdated = { updated ->
-            host._uiState.update { state -> state.copy(messages = state.messages.map { current -> if (current.id == updated.id) updated else current }) }
-        },
+        onMessageUpdated = { updated -> host._uiState.update { state -> state.copy(messages = state.messages.map { current -> if (current.id == updated.id) updated else current }) } },
     )
     internal val messagePreviewController = ChatMessagePreviewController(
         chatProvider = { host._uiState.value.chat }, contactProvider = { host._uiState.value.contact },
@@ -143,14 +145,8 @@ internal class ChatDetailDeps(
         persistRevoked = messageTerminalStore::persistRevoked,
         persistEdited = messageRepo::applyEditedMessage,
         persistReaction = { original, reactions, actorUserId, reactionEmoji ->
-            val reactedAt = reactions.lastOrNull { it.userId == actorUserId }?.reactedAt
-                ?: System.currentTimeMillis()
-            messageRepo.mutateMessageReactions(original.id) { existing ->
-                ReactionMutationPolicy.apply(
-                    existing = existing, actorUserId = actorUserId,
-                    emoji = reactionEmoji, reactedAt = reactedAt,
-                )
-            }
+            val reactedAt = reactions.lastOrNull { it.userId == actorUserId }?.reactedAt ?: System.currentTimeMillis()
+            messageRepo.mutateMessageReactions(original.id) { existing -> ReactionMutationPolicy.apply(existing = existing, actorUserId = actorUserId, emoji = reactionEmoji, reactedAt = reactedAt) }
         },
         indexMessage = messagePreviewController::indexSearchableMessage,
         cleanupAttachment = host::cleanupAttachmentForMessage,
@@ -170,10 +166,7 @@ internal class ChatDetailDeps(
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken -> ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() } },
-            createDirectConversation = { liveToken, recipientId, secret ->
-                ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null,
-                    chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat()
-            },
+            createDirectConversation = { liveToken, recipientId, secret -> ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null, chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat() },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
@@ -244,12 +237,8 @@ internal class ChatDetailDeps(
             },
             resolveTargets = { _, targets -> targets.mapNotNull { chatRepo.getChatById(it.id) ?: it } },
             stageMessage = { message, groupRevision ->
-                messageGateway.stageAndEnqueue(
-                    message = message,
-                    groupRevision = groupRevision,
-                    body = message.content,
-                    type = message.type,
-                )
+                messageGateway.stageAndEnqueue(message = message, groupRevision = groupRevision,
+                    body = message.content, type = message.type)
             },
             attachmentIntentController = attachmentIntentController,
             getMessageById = { id -> messageRepo.getMessageById(id) },
@@ -374,14 +363,27 @@ internal class ChatDetailDeps(
     )
     internal val realtimeController = ChatRealtimeController(
         sessionContextProvider = com.maodouchat.session.SessionContexts.provider(application),
-        application = application,
         scope = host.viewModelScope,
+        realtime = com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager(
+            sessionContextProvider = com.maodouchat.session.SessionContexts.provider(application),
+            transport = com.maodouchat.network.WebSocketTransport,
+            scope = host.viewModelScope,
+        ),
         ownerUserId = { host.currentUserId },
         token = { host.token },
         activeChatId = { host.activeChatId },
         sessionActive = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
         currentState = host._uiState::value,
         updateState = { transform -> host._uiState.update(transform) },
+        wsUrl = { com.maodouchat.network.ApiConfig.WS_URL },
+        presenceEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.PRESENCE) },
+        secretPresenceBlocked = { RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_PRESENCE_BLOCK) },
+        typingIndicatorsEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.TYPING_INDICATORS) },
+        secretTypingBlocked = { RuntimeFlags.isEnabled(application, RuntimeFlags.SECRET_TYPING_BLOCK) },
+        purgeInProgress = com.maodouchat.security.SecureSessionManager::isPurgeInProgress,
+        fetchUserPresence = { liveToken, contactId ->
+            UserNetworkRepository().user(liveToken, contactId).map { UserPresenceSnapshot(it.isOnline, it.lastSeen) }
+        },
         persistDisappearingMessages = { targetChatId, seconds ->
             chatRepo.getChatById(targetChatId)?.let { local ->
                 chatRepo.cacheChats(listOf(local.copy(disappearingMessageSeconds = seconds)))
@@ -396,7 +398,8 @@ internal class ChatDetailDeps(
             )
         },
         onGroupRevisionChanged = host::handleGroupRevisionChanged,
-        text = { id -> host.text(id) },
+        text = { key: ChatRealtimeText -> host.text(chatRealtimeTextResId(key)) },
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val voicePlaybackReporter = ChatVoicePlaybackReporter(
         scope = host.viewModelScope,
