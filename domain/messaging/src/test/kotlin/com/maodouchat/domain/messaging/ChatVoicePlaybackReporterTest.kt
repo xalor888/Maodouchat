@@ -166,9 +166,11 @@ class ChatVoicePlaybackReporterTest {
         )
         harness.reporter(playingIds = flowOf("m1", "m1", "m2", "m1")).observeVoicePlayback()
         harness.settle()
-        assertEquals(
-            listOf(Triple<String, String, Long?>("c1", "m1", 42L), Triple<String, String, Long?>("c1", "m2", 42L)),
-            harness.enqueued,
+        // 两条回执经 Dispatchers.IO 并发上报，追加顺序不确定；按 id 排序后再比完整 Triple。
+        val expected = listOf(
+            Triple<String, String, Long?>("c1", "m1", 42L),
+            Triple<String, String, Long?>("c1", "m2", 42L),
         )
+        assertEquals(expected.sortedBy { it.second }, harness.enqueued.sortedBy { it.second })
     }
 }
