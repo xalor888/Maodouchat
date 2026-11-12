@@ -683,7 +683,7 @@ class ClientArchitectureTest {
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
         // 与之并列 435 行的 CallViewModel 早已在表内）。
         "com/maodouchat/util/VoicePlayer.kt" to 443,
-        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 435,
+        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 418,
     )
 
     @Test
@@ -960,7 +960,7 @@ class ClientArchitectureTest {
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
         // 与之并列 435 行的 CallViewModel 早已在表内）。
         "com/maodouchat/util/VoicePlayer.kt" to 443,
-        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 435,
+        "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 418,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
     }
