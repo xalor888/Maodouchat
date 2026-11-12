@@ -1,30 +1,25 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import android.app.Application
-import com.maodouchat.R
-import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.core.session.CallSessionMachine
-import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.WebRtcNativeLoadException
+import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallRingingTimeout
 import com.maodouchat.domain.calls.CallSignalingSender
-import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-// 呼入一族：从 CallViewModel 纯搬移；VM 留同签名委托。
-internal class CallIncomingCallController(
+// 呼入一族：从 app 侧 CallViewModel 迁入；VM 只改接线。
+class CallIncomingCallController(
     private val scope: CoroutineScope,
-    private val app: Application,
     private val currentState: () -> CallUiState,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
     private val token: () -> String,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (CallIncomingCallMessage, Array<out Any>) -> String,
+    private val cancelIncomingCall: (String) -> Unit,
     private val activeCallId: () -> String,
     private val activeCallSession: () -> Long,
     private val pendingOfferSdp: () -> String?,
@@ -32,12 +27,13 @@ internal class CallIncomingCallController(
     private val resetForNewIncomingCall: (contactId: String, offerSdp: String, callId: String, groupId: String, groupMemberIds: List<String>) -> Pair<Boolean, List<GroupCallParticipantUi>>,
     private val markIncomingSessionOwner: () -> Unit,
     private val signalingSender: CallSignalingSender,
-    private val groupMesh: CallGroupMesh,
-    private val webRtcSetup: CallWebRtcSetupController,
-    private val mediaBridge: CallMediaBridge,
+    private val groupMesh: CallSignalingGroupMesh,
+    private val createWebRtc: suspend () -> CallWebRtcSession,
+    private val configureWebRtc: (CallWebRtcSession, Long) -> Unit,
+    private val bindMedia: (CallWebRtcSession) -> Unit,
     private val sessionGateIsCurrent: (Long) -> Boolean,
-    private val isCurrentCallSession: (Long, WebRTCManager?) -> Boolean,
-    private val flushPendingGroupOffers: (WebRTCManager, Long) -> Unit,
+    private val isCurrentCallSession: (Long, CallWebRtcSession?) -> Boolean,
+    private val flushPendingGroupOffers: (CallWebRtcSession, Long) -> Unit,
     private val callSessionMachine: CallSessionMachine,
     private val activeDomainSession: () -> Long,
     private val ringingTimeout: CallRingingTimeout,
@@ -63,7 +59,7 @@ internal class CallIncomingCallController(
                     contactId,
                     "busy",
                     "",
-                    text(R.string.call_notify_busy_failed, emptyArray()),
+                    text(CallIncomingCallMessage.NOTIFY_BUSY_FAILED, emptyArray()),
                     callId,
                     groupId,
                     groupMemberIds
@@ -75,12 +71,12 @@ internal class CallIncomingCallController(
         // In-app ring UI owns the call — drop FCM/full-screen incoming tray so shade
         // does not keep a second "encrypted call" while CallScreen is already open.
         if (callId.isNotBlank()) {
-            CallNotificationService.cancelIncomingCall(app, callId)
+            cancelIncomingCall(callId)
         }
         updateState {
             it.copy(
                 contactId = contactId,
-                contactName = if (isGroup) text(R.string.call_group_name, arrayOf(participants.size)) else contactName,
+                contactName = if (isGroup) text(CallIncomingCallMessage.GROUP_NAME, arrayOf(participants.size)) else contactName,
                 contactAvatar = contactAvatar,
                 callType = callType,
                 callState = CallState.RINGING,
@@ -104,12 +100,12 @@ internal class CallIncomingCallController(
         val targetCallType = callType ?: state.callType
         val targetOfferSdp = offerSdp ?: pendingOfferSdp()
         if (targetContactId.isBlank() || targetOfferSdp.isNullOrBlank()) {
-            updateState { it.copy(errorMessage = text(R.string.call_incoming_incomplete, emptyArray())) }
+            updateState { it.copy(errorMessage = text(CallIncomingCallMessage.INCOMING_INCOMPLETE, emptyArray())) }
             return
         }
         if (state.callState != CallState.RINGING || !state.isIncoming || state.isInitializing) return
         if (token().isBlank()) {
-            endCall(false, text(R.string.call_session_expired, emptyArray()), true)
+            endCall(false, text(CallIncomingCallMessage.SESSION_EXPIRED, emptyArray()), true)
             return
         }
         // 8.39：用户已接听即取消 30s 振铃超时——否则 WebRTC 原生库首次联网下载（慢网可超 30s）
@@ -118,7 +114,7 @@ internal class CallIncomingCallController(
         callSessionMachine.markConnecting(activeDomainSession())
         // Accepting from in-app UI must clear any leftover FCM incoming tray.
         if (activeCallId().isNotBlank()) {
-            CallNotificationService.cancelIncomingCall(app, activeCallId())
+            cancelIncomingCall(activeCallId())
         }
         updateState {
             it.copy(
@@ -137,60 +133,60 @@ internal class CallIncomingCallController(
 
         scope.launch {
             try {
-                val manager = webRtcSetup.createWebRtcManager()
+                val webRtc = createWebRtc()
                 val latest = currentState()
                 if (!sessionGateIsCurrent(session) || latest.callState != CallState.RINGING || !latest.isIncoming || latest.contactId != targetContactId) {
-                    // 8.56：门禁失效时释放已构造的 manager，避免残留（audio 监听等）
-                    runCatching { manager.release() }
+                    // 8.56：门禁失效时释放已构造的 webRtc，避免残留（audio 监听等）
+                    runCatching { webRtc.release() }
                     return@launch
                 }
-                mediaBridge.bind(manager)
-                webRtcSetup.configureReliabilityCallbacks(manager, session)
-                manager.initialize()
+                bindMedia(webRtc)
+                configureWebRtc(webRtc, session)
+                webRtc.initialize()
                 if (latest.isGroupCall) {
                     groupMesh.scheduleGroupPeerTimeout(targetContactId)
                     // 8.56：接听后统一 flush 被缓冲的群成员边 offer（修复成员先接听导致边永久丢失）
-                    flushPendingGroupOffers(manager, session)
-                    manager.acceptGroupOffer(
+                    flushPendingGroupOffers(webRtc, session)
+                    webRtc.acceptGroupOffer(
                         peerUserId = targetContactId,
                         remoteOfferSdp = targetOfferSdp,
                         type = targetCallType,
-                        onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                        onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                            if (isCurrentCallSession(session, webRtc)) signalingSender.sendIceCandidate(targetContactId, sdpMid, sdpMLineIndex, sdp)
                         },
-                        onAnswerCreated = { sdp ->
-                            if (!isCurrentCallSession(session, manager)) return@acceptGroupOffer
+                        onAnswerCreated = { description ->
+                            if (!isCurrentCallSession(session, webRtc)) return@acceptGroupOffer
                             ringingTimeout.cancel()
                             clearPendingOfferSdp()
                             updateState { it.copy(isInitializing = false) }
-                            signalingSender.sendSdp(targetContactId, "answer", sdp.description)
+                            signalingSender.sendSdp(targetContactId, "answer", description)
                         }
                     )
-                    groupMesh.startDeterministicMeshEdges(manager, targetContactId, session)
+                    groupMesh.startDeterministicMeshEdges(webRtc, targetContactId, session)
                     observeSignaling()
                     return@launch
                 }
-                manager.answerCall(
+                webRtc.answerCall(
                     remoteOfferSdp = targetOfferSdp,
                     type = targetCallType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(targetContactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                    onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                        if (isCurrentCallSession(session, webRtc)) signalingSender.sendIceCandidate(targetContactId, sdpMid, sdpMLineIndex, sdp)
                     },
-                    onAnswerCreated = { sdp ->
-                        if (!isCurrentCallSession(session, manager)) return@answerCall
+                    onAnswerCreated = { description ->
+                        if (!isCurrentCallSession(session, webRtc)) return@answerCall
                         ringingTimeout.cancel()
                         clearPendingOfferSdp()
                         updateState { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(targetContactId, "answer", sdp.description)
+                        signalingSender.sendSdp(targetContactId, "answer", description)
                     }
                 )
                 observeSignaling()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
+                endCall(false, text(CallIncomingCallMessage.WEBRTC_DOWNLOAD_FAILED, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(false, text(R.string.call_answer_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
+                endCall(false, text(CallIncomingCallMessage.ANSWER_FAILED, arrayOf(e.message ?: text(CallIncomingCallMessage.UNKNOWN_ERROR, emptyArray()))), true)
             }
         }
     }
@@ -199,11 +195,11 @@ internal class CallIncomingCallController(
         val contactId = currentState().contactId
         val callId = activeCallId()
         if (contactId.isNotBlank()) {
-            signalingSender.sendSignalWithFallback(contactId, "reject", "", text(R.string.call_notify_reject_failed, emptyArray()))
+            signalingSender.sendSignalWithFallback(contactId, "reject", "", text(CallIncomingCallMessage.NOTIFY_REJECT_FAILED, emptyArray()))
         }
         // User declined — never leave FCM tray ringing after reject.
         if (callId.isNotBlank()) {
-            CallNotificationService.cancelIncomingCall(app, callId)
+            cancelIncomingCall(callId)
         }
         // 8.53：主动拒接非「未接」——不写 MISSED 通话记录（对端忙/拒接由呼出侧记未接通）
         endCall(false, null, false)
