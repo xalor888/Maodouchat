@@ -1,62 +1,52 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.content.Context
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.crypto.AttachmentErrorUiPolicy
-import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.data.local.entity.AttachmentTransferState
-import com.maodouchat.domain.messaging.AttachmentIntentController
-import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.core.model.ApiException
+import com.maodouchat.core.model.AttachmentErrorKind
+import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.LocalMessageStore
-import com.maodouchat.util.MediaCache
+import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
+import com.maodouchat.core.model.AttachmentTransferState
+import com.maodouchat.core.model.ChatMediaStateController
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 
-/**
- * 附件「下载 / 暂停 / 续传 / 取消 / 进度」这一族的控制逻辑（G328c 从
- * `ChatDetailViewModel` 抽出，纯搬移不改判断）。
- *
- * 为什么先抽它：这 10 个方法在 ViewModel 里是 179 行**薄编排**——真正干活的
- * 是 `attachmentIntentController` / `mediaStateController` /
- * `attachmentDownloadCoordinator`，而 ViewModel 只负责把它们与 `uiState` 缝起来。
- * 缝线属于「附件传输」这一个关注点，独立成类之后，ViewModel 里剩下的
- * 就是转发（一行一个）而不是实现。
- *
- * 依赖全部显式传入（含 `scope` / `context` / `text`），因此它**不依赖 ViewModel**；
- * 但也如实说明：本类仍会触碰 MediaCache 与 Android Context，所以它属于
- * 「可读性/职责」上的拆分，不是「可单测」上的拆分——判定类逻辑在
- * `ChatDetailDecryptStatus` 那种纯类里才谈得上单测。
- */
-internal class ChatDetailFileTransferController(
+// 附件「下载 / 暂停 / 续传 / 取消 / 进度」控制器：MediaCache/Context/DAO/R 文案走端口，其余逻辑逐字平移。
+class ChatFileTransferController(
     private val uiState: MutableStateFlow<ChatDetailUiState>,
     private val scope: CoroutineScope,
     private val applicationScope: CoroutineScope,
-    private val context: Context,
     private val activeChatId: () -> String,
-    private val messageRepo: LocalMessageStore,
     private val mediaStateController: ChatMediaStateController,
     private val attachmentIntentController: AttachmentIntentController,
     private val attachmentPreparationJobs: MutableMap<String, Job>,
-    private val text: (Int) -> String,
+    private val text: (FileTransferText) -> String,
     private val ensureLocalAttachment: suspend (Message) -> Result<Message>,
     /** 批量重试 / 批量取消走仓库动作，而不是把 app 单例交给控制器。 */
     private val retryAllTransfers: suspend (String) -> Unit,
     private val cancelAllTransfers: suspend (String) -> Unit,
+    private val isReadableLocalUri: (String) -> Boolean,
+    private val releasePersistableReadPermission: (String) -> Unit,
+    private val deleteCachedMediaForMessage: (String) -> Unit,
+    private val updateMessageStatus: suspend (String, MessageStatus) -> Unit,
+    private val deleteMessage: suspend (String) -> Unit,
+    private val currentUserId: () -> String,
+    private val cleanupAttachmentTransfer: suspend (String, String) -> Unit,
+    private val logWarning: (String, Throwable) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
     fun requestOpenFile(messageId: String) {
         val message = uiState.value.messages.firstOrNull { it.id == messageId && it.type == MessageType.FILE } ?: return
-        if (MediaCache.isReadableLocalUri(context, message.parsedContent())) {
+        if (isReadableLocalUri(message.parsedContent())) {
             uiState.update { it.copy(fileReadyToOpenUri = message.parsedContent()) }
             return
         }
@@ -79,12 +69,12 @@ internal class ChatDetailFileTransferController(
                             mediaStateController.finishDownload(
                                 state,
                                 messageId,
-                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
+                                failureMessage = attachmentErrorText(error, text(FileTransferText.DOWNLOAD_FAILED)),
                             )
                         }
                     },
                 )
-            } catch (error: kotlinx.coroutines.CancellationException) {
+            } catch (error: CancellationException) {
                 uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
                 throw error
             }
@@ -94,7 +84,7 @@ internal class ChatDetailFileTransferController(
         val message = uiState.value.messages.firstOrNull {
             it.id == messageId && it.type in RELIABLE_ATTACHMENT_TYPES
         } ?: return
-        if (MediaCache.isReadableLocalUri(context, message.parsedContent())) return
+        if (isReadableLocalUri(message.parsedContent())) return
         if (messageId in uiState.value.downloadingFileMessageIds) return
         scope.launch {
             uiState.update { state -> mediaStateController.beginDownload(state, messageId) }
@@ -108,13 +98,13 @@ internal class ChatDetailFileTransferController(
                             mediaStateController.finishDownload(
                                 state,
                                 messageId,
-                                failureMessage = attachmentErrorText(error, R.string.chat_attachment_download_failed),
+                                failureMessage = attachmentErrorText(error, text(FileTransferText.DOWNLOAD_FAILED)),
                                 markMediaFailure = true,
                             )
                         }
                     },
                 )
-            } catch (error: kotlinx.coroutines.CancellationException) {
+            } catch (error: CancellationException) {
                 uiState.update { state -> mediaStateController.finishDownload(state, messageId) }
                 throw error
             }
@@ -125,9 +115,9 @@ internal class ChatDetailFileTransferController(
     }
     fun pauseFileTransfer(messageId: String) {
         if (uiState.value.fileTransferStates[messageId] !in setOf(AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING)) return
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             if (!attachmentIntentController.pause(messageId)) {
-                uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_file_transfer_control_failed)) }
+                uiState.update { it.copy(groupEncryptionWarning = text(FileTransferText.CONTROL_FAILED)) }
             }
         }
     }
@@ -142,14 +132,14 @@ internal class ChatDetailFileTransferController(
                 groupEncryptionWarning = null
             )
         }
-        scope.launch(Dispatchers.IO) {
-            messageRepo.updateMessageStatus(messageId, MessageStatus.SENDING)
+        scope.launch(ioDispatcher) {
+            updateMessageStatus(messageId, MessageStatus.SENDING)
             if (!attachmentIntentController.resume(messageId)) {
-                messageRepo.updateMessageStatus(messageId, MessageStatus.FAILED)
+                updateMessageStatus(messageId, MessageStatus.FAILED)
                 uiState.update { state ->
                     state.copy(
                         messages = state.messages.map { if (it.id == message.id) it.copy(status = MessageStatus.FAILED) else it },
-                        groupEncryptionWarning = text(R.string.chat_file_transfer_source_missing)
+                        groupEncryptionWarning = text(FileTransferText.SOURCE_MISSING)
                     )
                 }
             }
@@ -169,9 +159,9 @@ internal class ChatDetailFileTransferController(
             }
             applicationScope.launch {
                 attachmentIntentController.cancel(messageId)
-                sourceUri?.let { MediaCache.releasePersistableReadPermission(context, it) }
-                MediaCache.deleteCachedMediaForMessage(context, messageId)
-                messageRepo.deleteMessage(messageId)
+                sourceUri?.let { releasePersistableReadPermission(it) }
+                deleteCachedMediaForMessage(messageId)
+                deleteMessage(messageId)
             }
             return
         }
@@ -185,27 +175,27 @@ internal class ChatDetailFileTransferController(
                 fileTransferErrors = state.fileTransferErrors - messageId
             )
         }
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             attachmentIntentController.cancel(messageId)
-            MediaCache.deleteCachedMediaForMessage(context, messageId)
-            messageRepo.deleteMessage(messageId)
+            deleteCachedMediaForMessage(messageId)
+            deleteMessage(messageId)
         }
     }
     fun retryAllAttachmentTransfers() {
         val chatId = activeChatId()
         if (chatId.isBlank()) return
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             retryAllTransfers(chatId)
         }
     }
     fun cancelAllAttachmentTransfers() {
         val chatId = activeChatId()
         if (chatId.isBlank()) return
-        scope.launch(Dispatchers.IO) {
+        scope.launch(ioDispatcher) {
             cancelAllTransfers(chatId)
         }
     }
-    internal fun updateFileTransferProgress(
+    fun updateFileTransferProgress(
         messageId: String,
         completed: Long,
         total: Long,
@@ -216,42 +206,34 @@ internal class ChatDetailFileTransferController(
             mediaStateController.updateSegmentProgress(state, messageId, completed, total, start, end)
         }
     }
-    internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
+    fun attachmentErrorText(error: Throwable, fallbackText: String): String =
         when (AttachmentErrorUiPolicy.classify(error)) {
             AttachmentErrorKind.TOO_LARGE ->
-                text(R.string.chat_attachment_file_too_large)
+                text(FileTransferText.FILE_TOO_LARGE)
             AttachmentErrorKind.INVALID_REFERENCE ->
-                text(R.string.chat_attachment_reference_invalid)
+                text(FileTransferText.REFERENCE_INVALID)
             AttachmentErrorKind.INTEGRITY_FAILED ->
-                text(R.string.chat_attachment_integrity_failed)
+                text(FileTransferText.INTEGRITY_FAILED)
             AttachmentErrorKind.CONTENT_MISMATCH ->
-                text(R.string.chat_attachment_content_mismatch)
+                text(FileTransferText.CONTENT_MISMATCH)
             AttachmentErrorKind.FALLBACK -> {
                 // 9.283：透传服务端具体错误（配额不足/总哈希校验失败/参数无效等），
                 // 避免笼统的「附件发送失败」掩盖真实原因，便于用户自查与我方定位
-                (error as? com.maodouchat.core.model.ApiException)?.serverMessage?.takeIf { it.isNotBlank() }
-                    ?: text(fallbackStringRes)
+                (error as? ApiException)?.serverMessage?.takeIf { it.isNotBlank() }
+                    ?: fallbackText
             }
         }
 
     /** 删除消息时清理附件传输记录和本地密文文件，防止孤儿行和磁盘泄漏。 */
-    internal suspend fun cleanupAttachmentForMessage(messageId: String) {
+    suspend fun cleanupAttachmentForMessage(messageId: String) {
         try {
-            // 与 ChatDetailViewModel.currentUserId 同口径：当前会话 userId，兜底 "me"。
-            val ownerUserId = com.maodouchat.session.CurrentSession.snapshot().userId ?: "me"
+            val ownerUserId = currentUserId()
             if (ownerUserId.isBlank()) return
-            val dao = com.maodouchat.chatdetail.ChatDetailDataAccess.attachmentTransferDao()
-            val transfer = dao.get(messageId, ownerUserId = ownerUserId) ?: return
-            // 删除本地密文文件
-            transfer.encryptedPath.takeIf { it.isNotBlank() }?.let { path ->
-                runCatching { java.io.File(path).delete() }
-            }
-            // 删除传输记录
-            dao.delete(messageId, ownerUserId = ownerUserId)
-        } catch (e: kotlinx.coroutines.CancellationException) {
+            cleanupAttachmentTransfer(messageId, ownerUserId)
+        } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w("ChatDetailFileTransferController", "Attachment cleanup failed for $messageId", e)
+            logWarning("Attachment cleanup failed for $messageId", e)
         }
     }
 }

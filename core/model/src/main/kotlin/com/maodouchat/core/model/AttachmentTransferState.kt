@@ -1,4 +1,4 @@
-package com.maodouchat.domain.conversation
+package com.maodouchat.core.model
 
 /** 附件传输状态字符串：与 Room 侧 AttachmentTransferEntity 的 state 取值逐字一致。 */
 object AttachmentTransferState {

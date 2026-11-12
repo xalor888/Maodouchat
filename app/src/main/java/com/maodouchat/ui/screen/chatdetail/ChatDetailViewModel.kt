@@ -545,7 +545,7 @@ class ChatDetailViewModel(
 
     /**
      * G328c：附件传输族（下载/暂停/续传/取消/进度/错误文案）已抽到
-     * [ChatDetailFileTransferController]。这里只保留一行转发，调用点不变。
+     * [ChatFileTransferController]。这里只保留一行转发，调用点不变。
      */
     private val fileTransferController get() = deps.fileTransferController
 
@@ -574,7 +574,7 @@ class ChatDetailViewModel(
     ) = fileTransferController.updateFileTransferProgress(messageId, completed, total, start, end)
 
     internal fun attachmentErrorText(error: Throwable, fallbackStringRes: Int): String =
-        fileTransferController.attachmentErrorText(error, fallbackStringRes)
+        fileTransferController.attachmentErrorText(error, text(fallbackStringRes))
 
     internal suspend fun ensureLocalAttachment(message: Message): Result<Message> {
         return attachmentDownloadCoordinator.ensureLocalAttachment(message)

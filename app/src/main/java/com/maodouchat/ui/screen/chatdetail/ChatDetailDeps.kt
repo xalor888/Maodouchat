@@ -30,6 +30,7 @@ import com.maodouchat.domain.messaging.ChatMessageStatusObservationController
 import com.maodouchat.domain.messaging.IdentityVerificationController
 import com.maodouchat.domain.messaging.ChatSessionTeardownController
 import com.maodouchat.domain.messaging.ChatExportController
+import com.maodouchat.domain.messaging.ChatFileTransferController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -44,7 +45,7 @@ import com.maodouchat.domain.conversation.ChatGroupCallController
 import com.maodouchat.domain.conversation.ChatDetailLoadCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
-import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.core.model.ChatMediaStateController
 import com.maodouchat.domain.conversation.ChatMessageObservationController
 import com.maodouchat.domain.conversation.ChatModerationController
 import com.maodouchat.domain.conversation.ChatPinStarController
@@ -128,15 +129,8 @@ internal class ChatDetailDeps(
         DefaultConversationCommandFacade(gateway = messageGateway, resolveChat = chatRepo::getChatById, getMessage = messageRepo::getMessageById, ownerUserId = { host.currentUserId })
     }
     internal val attachmentIntentController: AttachmentIntentController by lazy {
-        DefaultAttachmentIntentController(
-            context = application,
-            transferRepository = RoomTransferRepository(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase.attachmentTransferDao()),
-            preparationService = DefaultAttachmentPreparationService(application),
-            messageStore = messageRepo,
-                commandFacade = commandFacade,
-            ownerUserId = { host.currentUserId },
-            onProgress = { id, completed, total -> host.updateFileTransferProgress(id, completed, total, 0f, 0.35f) },
-        )
+        DefaultAttachmentIntentController(context = application, transferRepository = RoomTransferRepository(application, com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase.attachmentTransferDao()), preparationService = DefaultAttachmentPreparationService(application), messageStore = messageRepo,
+            commandFacade = commandFacade, ownerUserId = { host.currentUserId }, onProgress = { id, completed, total -> host.updateFileTransferProgress(id, completed, total, 0f, 0.35f) })
     }
     internal val chatLockRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.chatLockRepo()
     internal val secretTtlRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.secretTtlRepo()
@@ -783,40 +777,45 @@ internal class ChatDetailDeps(
     )
     internal val recipientId: String get() = host._uiState.value.contact.id
     internal val fileTransferController by lazy {
-        ChatDetailFileTransferController(
+        ChatFileTransferController(
             uiState = host._uiState,
             scope = host.viewModelScope,
             applicationScope = com.maodouchat.chatdetail.ChatDetailAccess.applicationScope,
-            context = application,
             activeChatId = { host.activeChatId },
-            messageRepo = messageRepo,
             mediaStateController = mediaStateController,
             attachmentIntentController = attachmentIntentController,
             attachmentPreparationJobs = attachmentPreparationJobs,
-            text = { res -> host.text(res) },
+            text = { key -> host.text(fileTransferTextResId(key)) },
             ensureLocalAttachment = host::ensureLocalAttachment,
             retryAllTransfers = { _ -> AttachmentTransferSummaryRepository.retryAll(host.chatId) },
             cancelAllTransfers = { _ -> AttachmentTransferSummaryRepository.cancelAll(host.chatId) },
+            isReadableLocalUri = { uri -> MediaCache.isReadableLocalUri(application, uri) },
+            releasePersistableReadPermission = { uri -> MediaCache.releasePersistableReadPermission(application, uri) },
+            deleteCachedMediaForMessage = { messageId -> MediaCache.deleteCachedMediaForMessage(application, messageId) },
+            updateMessageStatus = messageRepo::updateMessageStatus,
+            deleteMessage = messageRepo::deleteMessage,
+            currentUserId = { host.currentUserId },
+            cleanupAttachmentTransfer = { messageId, ownerUserId ->
+                val dao = com.maodouchat.chatdetail.ChatDetailDataAccess.attachmentTransferDao()
+                dao.get(messageId, ownerUserId = ownerUserId)?.let { transfer ->
+                    transfer.encryptedPath.takeIf { it.isNotBlank() }?.let { path -> runCatching { java.io.File(path).delete() } }
+                    dao.delete(messageId, ownerUserId = ownerUserId)
+                }
+            },
+            logWarning = { message, error -> android.util.Log.w("ChatDetailFileTransferController", message, error) },
         )
     }
     internal val decryptStatus by lazy {
         ChatDetailDecryptStatus(
             gate = signalProtocol,
             texts = DecryptTexts(
-                failed = host.text(R.string.chat_decrypt_failed),
-                pending = host.text(R.string.chat_decrypt_pending),
-                sessionMissing = host.text(R.string.chat_decrypt_session_missing),
-                identityChanged = host.text(R.string.chat_decrypt_identity_changed),
-                groupFailed = host.text(R.string.chat_decrypt_group_failed),
-                groupKeyMissing = host.text(R.string.chat_decrypt_group_key_missing),
-                groupIdentityChanged = host.text(R.string.chat_decrypt_group_identity_changed),
-                groupNewer = host.text(R.string.chat_decrypt_group_newer),
-                imageFailed = host.text(R.string.chat_decrypt_image_failed),
-                gifFailed = host.text(R.string.chat_decrypt_gif_failed),
-                stickerFailed = host.text(R.string.chat_decrypt_sticker_failed),
-                locationFailed = host.text(R.string.chat_decrypt_location_failed),
-                videoFailed = host.text(R.string.chat_decrypt_video_failed),
-                voiceFailed = host.text(R.string.chat_decrypt_voice_failed),
+                failed = host.text(R.string.chat_decrypt_failed), pending = host.text(R.string.chat_decrypt_pending),
+                sessionMissing = host.text(R.string.chat_decrypt_session_missing), identityChanged = host.text(R.string.chat_decrypt_identity_changed),
+                groupFailed = host.text(R.string.chat_decrypt_group_failed), groupKeyMissing = host.text(R.string.chat_decrypt_group_key_missing),
+                groupIdentityChanged = host.text(R.string.chat_decrypt_group_identity_changed), groupNewer = host.text(R.string.chat_decrypt_group_newer),
+                imageFailed = host.text(R.string.chat_decrypt_image_failed), gifFailed = host.text(R.string.chat_decrypt_gif_failed),
+                stickerFailed = host.text(R.string.chat_decrypt_sticker_failed), locationFailed = host.text(R.string.chat_decrypt_location_failed),
+                videoFailed = host.text(R.string.chat_decrypt_video_failed), voiceFailed = host.text(R.string.chat_decrypt_voice_failed),
                 fileFailed = host.text(R.string.chat_decrypt_file_failed),
             ),
         )

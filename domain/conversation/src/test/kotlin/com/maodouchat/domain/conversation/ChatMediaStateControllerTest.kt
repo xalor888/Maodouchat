@@ -1,5 +1,8 @@
 package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.AttachmentTransferSnapshot
+import com.maodouchat.core.model.AttachmentTransferState
+import com.maodouchat.core.model.ChatMediaStateController
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
