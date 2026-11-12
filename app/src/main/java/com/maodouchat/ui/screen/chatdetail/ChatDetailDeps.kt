@@ -28,6 +28,7 @@ import com.maodouchat.domain.messaging.ChatMessageMutationController
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.domain.messaging.ChatMessageStatusObservationController
 import com.maodouchat.domain.messaging.ChatSessionTeardownController
+import com.maodouchat.domain.messaging.ChatExportController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -66,6 +67,7 @@ import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.core.model.ChatScheduleController
 import com.maodouchat.core.model.ConversationScheduleCoordinator
+import com.maodouchat.util.ChatExport
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoiceRecorder
@@ -121,20 +123,10 @@ internal class ChatDetailDeps(
         logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val messageGateway by lazy {
-        MessagingV2MessageGateway(
-            database = com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase,
-            messageStore = messageRepo,
-            outbox = com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox,
-            indexMessage = messagePreviewController::indexSearchableMessage,
-        )
+        MessagingV2MessageGateway(database = com.maodouchat.chatdetail.ChatDetailDataAccess.appDatabase, messageStore = messageRepo, outbox = com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox, indexMessage = messagePreviewController::indexSearchableMessage)
     }
     internal val commandFacade by lazy {
-        DefaultConversationCommandFacade(
-            gateway = messageGateway,
-            resolveChat = chatRepo::getChatById,
-            getMessage = messageRepo::getMessageById,
-            ownerUserId = { host.currentUserId },
-        )
+        DefaultConversationCommandFacade(gateway = messageGateway, resolveChat = chatRepo::getChatById, getMessage = messageRepo::getMessageById, ownerUserId = { host.currentUserId })
     }
     internal val attachmentIntentController: AttachmentIntentController by lazy {
         DefaultAttachmentIntentController(
@@ -150,10 +142,7 @@ internal class ChatDetailDeps(
     internal val chatLockRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.chatLockRepo()
     internal val secretTtlRepo = com.maodouchat.chatdetail.ChatDetailDataAccess.secretTtlRepo()
     internal val messageTerminalStore = MessageTerminalStore(
-        deleteCachedMedia = { messageId -> MediaCache.deleteCachedMediaForMessage(application, messageId) },
-        deleteSearchDocument = com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchDao()::deleteDocument,
-        deleteLocalMessage = messageRepo::deleteMessage,
-        upsertLocalMessage = { message -> messageRepo.applyRevokedMessage(message) }
+        deleteCachedMedia = { messageId -> MediaCache.deleteCachedMediaForMessage(application, messageId) }, deleteSearchDocument = com.maodouchat.chatdetail.ChatDetailDataAccess.messageSearchDao()::deleteDocument, deleteLocalMessage = messageRepo::deleteMessage, upsertLocalMessage = { message -> messageRepo.applyRevokedMessage(message) }
     )
     internal val messagingMutationFacade = MessagingV2MutationFacade(
         eventOutbox = MessagingV2EventOutbox { conversationId, event, groupRevision -> com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueueEvent(conversationId, event, groupRevision) },
@@ -199,9 +188,7 @@ internal class ChatDetailDeps(
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
             isOwnerSessionCurrent = { ownerUserId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId) },
             errors = OutgoingConversationErrors(
-                notLoggedIn = { host.text(R.string.chat_not_logged_in) },
-                recipientNotReady = { host.text(R.string.chat_recipient_not_ready) },
-                cannotSendToSelf = { host.text(R.string.chat_cannot_send_self) },
+                notLoggedIn = { host.text(R.string.chat_not_logged_in) }, recipientNotReady = { host.text(R.string.chat_recipient_not_ready) }, cannotSendToSelf = { host.text(R.string.chat_cannot_send_self) },
             ),
             currentRequest = {
                 val state = host._uiState.value
@@ -671,11 +658,22 @@ internal class ChatDetailDeps(
         chatId = host.chatId,
     )
     internal val chatExportController = ChatExportController(
-        messageRepo = messageRepo,
+        getRecentMessages = messageRepo::getRecentMessages,
         uiState = host._uiState,
-        textProvider = host::text,
-        context = application,
+        textProvider = { key, args -> host.text(chatExportTextResId(key), *args) },
         scope = host.viewModelScope,
+        ioDispatcher = kotlinx.coroutines.Dispatchers.IO,
+        exportEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.CHAT_EXPORT) },
+        currentUserId = { com.maodouchat.session.CurrentSession.snapshot().userId },
+        sessionToken = { com.maodouchat.session.CurrentSession.snapshot().token },
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        secretChatCapabilities = com.maodouchat.security.SecretChatCapabilities::forChatOrNull,
+        maxMessages = ChatExport.MAX_MESSAGES,
+        formatVersion = ChatExport.FORMAT_VERSION,
+        writeExportFile = { fileName, chatName, ownerId, messages, resolveSenderName, isCancelled ->
+            ChatExport.writeStream(application, fileName, chatName, ownerId, messages, resolveSenderName, isCancelled = isCancelled)
+        },
+        shareExportFile = { file, title -> ChatExport.share(application, file, title) },
     )
     internal var lastCapturePeerNotifyAt = 0L
     internal val identityVerificationController = IdentityVerificationController(
