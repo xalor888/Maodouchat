@@ -50,6 +50,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.MuteRemaining
+import com.maodouchat.domain.messaging.ScheduleRepeatKind
+import com.maodouchat.domain.messaging.ScheduledMessageDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ScheduledMessage
 internal fun formatScheduleTime(millis: Long): String {
@@ -288,25 +291,24 @@ internal fun ScheduledMessagesListSheet(
 
 /** 1.15：定时消息重复间隔 → 展示文案（0=一次性返回 null 不显示）。1.21/1.48：含次数与剩余次数。1.62：工作日重复。 */
 internal fun scheduleRepeatLabel(context: android.content.Context, intervalMs: Long, repeatCount: Int, occurrencesSent: Int, weekdaysOnly: Boolean): String? {
-    val base = when {
-        weekdaysOnly -> context.getString(R.string.schedule_repeat_weekdays)
-        intervalMs == 24L * 3600_000L -> context.getString(R.string.schedule_repeat_daily)
-        intervalMs == 7L * 24 * 3600_000L -> context.getString(R.string.schedule_repeat_weekly)
-        else -> if (intervalMs <= 0L) return null else context.getString(R.string.schedule_repeat_badge)
+    val kind = ScheduledMessageDisplay.repeatKind(intervalMs, weekdaysOnly) ?: return null
+    val base = when (kind) {
+        ScheduleRepeatKind.Weekdays -> context.getString(R.string.schedule_repeat_weekdays)
+        ScheduleRepeatKind.Daily -> context.getString(R.string.schedule_repeat_daily)
+        ScheduleRepeatKind.Weekly -> context.getString(R.string.schedule_repeat_weekly)
+        ScheduleRepeatKind.Custom -> context.getString(R.string.schedule_repeat_badge)
     }
-    return if (repeatCount > 0) {
-        val remaining = (repeatCount - occurrencesSent).coerceAtLeast(0)
+    val remaining = ScheduledMessageDisplay.remainingRepeatCount(repeatCount, occurrencesSent)
+    return if (remaining != null) {
         "$base · ${context.resources.getQuantityString(R.plurals.schedule_repeat_remaining, remaining, remaining)}"
     } else base
 }
 
 /** 8.48：禁言剩余时长（分钟/小时/天）本地化显示。 */
-internal fun formatMuteRemaining(context: android.content.Context, remainingMs: Long): String {
-    val minutes = remainingMs / 60_000L
-    return when {
-        minutes <= 0L -> context.getString(R.string.time_just_now)
-        minutes < 60L -> context.getString(R.string.chat_mute_minutes, minutes)
-        minutes < 24 * 60L -> context.getString(R.string.chat_mute_hours, minutes / 60L)
-        else -> context.getString(R.string.chat_mute_days, minutes / (24 * 60L))
+internal fun formatMuteRemaining(context: android.content.Context, remainingMs: Long): String =
+    when (val remaining = ScheduledMessageDisplay.muteRemaining(remainingMs)) {
+        MuteRemaining.JustNow -> context.getString(R.string.time_just_now)
+        is MuteRemaining.Minutes -> context.getString(R.string.chat_mute_minutes, remaining.minutes)
+        is MuteRemaining.Hours -> context.getString(R.string.chat_mute_hours, remaining.hours)
+        is MuteRemaining.Days -> context.getString(R.string.chat_mute_days, remaining.days)
     }
-}
