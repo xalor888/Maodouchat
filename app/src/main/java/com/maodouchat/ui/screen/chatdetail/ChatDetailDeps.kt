@@ -27,6 +27,7 @@ import com.maodouchat.domain.messaging.ChatMessageLoadingController
 import com.maodouchat.domain.messaging.ChatMessageMutationController
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.domain.messaging.ChatMessageStatusObservationController
+import com.maodouchat.domain.messaging.IdentityVerificationController
 import com.maodouchat.domain.messaging.ChatSessionTeardownController
 import com.maodouchat.domain.messaging.ChatExportController
 import com.maodouchat.core.model.mergeMessageVersions
@@ -107,9 +108,7 @@ internal class ChatDetailDeps(
         isSecretChat = { message -> host._uiState.value.isSecretChat == true || com.maodouchat.security.SecretChatCapabilities.forChat(message.chatId).isSecretChat },
         onProgress = host::updateFileTransferProgress,
         onMessageUpdated = { updated ->
-            host._uiState.update { state ->
-                state.copy(messages = state.messages.map { current -> if (current.id == updated.id) updated else current })
-            }
+            host._uiState.update { state -> state.copy(messages = state.messages.map { current -> if (current.id == updated.id) updated else current }) }
         },
     )
     internal val messagePreviewController = ChatMessagePreviewController(
@@ -154,10 +153,8 @@ internal class ChatDetailDeps(
                 ?: System.currentTimeMillis()
             messageRepo.mutateMessageReactions(original.id) { existing ->
                 ReactionMutationPolicy.apply(
-                    existing = existing,
-                    actorUserId = actorUserId,
-                    emoji = reactionEmoji,
-                    reactedAt = reactedAt,
+                    existing = existing, actorUserId = actorUserId,
+                    emoji = reactionEmoji, reactedAt = reactedAt,
                 )
             }
         },
@@ -677,12 +674,19 @@ internal class ChatDetailDeps(
     )
     internal var lastCapturePeerNotifyAt = 0L
     internal val identityVerificationController = IdentityVerificationController(
-        context = application,
         scope = host.viewModelScope,
-        signalProtocol = signalProtocol,
         resetDirectIdentityForGroup = groupSecurityStateController::resetDirectIdentityForGroup,
         uiState = host._uiState,
-        text = host::text,
+        text = { key -> host.text(identityVerificationTextResId(key)) },
+        currentUserId = { host.currentUserId },
+        sessionToken = { com.maodouchat.session.CurrentSession.snapshot().token },
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        safetyCodeEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.SAFETY_CODE) },
+        deviceVerifyEnabled = { com.maodouchat.util.SecretDeviceVerifyPrefs.isEnabled(application) },
+        markFingerprintVerified = { fp -> com.maodouchat.util.SecretDeviceVerifyPrefs.markFingerprintVerified(application, fp) },
+        getRemoteDeviceSafetyStates = signalProtocol::getRemoteDeviceSafetyStates,
+        markIdentityVerified = signalProtocol::markIdentityVerified,
+        ioDispatcher = kotlinx.coroutines.Dispatchers.IO,
     )
     internal val sessionCipherController = ChatSessionCipherController(
         initialChatId = host.chatId,
