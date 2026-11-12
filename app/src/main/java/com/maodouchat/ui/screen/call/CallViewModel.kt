@@ -21,6 +21,9 @@ import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallLifecycleController
 import com.maodouchat.domain.calls.CallSessionController
 import com.maodouchat.domain.calls.CallSessionTimersController
+import com.maodouchat.domain.calls.CallTeardownController
+import com.maodouchat.notification.CallNotificationService
+import com.maodouchat.telecom.MaodouchatConnectionService
 import com.maodouchat.R
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
@@ -275,7 +278,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     private val teardownController: CallTeardownController by lazy {
         CallTeardownController(
-            app = app,
+            cancelIncomingCall = { callId -> CallNotificationService.cancelIncomingCall(app, callId) },
+            finishTelecomConnection = { MaodouchatConnectionService.finishConnection(it) },
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
@@ -300,11 +304,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             callSessionGate = callSessionGate,
             callSessionMachine = callSessionMachine,
             timersController = timersController,
-            signalingIngress = signalingIngress,
+            stopSignalingIngress = { signalingIngress.stop() },
+            clearPendingGroupOffers = { signalingIngress.clearPendingGroupOffers() },
             ringingTimeout = ringingTimeout,
             iceRecovery = iceRecovery,
-            groupMesh = groupMesh,
-            mediaBridge = mediaBridge,
+            cancelGroupJobs = { groupMesh.cancelAllGroupJobs() },
+            releaseMedia = { mediaBridge.release() },
             hangUpSender = hangUpSender,
             foregroundService = foregroundService,
             writeCallLog = { state -> writeCallLog(state) },
@@ -397,16 +402,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     fun switchCamera() = mediaController.switchCamera()
     fun selectAudioRoute(route: CallAudioRoute) = mediaController.selectAudioRoute(route)
 
-    fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.attachLocalRenderer(renderer)
-    fun attachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.attachRemoteRenderer(renderer)
-    fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.attachGroupRemoteRenderer(userId, renderer)
-    fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.detachGroupRemoteRenderer(userId, renderer)
-    fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
-        mediaController.detachLocalRenderer(renderer)
+    fun attachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) = mediaController.attachLocalRenderer(renderer)
+    fun attachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) = mediaController.attachRemoteRenderer(renderer)
+    fun attachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) = mediaController.attachGroupRemoteRenderer(userId, renderer)
+    fun detachGroupRemoteRenderer(userId: String, renderer: org.webrtc.SurfaceViewRenderer) = mediaController.detachGroupRemoteRenderer(userId, renderer)
+    fun detachLocalRenderer(renderer: org.webrtc.SurfaceViewRenderer) = mediaController.detachLocalRenderer(renderer)
     fun detachRemoteRenderer(renderer: org.webrtc.SurfaceViewRenderer) =
         mediaController.detachRemoteRenderer(renderer)
 
