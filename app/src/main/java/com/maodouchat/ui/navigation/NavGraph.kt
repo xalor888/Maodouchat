@@ -42,7 +42,7 @@ import androidx.work.WorkInfo
 import com.maodouchat.navigation.Routes
 import com.maodouchat.realtime.AdminNoticeFeed
 import com.maodouchat.session.TokenExpirySessionPurge
-import com.maodouchat.call.DirectChatRequestHandler
+import com.maodouchat.call.createDirectChatRequestHandler
 import com.maodouchat.core.session.Outcome
 import com.maodouchat.navigation.callDestinations
 import com.maodouchat.navigation.exploreDestinations
@@ -206,7 +206,7 @@ fun MaodouchatNavGraph(
             if (req.sessionGeneration != CallOrchestrator.currentSessionGeneration()) {
                 return@collect
             }
-            when (val outcome = DirectChatRequestHandler.handle(req)) {
+            when (val outcome = createDirectChatRequestHandler().handle(req)) {
                 Outcome.SessionExpired ->
                     Toast.makeText(context, sessionExpiredMsg, Toast.LENGTH_SHORT).show()
 
