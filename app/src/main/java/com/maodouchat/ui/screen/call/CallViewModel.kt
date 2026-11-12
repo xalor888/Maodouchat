@@ -9,13 +9,19 @@ import com.maodouchat.core.session.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import com.maodouchat.core.session.CallSessionResetController
+import com.maodouchat.session.AppRuntime
 import com.maodouchat.call.CallSystemIntegration
+import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.domain.calls.CallConnectionStats
+import com.maodouchat.domain.calls.CallForegroundServiceController
+import com.maodouchat.domain.calls.CallLifecycleController
+import com.maodouchat.domain.calls.CallSessionController
 import com.maodouchat.domain.calls.CallSessionTimersController
+import com.maodouchat.R
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,10 +50,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val callSystemIntegration = CallSystemIntegration(application)
     private val foregroundService by lazy {
         CallForegroundServiceController(
-            systemIntegration = callSystemIntegration,
+            startCallForeground = callSystemIntegration::startCallForeground,
+            stopCallForeground = callSystemIntegration::stopCallForeground,
             currentState = { _uiState.value },
             activeCallId = { activeCallId },
-            text = errorMessages::text,
+            unknownCallerLabel = errorMessages.text(R.string.call_unknown_caller),
         )
     }
     private var activeCallSession: Long = 0L
@@ -244,11 +251,8 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             recordAcceptedCursor = { key, cursor -> inboundSignalingCursors[key] = cursor },
             rememberSignaling = { callId, fromUserId, type, payload, idempotencyKey ->
                 signalingIdempotency.remember(
-                    callId = callId,
-                    fromUserId = fromUserId,
-                    type = type,
-                    payload = payload,
-                    idempotencyKey = idempotencyKey,
+                    callId = callId, fromUserId = fromUserId,
+                    type = type, payload = payload, idempotencyKey = idempotencyKey,
                 )
             },
             activeCallId = { activeCallId },
@@ -318,7 +322,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             setActiveDomainSession = { activeDomainSession = it },
             setActiveCallSession = { activeCallSession = it },
             endingCall = { endingCall },
-            webRTCManager = { webRTCManager },
+            currentManager = { webRTCManager },
         )
     }
 
@@ -349,29 +353,24 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             cancelIceRecovery = { iceRecovery.cancel() },
             stopForegroundService = { foregroundService.stop() },
             endCall = { notifyPeer -> endCall(notifyPeer) },
+            nativeDownloadProgress = WebRtcNativeLibraryLoader.progress,
+            currentSessionGeneration = { AppRuntime.currentSessionGeneration },
         )
     }
 
-    private val mediaController by lazy {
-        CallMediaController(mediaBridge = mediaBridge)
-    }
+    private val mediaController by lazy { CallMediaController(mediaBridge = mediaBridge) }
 
-    init {
-        lifecycleController.onStart()
-    }
+    init { lifecycleController.onStart() }
 
     private fun beginCallSession(peerId: String, incoming: Boolean = false): Long = sessionController.beginCallSession(peerId, incoming)
 
-    private fun isCurrentCallSession(session: Long, manager: WebRTCManager? = null): Boolean =
-        sessionController.isCurrentCallSession(session, manager)
+    private fun isCurrentCallSession(session: Long, manager: WebRTCManager? = null): Boolean = sessionController.isCurrentCallSession(session, manager)
 
     private fun newCallId(): String = sessionController.newCallId()
 
-    fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) =
-        outgoingCallController.startCall(contactId, contactName, contactAvatar, callType)
+    fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) = outgoingCallController.startCall(contactId, contactName, contactAvatar, callType)
 
-    fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) =
-        outgoingCallController.startGroupCall(chatId, memberIds, type)
+    fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) = outgoingCallController.startGroupCall(chatId, memberIds, type)
 
     fun prepareIncomingCall(
         contactId: String,
@@ -421,12 +420,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun writeCallLog(state: com.maodouchat.core.model.State) =
-        callLogWriter.writeCallLog(state)
+    private fun writeCallLog(state: com.maodouchat.core.model.State) = callLogWriter.writeCallLog(state)
 
     // 拆卸收尾簇已搬入 CallTeardownController；此处只留同签名委托，各 controller 的 endCall 接线不变。
-    private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) =
-        teardownController.endCall(notifyPeer, errorMessage, logMissed)
+    private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) = teardownController.endCall(notifyPeer, errorMessage, logMissed)
 
     override fun onCleared() {
         lifecycleController.onCleared()

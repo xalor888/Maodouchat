@@ -501,7 +501,9 @@ class ClientArchitectureTest {
         // 通话 VM 瘦身第十四批（收官）：文案委托直连（11 处 text/failureReason 接线 lambda
         // → errorMessages 方法引用，删 VM 私有转手）+ foregroundService 懒加载
         //（437 → 435，VM 只剩接线与公开 intent 委托），两处同步收紧。
-        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
+        // 通话 VM 瘦身第十五批：会话/生命周期/前台服务三簇 → :domain:calls
+        //（435 → 432，接线改走端口 + 纯格式压缩对冲），两处同步收紧。
+        "com/maodouchat/ui/screen/call/CallViewModel.kt" to 432,
                 // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
 "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 421,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
@@ -792,7 +794,9 @@ class ClientArchitectureTest {
             // VM 留同签名公开委托）。
             // 通话 VM 瘦身第十四批（收官）：文案委托直连 + foregroundService 懒加载
             //（437 → 435，VM 只剩接线与公开 intent 委托）。
-            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 435,
+            // 通话 VM 瘦身第十五批：会话/生命周期/前台服务三簇 → :domain:calls
+            //（435 → 432，接线改走端口 + 纯格式压缩对冲）。
+            "com/maodouchat/ui/screen/call/CallViewModel.kt" to 432,
                     // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
 "com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 421,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
