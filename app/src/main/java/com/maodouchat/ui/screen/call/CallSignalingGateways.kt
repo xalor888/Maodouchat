@@ -51,6 +51,13 @@ internal class WebRtcCallSignalingGateway : CallSignalingGateway {
 
 /** 出站信令 / ICE 恢复文案种类到 R.string 的映射。 */
 internal fun callSignalingMessageResId(message: CallSignalingMessage): Int = when (message) {
+    CallSignalingMessage.SEND_SDP_FAILED -> R.string.call_send_sdp_failed
+    CallSignalingMessage.SEND_CANDIDATE_FAILED -> R.string.call_send_candidate_failed
+    CallSignalingMessage.SESSION_EXPIRED -> R.string.call_session_expired
+    CallSignalingMessage.ERROR_WITH_REASON -> R.string.call_error_with_reason
+    CallSignalingMessage.NETWORK_DISCONNECTED -> R.string.call_network_disconnected
+}
+
 /** 入站信令文案种类到 R.string 的映射。 */
 internal fun callSignalingIngressMessageResId(message: CallSignalingIngressMessage): Int = when (message) {
     CallSignalingIngressMessage.RATE_LIMITED -> R.string.call_rate_limited
@@ -60,13 +67,6 @@ internal fun callSignalingIngressMessageResId(message: CallSignalingIngressMessa
     CallSignalingIngressMessage.PEER_BUSY -> R.string.call_peer_busy
     CallSignalingIngressMessage.HANDLE_SIGNALING_FAILED -> R.string.call_handle_signaling_failed
     CallSignalingIngressMessage.UNKNOWN_ERROR -> R.string.call_unknown_error
-}
-
-    CallSignalingMessage.SEND_SDP_FAILED -> R.string.call_send_sdp_failed
-    CallSignalingMessage.SEND_CANDIDATE_FAILED -> R.string.call_send_candidate_failed
-    CallSignalingMessage.SESSION_EXPIRED -> R.string.call_session_expired
-    CallSignalingMessage.ERROR_WITH_REASON -> R.string.call_error_with_reason
-    CallSignalingMessage.NETWORK_DISCONNECTED -> R.string.call_network_disconnected
 }
 
 /** CallViewModel 的出站信令发送器接线：网络端口与文案映射由 app 侧提供。 */
