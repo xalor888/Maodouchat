@@ -23,8 +23,10 @@ import com.maodouchat.domain.messaging.ChatVoicePlaybackReporter
 import com.maodouchat.domain.messaging.ChatComposerSendController
 import com.maodouchat.domain.messaging.ChatInlineSendController
 import com.maodouchat.domain.messaging.ChatGroupRevisionHandler
+import com.maodouchat.domain.messaging.ChatMessageLoadingController
 import com.maodouchat.domain.messaging.ChatMessageMutationController
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
+import com.maodouchat.domain.messaging.ChatMessageStatusObservationController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -36,6 +38,7 @@ import com.maodouchat.domain.conversation.ChatAttachmentObservationController
 import com.maodouchat.domain.conversation.ChatCaptureAlertController
 import com.maodouchat.domain.conversation.ChatContactCardController
 import com.maodouchat.domain.conversation.ChatGroupCallController
+import com.maodouchat.domain.conversation.ChatDetailLoadCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
 import com.maodouchat.domain.conversation.ChatMediaStateController
@@ -187,13 +190,8 @@ internal class ChatDetailDeps(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken -> ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() } },
             createDirectConversation = { liveToken, recipientId, secret ->
-                ChatNetworkRepository().createChat(
-                    liveToken,
-                    listOf(recipientId),
-                    isGroup = false,
-                    groupName = null,
-                    chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null,
-                ).getOrThrow().toDomainChat()
+                ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null,
+                    chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat()
             },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
@@ -233,9 +231,7 @@ internal class ChatDetailDeps(
     )
     internal val chatScheduleController = ChatScheduleController(
         coordinator = conversationScheduleCoordinator,
-        scheduledMessagesEnabled = {
-            RuntimeFlags.isEnabled(application, RuntimeFlags.SCHEDULED_MESSAGES)
-        },
+        scheduledMessagesEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.SCHEDULED_MESSAGES) },
     )
     internal val conversationLocalStateCoordinator = com.maodouchat.chatdetail.ChatDetailAccess.conversationLocalStateCoordinator(
         scheduleCoordinator = conversationScheduleCoordinator,
@@ -596,6 +592,13 @@ internal class ChatDetailDeps(
         updateState = { transform -> host._uiState.update(transform) },
         projectMessageMutation = host::projectMessageMutation,
     )
+    private val enqueueReadReceipt: suspend (String, String, Long?) -> Unit = { conversationId, throughMessageId, groupRevision ->
+        com.maodouchat.chatdetail.ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
+            conversationId = conversationId,
+            throughMessageId = throughMessageId,
+            groupRevision = groupRevision,
+        )
+    }
     internal val messageStatusObservationController = ChatMessageStatusObservationController(
         uiState = host._uiState,
         scope = host.viewModelScope,
@@ -610,6 +613,13 @@ internal class ChatDetailDeps(
         getMarkReadJob = { readReceiptBookkeeping.markReadJob },
         setMarkReadJob = { readReceiptBookkeeping.markReadJob = it },
         armSecretDisappearing = host::armSecretDisappearing,
+        currentActiveChatId = com.maodouchat.chatdetail.ChatDetailAccess::activeChatId,
+        markIncomingReadThrough = com.maodouchat.chatdetail.ChatDetailDataAccess::markIncomingReadThrough,
+        markAllRead = com.maodouchat.chatdetail.ChatDetailDataAccess::markAllRead,
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        enqueueReadReceipt = enqueueReadReceipt,
+        emitChatRead = com.maodouchat.chatdetail.ChatDetailAccess::emitChatRead,
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val groupRevisionHandler: ChatGroupRevisionHandler = ChatGroupRevisionHandler(
         ownerUserId = { host.currentUserId },
@@ -686,30 +696,41 @@ internal class ChatDetailDeps(
     internal val messageLoadingController = ChatMessageLoadingController(
         uiState = host._uiState,
         scope = host.viewModelScope,
-        application = application,
         chatId = host.chatId,
         getActiveChatId = { host.activeChatId },
         getCurrentUserId = { host.currentUserId },
-        chatRepo = chatRepo,
-        messageRepo = messageRepo,
+        getChatById = chatRepo::getChatById,
+        cacheChats = chatRepo::cacheChats,
+        fetchChatById = { token, id -> ChatNetworkRepository().chats(token).getOrNull()?.find { it.id == id }?.toDomainChat() },
+        getRecentMessages = messageRepo::getRecentMessages,
+        getLatestIncomingMessage = messageRepo::getLatestIncomingMessage,
+        chatUnreadCount = com.maodouchat.chatdetail.ChatDetailDataAccess::chatUnreadCount,
         groupLifecycleService = groupLifecycleService,
-        groupSecurityStateController = groupSecurityStateController,
-        timelineStateController = timelineStateController,
-        pinStarController = pinStarController,
+        planChatLoad = ChatDetailLoadCoordinator::planChatLoad,
+        planLoadFailure = ChatDetailLoadCoordinator::planLoadFailure,
+        presentMembers = groupSecurityStateController::presentMembers,
+        initialHistoryLoaded = timelineStateController::initialHistoryLoaded,
+        refreshPinnedMessages = pinStarController::refreshPinnedMessages,
         cipherController = sessionCipherController,
-        botGroupActionController = botGroupActionController,
-        moderationController = moderationController,
+        loadGroupCandidates = botGroupActionController::loadGroupCandidates,
+        refreshBotCommands = botGroupActionController::refreshBotCommands,
+        refreshBlockState = moderationController::refreshBlockState,
         scheduledMessageController = scheduledMessageController,
-        identityVerificationController = identityVerificationController,
+        refreshIdentitySafetyState = identityVerificationController::refreshIdentitySafetyState,
         groupMessagingCoordinator = groupMessagingCoordinator,
-        readReceiptCoordinator = readReceiptCoordinator,
-        text = { id, args -> host.text(id, *args) },
-        quantityText = { id, quantity, args -> host.quantityText(id, quantity, *args) },
+        prefetchRecentGroupCounts = readReceiptCoordinator::prefetchRecentGroupCounts,
+        text = { message, args -> host.text(chatMessageLoadingTextResId(message), *args) },
+        quantityText = { message, quantity, args -> host.quantityText(chatMessageLoadingTextResId(message), quantity, *args) },
         withLocalNickname = host::withLocalNickname,
         requestMediaAttachment = host::requestMediaAttachment,
         maybeGenerateUnreadSummary = host::maybeGenerateUnreadSummary,
         armSecretDisappearing = host::armSecretDisappearing,
         showNewDeviceHistoryBanner = host::maybeShowNewDeviceHistoryBanner,
+        isLocalUriReadable = { uri -> MediaCache.isReadableLocalUri(application, uri) },
+        enqueueReadReceipt = enqueueReadReceipt,
+        emitChatRead = com.maodouchat.chatdetail.ChatDetailAccess::emitChatRead,
+        currentToken = { com.maodouchat.session.CurrentSession.snapshot().token.orEmpty() },
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
     )
     internal val outgoingHydrationController = ChatOutgoingHydrationController(
         uiState = host._uiState,

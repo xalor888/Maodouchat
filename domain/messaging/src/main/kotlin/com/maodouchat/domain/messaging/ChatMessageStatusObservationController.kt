@@ -1,9 +1,5 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.util.Log
-import com.maodouchat.chatdetail.ChatDetailAccess
-import com.maodouchat.chatdetail.ChatDetailDataAccess
-import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SeenSet
@@ -21,8 +17,8 @@ import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
 
 // 消息状态观察：时间线变化 → 标已读水印 + 持久化 + 已读回执入队。
-// 从 ChatDetailViewModel 纯搬移；VM 只留同签名委托。
-internal class ChatMessageStatusObservationController(
+// 从 ChatDetailViewModel 纯搬移；会话门禁/持久化/回执/Log 走端口，其余逻辑逐字平移。
+class ChatMessageStatusObservationController(
     private val uiState: MutableStateFlow<ChatDetailUiState>,
     private val scope: CoroutineScope,
     private val ownerUserId: () -> String,
@@ -36,13 +32,20 @@ internal class ChatMessageStatusObservationController(
     private val getMarkReadJob: () -> Job?,
     private val setMarkReadJob: (Job?) -> Unit,
     private val armSecretDisappearing: suspend (String, String?) -> Unit,
+    private val currentActiveChatId: () -> String?,
+    private val markIncomingReadThrough: suspend (String, String, Long, String) -> Unit,
+    private val markAllRead: suspend (String) -> Unit,
+    private val sessionMayContinue: (String) -> Boolean,
+    private val enqueueReadReceipt: suspend (String, String, Long?) -> Unit,
+    private val emitChatRead: (String) -> Unit,
+    private val logWarning: (String, Throwable?) -> Unit,
 ) {
-    internal fun observeMessageStatus() {
+    fun observeMessageStatus() {
         uiState
             .onEach { state ->
                 val chat = state.chat ?: return@onEach
                 val effectiveChatId = activeChatId().ifBlank { chatId }
-                if (ChatDetailAccess.activeChatId() != effectiveChatId) return@onEach
+                if (currentActiveChatId() != effectiveChatId) return@onEach
                 val currentIds = state.messages.map { it.id to it.status }
                 if (currentIds == getLastMessagesSeen()) return@onEach
                 setLastMessagesSeen(currentIds)
@@ -54,9 +57,7 @@ internal class ChatMessageStatusObservationController(
                         hasChat = true,
                         isActiveChat = true,
                         ownerUserId = liveOwnerUserId,
-                        sessionMayContinue = BackgroundSessionGate.mayContinue(
-                            expectedUserId = liveOwnerUserId,
-                        ),
+                        sessionMayContinue = sessionMayContinue(liveOwnerUserId),
                     ),
                     seen = readSeenMessages,
                 ) ?: return@onEach
@@ -72,13 +73,14 @@ internal class ChatMessageStatusObservationController(
                     )
                 }
                 scope.launch(Dispatchers.IO) {
-                    ChatDetailDataAccess.markIncomingReadThrough(
-                        chatId = effectiveChatId,
-                        ownerUserId = liveOwnerUserId,
-                        throughTimestamp = watermarkTimestamp,
-                        throughMessageId = watermarkId,
+                    // 函数类型端口不支持具名实参，这里一律用位置实参（顺序与 ChatDetailDataAccess 签名一致）。
+                    markIncomingReadThrough(
+                        effectiveChatId,
+                        liveOwnerUserId,
+                        watermarkTimestamp,
+                        watermarkId,
                     )
-                    ChatDetailDataAccess.markAllRead(effectiveChatId)
+                    markAllRead(effectiveChatId)
                 }
                 getMarkReadJob()?.cancel()
                 setMarkReadJob(scope.launch {
@@ -87,18 +89,16 @@ internal class ChatMessageStatusObservationController(
                         return@launch
                     }
                     delay(500)
-                    if (!BackgroundSessionGate.mayContinue(
-                        expectedUserId = liveOwnerUserId,
-                    )
+                    if (!sessionMayContinue(liveOwnerUserId)
                     ) {
                         return@launch
                     }
                     try {
                         withContext(Dispatchers.IO) {
-                            ChatDetailAccess.messagingOutbox.enqueueReadReceipt(
-                                conversationId = effectiveChatId,
-                                throughMessageId = watermarkId,
-                                groupRevision = chat.memberRevision.takeIf { chat.isGroup },
+                            enqueueReadReceipt(
+                                effectiveChatId,
+                                watermarkId,
+                                chat.memberRevision.takeIf { chat.isGroup },
                             )
                         }
                     } catch (error: kotlinx.coroutines.CancellationException) {
@@ -107,7 +107,7 @@ internal class ChatMessageStatusObservationController(
                         // G67：入队失败必须回滚 seen + 短路标记，否则这条消息永远不会重试
                         ChatReadWatermarkPolicy.rollbackAfterFailure(readSeenMessages, plan)
                         setLastMessagesSeen(null)
-                        Log.w("ChatDetailViewModel", "v2 read receipt enqueue failed: " + error.message, error)
+                        logWarning("v2 read receipt enqueue failed: " + error.message, error)
                     }
                 })
                 emitChatReadForCurrentChat()
@@ -118,6 +118,6 @@ internal class ChatMessageStatusObservationController(
     private fun emitChatReadForCurrentChat() {
         val id = activeChatId().ifBlank { chatId }
         if (id.isBlank()) return
-        ChatDetailAccess.emitChatRead(id)
+        emitChatRead(id)
     }
 }
