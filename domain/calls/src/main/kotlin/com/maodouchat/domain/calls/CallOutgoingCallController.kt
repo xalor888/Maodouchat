@@ -1,44 +1,41 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import android.app.Application
-import com.maodouchat.R
-import com.maodouchat.call.CallMediaBridge
-import com.maodouchat.core.session.GroupCallCapabilities
-import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
-import com.maodouchat.webrtc.WebRTCManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
-import com.maodouchat.core.model.NetworkQuality
-import com.maodouchat.core.model.State
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
+import com.maodouchat.core.model.NetworkQuality
+import com.maodouchat.core.model.State
 import com.maodouchat.core.model.WebRtcNativeLoadException
+import com.maodouchat.core.session.GroupCallCapabilities
 import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallRingingTimeout
 import com.maodouchat.domain.calls.CallSignalingSender
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
-// 呼出一族：从 CallViewModel 纯搬移；VM 留同签名委托。
-internal class CallOutgoingCallController(
+// 呼出一族：从 app 侧 CallViewModel 迁入；VM 只改接线。
+class CallOutgoingCallController(
     private val scope: CoroutineScope,
-    private val app: Application,
     private val currentState: () -> CallUiState,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
     private val token: () -> String,
-    private val text: (Int, Array<out Any>) -> String,
+    private val text: (CallOutgoingCallMessage, Array<out Any>) -> String,
+    private val callsEnabled: () -> Boolean,
+    private val callTypeEnabled: (CallType) -> Boolean,
     private val resetForNewOutgoingCall: (peerId: String) -> Long,
     private val resetForNewGroupCall: (chatId: String, remoteMembers: List<String>, selfUserId: String) -> Long,
     private val groupMemberIds: () -> Set<String>,
     private val setGroupMemberIds: (Set<String>) -> Unit,
     private val currentOwnerUserId: () -> String,
     private val writeCallLog: (State) -> Unit,
-    private val webRtcSetup: CallWebRtcSetupController,
-    private val mediaBridge: CallMediaBridge,
-    private val groupMesh: CallGroupMesh,
+    private val createWebRtc: suspend () -> CallWebRtcSession,
+    private val configureWebRtc: (CallWebRtcSession, Long) -> Unit,
+    private val bindMedia: (CallWebRtcSession) -> Unit,
+    private val groupMesh: CallSignalingGroupMesh,
     private val sessionGateIsCurrent: (Long) -> Boolean,
-    private val isCurrentCallSession: (Long, WebRTCManager?) -> Boolean,
-    private val flushPendingGroupOffers: (WebRTCManager, Long) -> Unit,
+    private val isCurrentCallSession: (Long, CallWebRtcSession?) -> Boolean,
+    private val flushPendingGroupOffers: (CallWebRtcSession, Long) -> Unit,
     private val signalingSender: CallSignalingSender,
     private val ringingTimeout: CallRingingTimeout,
     private val foregroundService: CallForegroundServiceController,
@@ -47,7 +44,7 @@ internal class CallOutgoingCallController(
 ) {
     fun startCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType) {
         if (currentState().callState != CallState.IDLE) return
-        if (!RuntimeFlags.isEnabled(app, RuntimeFlags.CALLS)) {
+        if (!callsEnabled()) {
             updateState {
                 it.copy(
                     contactId = contactId,
@@ -58,15 +55,12 @@ internal class CallOutgoingCallController(
                     isIncoming = false,
                     isGroupCall = false,
                     isInitializing = false,
-                    errorMessage = text(R.string.calls_disabled, emptyArray())
+                    errorMessage = text(CallOutgoingCallMessage.CALLS_DISABLED, emptyArray())
                 )
             }
             return
         }
-        val fineOk = when (callType) {
-            CallType.VIDEO -> RuntimeFlags.isEnabled(app, RuntimeFlags.VIDEO_CALL)
-            CallType.AUDIO, CallType.GROUP -> RuntimeFlags.isEnabled(app, RuntimeFlags.VOICE_CALL)
-        }
+        val fineOk = callTypeEnabled(callType)
         if (!fineOk) {
             updateState {
                 it.copy(
@@ -79,7 +73,7 @@ internal class CallOutgoingCallController(
                     isGroupCall = false,
                     isInitializing = false,
                     errorMessage = text(
-                        if (callType == CallType.VIDEO) R.string.video_call_disabled else R.string.voice_call_disabled,
+                        if (callType == CallType.VIDEO) CallOutgoingCallMessage.VIDEO_CALL_DISABLED else CallOutgoingCallMessage.VOICE_CALL_DISABLED,
                         emptyArray()
                     )
                 )
@@ -98,7 +92,7 @@ internal class CallOutgoingCallController(
                     isIncoming = false,
                     isGroupCall = false,
                     isInitializing = false,
-                    errorMessage = text(R.string.call_session_expired, emptyArray())
+                    errorMessage = text(CallOutgoingCallMessage.SESSION_EXPIRED, emptyArray())
                 )
             }
             return
@@ -126,26 +120,26 @@ internal class CallOutgoingCallController(
 
         scope.launch {
             try {
-                val manager = webRtcSetup.createWebRtcManager()
+                val webRtc = createWebRtc()
                 if (!sessionGateIsCurrent(session) || currentState().callState != CallState.CALLING || currentState().contactId != contactId) {
-                    // 8.56：门禁失效时释放已构造的 manager，避免残留（audio 监听等）
-                    runCatching { manager.release() }
+                    // 8.56：门禁失效时释放已构造的 webRtc，避免残留（audio 监听等）
+                    runCatching { webRtc.release() }
                     return@launch
                 }
-                mediaBridge.bind(manager)
-                webRtcSetup.configureReliabilityCallbacks(manager, session)
-                manager.initialize()
-                // 8.56：建 manager 后 flush 群成员边缓冲（发起者在初始化期间被先接听成员 offer）
-                flushPendingGroupOffers(manager, session)
-                manager.startCall(
+                bindMedia(webRtc)
+                configureWebRtc(webRtc, session)
+                webRtc.initialize()
+                // 8.56：建 webRtc 后 flush 群成员边缓冲（发起者在初始化期间被先接听成员 offer）
+                flushPendingGroupOffers(webRtc, session)
+                webRtc.startCall(
                     type = callType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(contactId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                    onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                        if (isCurrentCallSession(session, webRtc)) signalingSender.sendIceCandidate(contactId, sdpMid, sdpMLineIndex, sdp)
                     },
-                    onOfferCreated = { sdp ->
-                        if (!isCurrentCallSession(session, manager)) return@startCall
+                    onOfferCreated = { description ->
+                        if (!isCurrentCallSession(session, webRtc)) return@startCall
                         updateState { it.copy(isInitializing = false) }
-                        signalingSender.sendSdp(contactId, "offer", sdp.description)
+                        signalingSender.sendSdp(contactId, "offer", description)
                         ringingTimeout.start(contactId)
                     }
                 )
@@ -153,9 +147,9 @@ internal class CallOutgoingCallController(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
+                endCall(false, text(CallOutgoingCallMessage.WEBRTC_DOWNLOAD_FAILED, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(false, text(R.string.call_initialization_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
+                endCall(false, text(CallOutgoingCallMessage.INITIALIZATION_FAILED, arrayOf(e.message ?: text(CallOutgoingCallMessage.UNKNOWN_ERROR, emptyArray()))), true)
             }
         }
     }
@@ -169,12 +163,12 @@ internal class CallOutgoingCallController(
             updateState {
                 it.copy(
                     contactId = chatId,
-                    contactName = text(R.string.chat_group_call, emptyArray()),
+                    contactName = text(CallOutgoingCallMessage.GROUP_CALL, emptyArray()),
                     callType = type,
                     callState = CallState.DISCONNECTED,
                     isGroupCall = true,
                     isInitializing = false,
-                    errorMessage = text(R.string.call_session_expired, emptyArray())
+                    errorMessage = text(CallOutgoingCallMessage.SESSION_EXPIRED, emptyArray())
                 )
             }
             return
@@ -185,10 +179,10 @@ internal class CallOutgoingCallController(
             updateState {
                 it.copy(
                     contactId = chatId,
-                    contactName = text(R.string.chat_group_call, emptyArray()),
+                    contactName = text(CallOutgoingCallMessage.GROUP_CALL, emptyArray()),
                     callType = type,
                     callState = CallState.DISCONNECTED,
-                    errorMessage = text(R.string.call_group_mesh_limit, arrayOf(GroupCallCapabilities.MAX_MESH_MEMBERS))
+                    errorMessage = text(CallOutgoingCallMessage.GROUP_MESH_LIMIT, arrayOf(GroupCallCapabilities.MAX_MESH_MEMBERS))
                 )
             }
             return
@@ -197,7 +191,7 @@ internal class CallOutgoingCallController(
         updateState {
             it.copy(
                 contactId = chatId,
-                contactName = text(R.string.call_group_name, arrayOf(remoteMembers.size)),
+                contactName = text(CallOutgoingCallMessage.GROUP_NAME, arrayOf(remoteMembers.size)),
                 callType = type,
                 callState = CallState.CALLING,
                 isIncoming = false,
@@ -214,28 +208,28 @@ internal class CallOutgoingCallController(
         foregroundService.start()
         scope.launch {
             try {
-                val manager = webRtcSetup.createWebRtcManager()
+                val webRtc = createWebRtc()
                 val state = currentState()
                 if (!sessionGateIsCurrent(session) || !state.isGroupCall || state.callState != CallState.CALLING || state.contactId != chatId) {
-                    // 8.56：与 startCall/answerCall 一致——门禁失效时释放已构造的 manager
-                    runCatching { manager.release() }
+                    // 8.56：与 startCall/answerCall 一致——门禁失效时释放已构造的 webRtc
+                    runCatching { webRtc.release() }
                     return@launch
                 }
-                mediaBridge.bind(manager)
-                webRtcSetup.configureReliabilityCallbacks(manager, session)
-                manager.initialize()
+                bindMedia(webRtc)
+                configureWebRtc(webRtc, session)
+                webRtc.initialize()
                 var firstOfferSent = false
                 groupMemberIds().forEach { memberId ->
                     groupMesh.scheduleGroupPeerTimeout(memberId)
-                    manager.startGroupCallToPeer(
+                    webRtc.startGroupCallToPeer(
                         peerUserId = memberId,
                         type = type,
-                        onIceCandidate = { candidate ->
-                            if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(memberId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                        onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                            if (isCurrentCallSession(session, webRtc)) signalingSender.sendIceCandidate(memberId, sdpMid, sdpMLineIndex, sdp)
                         },
-                        onOfferCreated = { sdp ->
-                            if (isCurrentCallSession(session, manager)) {
-                                signalingSender.sendSdp(memberId, "offer", sdp.description, groupInvite = true)
+                        onOfferCreated = { description ->
+                            if (isCurrentCallSession(session, webRtc)) {
+                                signalingSender.sendSdp(memberId, "offer", description, groupInvite = true)
                                 if (!firstOfferSent) {
                                     firstOfferSent = true
                                     ringingTimeout.start(chatId)
@@ -248,9 +242,9 @@ internal class CallOutgoingCallController(
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: WebRtcNativeLoadException) {
-                endCall(false, text(R.string.call_webrtc_download_failed, arrayOf(e.message.orEmpty())), true)
+                endCall(false, text(CallOutgoingCallMessage.WEBRTC_DOWNLOAD_FAILED, arrayOf(e.message.orEmpty())), true)
             } catch (e: Exception) {
-                endCall(false, text(R.string.call_group_start_failed, arrayOf(e.message ?: text(R.string.call_unknown_error, emptyArray()))), true)
+                endCall(false, text(CallOutgoingCallMessage.GROUP_START_FAILED, arrayOf(e.message ?: text(CallOutgoingCallMessage.UNKNOWN_ERROR, emptyArray()))), true)
             }
         }
     }

@@ -22,13 +22,16 @@ import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.domain.calls.CallConnectionStats
 import com.maodouchat.domain.calls.CallForegroundServiceController
+import com.maodouchat.domain.calls.CallIncomingCallController
 import com.maodouchat.domain.calls.CallLifecycleController
+import com.maodouchat.domain.calls.CallOutgoingCallController
 import com.maodouchat.domain.calls.CallSessionController
 import com.maodouchat.domain.calls.CallSessionTimersController
 import com.maodouchat.domain.calls.CallSignalingIngressController
 import com.maodouchat.domain.calls.CallTeardownController
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.telecom.MaodouchatConnectionService
+import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.R
 import com.maodouchat.webrtc.WebRTCManager
 import com.maodouchat.webrtc.WebRTCSignaling
@@ -190,23 +193,25 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val outgoingCallController: CallOutgoingCallController by lazy {
         CallOutgoingCallController(
             scope = viewModelScope,
-            app = app,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
-            text = errorMessages::text,
+            text = { message, args -> errorMessages.text(callOutgoingCallMessageResId(message), *args) },
+            callsEnabled = { RuntimeFlags.isEnabled(app, RuntimeFlags.CALLS) },
+            callTypeEnabled = { type -> when (type) { CallType.VIDEO -> RuntimeFlags.isEnabled(app, RuntimeFlags.VIDEO_CALL); CallType.AUDIO, CallType.GROUP -> RuntimeFlags.isEnabled(app, RuntimeFlags.VOICE_CALL) } },
             resetForNewOutgoingCall = sessionResetController::resetForNewOutgoingCall,
             resetForNewGroupCall = sessionResetController::resetForNewGroupCall,
             groupMemberIds = { activeGroupMemberIds },
             setGroupMemberIds = { ids -> activeGroupMemberIds = ids },
             currentOwnerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
             writeCallLog = { state -> writeCallLog(state) },
-            webRtcSetup = webRtcSetup,
-            mediaBridge = mediaBridge,
+            createWebRtc = { WebRtcCallSignalingWebRtc(webRtcSetup.createWebRtcManager()) },
+            configureWebRtc = { session, id -> webRtcSetup.configureReliabilityCallbacks((session as WebRtcCallSignalingWebRtc).manager, id) },
+            bindMedia = { session -> mediaBridge.bind((session as WebRtcCallSignalingWebRtc).manager) },
             groupMesh = groupMesh,
             sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
-            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
-            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(WebRtcCallSignalingWebRtc(manager), session) },
+            isCurrentCallSession = { session, webRtc -> isCurrentCallSession(session, (webRtc as? WebRtcCallSignalingWebRtc)?.manager) },
+            flushPendingGroupOffers = { webRtc, session -> signalingIngress.flushPendingGroupOffers(webRtc, session) },
             signalingSender = signalingSender,
             ringingTimeout = ringingTimeout,
             foregroundService = foregroundService,
@@ -218,11 +223,11 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private val incomingCallController: CallIncomingCallController by lazy {
         CallIncomingCallController(
             scope = viewModelScope,
-            app = app,
             currentState = { _uiState.value },
             updateState = { transform -> _uiState.update(transform) },
             token = { token },
-            text = errorMessages::text,
+            text = { message, args -> errorMessages.text(callIncomingCallMessageResId(message), *args) },
+            cancelIncomingCall = { callId -> CallNotificationService.cancelIncomingCall(app, callId) },
             activeCallId = { activeCallId },
             activeCallSession = { activeCallSession },
             pendingOfferSdp = { pendingOfferSdp },
@@ -231,11 +236,12 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             markIncomingSessionOwner = sessionResetController::markIncomingSessionOwner,
             signalingSender = signalingSender,
             groupMesh = groupMesh,
-            webRtcSetup = webRtcSetup,
-            mediaBridge = mediaBridge,
+            createWebRtc = { WebRtcCallSignalingWebRtc(webRtcSetup.createWebRtcManager()) },
+            configureWebRtc = { session, id -> webRtcSetup.configureReliabilityCallbacks((session as WebRtcCallSignalingWebRtc).manager, id) },
+            bindMedia = { session -> mediaBridge.bind((session as WebRtcCallSignalingWebRtc).manager) },
             sessionGateIsCurrent = { session -> callSessionGate.isCurrent(session) },
-            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
-            flushPendingGroupOffers = { manager, session -> signalingIngress.flushPendingGroupOffers(WebRtcCallSignalingWebRtc(manager), session) },
+            isCurrentCallSession = { session, webRtc -> isCurrentCallSession(session, (webRtc as? WebRtcCallSignalingWebRtc)?.manager) },
+            flushPendingGroupOffers = { webRtc, session -> signalingIngress.flushPendingGroupOffers(webRtc, session) },
             callSessionMachine = callSessionMachine,
             activeDomainSession = { activeDomainSession },
             ringingTimeout = ringingTimeout,
@@ -380,13 +386,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startGroupCall(chatId: String, memberIds: List<String>, type: CallType) = outgoingCallController.startGroupCall(chatId, memberIds, type)
 
-    fun prepareIncomingCall(
-        contactId: String,
-        contactName: String,
-        contactAvatar: String?,
-        callType: CallType,
-        offerSdp: String,
-        callId: String = "", groupId: String = "",
+    fun prepareIncomingCall(contactId: String, contactName: String, contactAvatar: String?, callType: CallType, offerSdp: String, callId: String = "", groupId: String = "",
         groupMemberIds: List<String> = emptyList()
     ) = incomingCallController.prepareIncomingCall(contactId, contactName, contactAvatar, callType, offerSdp, callId, groupId, groupMemberIds)
 

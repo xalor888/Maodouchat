@@ -86,6 +86,14 @@ class CallSignalingIngressControllerTest {
         override fun markGroupPeerTerminal(userId: String, state: GroupPeerConnectionState) {
             terminals += userId to state
         }
+
+        override fun loadGroupParticipantProfiles() {
+            // 入站信令不用；呼入/呼出测试另有 FakeMesh。
+        }
+
+        override fun startDeterministicMeshEdges(webRtc: CallWebRtcSession, primaryPeerId: String, session: Long) {
+            // 入站信令不用；呼入/呼出测试另有 FakeMesh。
+        }
     }
 
     private class RecordingGateway : CallSignalingGateway {

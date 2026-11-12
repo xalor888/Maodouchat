@@ -12,6 +12,7 @@ import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.domain.calls.CallSessionTimersController
 import com.maodouchat.domain.calls.CallSignalingGroupMesh
 import com.maodouchat.domain.calls.CallSignalingSender
+import com.maodouchat.domain.calls.CallWebRtcSession
 import com.maodouchat.webrtc.WebRTCManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -54,7 +55,7 @@ internal class CallGroupMesh(
         }
     }
 
-    fun loadGroupParticipantProfiles() {
+    override fun loadGroupParticipantProfiles() {
         scope.launch {
             val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
             if (token().isBlank() || ownerUserId.isBlank()) return@launch
@@ -164,6 +165,10 @@ internal class CallGroupMesh(
                 markGroupPeerTerminal(userId, GroupPeerConnectionState.NO_ANSWER)
             }
         }
+    }
+
+    override fun startDeterministicMeshEdges(webRtc: CallWebRtcSession, primaryPeerId: String, session: Long) {
+        startDeterministicMeshEdges((webRtc as WebRtcCallSignalingWebRtc).manager, primaryPeerId, session)
     }
 
     fun startDeterministicMeshEdges(manager: WebRTCManager, primaryPeerId: String, session: Long) {
