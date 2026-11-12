@@ -7,6 +7,7 @@ import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import com.maodouchat.domain.calls.CallIceRecovery
 import com.maodouchat.domain.calls.CallSignalingGateway
+import com.maodouchat.domain.calls.CallSignalingIngressMessage
 import com.maodouchat.domain.calls.CallSignalingMessage
 import com.maodouchat.domain.calls.CallSignalingSender
 import com.maodouchat.webrtc.WebRTCSignaling
@@ -50,6 +51,17 @@ internal class WebRtcCallSignalingGateway : CallSignalingGateway {
 
 /** 出站信令 / ICE 恢复文案种类到 R.string 的映射。 */
 internal fun callSignalingMessageResId(message: CallSignalingMessage): Int = when (message) {
+/** 入站信令文案种类到 R.string 的映射。 */
+internal fun callSignalingIngressMessageResId(message: CallSignalingIngressMessage): Int = when (message) {
+    CallSignalingIngressMessage.RATE_LIMITED -> R.string.call_rate_limited
+    CallSignalingIngressMessage.FETCH_SIGNALING_FAILED -> R.string.call_fetch_signaling_failed
+    CallSignalingIngressMessage.NOTIFY_BUSY_FAILED -> R.string.call_notify_busy_failed
+    CallSignalingIngressMessage.PEER_REJECTED -> R.string.call_peer_rejected
+    CallSignalingIngressMessage.PEER_BUSY -> R.string.call_peer_busy
+    CallSignalingIngressMessage.HANDLE_SIGNALING_FAILED -> R.string.call_handle_signaling_failed
+    CallSignalingIngressMessage.UNKNOWN_ERROR -> R.string.call_unknown_error
+}
+
     CallSignalingMessage.SEND_SDP_FAILED -> R.string.call_send_sdp_failed
     CallSignalingMessage.SEND_CANDIDATE_FAILED -> R.string.call_send_candidate_failed
     CallSignalingMessage.SESSION_EXPIRED -> R.string.call_session_expired
