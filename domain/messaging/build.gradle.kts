@@ -12,7 +12,6 @@ dependencies {
     implementation(project(":core:crypto"))
     implementation(project(":core:serialization"))
     implementation(project(":core:session"))
-    implementation(project(":domain:conversation"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 

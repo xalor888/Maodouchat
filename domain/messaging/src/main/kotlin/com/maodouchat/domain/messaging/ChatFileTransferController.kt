@@ -8,8 +8,8 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
-import com.maodouchat.domain.conversation.AttachmentTransferState
-import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.core.model.AttachmentTransferState
+import com.maodouchat.core.model.ChatMediaStateController
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

@@ -45,7 +45,7 @@ import com.maodouchat.domain.conversation.ChatGroupCallController
 import com.maodouchat.domain.conversation.ChatDetailLoadCoordinator
 import com.maodouchat.domain.conversation.ChatGroupSecurityStateController
 import com.maodouchat.domain.conversation.ChatJumpController
-import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.core.model.ChatMediaStateController
 import com.maodouchat.domain.conversation.ChatMessageObservationController
 import com.maodouchat.domain.conversation.ChatModerationController
 import com.maodouchat.domain.conversation.ChatPinStarController

@@ -10,8 +10,8 @@ import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.domain.conversation.AttachmentTransferState
-import com.maodouchat.domain.conversation.ChatMediaStateController
+import com.maodouchat.core.model.AttachmentTransferState
+import com.maodouchat.core.model.ChatMediaStateController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

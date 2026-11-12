@@ -1,8 +1,4 @@
-package com.maodouchat.domain.conversation
-
-import com.maodouchat.core.model.AttachmentProgressPolicy
-import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.MessageStatus
+package com.maodouchat.core.model
 
 /** Owns transient attachment/download state transitions used by chat detail. */
 class ChatMediaStateController {
