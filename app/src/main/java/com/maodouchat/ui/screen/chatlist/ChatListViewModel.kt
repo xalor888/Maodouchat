@@ -92,7 +92,7 @@ class ChatListViewModel private constructor(
     val notificationCenterUnread: StateFlow<Int> = badgeCoordinator.notificationCenterUnread
     val exploreBadgeCount: StateFlow<Int> = badgeCoordinator.exploreBadgeCount
 
-    private val folderController = ChatFolderController(context = application, scope = viewModelScope, uiState = _uiState)
+    private val folderController = createChatFolderController(application = application, scope = viewModelScope, uiState = _uiState)
 
     /** 本 VM 生命周期内已成功删除（退出服务端）的会话 id：删除先乐观移除，服务端 leave 未生效时同步快照可能重新带回，合并时丢弃。 */
     private val deletedChatIds = mutableSetOf<String>()
