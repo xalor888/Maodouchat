@@ -674,18 +674,14 @@ internal class ChatDetailDeps(
     )
     internal var lastCapturePeerNotifyAt = 0L
     internal val identityVerificationController = IdentityVerificationController(
-        scope = host.viewModelScope,
-        resetDirectIdentityForGroup = groupSecurityStateController::resetDirectIdentityForGroup,
+        scope = host.viewModelScope, resetDirectIdentityForGroup = groupSecurityStateController::resetDirectIdentityForGroup,
         uiState = host._uiState,
         text = { key -> host.text(identityVerificationTextResId(key)) },
-        currentUserId = { host.currentUserId },
-        sessionToken = { com.maodouchat.session.CurrentSession.snapshot().token },
+        currentUserId = { host.currentUserId }, sessionToken = { com.maodouchat.session.CurrentSession.snapshot().token },
         sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
-        safetyCodeEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.SAFETY_CODE) },
-        deviceVerifyEnabled = { com.maodouchat.util.SecretDeviceVerifyPrefs.isEnabled(application) },
+        safetyCodeEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.SAFETY_CODE) }, deviceVerifyEnabled = { com.maodouchat.util.SecretDeviceVerifyPrefs.isEnabled(application) },
         markFingerprintVerified = { fp -> com.maodouchat.util.SecretDeviceVerifyPrefs.markFingerprintVerified(application, fp) },
-        getRemoteDeviceSafetyStates = signalProtocol::getRemoteDeviceSafetyStates,
-        markIdentityVerified = signalProtocol::markIdentityVerified,
+        getRemoteDeviceSafetyStates = signalProtocol::getRemoteDeviceSafetyStates, markIdentityVerified = signalProtocol::markIdentityVerified,
         ioDispatcher = kotlinx.coroutines.Dispatchers.IO,
     )
     internal val sessionCipherController = ChatSessionCipherController(
