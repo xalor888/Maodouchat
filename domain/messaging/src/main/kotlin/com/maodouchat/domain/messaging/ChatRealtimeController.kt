@@ -1,28 +1,21 @@
-package com.maodouchat.ui.screen.chatdetail
+package com.maodouchat.domain.messaging
 
-import android.app.Application
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.core.session.SessionContextProvider
-import com.maodouchat.core.session.TypingSessionPolicy
-import com.maodouchat.network.ApiConfig
+import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.core.model.WebSocketErrorKind
+import com.maodouchat.core.model.WebSocketEvent
+import com.maodouchat.core.model.isActiveChatEvent
+import com.maodouchat.core.model.resolveUserVisibility
+import com.maodouchat.core.model.shouldApplyContactPresence
 import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
+import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.RemoteTypingCoordinator
 import com.maodouchat.core.realtime.TypingSignalAction
-import com.maodouchat.core.model.WebSocketErrorKind
-import com.maodouchat.core.model.WebSocketEvent
-import com.maodouchat.network.WebSocketTransport
 import com.maodouchat.core.realtime.resolveTypingSignalAction
-import com.maodouchat.core.model.resolveUserVisibility
-import com.maodouchat.core.realtime.AccountScopedRealtimeConnectionManager
-import com.maodouchat.core.realtime.RealtimeConnectionManager
-import com.maodouchat.core.model.DisappearingMessagePolicy
-import com.maodouchat.security.SecureSessionManager
-import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.core.model.Flag
-import com.maodouchat.core.model.isActiveChatEvent
-import com.maodouchat.core.model.shouldApplyContactPresence
+import com.maodouchat.core.session.SessionContextProvider
+import com.maodouchat.core.session.TypingSessionPolicy
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,18 +24,19 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.data.repository.UserNetworkRepository
-import com.maodouchat.core.model.ChatDetailUiState
 
-internal class ChatRealtimeController(
-    private val application: Application,
+/** 远端用户在线快照（ presence 回退轮询用）；app 侧由 UserNetworkRepository 映射而来。 */
+data class UserPresenceSnapshot(
+    val isOnline: Boolean,
+    val lastSeen: Long,
+)
+
+// 实时连接控制器：从 ChatDetailViewModel 纯搬移，WebSocket 连接、事件路由、在线状态回退轮询与输入中宣告。
+// Application/RuntimeFlags/Log/R.string/传输层/用户仓库/会话清理门禁走构造端口；其余逻辑逐字平移。
+class ChatRealtimeController(
     private val scope: CoroutineScope,
     private val sessionContextProvider: SessionContextProvider,
-    private val realtime: RealtimeConnectionManager = AccountScopedRealtimeConnectionManager(
-        sessionContextProvider = sessionContextProvider,
-        transport = WebSocketTransport,
-        scope = scope,
-    ),
+    private val realtime: RealtimeConnectionManager,
     private val ownerUserId: () -> String,
     private val token: () -> String,
     private val activeChatId: () -> String,
@@ -52,7 +46,16 @@ internal class ChatRealtimeController(
     private val persistDisappearingMessages: suspend (String, Int) -> Unit,
     private val applyRealtimeVisibility: suspend (WebSocketEvent.UserOnline) -> Unit,
     private val onGroupRevisionChanged: suspend (WebSocketEvent.GroupRevisionChanged) -> Unit,
-    private val text: (Int) -> String,
+    private val text: (ChatRealtimeText) -> String,
+    private val wsUrl: () -> String,
+    private val presenceEnabled: () -> Boolean,
+    private val secretPresenceBlocked: () -> Boolean,
+    private val typingIndicatorsEnabled: () -> Boolean,
+    private val secretTypingBlocked: () -> Boolean,
+    private val purgeInProgress: () -> Boolean,
+    private val fetchUserPresence: suspend (String, String) -> Result<UserPresenceSnapshot>,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val remoteTypingCoordinator = RemoteTypingCoordinator(scope) { userId ->
         updateState { it.copy(typingContact = userId) }
@@ -101,7 +104,7 @@ internal class ChatRealtimeController(
         val liveToken = token()
         val ownerContext = currentOwner() ?: return
         if (liveToken.isBlank()) return
-        realtime.start(ApiConfig.WS_URL, liveToken, ownerContext)
+        realtime.start(wsUrl(), liveToken, ownerContext)
     }
 
     private fun observePresenceFallbackPolling() {
@@ -109,18 +112,18 @@ internal class ChatRealtimeController(
             while (isActive) {
                 delay(30_000L)
                 val owner = ownerUserId()
-                if (!sessionActive(owner) || !enabled(RuntimeFlags.PRESENCE)) continue
+                if (!sessionActive(owner) || !presenceEnabled()) continue
                 val state = currentState()
                 if (state.chatIsGroup || state.isSecretChat == true) continue
-                if (enabled(RuntimeFlags.SECRET_PRESENCE_BLOCK) && state.isSecretChat == true) continue
+                if (secretPresenceBlocked() && state.isSecretChat == true) continue
                 val contactId = state.contact.id.takeIf(String::isNotBlank) ?: continue
                 val liveToken = token()
                 if (liveToken.isBlank()) continue
-                UserNetworkRepository().user(liveToken, contactId).onSuccess { dto ->
+                fetchUserPresence(liveToken, contactId).onSuccess { snapshot ->
                     updateState { current ->
                         if (current.contact.id != contactId || current.chatIsGroup) current
                         else current.copy(
-                            contact = current.contact.copy(isOnline = dto.isOnline, lastSeen = dto.lastSeen),
+                            contact = current.contact.copy(isOnline = snapshot.isOnline, lastSeen = snapshot.lastSeen),
                         )
                     }
                 }
@@ -151,7 +154,7 @@ internal class ChatRealtimeController(
                                 chat = it.chat?.copy(disappearingMessageSeconds = seconds),
                             )
                         }
-                        withContext(Dispatchers.IO) {
+                        withContext(ioDispatcher) {
                             persistDisappearingMessages(event.chatId, seconds)
                         }
                     }
@@ -171,7 +174,7 @@ internal class ChatRealtimeController(
                         if (event.success) {
                             disconnectBannerJob?.cancel()
                             disconnectBannerJob = null
-                            val connectionMessage = text(R.string.chat_ws_connection_failed)
+                            val connectionMessage = text(ChatRealtimeText.CONNECTION_FAILED)
                             updateState { state ->
                                 if (state.groupEncryptionWarning == connectionMessage) {
                                     state.copy(groupEncryptionWarning = null)
@@ -188,17 +191,17 @@ internal class ChatRealtimeController(
                         scheduleDisconnectBanner()
                     }
                     is WebSocketEvent.Error -> {
-                        Log.w("ChatDetailViewModel", "WS error: ${event.kind}; ${event.debugDetail.orEmpty()}")
+                        logWarning("WS error: ${event.kind}; ${event.debugDetail.orEmpty()}", null)
                         if (event.kind == WebSocketErrorKind.CONNECTION) {
                             scheduleDisconnectBanner()
                         } else {
-                            updateState { it.copy(groupEncryptionWarning = text(R.string.chat_ws_data_invalid)) }
+                            updateState { it.copy(groupEncryptionWarning = text(ChatRealtimeText.DATA_INVALID)) }
                         }
                     }
                     is WebSocketEvent.ServerError -> {
-                        Log.w(
-                            "ChatDetailViewModel",
+                        logWarning(
                             "WS server error: ${event.code.orEmpty()} ${event.message}",
+                            null,
                         )
                         if (event.message.isNotBlank()) {
                             updateState { it.copy(groupEncryptionWarning = event.message.take(120)) }
@@ -238,8 +241,8 @@ internal class ChatRealtimeController(
             }
             return
         }
-        if (!enabled(RuntimeFlags.PRESENCE)) return
-        if (currentState().isSecretChat == true && enabled(RuntimeFlags.SECRET_PRESENCE_BLOCK)) return
+        if (!presenceEnabled()) return
+        if (currentState().isSecretChat == true && secretPresenceBlocked()) return
         updateState {
             it.copy(contact = it.contact.copy(isOnline = event.isOnline, lastSeen = event.lastSeen))
         }
@@ -250,7 +253,7 @@ internal class ChatRealtimeController(
         disconnectBannerJob = scope.launch {
             delay(RealtimeDisconnectPolicy.BANNER_DELAY_MS)
             if (currentOwner()?.let(realtime::isConnected) == true) return@launch
-            val connectionMessage = text(R.string.chat_ws_connection_failed)
+            val connectionMessage = text(ChatRealtimeText.CONNECTION_FAILED)
             updateState { state ->
                 if (state.groupEncryptionWarning.isNullOrBlank() || state.groupEncryptionWarning == connectionMessage) {
                     state.copy(groupEncryptionWarning = connectionMessage)
@@ -262,22 +265,22 @@ internal class ChatRealtimeController(
     }
 
     private fun announceTypingStarted() {
-        if (currentState().isSecretChat == true && enabled(RuntimeFlags.SECRET_TYPING_BLOCK)) return
-        if (!enabled(RuntimeFlags.TYPING_INDICATORS)) return
+        if (currentState().isSecretChat == true && secretTypingBlocked()) return
+        if (!typingIndicatorsEnabled()) return
         if (!TypingSessionPolicy.shouldAnnounceStart(activeChatId(), announcedTypingChatId)) return
         val targetChatId = activeChatId()
         val owner = ownerUserId()
-        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = SecureSessionManager.isPurgeInProgress())) return
+        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = purgeInProgress())) return
         announcedTypingChatId?.let { sendTyping(it, false) }
         if (sendTyping(targetChatId, true)) announcedTypingChatId = targetChatId
     }
 
     private fun stopTypingAnnouncement() {
-        if (currentState().isSecretChat == true && enabled(RuntimeFlags.SECRET_TYPING_BLOCK)) return
+        if (currentState().isSecretChat == true && secretTypingBlocked()) return
         val targetChatId = announcedTypingChatId ?: return
         announcedTypingChatId = null
         val owner = ownerUserId()
-        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = SecureSessionManager.isPurgeInProgress())) return
+        if (!TypingSessionPolicy.mayEmit(owner, token(), ownerUserId(), purgeInProgress = purgeInProgress())) return
         sendTyping(targetChatId, false)
     }
 
@@ -287,6 +290,4 @@ internal class ChatRealtimeController(
     }
 
     private fun currentOwner() = sessionContextProvider.current()
-
-    private fun enabled(flag: Flag): Boolean = RuntimeFlags.isEnabled(application, flag)
 }
