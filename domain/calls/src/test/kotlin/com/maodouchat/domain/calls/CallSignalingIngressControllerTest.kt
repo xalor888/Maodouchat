@@ -4,11 +4,11 @@ import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallUiState
-import com.maodouchat.core.model.Cursor
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.SignalMessage
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.session.CallSignalingOutboundCursor
+import com.maodouchat.core.session.Cursor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -279,7 +279,7 @@ class CallSignalingIngressControllerTest {
         runCurrent()
         c.stop()
         advanceUntilIdle()
-        assertEquals(listOf(Triple("mid", 2, "candidate-sdp")), f.webRtc!!.iceCandidates)
+        assertEquals(listOf(Triple<String?, Int, String>("mid", 2, "candidate-sdp")), f.webRtc!!.iceCandidates)
     }
 
     @Test
@@ -313,7 +313,7 @@ class CallSignalingIngressControllerTest {
         advanceUntilIdle()
         assertEquals(listOf("call-1|c1"), f.missedCalls)
         assertEquals(1, f.clearedIncoming)
-        assertEquals(listOf(false to null), f.ended)
+        assertEquals(listOf<Pair<Boolean, String?>>(false to null), f.ended)
     }
 
     @Test
@@ -350,7 +350,7 @@ class CallSignalingIngressControllerTest {
         c.stop()
         advanceUntilIdle()
         assertEquals(
-            listOf(false to "PEER_REJECTED:", false to "PEER_BUSY:"),
+            listOf<Pair<Boolean, String?>>(false to "PEER_REJECTED:", false to "PEER_BUSY:"),
             f.ended,
         )
     }
@@ -417,7 +417,7 @@ class CallSignalingIngressControllerTest {
         runCurrent()
         c.stop()
         advanceUntilIdle()
-        assertEquals(listOf(false to "RATE_LIMITED:45"), f.ended)
+        assertEquals(listOf<Pair<Boolean, String?>>(false to "RATE_LIMITED:45"), f.ended)
     }
 
     @Test
