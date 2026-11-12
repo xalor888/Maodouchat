@@ -1,43 +1,34 @@
-package com.maodouchat.ui.screen.chatlist
+package com.maodouchat.domain.conversation
 
-import android.util.Log
-import com.maodouchat.R
-import com.maodouchat.core.realtime.RealtimeConnectionState
-import com.maodouchat.core.realtime.RealtimeDomainEvent
-import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.data.repository.NotificationCenterRepository
-import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
-import com.maodouchat.core.realtime.ChatMessageSentEvent
-import com.maodouchat.core.realtime.ChatReadEvent
+import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.Trigger
 import com.maodouchat.core.model.applyPresenceProjection
 import com.maodouchat.core.model.buildAdminBroadcastProjection
 import com.maodouchat.core.model.zeroChatUnread
-import com.maodouchat.security.BackgroundSessionGate
+import com.maodouchat.core.realtime.ChatMessageSentEvent
+import com.maodouchat.core.realtime.ChatReadEvent
+import com.maodouchat.core.realtime.RealtimeConnectionState
+import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
+import com.maodouchat.core.realtime.RealtimeDomainEvent
+import com.maodouchat.core.realtime.RealtimeEventDispatcher
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * 会话列表实时事件协调器（ChatList 瘦身：collector 编排切片）。
- *
- * 承接 `chatReadEvents` / `chatMessageSentEvents` / `RealtimeEventDispatcher` 的收集与
- * 断线横幅调度；预览写入、列表重载、已读水位等副作用经回调回到 ViewModel，
- * 避免协调器再叠一层业务真相源。
- */
-internal class ChatListRealtimeCoordinator(
+// 会话列表实时事件协调器：已读/发送回执与实时事件收集、断线横幅调度。
+class ChatListRealtimeCoordinator(
     private val scope: CoroutineScope,
-    private val uiState: MutableStateFlow<ChatListUiState>,
+    private val getChats: () -> List<Chat>,
+    private val updateChats: ((List<Chat>) -> List<Chat>) -> Unit,
+    private val setRealtimeBanner: (String?) -> Unit,
     private val realtimeEventDispatcher: RealtimeEventDispatcher,
-    private val notificationCenter: NotificationCenterRepository,
+    private val addNotification: (NotificationCenterItem, String?) -> Unit,
     private val chatReadEvents: SharedFlow<ChatReadEvent>,
     private val chatMessageSentEvents: SharedFlow<ChatMessageSentEvent>,
     private val ownerUserId: () -> String,
@@ -53,7 +44,12 @@ internal class ChatListRealtimeCoordinator(
         statusRevoked: Boolean,
         updatedAt: Long,
     ) -> Unit,
-    private val text: (Int) -> String,
+    private val wsConnectionFailedText: String,
+    private val adminBroadcastDefaultTitle: String,
+    private val adminBroadcastSenderLabel: String,
+    private val sessionActive: (String) -> Boolean,
+    private val logWarning: (String, Throwable?) -> Unit,
+    private val nowMillis: () -> Long = { System.currentTimeMillis() },
     private val onRequestLoadChats: (Trigger) -> Unit,
     private val onApplyChatListPreview: (
         chatId: String,
@@ -80,7 +76,7 @@ internal class ChatListRealtimeCoordinator(
     fun clearRealtimeBanner() {
         disconnectBannerJob?.cancel()
         disconnectBannerJob = null
-        uiState.update { it.copy(realtimeBanner = null) }
+        setRealtimeBanner(null)
     }
 
     /** Brief flaps reconnect inside BANNER_DELAY_MS; only then surface the down banner. */
@@ -89,7 +85,7 @@ internal class ChatListRealtimeCoordinator(
         disconnectBannerJob = scope.launch {
             delay(RealtimeDisconnectPolicy.BANNER_DELAY_MS)
             if (realtimeEventDispatcher.connectionState.value == RealtimeConnectionState.CONNECTED) return@launch
-            uiState.update { it.copy(realtimeBanner = text(R.string.chat_ws_connection_failed)) }
+            setRealtimeBanner(wsConnectionFailedText)
         }
     }
 
@@ -106,10 +102,8 @@ internal class ChatListRealtimeCoordinator(
                 }
                 val readChatId = event.chatId
                 if (readChatId.isBlank()) return@collect
-                val manuallyUnread = uiState.value.chats.firstOrNull { it.id == readChatId && it.markedUnread }
-                uiState.update { state ->
-                    state.copy(chats = zeroChatUnread(state.chats, readChatId))
-                }
+                val manuallyUnread = getChats().firstOrNull { it.id == readChatId && it.markedUnread }
+                updateChats { zeroChatUnread(it, readChatId) }
                 // Persist zero unread so process death does not resurrect badge before next getChats.
                 scope.launch {
                     try {
@@ -124,7 +118,7 @@ internal class ChatListRealtimeCoordinator(
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        Log.w(TAG, "Failed to persist chat read", error)
+                        logWarning("Failed to persist chat read", error)
                     }
                 }
                 // Open-chat must clear server markedUnread without toggle rollback to true.
@@ -151,7 +145,7 @@ internal class ChatListRealtimeCoordinator(
                     event.chatId,
                     event.previewText,
                     MessageType.fromWire(event.messageTypeWire),
-                    System.currentTimeMillis(),
+                    nowMillis(),
                     realtimeOwnerUserId,
                     realtimeSession.sessionGeneration,
                 )
@@ -164,31 +158,23 @@ internal class ChatListRealtimeCoordinator(
                 val liveUserId = realtimeOwnerUserId
                 when (event) {
                     is RealtimeDomainEvent.AdminNotice -> {
-                        val title = event.title.ifBlank { text(R.string.notification_admin_broadcast_default_title) }
+                        val title = event.title.ifBlank { adminBroadcastDefaultTitle }
                         val projection = buildAdminBroadcastProjection(
                             title = title,
                             body = event.text,
                             timestamp = event.timestamp,
-                            senderLabel = text(R.string.notification_admin_broadcast_sender),
+                            senderLabel = adminBroadcastSenderLabel,
                         )
                         if (projection != null) {
                             try {
-                                notificationCenter.add(
-                                    projection.item,
-                                    expectedUserId = liveUserId,
-                                )
+                                addNotification(projection.item, liveUserId)
                             } catch (error: CancellationException) {
                                 throw error
                             } catch (error: Exception) {
-                                Log.w(TAG, "Failed to store admin broadcast", error)
+                                logWarning("Failed to store admin broadcast", error)
                             }
-                            if (!BackgroundSessionGate.mayContinue(
-                                expectedUserId = liveUserId,
-                            )
-                            ) return@collect
-                            uiState.update {
-                                it.copy(realtimeBanner = projection.bannerText)
-                            }
+                            if (!sessionActive(liveUserId)) return@collect
+                            setRealtimeBanner(projection.bannerText)
                         }
                     }
                     is RealtimeDomainEvent.GroupRevision -> {
@@ -200,7 +186,7 @@ internal class ChatListRealtimeCoordinator(
                             RealtimeConnectionState.CONNECTED -> {
                                 disconnectBannerJob?.cancel()
                                 disconnectBannerJob = null
-                                uiState.update { it.copy(realtimeBanner = null) }
+                                setRealtimeBanner(null)
                                 // Immediate silent: keep previous rows, don't flash isLoading.
                                 onRequestLoadChats(Trigger.RECONNECT)
                                 // 9.3xx：断线窗口补拉（Ideaura 式）——重连后立即同步各会话增量，
@@ -217,10 +203,7 @@ internal class ChatListRealtimeCoordinator(
                     is RealtimeDomainEvent.Presence -> {
                         // Collector already blank-checks token/userId; re-check so buffered events
                         // after switch do not paint previous-owner online dots onto the new list.
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = liveUserId,
-                        )
-                        ) {
+                        if (!sessionActive(liveUserId)) {
                             return@collect
                         }
                         if (event.onlineRevoked || event.statusRevoked) {
@@ -230,24 +213,19 @@ internal class ChatListRealtimeCoordinator(
                                     event.isOnline,
                                     event.onlineRevoked,
                                     event.statusRevoked,
-                                    System.currentTimeMillis(),
+                                    nowMillis(),
                                 )
                             }
                         }
-                        if (!BackgroundSessionGate.mayContinue(
-                            expectedUserId = liveUserId,
-                        )
-                        ) return@collect
-                        uiState.update { state ->
-                            state.copy(
-                                chats = applyPresenceProjection(
-                                    chats = state.chats,
-                                    userId = event.userId,
-                                    eventIsOnline = event.isOnline,
-                                    eventLastSeen = event.lastSeen,
-                                    onlineRevoked = event.onlineRevoked,
-                                    statusRevoked = event.statusRevoked,
-                                )
+                        if (!sessionActive(liveUserId)) return@collect
+                        updateChats { chats ->
+                            applyPresenceProjection(
+                                chats = chats,
+                                userId = event.userId,
+                                eventIsOnline = event.isOnline,
+                                eventLastSeen = event.lastSeen,
+                                onlineRevoked = event.onlineRevoked,
+                                statusRevoked = event.statusRevoked,
                             )
                         }
                     }
@@ -255,9 +233,5 @@ internal class ChatListRealtimeCoordinator(
                 }
             }
         }
-    }
-
-    companion object {
-        private const val TAG = "ChatListRealtime"
     }
 }
