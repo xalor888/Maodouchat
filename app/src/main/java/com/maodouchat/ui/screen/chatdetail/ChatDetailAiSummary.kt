@@ -5,22 +5,18 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.SEVEN_DAYS_MS
-import com.maodouchat.core.model.THIRTY_DAYS_MS
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
-import com.maodouchat.core.model.aiSummaryContextText
 import com.maodouchat.core.model.buildSummaryAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 
 /**
  * AI 消息总结（G168 从 ChatDetailAiGeneration.kt 抽出，174 行）。
  *
- * `summaryCandidates` 按范围（最近 / 今天 / 7 天 / 30 天 / 搜索结果 / 未读）
- * 选出参与总结的消息，`buildAiSummaryContextMessages` 再把它们转成
+ * `summaryCandidates`（按范围选参与总结的消息，见 `:domain:messaging` 的
+ * `AiSummaryCandidates.kt`）已迁出，`buildAiSummaryContextMessages` 再把它们转成
  * 服务端 AI 上下文。已由 AI 生成的消息（`aiAssisted`）会被排除，避免总结套娃。
  *
  * 抽出理由：与「请求 / 流式 / 取消 / 建议」逻辑无耦合。
@@ -157,38 +153,6 @@ internal fun ChatDetailViewModel.summarizeMessages(
         if (manualSummaryJob === job) manualSummaryJob = null
     }
     job.start()
-}
-
-internal fun ChatDetailViewModel.summaryCandidates(
-    scope: AiSummaryScope,
-    searchResultIds: List<String>,
-    sourceMessages: List<Message>
-): List<Message> {
-    val now = System.currentTimeMillis()
-    val todayStart = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }.timeInMillis
-    val searchIds = searchResultIds.filter(String::isNotBlank).toHashSet()
-    return sourceMessages
-        .asSequence()
-        .filterNot { it.parsedMeta().aiAssisted }
-        .filter { it.aiSummaryContextText().isNotBlank() }
-        .filter { message ->
-            when (scope) {
-                AiSummaryScope.RECENT -> true
-                AiSummaryScope.TODAY -> message.timestamp >= todayStart
-                AiSummaryScope.SEVEN_DAYS -> message.timestamp >= now - SEVEN_DAYS_MS
-                AiSummaryScope.THIRTY_DAYS -> message.timestamp >= now - THIRTY_DAYS_MS
-                AiSummaryScope.SEARCH_RESULTS -> message.id in searchIds
-                AiSummaryScope.UNREAD -> false
-            }
-        }
-        .sortedBy(Message::timestamp)
-        .toList()
-        .takeLast(if (scope == AiSummaryScope.RECENT) 24 else MAX_AI_SUMMARY_MESSAGES)
 }
 
 internal fun ChatDetailViewModel.buildAiSummaryContextMessages(messages: List<Message>): List<AiContextMessage> {
