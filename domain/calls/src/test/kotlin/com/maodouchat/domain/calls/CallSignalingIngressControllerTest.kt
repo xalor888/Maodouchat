@@ -126,6 +126,8 @@ class CallSignalingIngressControllerTest {
         }
     }
 
+    // observeSignaling() 后须先 runCurrent() 让 WS 收集协程订阅再 tryEmit：
+    // 无订阅者时 SharedFlow 会丢弃 tryEmit 的值（CallActionBusTest 同款语义）。
     // Fixture 用 runTest 自身的 TestScope：launch 进 backgroundScope 时
     // advanceUntilIdle 泵不到，信令协程不跑（CallHangUpSenderTest 同款）。
     private class Fixture(private val scope: CoroutineScope) {
@@ -240,6 +242,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.IDLE)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("offer", payload = "v=0 offer"))
         advanceTimeBy(100)
         runCurrent()
@@ -256,6 +259,7 @@ class CallSignalingIngressControllerTest {
         val c = f.controller()
         f.ringingTimeout.start("c1")
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("answer", payload = "v=0 answer"))
         advanceTimeBy(100)
         runCurrent()
@@ -274,6 +278,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.CONNECTED)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("ice-candidate", payload = "mid|2|candidate-sdp"))
         advanceTimeBy(100)
         runCurrent()
@@ -291,6 +296,7 @@ class CallSignalingIngressControllerTest {
         f.meshMembers = listOf("c1")
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("ice-candidate", payload = "mid|0|s", groupId = "g1", groupMemberIds = listOf("c1")))
         advanceTimeBy(100)
         runCurrent()
@@ -306,6 +312,7 @@ class CallSignalingIngressControllerTest {
         f.callId = "call-1"
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("hang-up"))
         advanceTimeBy(100)
         runCurrent()
@@ -325,6 +332,7 @@ class CallSignalingIngressControllerTest {
         f.meshMembers = listOf("c1", "m1")
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("hang-up", fromUserId = "m1", groupId = "g1", groupMemberIds = listOf("c1", "m1")))
         advanceTimeBy(100)
         runCurrent()
@@ -341,6 +349,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.CALLING)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("reject"))
         advanceTimeBy(100)
         runCurrent()
@@ -365,6 +374,7 @@ class CallSignalingIngressControllerTest {
         f.meshMembers = listOf("c1", "m1")
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(
             signaling("offer", fromUserId = "m1", callId = "call-2", payload = "v=0", groupId = "g2", groupMemberIds = listOf("c1", "m1")),
         )
@@ -382,6 +392,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.CONNECTED)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("answer", fromUserId = "stranger", payload = "v=0"))
         advanceTimeBy(100)
         runCurrent()
@@ -398,6 +409,7 @@ class CallSignalingIngressControllerTest {
         f.rememberResult = false
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("offer", payload = "v=0"))
         advanceTimeBy(100)
         runCurrent()
@@ -412,6 +424,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.CALLING)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(RealtimeDomainEvent.RealtimeError(code = "CALL_INVITE_RATE_LIMITED", retryAfterSeconds = 45))
         advanceTimeBy(100)
         runCurrent()
@@ -465,6 +478,7 @@ class CallSignalingIngressControllerTest {
         f.state = CallUiState(contactId = "c1", callState = CallState.IDLE)
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         c.stop()
         f.events.tryEmit(signaling("offer", payload = "v=0"))
         advanceUntilIdle()
@@ -481,6 +495,7 @@ class CallSignalingIngressControllerTest {
         f.webRtc = null
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("offer", fromUserId = "m1", payload = "v=0 group-offer", groupId = "g1", groupMemberIds = listOf("c1", "m1")))
         advanceTimeBy(100)
         runCurrent()
@@ -508,6 +523,7 @@ class CallSignalingIngressControllerTest {
         f.webRtc = null
         val c = f.controller()
         c.observeSignaling()
+        runCurrent()
         f.events.tryEmit(signaling("offer", fromUserId = "m1", payload = "v=0 group-offer", groupId = "g1", groupMemberIds = listOf("c1", "m1")))
         advanceTimeBy(100)
         runCurrent()
