@@ -439,7 +439,8 @@ class ClientArchitectureTest {
         // 2026-11-12：语音播放回执与 AI 操作两控制器迁入 :domain:messaging，ChatDetailDeps 接线 +37、纯格式并行 -42（804 → 799），上限同步收紧（两份 map 一起改）。
         // 2026-11-12：消息观察一族迁入 :domain:conversation，ChatDetailDeps 接线 +8（799 → 807，main 侧格式压缩已含本轮 -14），上限同步收紧（两份 map 一起改）。
         // 2026-11-12：消息加载/状态观察两控制器迁入 :domain:messaging，ChatDetailDeps 接线 +23、与 main 侧格式压缩重叠后净 +21（807 → 828），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 828,
+        // 2026-11-12：会话收尾控制器迁入 :domain:messaging，ChatDetailDeps 接线净 -3、另 +1 import（828 → 826），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 826,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；
@@ -749,7 +750,8 @@ class ClientArchitectureTest {
             // 2026-11-12：语音播放回执与 AI 操作两控制器迁入 :domain:messaging，ChatDetailDeps 接线 +37、纯格式并行 -42（804 → 799），上限同步收紧（两份 map 一起改）。
                 // 2026-11-12：消息观察一族迁入 :domain:conversation，ChatDetailDeps 接线 +8（799 → 807，main 侧格式压缩已含本轮 -14），上限同步收紧（两份 map 一起改）。
             // 2026-11-12：消息加载/状态观察两控制器迁入 :domain:messaging，ChatDetailDeps 接线 +23、与 main 侧格式压缩重叠后净 +21（807 → 828），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 828,
+            // 2026-11-12：会话收尾控制器迁入 :domain:messaging，ChatDetailDeps 接线净 -3、另 +1 import（828 → 826），上限同步收紧（两份 map 一起改）。
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailDeps.kt" to 826,
         // U02 延伸：ContactSubScreens 收口后（887 → 860）跌出「前 20」窗口，
         // ChatDetailAiDialogs2 首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 本轮：摘要/画像/周报/分类簇搬出 ChatDetailAiSummaryDialogs（882 → 293，纯搬移；

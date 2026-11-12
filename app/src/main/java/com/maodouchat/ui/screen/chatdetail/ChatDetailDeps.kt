@@ -27,6 +27,7 @@ import com.maodouchat.domain.messaging.ChatMessageLoadingController
 import com.maodouchat.domain.messaging.ChatMessageMutationController
 import com.maodouchat.domain.messaging.ChatMessagePreviewController
 import com.maodouchat.domain.messaging.ChatMessageStatusObservationController
+import com.maodouchat.domain.messaging.ChatSessionTeardownController
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -754,18 +755,16 @@ internal class ChatDetailDeps(
     )
     internal val sessionTeardownController = ChatSessionTeardownController(
         uiState = host._uiState,
-        application = application,
-        voiceRecorder = voiceRecorder,
-        realtimeController = realtimeController,
+        scope = com.maodouchat.chatdetail.ChatDetailAccess.applicationScope,
+        draftsFeatureEnabled = { RuntimeFlags.isEnabled(application, RuntimeFlags.CHAT_DRAFTS) },
+        cancelRecording = { voiceRecorder.cancelRecording() },
+        stopVoicePlayback = { com.maodouchat.util.VoicePlayer.stop() },
+        clearRealtime = realtimeController::clear,
         cipherController = sessionCipherController,
         getActiveChatId = { host.activeChatId },
         stopLiveLocationSharing = host::stopLiveLocationSharing,
         stopRecordingMeter = host::stopRecordingMeter,
-        cancelAiAutoRetryJobs = {
-            aiBookkeeping.aiAutoRetryJobs.values.forEach { it.cancel() }
-            aiBookkeeping.aiAutoRetryJobs.clear()
-            aiBookkeeping.aiAutoRetryAt.clear()
-        },
+        cancelAiAutoRetryJobs = { aiBookkeeping.aiAutoRetryJobs.values.forEach { it.cancel() }; aiBookkeeping.aiAutoRetryJobs.clear(); aiBookkeeping.aiAutoRetryAt.clear() },
         cancelDraftSaveJob = { draftBookkeeping.draftSaveJob?.cancel(); draftBookkeeping.draftSaveJob = null },
         clearReadSeen = { readReceiptBookkeeping.readSeenMessages.clearAll() },
         takePendingReadWatermark = { readReceiptBookkeeping.pendingReadWatermarkMessageId.also { readReceiptBookkeeping.pendingReadWatermarkMessageId = null } },
@@ -774,16 +773,15 @@ internal class ChatDetailDeps(
             if (text.isBlank()) {
                 chatDraftDao.delete(ownerUserId, chatId)
             } else {
-                chatDraftDao.upsert(
-                    ChatDraftEntity(
-                        ownerUserId = ownerUserId,
-                        chatId = chatId,
-                        text = text,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                )
+                chatDraftDao.upsert(ChatDraftEntity(ownerUserId = ownerUserId, chatId = chatId, text = text, updatedAt = System.currentTimeMillis()))
             }
         },
+        ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+        sessionMayContinue = { userId -> com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+        sessionToken = { com.maodouchat.session.CurrentSession.snapshot().token },
+        sessionUserId = { com.maodouchat.session.CurrentSession.snapshot().userId },
+        enqueueReadReceipt = enqueueReadReceipt,
+        logWarning = { message, error -> android.util.Log.w("ChatDetailViewModel", message, error) },
     )
     internal val recipientId: String get() = host._uiState.value.contact.id
     internal val fileTransferController by lazy {
