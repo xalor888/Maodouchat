@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
+import com.maodouchat.domain.messaging.summaryCandidates
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.viewModelScope
