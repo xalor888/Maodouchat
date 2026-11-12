@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.State
+import com.maodouchat.domain.calls.CallHistoryTime
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -60,14 +61,6 @@ internal fun MissedCallsCard(calls: List<MissedCall>, onOpen: () -> Unit) {
         }
         TextButton(onClick = onOpen) { Text(stringResource(R.string.schedule_view_all)) }
     }
-}
-
-private fun formatCallDuration(durationMs: Long): String {
-    if (durationMs <= 0L) return ""
-    val totalSec = (durationMs / 1000).toInt()
-    val min = totalSec / 60
-    val sec = totalSec % 60
-    return "%d:%02d".format(min, sec)
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -117,7 +110,7 @@ internal fun MissedCallsSheet(
                                     when (call.state) {
                                         State.MISSED -> " · " + stringResource(R.string.missed_calls_badge)
                                         State.ANSWERED -> {
-                                            val d = formatCallDuration(call.durationMs)
+                                            val d = CallHistoryTime.formatDuration(call.durationMs)
                                             if (d.isNotEmpty()) " · " + d else ""
                                         }
                                     },

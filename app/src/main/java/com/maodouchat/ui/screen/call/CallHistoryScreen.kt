@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
+import com.maodouchat.domain.calls.CallHistoryTime
+import com.maodouchat.domain.calls.CallRelativeTime
 import com.maodouchat.ui.theme.UnreadRed
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -240,10 +242,10 @@ fun CallHistoryScreen(
                                         }
                                     )
                                     append(" · ")
-                                    append(callHistoryRelativeTime(context, entry.startedAt))
+                                    append(callHistoryRelativeText(context, entry.startedAt))
                                     if (entry.state == State.ANSWERED && entry.durationMs > 0L) {
                                         append(" · ")
-                                        append(formatCallHistoryDuration(entry.durationMs))
+                                        append(CallHistoryTime.formatDuration(entry.durationMs))
                                     }
                                 },
                                 style = MaterialTheme.typography.bodySmall,
@@ -301,32 +303,15 @@ fun CallHistoryScreen(
 private val callHistoryDayFormat: ThreadLocal<SimpleDateFormat> =
     ThreadLocal.withInitial { SimpleDateFormat("MM-dd", Locale.getDefault()) }
 
-private fun callHistoryRelativeTime(context: android.content.Context, millis: Long): String {
-    val diff = System.currentTimeMillis() - millis
-    return when {
-        diff < 60_000L -> context.getString(R.string.time_just_now)
-        diff < 3_600_000L -> {
-            val m = (diff / 60_000L).toInt()
-            context.resources.getQuantityString(R.plurals.time_minutes_ago, m, m)
-        }
-        diff < 86_400_000L -> {
-            val h = (diff / 3_600_000L).toInt()
-            context.resources.getQuantityString(R.plurals.time_hours_ago, h, h)
-        }
-        diff < 7L * 86_400_000L -> {
-            val d = (diff / 86_400_000L).toInt()
-            context.resources.getQuantityString(R.plurals.time_days_ago, d, d)
-        }
-        else -> callHistoryDayFormat.get().format(Date(millis))
+// 相对时间文案：分桶是 domain 纯决策，此处只做资源映射。
+private fun callHistoryRelativeText(context: android.content.Context, millis: Long): String =
+    when (val bucket = CallHistoryTime.relativeTime(System.currentTimeMillis(), millis)) {
+        CallRelativeTime.JustNow -> context.getString(R.string.time_just_now)
+        is CallRelativeTime.MinutesAgo -> context.resources.getQuantityString(R.plurals.time_minutes_ago, bucket.minutes, bucket.minutes)
+        is CallRelativeTime.HoursAgo -> context.resources.getQuantityString(R.plurals.time_hours_ago, bucket.hours, bucket.hours)
+        is CallRelativeTime.DaysAgo -> context.resources.getQuantityString(R.plurals.time_days_ago, bucket.days, bucket.days)
+        is CallRelativeTime.Date -> callHistoryDayFormat.get().format(Date(bucket.millis))
     }
-}
-
-private fun formatCallHistoryDuration(durationMs: Long): String {
-    val seconds = (durationMs / 1000L).coerceAtLeast(0L)
-    val m = seconds / 60
-    val s = seconds % 60
-    return "%d:%02d".format(m, s)
-}
 
 // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
 @Composable
