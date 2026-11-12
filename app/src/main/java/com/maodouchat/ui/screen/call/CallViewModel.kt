@@ -322,7 +322,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             setActiveDomainSession = { activeDomainSession = it },
             setActiveCallSession = { activeCallSession = it },
             endingCall = { endingCall },
-            webRTCManager = { webRTCManager },
+            currentManager = { webRTCManager },
         )
     }
 
