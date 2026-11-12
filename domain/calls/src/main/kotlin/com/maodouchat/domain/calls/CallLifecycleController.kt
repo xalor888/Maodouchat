@@ -1,18 +1,16 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import com.maodouchat.domain.calls.CallActionBus
-import com.maodouchat.call.WebRtcNativeLibraryLoader
-import com.maodouchat.session.AppRuntime
 import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallUiState
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 // VM 生命周期簇：从 CallViewModel 纯搬移——init 的原生库进度/外部挂断总线收集器、
 // onCleared 的全量收尾（各 controller 停摆 + 前台服务无条件停止 + 必要时通知对端）。
-// VM 只留 init 触发与 onCleared 委托。
-internal class CallLifecycleController(
+// VM 只留 init 触发与 onCleared 委托。原生库进度流与会话世代走构造端口。
+class CallLifecycleController(
     private val scope: CoroutineScope,
     private val currentState: () -> CallUiState,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
@@ -23,17 +21,19 @@ internal class CallLifecycleController(
     private val cancelIceRecovery: () -> Unit,
     private val stopForegroundService: () -> Unit,
     private val endCall: (notifyPeer: Boolean) -> Unit,
+    private val nativeDownloadProgress: Flow<Int>,
+    private val currentSessionGeneration: () -> Long,
 ) {
     fun onStart() {
         scope.launch {
-            WebRtcNativeLibraryLoader.progress.collect { pct ->
+            nativeDownloadProgress.collect { pct ->
                 updateState { it.copy(nativeDownloadProgress = pct) }
             }
         }
         scope.launch {
             CallActionBus.hangUpRequests.collect { req ->
                 // Drop hang-ups buffered before logout/account switch.
-                if (req.sessionGeneration != AppRuntime.currentSessionGeneration) {
+                if (req.sessionGeneration != currentSessionGeneration()) {
                     return@collect
                 }
                 if (
