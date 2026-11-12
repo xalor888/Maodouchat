@@ -40,10 +40,12 @@ class CallLifecycleControllerTest {
         )
     }
 
+    // onStart 启动的两个 collect 永不结束：须用 backgroundScope，runTest 结束时自动取消；
+    // 若传 runTest 自身的 TestScope，收尾会报 UncompletedCoroutinesError。
     @Test
     fun progressUpdatesState() = runTest {
         val f = Fixture(1001L)
-        val c = f.controller(this)
+        val c = f.controller(backgroundScope)
         c.onStart()
         runCurrent()
         f.progress.value = 42
@@ -54,7 +56,7 @@ class CallLifecycleControllerTest {
     @Test
     fun matchingHangUpEndsCallWithNotifyPeer() = runTest {
         val f = Fixture(1002L)
-        val c = f.controller(this)
+        val c = f.controller(backgroundScope)
         c.onStart()
         runCurrent()
         assertTrue(CallActionBus.requestHangUp("call-1", notifyPeer = true, sessionGeneration = 1002L))
@@ -65,7 +67,7 @@ class CallLifecycleControllerTest {
     @Test
     fun staleGenerationHangUpIsDropped() = runTest {
         val f = Fixture(1003L)
-        val c = f.controller(this)
+        val c = f.controller(backgroundScope)
         c.onStart()
         runCurrent()
         assertTrue(CallActionBus.requestHangUp("call-1", notifyPeer = true, sessionGeneration = 9999L))
@@ -76,7 +78,7 @@ class CallLifecycleControllerTest {
     @Test
     fun wrongCallIdHangUpIsDropped() = runTest {
         val f = Fixture(1004L)
-        val c = f.controller(this)
+        val c = f.controller(backgroundScope)
         c.onStart()
         runCurrent()
         assertTrue(CallActionBus.requestHangUp("call-other", notifyPeer = true, sessionGeneration = 1004L))
@@ -88,7 +90,7 @@ class CallLifecycleControllerTest {
     fun idleStateDropsHangUp() = runTest {
         val f = Fixture(1005L)
         f.state = f.state.copy(callState = CallState.IDLE)
-        val c = f.controller(this)
+        val c = f.controller(backgroundScope)
         c.onStart()
         runCurrent()
         assertTrue(CallActionBus.requestHangUp("call-1", notifyPeer = true, sessionGeneration = 1005L))
