@@ -159,7 +159,7 @@ class ChatMessageStatusObservationControllerTest {
 
         assertEquals(listOf(Tuple4("c1", "owner-1", 1000L, "m1")), harness.markedThrough)
         assertEquals(listOf("c1"), harness.markedAllRead)
-        assertEquals(listOf(Triple("c1", "m1", null)), harness.receipts)
+        assertEquals(listOf<Triple<String, String, Long?>>(Triple("c1", "m1", null)), harness.receipts)
         assertEquals(listOf("c1"), harness.emittedReads)
         assertEquals("m1", harness.pendingWatermark)
         assertEquals(MessageStatus.READ, harness.uiState.value.messages.single().status)
@@ -174,7 +174,7 @@ class ChatMessageStatusObservationControllerTest {
         runCurrent()
         harness.settle()
 
-        assertEquals(listOf("c1" to "m1"), harness.armedDisappearing)
+        assertEquals(listOf<Pair<String, String?>>("c1" to "m1"), harness.armedDisappearing)
         assertTrue(harness.receipts.isEmpty())
     }
 

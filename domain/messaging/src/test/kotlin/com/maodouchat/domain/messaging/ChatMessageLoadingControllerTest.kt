@@ -325,7 +325,7 @@ class ChatMessageLoadingControllerTest {
         harness.controller().loadChat()
         harness.settle()
 
-        assertEquals(listOf(Triple("owner-1", "c1", 5L)), harness.invalidatedEpochs)
+        assertEquals(listOf<Triple<String, String, Long?>>(Triple("owner-1", "c1", 5L)), harness.invalidatedEpochs)
     }
 
     @Test
@@ -349,7 +349,7 @@ class ChatMessageLoadingControllerTest {
         assertEquals(listOf("u2"), harness.blockRefreshes)
         assertEquals(1, harness.scheduleBackend.listScheduledCalls)
         assertEquals(listOf("u2"), harness.identityRefreshes)
-        assertEquals(listOf(Triple("c1", "u2", true)), harness.occupiedCiphers)
+        assertEquals(listOf<Triple<String, String?, Boolean>>(Triple("c1", "u2", true)), harness.occupiedCiphers)
     }
 
     @Test
