@@ -86,23 +86,3 @@ fun groupAuditActionLabel(action: String): String = stringResource(
         else -> R.string.group_audit_other
     }
 )
-
-/** Non-composable tokens so audit search matches common zh/en action labels without Context. */
-fun groupAuditActionSearchTokens(action: String): List<String> = when (action) {
-    "MEMBER_ADDED" -> listOf("添加", "成员", "added", "member", "add")
-    "MEMBER_JOINED" -> listOf("加入", "邀请", "joined", "invite", "join")
-    "MEMBER_REMOVED" -> listOf("移除", "踢出", "removed", "remove", "kick")
-    "MEMBER_PROMOTED" -> listOf("管理员", "提升", "admin", "promoted", "promote")
-    "MEMBER_DEMOTED" -> listOf("取消管理员", "降级", "demoted", "demote")
-    "MEMBER_MUTED" -> listOf("禁言", "muted", "mute")
-    "MEMBER_UNMUTED" -> listOf("解禁", "解除禁言", "unmuted", "unmute")
-    "GROUP_RENAMED" -> listOf("群名", "改名", "rename", "renamed")
-    "ANNOUNCEMENT_UPDATED" -> listOf("公告", "announcement")
-    "AVATAR_UPDATED" -> listOf("头像", "avatar")
-    "INVITE_ROTATED", "INVITE_CONFIGURED" -> listOf("邀请", "链接", "invite", "link")
-    "TITLE_UPDATED" -> listOf("头衔", "title")
-    "NICKNAME_UPDATED" -> listOf("昵称", "nickname")
-    "MEMBER_LEFT" -> listOf("退群", "退出", "left", "leave")
-    "OWNERSHIP_TRANSFERRED" -> listOf("转让", "群主", "owner", "transfer")
-    else -> listOf("操作", "activity", "group")
-}

@@ -1,5 +1,6 @@
-package com.maodouchat.ui.screen.chatdetail.group
+package com.maodouchat.domain.groups
 
+import com.maodouchat.domain.groups.GroupDetailSearch.groupAuditActionSearchTokens
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

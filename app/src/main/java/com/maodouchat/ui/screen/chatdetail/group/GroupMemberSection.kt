@@ -53,12 +53,6 @@ object GroupMemberSectionUtils {
         else -> stringResource(R.string.group_detail_role_member)
     }
 
-    fun roleRank(role: String): Int = when (role) {
-        "OWNER" -> 0
-        "ADMIN" -> 1
-        else -> 2
-    }
-
     @Composable
     fun formatMuteTime(timestamp: Long): String {
         if (timestamp <= 0) return stringResource(R.string.group_detail_not_muted)
@@ -77,8 +71,6 @@ object GroupMemberSectionUtils {
 
 @Composable
 fun roleLabel(role: String): String = GroupMemberSectionUtils.roleLabel(role)
-
-fun roleRank(role: String): Int = GroupMemberSectionUtils.roleRank(role)
 
 @Composable
 fun formatMuteTime(timestamp: Long): String = GroupMemberSectionUtils.formatMuteTime(timestamp)
