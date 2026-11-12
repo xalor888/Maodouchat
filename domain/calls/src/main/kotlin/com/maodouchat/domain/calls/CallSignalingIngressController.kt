@@ -296,11 +296,11 @@ class CallSignalingIngressController(
                             scope.launch {
                                 try {
                                     recordMissedCall(
-                                        signalingCallId = activeCallId().ifBlank { callId },
-                                        fromUserId = currentState.contactId.ifBlank { fromUserId },
-                                        callerName = currentState.contactName,
-                                        isVideo = currentState.callType == CallType.VIDEO,
-                                        isGroup = currentState.isGroupCall,
+                                        activeCallId().ifBlank { callId },
+                                        currentState.contactId.ifBlank { fromUserId },
+                                        currentState.contactName,
+                                        currentState.callType == CallType.VIDEO,
+                                        currentState.isGroupCall,
                                     )
                                 } catch (error: CancellationException) {
                                     throw error
@@ -326,11 +326,11 @@ class CallSignalingIngressController(
                             scope.launch {
                                 try {
                                     recordMissedCall(
-                                        signalingCallId = activeCallId().ifBlank { callId },
-                                        fromUserId = currentState.contactId.ifBlank { fromUserId },
-                                        callerName = currentState.contactName,
-                                        isVideo = currentState.callType == CallType.VIDEO,
-                                        isGroup = false,
+                                        activeCallId().ifBlank { callId },
+                                        currentState.contactId.ifBlank { fromUserId },
+                                        currentState.contactName,
+                                        currentState.callType == CallType.VIDEO,
+                                        false,
                                     )
                                 } catch (error: CancellationException) {
                                     throw error
