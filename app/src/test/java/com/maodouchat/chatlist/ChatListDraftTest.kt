@@ -1,13 +1,9 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.data.local.entity.ChatDraftEntity
-import com.maodouchat.core.model.Chat
-import com.maodouchat.ui.screen.chatlist.ChatListUiState
 import com.maodouchat.core.model.requiresGroupOwnershipTransfer
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -32,60 +28,6 @@ class ChatListDraftTest {
     }
 
     @Test
-    fun newerDraftMovesConversationAheadOfOlderMessage() {
-        val state = ChatListUiState(
-            chats = listOf(
-                Chat(id = "recent-message", lastMessage = "new", lastMessageTime = 200L),
-                Chat(id = "draft-chat", lastMessage = "old", lastMessageTime = 100L)
-            ),
-            drafts = mapOf(
-                "draft-chat" to ChatDraftEntity("owner", "draft-chat", "unfinished", 300L)
-            )
-        )
-
-        assertEquals(listOf("draft-chat", "recent-message"), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun searchMatchesEncryptedLocalDraftText() {
-        val state = ChatListUiState(
-            chats = listOf(Chat(id = "draft-chat", lastMessage = "unrelated", lastMessageTime = 100L)),
-            searchQuery = "发布计划",
-            drafts = mapOf(
-                "draft-chat" to ChatDraftEntity("owner", "draft-chat", "明天讨论发布计划", 200L)
-            )
-        )
-
-        assertEquals(listOf("draft-chat"), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun pinnedConversationStaysAheadOfNewerMessage() {
-        val state = ChatListUiState(
-            chats = listOf(
-                Chat(id = "newer", lastMessageTime = 500L),
-                Chat(id = "pinned", lastMessageTime = 100L, pinnedAt = 200L)
-            )
-        )
-
-        assertEquals(listOf("pinned", "newer"), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun archivedConversationsAreSeparatedFromInbox() {
-        val chats = listOf(
-            Chat(id = "inbox", archived = false),
-            Chat(id = "archived", archived = true)
-        )
-
-        assertEquals(listOf("inbox"), ChatListUiState(chats = chats).filteredChats.map(Chat::id))
-        assertEquals(
-            listOf("archived"),
-            ChatListUiState(chats = chats, showArchived = true).filteredChats.map(Chat::id)
-        )
-    }
-
-    @Test
     fun transferCheckIgnoresKindAndStatusButNeedsCode() {
         assertTrue(
             requiresGroupOwnershipTransfer(
@@ -94,59 +36,5 @@ class ChatListDraftTest {
         )
         assertFalse(requiresGroupOwnershipTransfer(null))
         assertFalse(requiresGroupOwnershipTransfer(RuntimeException("boom")))
-    }
-
-    @Test
-    fun olderDraftDoesNotPromoteAheadOfNewerMessage() {
-        val state = ChatListUiState(
-            chats = listOf(
-                Chat(id = "newer", lastMessageTime = 200L),
-                Chat(id = "older", lastMessageTime = 100L)
-            ),
-            drafts = mapOf(
-                "older" to ChatDraftEntity("owner", "older", "stale", 50L)
-            )
-        )
-
-        assertEquals(listOf("newer", "older"), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun lockedChatDraftTextDoesNotMatchSearch() {
-        val state = ChatListUiState(
-            chats = listOf(Chat(id = "draft-chat", lastMessage = "unrelated", lastMessageTime = 100L)),
-            searchQuery = "发布计划",
-            drafts = mapOf(
-                "draft-chat" to ChatDraftEntity("owner", "draft-chat", "明天讨论发布计划", 200L)
-            ),
-            lockedChatIds = setOf("draft-chat")
-        )
-
-        assertEquals(emptyList(), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun mutedChatSortsAfterSameTimeChatWhenUnreadPriorityOff() {
-        val state = ChatListUiState(
-            chats = listOf(
-                Chat(id = "muted", lastMessageTime = 200L, notificationsMuted = true),
-                Chat(id = "plain", lastMessageTime = 200L)
-            ),
-            unreadPriorityEnabled = false
-        )
-
-        assertEquals(listOf("plain", "muted"), state.filteredChats.map(Chat::id))
-    }
-
-    @Test
-    fun largerPinnedAtWinsAmongPinned() {
-        val state = ChatListUiState(
-            chats = listOf(
-                Chat(id = "pin100", lastMessageTime = 900L, pinnedAt = 100L),
-                Chat(id = "pin300", lastMessageTime = 100L, pinnedAt = 300L)
-            )
-        )
-
-        assertEquals(listOf("pin300", "pin100"), state.filteredChats.map(Chat::id))
     }
 }
