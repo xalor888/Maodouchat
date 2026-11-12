@@ -1,10 +1,6 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import android.app.Application
-import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.core.session.CallSessionMachine
-import com.maodouchat.notification.CallNotificationService
-import com.maodouchat.telecom.MaodouchatConnectionService
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.NetworkQuality
@@ -19,8 +15,9 @@ import com.maodouchat.domain.calls.CallSessionTimersController
 // 通话拆卸簇：从 CallViewModel 纯搬移——endCall 全量收尾（job 停摆、媒体释放、
 // 通知/Telecom 清理、通话记录回写、对端挂断信令、会话字段复位）。
 // VM 只留同签名委托。
-internal class CallTeardownController(
-    private val app: Application,
+class CallTeardownController(
+    private val cancelIncomingCall: (String) -> Unit,
+    private val finishTelecomConnection: (String) -> Unit,
     private val currentState: () -> CallUiState,
     private val updateState: ((CallUiState) -> CallUiState) -> Unit,
     private val token: () -> String,
@@ -45,11 +42,12 @@ internal class CallTeardownController(
     private val callSessionGate: CallSessionGate,
     private val callSessionMachine: CallSessionMachine,
     private val timersController: CallSessionTimersController,
-    private val signalingIngress: CallSignalingIngressController,
+    private val stopSignalingIngress: () -> Unit,
+    private val clearPendingGroupOffers: () -> Unit,
     private val ringingTimeout: CallRingingTimeout,
     private val iceRecovery: CallIceRecovery,
-    private val groupMesh: CallGroupMesh,
-    private val mediaBridge: CallMediaBridge,
+    private val cancelGroupJobs: () -> Unit,
+    private val releaseMedia: () -> Unit,
     private val hangUpSender: CallHangUpSender,
     private val foregroundService: CallForegroundServiceController,
     private val writeCallLog: (State) -> Unit,
@@ -61,23 +59,23 @@ internal class CallTeardownController(
         callSessionGate.invalidate(activeCallSession())
         val contactId = currentState().contactId
         timersController.cancelTimers()
-        signalingIngress.stop()
+        stopSignalingIngress()
         ringingTimeout.cancel()
         iceRecovery.cancel()
-        groupMesh.cancelAllGroupJobs()
+        cancelGroupJobs()
 
-        mediaBridge.release()
+        releaseMedia()
         clearPendingOfferSdp()
-        signalingIngress.clearPendingGroupOffers()
+        clearPendingGroupOffers()
 
         // Snapshot before clearing; cancel only the *incoming* tray slot.
         // Missed-call notify id is salted separately so this cannot wipe a just-posted
         // missed entry after ring-timeout / peer-hang-up record.
         val hangupCallId = activeCallId()
         if (hangupCallId.isNotBlank()) {
-            CallNotificationService.cancelIncomingCall(app, hangupCallId)
+            cancelIncomingCall(hangupCallId)
             // 销毁系统级 Telecom Connection，避免应用内挂断后系统残留「活跃通话」(幽灵来电)
-            MaodouchatConnectionService.finishConnection(hangupCallId)
+            finishTelecomConnection(hangupCallId)
         }
         // 8.52：挂断前按最终状态回写（接通→补时长；未接→保持 MISSED）
         if (logMissed) {
