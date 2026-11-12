@@ -289,13 +289,23 @@ class CallOutgoingCallControllerTest {
     }
 
     @Test
-    fun startCallCreateFailsEndsWithInitializationFailed() = runTest {
+    fun startCallCreateFailsEndsWithWebRtcDownloadFailed() = runTest {
         val f = Fixture()
         f.createFails = WebRtcNativeLoadException("dl failed")
         f.controller(this).startCall("u2", "Bob", null, CallType.AUDIO)
         advanceUntilIdle()
         assertEquals(1, f.ended.size)
-        assertTrue(f.ended.single().second?.startsWith("INITIALIZATION_FAILED(") == true)
+        assertEquals("WEBRTC_DOWNLOAD_FAILED(dl failed)", f.ended.single().second)
+    }
+
+    @Test
+    fun startCallCreateFailsWithGenericErrorEndsWithInitializationFailed() = runTest {
+        val f = Fixture()
+        f.createFails = IllegalStateException("boom")
+        f.controller(this).startCall("u2", "Bob", null, CallType.AUDIO)
+        advanceUntilIdle()
+        assertEquals(1, f.ended.size)
+        assertEquals("INITIALIZATION_FAILED(boom)", f.ended.single().second)
     }
 
     @Test
