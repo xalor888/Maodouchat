@@ -1,32 +1,39 @@
-package com.maodouchat.ui.screen.call
+package com.maodouchat.domain.calls
 
-import com.maodouchat.R
-import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
-import com.maodouchat.core.model.GroupCallPolicy
-import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
-import com.maodouchat.domain.calls.CallSessionTimersController
-import com.maodouchat.domain.calls.CallSignalingGroupMesh
-import com.maodouchat.domain.calls.CallSignalingSender
-import com.maodouchat.domain.calls.CallWebRtcSession
-import com.maodouchat.webrtc.WebRTCManager
+import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.core.session.CallSessionMachine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// 群成员画像（id / 展示名 / 头像）：loadGroupParticipantProfiles 经端口取回的最小形状，
+// app 侧把 UserDto 映射进来，domain 不碰网络 DTO。
+data class CallGroupMeshProfile(
+    val id: String,
+    val name: String,
+    val avatar: String?,
+)
+
 /**
  * 群组通话网格状态簇（成员连接状态 / 邀请超时与重连 / 确定性 mesh 建边）：
- * 函数体从 `CallViewModel` 逐字搬入，VM 状态经 lambda 注入（与 `CallSignalingSender` 同一装配模式）。
+ * 从 app 侧同名类纯搬入 :domain:calls——WebRTC 走 CallWebRtcSession 端口
+ * （纯数据回调，IceCandidate / SessionDescription 组装留 app 侧适配器），
+ * 会话守卫、画像加载与文案走注入端口，VM 状态经 lambda 注入。
  * 群 job 双 map（邀请超时 / 重连）由本类内部持有，VM 不再直接触碰。
  */
-internal class CallGroupMesh(
+class CallGroupMesh(
     private val scope: CoroutineScope,
     private val token: () -> String,
+    private val ownerUserId: () -> String,
+    private val mayContinue: (String) -> Boolean,
+    private val loadProfiles: suspend (String) -> Result<List<CallGroupMeshProfile>>,
     private val endingCall: () -> Boolean,
     private val activeCallSession: () -> Long,
     private val activeDomainSession: () -> Long,
@@ -39,10 +46,10 @@ internal class CallGroupMesh(
     private val callSessionMachine: CallSessionMachine,
     private val callSessionGate: CallSessionGate,
     private val timersController: CallSessionTimersController,
-    private val webRTCManager: () -> WebRTCManager?,
-    private val isCurrentCallSession: (Long, WebRTCManager?) -> Boolean,
+    private val webRtc: () -> CallWebRtcSession?,
+    private val isCurrentCallSession: (Long, CallWebRtcSession?) -> Boolean,
     private val signalingSender: CallSignalingSender,
-    private val text: (Int, Array<out Any>) -> String,
+    private val noActivePeersMessage: () -> String,
     private val onNoActivePeers: (String) -> Unit,
 ) : CallSignalingGroupMesh {
     private val groupInviteTimeoutJobs = mutableMapOf<String, Job>()
@@ -57,14 +64,14 @@ internal class CallGroupMesh(
 
     override fun loadGroupParticipantProfiles() {
         scope.launch {
-            val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
-            if (token().isBlank() || ownerUserId.isBlank()) return@launch
-            if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
+            val ownerId = ownerUserId()
+            if (token().isBlank() || ownerId.isBlank()) return@launch
+            if (!mayContinue(ownerId)) {
                 return@launch
             }
             val liveToken = token()
-            com.maodouchat.data.repository.UserNetworkRepository().users(liveToken).onSuccess { users ->
-                if (!com.maodouchat.security.BackgroundSessionGate.mayContinue(expectedUserId = ownerUserId)) {
+            loadProfiles(liveToken).onSuccess { users ->
+                if (!mayContinue(ownerId)) {
                     return@onSuccess
                 }
                 val profiles = users.associateBy { it.id }
@@ -102,7 +109,7 @@ internal class CallGroupMesh(
                                 callSessionGate.isCurrent(session) &&
                                 currentState().groupParticipants.firstOrNull { it.userId == userId }?.connectionState == GroupPeerConnectionState.RECONNECTING
                             ) {
-                                webRTCManager()?.removeGroupPeer(userId)
+                                webRtc()?.removeGroupPeer(userId)
                                 markGroupPeerTerminal(userId, GroupPeerConnectionState.FAILED)
                             }
                         }
@@ -116,7 +123,7 @@ internal class CallGroupMesh(
                     groupInviteTimeoutJobs.remove(userId)?.cancel()
                     groupReconnectJobs.remove(userId)?.cancel()
                     if (state == GroupPeerConnectionState.FAILED || state == GroupPeerConnectionState.DISCONNECTED) {
-                        webRTCManager()?.removeGroupPeer(userId)
+                        webRtc()?.removeGroupPeer(userId)
                     }
                     removeGroupMemberId(userId)
                     endGroupCallIfNoActivePeers()
@@ -137,7 +144,7 @@ internal class CallGroupMesh(
     private fun endGroupCallIfNoActivePeers() {
         val active = currentState().groupParticipants.any { GroupCallPolicy.isActive(it.connectionState) }
         if (!active && currentState().isGroupCall && currentState().callState != CallState.DISCONNECTED) {
-            onNoActivePeers(text(R.string.call_group_no_active_members, emptyArray()))
+            onNoActivePeers(noActivePeersMessage())
         }
     }
 
@@ -161,29 +168,25 @@ internal class CallGroupMesh(
                 callSessionGate.isCurrent(session) &&
                 currentState().groupParticipants.firstOrNull { it.userId == userId }?.connectionState == GroupPeerConnectionState.CONNECTING
             ) {
-                webRTCManager()?.removeGroupPeer(userId)
+                webRtc()?.removeGroupPeer(userId)
                 markGroupPeerTerminal(userId, GroupPeerConnectionState.NO_ANSWER)
             }
         }
     }
 
     override fun startDeterministicMeshEdges(webRtc: CallWebRtcSession, primaryPeerId: String, session: Long) {
-        startDeterministicMeshEdges((webRtc as WebRtcCallSignalingWebRtc).manager, primaryPeerId, session)
-    }
-
-    fun startDeterministicMeshEdges(manager: WebRTCManager, primaryPeerId: String, session: Long) {
-        val selfUserId = com.maodouchat.session.CurrentSession.ownerUserId()
+        val selfUserId = ownerUserId()
         groupMemberIds().filter { it != primaryPeerId }.forEach { peerId ->
             scheduleGroupPeerTimeout(peerId)
-            if (GroupCallPolicy.shouldInitiateMeshEdge(selfUserId, peerId) && !manager.hasGroupPeer(peerId)) {
-                manager.startGroupCallToPeer(
+            if (GroupCallPolicy.shouldInitiateMeshEdge(selfUserId, peerId) && !webRtc.hasGroupPeer(peerId)) {
+                webRtc.startGroupCallToPeer(
                     peerUserId = peerId,
                     type = currentState().callType,
-                    onIceCandidate = { candidate ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendIceCandidate(peerId, candidate.sdpMid, candidate.sdpMLineIndex, candidate.sdp)
+                    onIceCandidate = { sdpMid, sdpMLineIndex, sdp ->
+                        if (isCurrentCallSession(session, webRtc)) signalingSender.sendIceCandidate(peerId, sdpMid, sdpMLineIndex, sdp)
                     },
                     onOfferCreated = { sdp ->
-                        if (isCurrentCallSession(session, manager)) signalingSender.sendSdp(peerId, "offer", sdp.description, groupInvite = false)
+                        if (isCurrentCallSession(session, webRtc)) signalingSender.sendSdp(peerId, "offer", sdp, groupInvite = false)
                     }
                 )
             }

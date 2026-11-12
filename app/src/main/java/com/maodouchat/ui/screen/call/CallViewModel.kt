@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
+import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.core.session.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.CallSignalingOutboundCursor
@@ -22,6 +23,8 @@ import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.domain.calls.CallConnectionStats
 import com.maodouchat.domain.calls.CallForegroundServiceController
+import com.maodouchat.domain.calls.CallGroupMesh
+import com.maodouchat.domain.calls.CallGroupMeshProfile
 import com.maodouchat.domain.calls.CallIncomingCallController
 import com.maodouchat.domain.calls.CallLifecycleController
 import com.maodouchat.domain.calls.CallOutgoingCallController
@@ -123,6 +126,13 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         CallGroupMesh(
             scope = viewModelScope,
             token = { token },
+            ownerUserId = { com.maodouchat.session.CurrentSession.ownerUserId() },
+            mayContinue = { userId -> BackgroundSessionGate.mayContinue(expectedUserId = userId) },
+            loadProfiles = { liveToken ->
+                UserNetworkRepository().users(liveToken).map { users ->
+                    users.map { CallGroupMeshProfile(it.id, it.name, it.avatar) }
+                }
+            },
             endingCall = { endingCall },
             activeCallSession = { activeCallSession },
             activeDomainSession = { activeDomainSession },
@@ -135,10 +145,10 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             callSessionMachine = callSessionMachine,
             callSessionGate = callSessionGate,
             timersController = timersController,
-            webRTCManager = { webRTCManager },
-            isCurrentCallSession = { session, manager -> isCurrentCallSession(session, manager) },
+            webRtc = { webRTCManager?.let { WebRtcCallSignalingWebRtc(it) } },
+            isCurrentCallSession = { session, webRtc -> isCurrentCallSession(session, (webRtc as? WebRtcCallSignalingWebRtc)?.manager) },
             signalingSender = signalingSender,
-            text = errorMessages::text,
+            noActivePeersMessage = { errorMessages.text(R.string.call_group_no_active_members) },
             onNoActivePeers = { message -> endCall(notifyPeer = false, errorMessage = message) },
         )
     }
