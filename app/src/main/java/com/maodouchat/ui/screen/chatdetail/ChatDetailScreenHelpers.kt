@@ -25,11 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.MessageSafetyScanner
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.truncatedSenderId
 import java.util.Calendar
 import java.util.Date
-import com.maodouchat.core.model.ChatDetailUiState
 
 /**
  * 从 ChatDetailScreen.kt 拆分的纯工具函数和小型 Composable。
@@ -38,58 +35,6 @@ import com.maodouchat.core.model.ChatDetailUiState
 
 // ── 纯函数 ────────────────────────────
 
-internal fun senderDisplayName(
-    state: ChatDetailUiState,
-    message: Message,
-    isOwn: Boolean,
-    participantNamesById: Map<String, String>,
-    unknownLabel: String = "",
-    groupMemberLabel: String = "",
-): String? {
-    if (isOwn) return null
-    val mapped = participantNamesById[message.senderId]?.trim()?.takeIf { it.isNotEmpty() }
-    val truncatedId = truncatedSenderId(message.senderId)
-    if (!state.chatIsGroup) {
-        return firstNonBlank(
-            state.contact.displayName,
-            mapped,
-            truncatedId,
-            unknownLabel,
-        )
-    }
-    return firstNonBlank(
-        mapped,
-        truncatedId,
-        groupMemberLabel,
-        unknownLabel,
-    )
-}
-
-// Route 里内联的发信人名字解析只是 senderDisplayName 的薄封装：把隐式捕获的
-// state/labels 显式化成参数，调用点传参语义逐字等价。
-internal fun resolveChatDetailSenderName(
-    message: Message,
-    state: ChatDetailUiState,
-    participantNamesById: Map<String, String>,
-    unknownLabel: String,
-    groupMemberLabel: String,
-    isOwn: Boolean = message.senderId == state.currentUserId,
-): String? = senderDisplayName(
-    state = state,
-    message = message,
-    isOwn = isOwn,
-    participantNamesById = participantNamesById,
-    unknownLabel = unknownLabel,
-    groupMemberLabel = groupMemberLabel,
-)
-
-private fun firstNonBlank(vararg values: String?): String? {
-    for (value in values) {
-        val trimmed = value?.trim().orEmpty()
-        if (trimmed.isNotEmpty()) return trimmed
-    }
-    return null
-}
 
 internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: String): String {
     return if (chat.isGroup) {
