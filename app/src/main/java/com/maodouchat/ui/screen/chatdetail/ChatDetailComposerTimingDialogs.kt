@@ -33,6 +33,7 @@ import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.QuietWindow
 import com.maodouchat.domain.messaging.DisappearDurationLabel
 import com.maodouchat.domain.messaging.DisappearingMessageLabel
+import com.maodouchat.domain.messaging.QuietHoursPreset
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -44,13 +45,6 @@ internal fun ChatQuietHoursDialog(
     onPick: (QuietWindow) -> Unit,
     onDismiss: () -> Unit
 ) {
-    // 快捷时段：预置的常用静音窗口（start, end, labelRes）
-    val presets = listOf(
-        Triple(22 * 60, 7 * 60, R.string.chat_quiet_hours_night),
-        Triple(12 * 60, 14 * 60, R.string.chat_quiet_hours_lunch),
-        Triple(23 * 60, 8 * 60, R.string.chat_quiet_hours_sleep),
-        Triple(9 * 60, 18 * 60, R.string.chat_quiet_hours_workday)
-    )
     val enabled = current.enabled
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -65,18 +59,10 @@ internal fun ChatQuietHoursDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalChatPalette.current.textSecondary
                 )
-                presets.forEach { (start, end, labelRes) ->
-                    val selected = enabled && current.startMinute == start && current.endMinute == end
+                QuietHoursPreset.entries.forEach { preset ->
+                    val selected = preset.matches(current)
                     TextButton(
-                        onClick = {
-                            onPick(
-                                QuietWindow(
-                                    enabled = true,
-                                    startMinute = start,
-                                    endMinute = end
-                                )
-                            )
-                        },
+                        onClick = { onPick(preset.toWindow()) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
@@ -84,7 +70,7 @@ internal fun ChatQuietHoursDialog(
                                 RoundedCornerShape(10.dp)
                             )
                     ) {
-                        Text(stringResource(labelRes), color = if (selected) Primary else OnSurface, modifier = Modifier.fillMaxWidth())
+                        Text(stringResource(quietHoursPresetLabelRes(preset)), color = if (selected) Primary else OnSurface, modifier = Modifier.fillMaxWidth())
                     }
                 }
                 if (enabled) {
@@ -109,6 +95,13 @@ internal fun ChatQuietHoursDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_done)) }
         }
     )
+}
+
+private fun quietHoursPresetLabelRes(preset: QuietHoursPreset): Int = when (preset) {
+    QuietHoursPreset.Night -> R.string.chat_quiet_hours_night
+    QuietHoursPreset.Lunch -> R.string.chat_quiet_hours_lunch
+    QuietHoursPreset.Sleep -> R.string.chat_quiet_hours_sleep
+    QuietHoursPreset.Workday -> R.string.chat_quiet_hours_workday
 }
 
 @Composable
