@@ -4,12 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ExploreRelativeTimeBucket
+import com.maodouchat.domain.conversation.ExploreVisibilityOption
+import com.maodouchat.domain.conversation.exploreVisibilityOption
+import com.maodouchat.domain.conversation.relativeTimeBucket
 
 /**
  * Explore 模块的公共小组件（G175 从 5 处私有副本收敛而来）。
  *
  * `relativeTime`：ExplorePostDetailScreen / ExploreMomentsScreen /
- * AuthorProfileScreen 三处**逐字相同**的 18 行手写分档逻辑。
+ * AuthorProfileScreen 三处共用的分档逻辑，分桶判定已迁入 `:domain:conversation`，
+ * 本文件只留 R.string/plural 映射壳。
  *
  * 注意：本文件里还有另一个 `relativeTime` 形态（ExplorePostCards 用
  * `RelativeTimePolicy` + `DateUtils.getRelativeTimeSpanString`），
@@ -21,27 +26,21 @@ import com.maodouchat.R
 @Composable
 internal fun relativeTime(ts: Long): String {
     val diff = System.currentTimeMillis() - ts
-    return when {
-        diff < 60_000 -> stringResource(R.string.time_just_now)
-        diff < 3600_000 -> {
-            val count = (diff / 60_000).toInt()
-            pluralStringResource(R.plurals.time_minutes_ago, count, count)
-        }
-        diff < 86_400_000 -> {
-            val count = (diff / 3600_000).toInt()
-            pluralStringResource(R.plurals.time_hours_ago, count, count)
-        }
-        else -> {
-            val count = (diff / 86_400_000).toInt()
-            pluralStringResource(R.plurals.time_days_ago, count, count)
-        }
+    return when (val bucket = relativeTimeBucket(diff)) {
+        ExploreRelativeTimeBucket.JustNow -> stringResource(R.string.time_just_now)
+        is ExploreRelativeTimeBucket.Minutes ->
+            pluralStringResource(R.plurals.time_minutes_ago, bucket.count, bucket.count)
+        is ExploreRelativeTimeBucket.Hours ->
+            pluralStringResource(R.plurals.time_hours_ago, bucket.count, bucket.count)
+        is ExploreRelativeTimeBucket.Days ->
+            pluralStringResource(R.plurals.time_days_ago, bucket.count, bucket.count)
     }
 }
 
 /** 帖子可见性选项的本地化标签；未知值回落「公开」。 */
 @Composable
-internal fun visibilityOptionLabel(value: String): String = when (value) {
-    "CONTACTS" -> stringResource(R.string.explore_visibility_contacts)
-    "PRIVATE" -> stringResource(R.string.explore_visibility_private)
-    else -> stringResource(R.string.explore_visibility_public)
+internal fun visibilityOptionLabel(value: String): String = when (exploreVisibilityOption(value)) {
+    ExploreVisibilityOption.Contacts -> stringResource(R.string.explore_visibility_contacts)
+    ExploreVisibilityOption.Private -> stringResource(R.string.explore_visibility_private)
+    ExploreVisibilityOption.Public -> stringResource(R.string.explore_visibility_public)
 }
