@@ -62,6 +62,7 @@ import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.domain.contacts.formatNearbyRadiusOption
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -73,8 +74,8 @@ import androidx.compose.runtime.setValue
  * 「附近的人」页（G114 从 `ExploreSubScreens.kt` 拆出，原 324 行）。
  *
  * 附近的人列表 + 距离显示 + 点击进聊天。行组件簇（`NearbyItem`、
- * `formatNearbyDistance`、距离 ThreadLocal、`nearbyDistanceLabel`）
- * 已抽出同包 `ExploreNearbyRows.kt`，`NearbyScreen` 留此文件。
+ * `formatNearbyDistance`）已抽出同包 `ExploreNearbyRows.kt`，距离判定与
+ * 半径格式化在 `:domain:contacts`，`NearbyScreen` 留此文件。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`。
  * 纯搬移，不改判断。
@@ -217,9 +218,7 @@ fun NearbyScreen(
                     ) {
                         NearbyPolicy.RADIUS_OPTIONS_KM.forEach { option ->
                             val selected = kotlin.math.abs(state.radiusKm - option) < 0.01
-                            val optionLabel = nearbyRadiusFormat.get().apply {
-                                maximumFractionDigits = if (option % 1.0 == 0.0) 0 else 1
-                            }.format(option)
+                            val optionLabel = formatNearbyRadiusOption(option)
                             FilterChip(
                                 selected = selected,
                                 onClick = { viewModel.setRadiusKm(option) },

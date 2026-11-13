@@ -25,10 +25,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.NearbyPerson
+import com.maodouchat.domain.contacts.NearbyDistanceLabel
+import com.maodouchat.domain.contacts.nearbyDistanceLabel
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
-import java.text.NumberFormat
 
 /** 「附近的人」行组件簇（从 ExploreNearbyScreen.kt 纯搬移；NearbyScreen 留母文件）。 */
 @Composable
@@ -80,37 +81,10 @@ internal fun NearbyItem(person: NearbyPerson, onClick: () -> Unit) {
 }
 
 @Composable
-private fun formatNearbyDistance(distanceMeters: Int): String {
-    val (res, arg) = nearbyDistanceLabel(distanceMeters)
-    return if (arg == null) stringResource(res) else stringResource(res, arg)
-}
-
-// NumberFormat 非线程安全，ThreadLocal 每线程复用一个。
-// 半径选项的小数位随选项变化，每次调用前重设；距离文案固定一位小数。
-internal val nearbyRadiusFormat: ThreadLocal<NumberFormat> =
-    ThreadLocal.withInitial { NumberFormat.getNumberInstance() }
-private val nearbyDistanceFormat: ThreadLocal<NumberFormat> =
-    ThreadLocal.withInitial {
-        NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 1
-            maximumFractionDigits = 1
-        }
-    }
-
-/**
- * 距离 → (文案资源, 实参)（G163 从 `formatNearbyDistance` 抽出的纯判定）。
- *
- * 抽开之前这段和 `stringResource` 耦在一起，只能靠仪器测试覆盖；
- * 现在返回二元组，普通 JVM 单测就能逐分支断言。
- *
- * 两个细节都有产品理由，改时必须连测试一起改：
- * - **米那一支 `coerceAtLeast(100)`**：定位精度有限，显示「约 3 米」比「约 0 米」更可信；
- * - **公里那一支固定一位小数**：`NumberFormat` 默认对 2.0 显示 "2"，
- *   加上 `minimumFractionDigits = 1` 才会显示 "2.0"，与米的精度观感一致。
- */
-internal fun nearbyDistanceLabel(distanceMeters: Int): Pair<Int, Any?> =
-    if (distanceMeters < 1_000) {
-        R.string.explore_nearby_distance_meters to distanceMeters.coerceAtLeast(100)
-    } else {
-        R.string.explore_nearby_distance_km to nearbyDistanceFormat.get().format(distanceMeters / 1_000.0)
+private fun formatNearbyDistance(distanceMeters: Int): String =
+    when (val label = nearbyDistanceLabel(distanceMeters)) {
+        is NearbyDistanceLabel.Meters ->
+            stringResource(R.string.explore_nearby_distance_meters, label.meters)
+        is NearbyDistanceLabel.Kilometers ->
+            stringResource(R.string.explore_nearby_distance_km, label.formattedKm)
     }
