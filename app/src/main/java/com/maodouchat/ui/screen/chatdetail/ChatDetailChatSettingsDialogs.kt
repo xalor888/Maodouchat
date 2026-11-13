@@ -20,24 +20,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.SilentUntilOption
+import com.maodouchat.domain.messaging.SilentUntilPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
-
-/**
- * 会话设置类对话框（G83 从 `ChatDetailRoute.kt` 拆出，原 125 行 = 45 + 35 + 45）。
- *
- * 三个 `@Composable`：静音至（稍后提醒时段）、解除聊天锁、联系人操作
- * （查看资料 / 屏蔽或解除 / 举报）。三者都是「会话级设置」的原子操作，合成一个文件。
- *
- * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
- * 所需输入全部经参数显式传入，`Context` 只用 `LocalContext.current`。纯搬移，不改判断。
- *
- * 各自内含的判定：
- * - 静音至：1h / 8h / 24h 三档；**已有生效静音时才显示「一键取消」**；
- * - 解除锁：PIN 只留数字、最长 8 位；
- * - 联系人：屏蔽进行中**禁用按钮**（防重复点击），并按当前屏蔽态切换文案与颜色。
- */
 
 /** 静音至对话框。 */
 @Composable
@@ -50,29 +37,28 @@ internal fun ChatSilentUntilDialog(
     val silentUntilClearedTip = stringResource(R.string.chat_silent_until_cleared)
     // 9.219：捕获局部 chatId（同免打扰段，回调延迟执行防会话删除竞态）
     val chatIdForSilent = chatId
-    val hasActiveSilent = com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent) > System.currentTimeMillis()
+    val hasActiveSilent = SilentUntilPolicy.isActive(
+        com.maodouchat.notification.ChatQuietHoursStore.silentUntil(context, chatIdForSilent),
+        System.currentTimeMillis()
+    )
     AlertDialog(
         onDismissRequest = { onDismiss() },
         title = { Text(stringResource(R.string.chat_silent_until_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column {
-                listOf(
-                    1L to R.string.chat_silent_until_1h,
-                    8L to R.string.chat_silent_until_8h,
-                    24L to R.string.chat_silent_until_24h
-                ).forEach { (hours, labelRes) ->
+                SilentUntilOption.entries.forEach { option ->
                     TextButton(
                         onClick = {
                             com.maodouchat.notification.ChatQuietHoursStore.setSilentUntil(
                                 context,
                                 chatIdForSilent,
-                                System.currentTimeMillis() + hours * 3600_000L
+                                SilentUntilPolicy.deadlineMillis(System.currentTimeMillis(), option.hours)
                             )
                             onDismiss()
                             Toast.makeText(context, silentUntilSetTip, Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text(stringResource(labelRes), color = MaterialTheme.colorScheme.onSurface) }
+                    ) { Text(stringResource(silentUntilLabelRes(option)), color = MaterialTheme.colorScheme.onSurface) }
                 }
                 // 1.41：已有生效静音时可一键取消
                 if (hasActiveSilent) {
@@ -92,6 +78,12 @@ internal fun ChatSilentUntilDialog(
             TextButton(onClick = { onDismiss() }) { Text(stringResource(R.string.common_cancel), color = LocalChatPalette.current.textSecondary) }
         }
     )}
+
+private fun silentUntilLabelRes(option: SilentUntilOption): Int = when (option) {
+    SilentUntilOption.Hour1 -> R.string.chat_silent_until_1h
+    SilentUntilOption.Hours8 -> R.string.chat_silent_until_8h
+    SilentUntilOption.Hours24 -> R.string.chat_silent_until_24h
+}
 
 /** 解除聊天锁对话框（输 PIN 解除）。 */
 @Composable
