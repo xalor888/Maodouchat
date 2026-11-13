@@ -5,6 +5,7 @@ import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.domain.messaging.normalizeAiReplyTone
 import com.maodouchat.domain.messaging.normalizeAiRewriteMode
+import com.maodouchat.domain.messaging.normalizeAiSummaryStyle
 import com.maodouchat.domain.messaging.resolveGroupAiMode
 import com.maodouchat.domain.messaging.summaryCandidates
 import com.maodouchat.util.RuntimeFlags
@@ -101,10 +102,7 @@ fun ChatDetailViewModel.requestAiSummary(
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_ai_disabled_warning)) }
         return
     }
-    val safeStyle = when (style.trim().lowercase()) {
-        "brief", "detailed", "decisions", "tasks", "timeline", "risks" -> style.trim().lowercase()
-        else -> "brief"
-    }
+    val safeStyle = normalizeAiSummaryStyle(style, scope)
     viewModelScope.launch {
         // 9.148：快照账号与目标会话，DB 读取后过门禁——换号后不得把旧会话消息
         // 送进新会话的 AI 汇总流（其余 AI 路径均已有快照+门禁）
