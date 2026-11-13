@@ -3,8 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
-import com.maodouchat.domain.messaging.inferGroupAiMode
+import com.maodouchat.domain.messaging.normalizeAiReplyTone
 import com.maodouchat.domain.messaging.normalizeAiRewriteMode
+import com.maodouchat.domain.messaging.resolveGroupAiMode
 import com.maodouchat.domain.messaging.summaryCandidates
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -76,10 +77,7 @@ fun ChatDetailViewModel.requestAiSuggestions(tone: String = "friendly") {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_ai_no_reply_context)) }
         return
     }
-    val safeTone = when (tone.trim().lowercase()) {
-        "natural", "friendly", "formal", "concise", "warm", "humorous", "direct", "empathetic", "encouraging" -> tone.trim().lowercase()
-        else -> "friendly"
-    }
+    val safeTone = normalizeAiReplyTone(tone)
     lastAiReplyTone = safeTone
     runAiWithConsent(PendingAiAction.SuggestReplies(safeTone))
 }
@@ -157,10 +155,7 @@ internal fun ChatDetailViewModel.requestGroupAiAssistant(query: String, mode: St
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_group_ai_no_context)) }
         return
     }
-    val safeMode = when (mode?.trim()?.lowercase()) {
-        "answer", "summary", "decisions", "tasks", "timeline", "risks" -> mode.trim().lowercase()
-        else -> inferGroupAiMode(normalizedQuery)
-    }
+    val safeMode = resolveGroupAiMode(mode, normalizedQuery)
     runAiWithConsent(PendingAiAction.GroupAssistant(normalizedQuery, safeMode))
 }
 
