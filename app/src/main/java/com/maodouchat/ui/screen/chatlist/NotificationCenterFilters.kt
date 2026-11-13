@@ -15,7 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.NotifFilter
-import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.messaging.StringBucket
 
 @Composable
 internal fun NotificationFilterStrip(
@@ -59,38 +59,13 @@ internal fun NotificationFilterStrip(
     }
 }
 
-internal fun List<NotificationCenterItem>.groupByDay(): List<Pair<StringBucket, List<NotificationCenterItem>>> {
-    val now = System.currentTimeMillis()
-    val dayMs = 24L * 3600L * 1000L
-    return this
-        .groupBy { item ->
-            // 8.48 修复 M5：未来时间戳（时钟超前/服务端未来时间）强制归 TODAY——
-            // 此前负 diffDays 落入 YESTERDAY/WEEK，未来 8 天以上也归 WEEK
-            val diffDays = ((now - item.updatedAt) / dayMs).coerceAtLeast(0L)
-            when {
-                diffDays == 0L -> StringBucket.TODAY
-                diffDays == 1L -> StringBucket.YESTERDAY
-                diffDays <= 7L -> StringBucket.WEEK
-                else -> StringBucket.EARLIER
-            }
-        }
-        .map { (bucket, list) ->
-            val ordered = list.sortedByDescending { it.updatedAt }
-            bucket to ordered
-        }
-        .sortedBy { it.first.ordinal }
-}
-
-enum class StringBucket(val sortOrder: Int) {
-    TODAY(0), YESTERDAY(1), WEEK(2), EARLIER(3);
-
-    @Composable
-    fun displayLabel(): String = when (this) {
-        TODAY -> stringResource(R.string.notif_center_bucket_today)
-        YESTERDAY -> stringResource(R.string.notif_center_bucket_yesterday)
-        WEEK -> stringResource(R.string.notif_center_bucket_week)
-        EARLIER -> stringResource(R.string.notif_center_bucket_earlier)
-    }
+// R.string 薄壳留在 app 侧：StringBucket 本体已迁入 :domain:messaging。
+@Composable
+fun StringBucket.displayLabel(): String = when (this) {
+    StringBucket.TODAY -> stringResource(R.string.notif_center_bucket_today)
+    StringBucket.YESTERDAY -> stringResource(R.string.notif_center_bucket_yesterday)
+    StringBucket.WEEK -> stringResource(R.string.notif_center_bucket_week)
+    StringBucket.EARLIER -> stringResource(R.string.notif_center_bucket_earlier)
 }
 
 @Composable

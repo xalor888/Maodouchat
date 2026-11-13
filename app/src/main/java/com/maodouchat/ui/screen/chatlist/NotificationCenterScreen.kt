@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.NotifFilter
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.messaging.groupByDay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MaodouDimens
@@ -167,7 +168,6 @@ fun NotificationCenterScreen(
                                 val itemChatId = resolvedNotificationChatId(item)
                                 NotificationRow(
                                     item = item,
-                                    // 1.284：搜索关键词高亮（与 Explore/收藏/会话列表一致）
                                     highlightQuery = searchQuery,
                                     onClick = {
                                         viewModel.markRead(item.id, item)
