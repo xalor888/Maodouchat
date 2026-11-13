@@ -1,7 +1,5 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import java.util.Calendar
-import java.util.TimeZone
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.truncatedSenderId
@@ -14,19 +12,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * G148：`ChatDetailScreenHelpers.kt` 里三个纯函数的测试。
+ * G148：`ChatDetailScreenHelpers.kt` 里剩余纯函数的测试。
  *
- * 日期助手最容易踩的是**跨年**：`isSameDay` 同时比 YEAR 与 DAY_OF_YEAR，
- * 少比任何一项都会让 12/31 与 1/1 判成同一天；`isYesterday` 用
- * 「clone + DAY_OF_YEAR - 1」而不是「毫秒减 86400000」，因为后者会被夏令时坑。
+ * 日期助手（`isSameDay` / `isYesterday`）已随 ChatDateDisplay 迁入 `:domain:messaging`，
+ * 对应测试在 `ChatDateDisplayTest`。
  */
 class ChatDetailScreenHelpersTest {
-
-    private fun utc(y: Int, m: Int, d: Int, h: Int = 12): Calendar =
-        Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
-            clear()
-            set(y, m - 1, d, h, 0, 0)
-        }
 
     // ─── truncatedSenderId ───
 
@@ -50,65 +41,6 @@ class ChatDetailScreenHelpersTest {
         assertEquals("abcdefgh", truncatedSenderId("abcdefghijklmnop"))
         // 先 trim 再截断
         assertEquals("12345678", truncatedSenderId("  123456789  "))
-    }
-
-    // ─── isSameDay ───
-
-    @Test
-    fun `same day is true regardless of time of day`() {
-        assertTrue(isSameDay(utc(2026, 4, 10, 0), utc(2026, 4, 10, 23)))
-        assertTrue(isSameDay(utc(2026, 4, 10, 12), utc(2026, 4, 10, 12)))
-    }
-
-    @Test
-    fun `different day in same year is false`() {
-        assertFalse(isSameDay(utc(2026, 4, 10), utc(2026, 4, 11)))
-        assertFalse(isSameDay(utc(2026, 4, 10), utc(2026, 5, 10)))
-    }
-
-    @Test
-    fun `same month and day in a different year is false`() {
-        // 少了 YEAR 比较就会误判为同一天
-        assertFalse(isSameDay(utc(2026, 4, 10), utc(2025, 4, 10)))
-    }
-
-    @Test
-    fun `new year eve and new year day are different days`() {
-        assertFalse(isSameDay(utc(2025, 12, 31), utc(2026, 1, 1)))
-    }
-
-    // ─── isYesterday ───
-
-    @Test
-    fun `yesterday is true`() {
-        assertTrue(isYesterday(utc(2026, 4, 10), utc(2026, 4, 9)))
-    }
-
-    @Test
-    fun `today and tomorrow are not yesterday`() {
-        assertFalse(isYesterday(utc(2026, 4, 10), utc(2026, 4, 10)))
-        assertFalse(isYesterday(utc(2026, 4, 10), utc(2026, 4, 11)))
-    }
-
-    @Test
-    fun `day before yesterday is not yesterday`() {
-        assertFalse(isYesterday(utc(2026, 4, 10), utc(2026, 4, 8)))
-    }
-
-    @Test
-    fun `across the year boundary yesterday still works`() {
-        // 1/1 的昨天是 12/31
-        assertTrue(isYesterday(utc(2026, 1, 1), utc(2025, 12, 31)))
-        // 反方向：12/31 的昨天不是 1/1
-        assertFalse(isYesterday(utc(2025, 12, 31), utc(2026, 1, 1)))
-    }
-
-    @Test
-    fun `leap day is handled by calendar arithmetic`() {
-        // 2024 是闰年：3/1 的昨天是 2/29
-        assertTrue(isYesterday(utc(2024, 3, 1), utc(2024, 2, 29)))
-        // 2026 不是闰年：3/1 的昨天是 2/28
-        assertTrue(isYesterday(utc(2026, 3, 1), utc(2026, 2, 28)))
     }
 
     // ─── forwardTargetName ───
