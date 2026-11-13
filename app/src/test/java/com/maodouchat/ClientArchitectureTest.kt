@@ -550,7 +550,7 @@ class ClientArchitectureTest {
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 322,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 300,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
@@ -841,7 +841,7 @@ class ClientArchitectureTest {
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 322,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 300,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
