@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.core.model.AiRetryPolicy
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.invocationCategory
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
