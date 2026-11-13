@@ -640,10 +640,3 @@ class ChatDetailViewModel(
     internal suspend fun withLocalNickname(user: User): User =
         outgoingHydrationController.withLocalNickname(user)
 }
-
-/** 可解密的消息类型（G183 从 ChatDetailViewModel 成员扩展抽成顶层纯函数：它不碰实例状态，留着只会无法单测）。 */
-internal fun MessageType.isDecryptable(): Boolean = this in setOf(
-    MessageType.TEXT, MessageType.MARKDOWN, MessageType.IMAGE, MessageType.GIF,
-    MessageType.STICKER, MessageType.LOCATION, MessageType.VIDEO,
-    MessageType.VOICE, MessageType.FILE,
-)
