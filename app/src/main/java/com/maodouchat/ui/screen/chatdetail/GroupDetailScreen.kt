@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupDetailTab
+import com.maodouchat.domain.groups.GroupDetailSearch
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.screen.chatdetail.group.CandidateRow
@@ -220,11 +221,10 @@ fun GroupDetailScreen(
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                                 }
                             }
-                            if (!membersExpanded && searchDerived.filteredMembers.size > MEMBER_PAGE_SIZE) {
+                            if (!membersExpanded && searchDerived.filteredMembers.size > GroupDetailSearch.MEMBER_PAGE_SIZE) {
                                 item(key = "members_more", contentType = "more") {
-                                    val remaining = searchDerived.filteredMembers.size - MEMBER_PAGE_SIZE
-                                    TextButton(
-                                        onClick = { membersExpanded = true },
+                                    val remaining = searchDerived.filteredMembers.size - GroupDetailSearch.MEMBER_PAGE_SIZE
+                                    TextButton(onClick = { membersExpanded = true },
                                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
                                     ) {
                                         Text(pluralStringResource(R.plurals.group_detail_members_more, remaining, remaining), color = MaterialTheme.colorScheme.primary)
@@ -263,9 +263,9 @@ fun GroupDetailScreen(
                                         CandidateRow(user = user, enabled = !state.isUpdating, onAdd = { viewModel.addMember(user.id) })
                                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), modifier = Modifier.padding(start = 68.dp))
                                     }
-                                    if (searchDerived.filteredCandidates.size > CANDIDATE_PAGE_SIZE) {
+                                    if (searchDerived.filteredCandidates.size > GroupDetailSearch.CANDIDATE_PAGE_SIZE) {
                                         item(key = "candidates_toggle", contentType = "toggle") {
-                                            val remaining = searchDerived.filteredCandidates.size - CANDIDATE_PAGE_SIZE
+                                            val remaining = searchDerived.filteredCandidates.size - GroupDetailSearch.CANDIDATE_PAGE_SIZE
                                             TextButton(
                                                 onClick = { candidatesExpanded = !candidatesExpanded },
                                                 modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)
@@ -317,9 +317,9 @@ fun GroupDetailScreen(
                                     GroupAuditRow(audit)
                                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), modifier = Modifier.padding(start = 52.dp))
                                 }
-                                if (searchDerived.filteredAuditLogs.size > AUDIT_PAGE_SIZE || state.hasMoreAudit) {
+                                if (searchDerived.filteredAuditLogs.size > GroupDetailSearch.AUDIT_PAGE_SIZE || state.hasMoreAudit) {
                                     item(key = "audit_toggle", contentType = "toggle") {
-                                        val remaining = searchDerived.filteredAuditLogs.size - AUDIT_PAGE_SIZE
+                                        val remaining = searchDerived.filteredAuditLogs.size - GroupDetailSearch.AUDIT_PAGE_SIZE
                                         TextButton(
                                             onClick = {
                                                 if (auditExpanded && state.hasMoreAudit && !state.isLoadingMoreAudit) {
