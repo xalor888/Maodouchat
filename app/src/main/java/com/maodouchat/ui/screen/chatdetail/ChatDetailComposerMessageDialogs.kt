@@ -22,9 +22,9 @@ import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.MessagePinPolicy
-import com.maodouchat.core.model.PreviewKind
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.PinnedPreview
+import com.maodouchat.domain.messaging.pinnedPreview
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -32,19 +32,17 @@ import com.maodouchat.ui.theme.PrimaryFixed
 
 @Composable
 internal fun pinnedPreviewText(message: Message?): String {
-    if (message == null) return stringResource(R.string.chat_pinned_preview_generic)
-    return when (MessagePinPolicy.previewKind(message.type)) {
-        PreviewKind.TEXT -> {
-            val text = MessagePinPolicy.textPreview(message.content)
-            if (text.isBlank()) stringResource(R.string.chat_pinned_preview_generic) else text
+    return when (val preview = pinnedPreview(message)) {
+        is PinnedPreview.Text -> {
+            if (preview.text.isBlank()) stringResource(R.string.chat_pinned_preview_generic) else preview.text
         }
-        PreviewKind.IMAGE -> stringResource(R.string.chat_pinned_preview_image)
-        PreviewKind.VOICE -> stringResource(R.string.chat_pinned_preview_voice)
-        PreviewKind.VIDEO -> stringResource(R.string.chat_pinned_preview_video)
-        PreviewKind.FILE -> stringResource(R.string.chat_pinned_preview_file)
-        PreviewKind.LOCATION -> stringResource(R.string.chat_pinned_preview_location)
-        PreviewKind.STICKER -> stringResource(R.string.chat_pinned_preview_sticker)
-        PreviewKind.GENERIC -> stringResource(R.string.chat_pinned_preview_generic)
+        PinnedPreview.Image -> stringResource(R.string.chat_pinned_preview_image)
+        PinnedPreview.Voice -> stringResource(R.string.chat_pinned_preview_voice)
+        PinnedPreview.Video -> stringResource(R.string.chat_pinned_preview_video)
+        PinnedPreview.File -> stringResource(R.string.chat_pinned_preview_file)
+        PinnedPreview.Location -> stringResource(R.string.chat_pinned_preview_location)
+        PinnedPreview.Sticker -> stringResource(R.string.chat_pinned_preview_sticker)
+        PinnedPreview.Generic -> stringResource(R.string.chat_pinned_preview_generic)
     }
 }
 
