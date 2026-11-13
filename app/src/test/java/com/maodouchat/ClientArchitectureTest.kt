@@ -425,7 +425,7 @@ class ClientArchitectureTest {
         // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
         // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
         // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 649,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 642,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
         // 按实测值纳入监管（两份 map 一起加）。
         // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。
@@ -743,7 +743,7 @@ class ClientArchitectureTest {
             // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
             // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
             // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 649,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 642,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
             // 按实测值纳入监管（两份 map 一起加）。
             // 2026-10-16：删 50 个闲置 import（898 → 894 → 844 纯删行），上限同步收紧（两份 map 一起改）。

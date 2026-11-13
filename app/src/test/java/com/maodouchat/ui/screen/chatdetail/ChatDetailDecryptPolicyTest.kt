@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.isDecryptable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
