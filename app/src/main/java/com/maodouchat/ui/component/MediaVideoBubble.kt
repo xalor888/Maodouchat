@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.maodouchat.R
 import com.maodouchat.core.model.FrequencyWatermark
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.TextWhite
@@ -225,7 +226,7 @@ internal fun VideoBubble(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = formatTime(message.timestamp),
+                        text = ChatDateDisplay.formatHourMinute(message.timestamp),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White
                     )

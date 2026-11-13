@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalBubbleShapes
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -165,7 +166,7 @@ internal fun LocationBubble(
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                 }
-                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
+                Text(ChatDateDisplay.formatHourMinute(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 // 1.51：点击已读状态图标打开阅读详情（仅自己消息可看）
                 if (isOwnMessage && showStatusIcon) {

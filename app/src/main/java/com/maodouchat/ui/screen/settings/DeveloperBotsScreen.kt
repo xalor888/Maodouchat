@@ -45,15 +45,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.BotUi
+import com.maodouchat.domain.messaging.extractTokenOnce
+import com.maodouchat.domain.messaging.parseBots
 import com.maodouchat.session.CurrentSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Bot JSON 解析簇已按簇搬到同包 `DeveloperBotsParsing.kt`。
- */
+// Bot JSON 解析簇已迁入 :domain:messaging（DeveloperBotsParsing.kt）。
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

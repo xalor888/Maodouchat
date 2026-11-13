@@ -1,12 +1,14 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * G154：`DeveloperBotsScreen` 里三个 JSON 解析函数的测试。
+ *
+ * 随函数迁入 :domain:messaging；原 org.junit 写法转 kotlin.test（运行在 JUnit Platform）。
  *
  * 服务端返回的 bot 列表有三种包装形态（裸数组 / 包在四个键之一 / 单个对象），
  * `tokenOnce` 也有三层嵌套位置。漏一种形态就会让整个机器人页空白。
@@ -26,7 +28,7 @@ class DeveloperBotsParseTest {
     fun `array nested under any of the four wrapper keys`() {
         listOf("bots", "data", "items", "content").forEach { key ->
             val arr = extractBotArray("""{"$key":[{"id":"b1"},{"id":"b2"}]}""")
-            assertEquals("键 $key 没被识别", 2, arr?.length())
+            assertEquals(2, arr?.length(), "键 $key 没被识别")
         }
     }
 

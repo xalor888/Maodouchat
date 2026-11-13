@@ -45,6 +45,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.NotifFilter
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.domain.messaging.groupByDay
+import com.maodouchat.domain.messaging.resolvedNotificationChatId
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MaodouDimens
@@ -62,7 +63,6 @@ fun NotificationCenterScreen(
     var showClearConfirm by rememberSaveable { mutableStateOf(false) }
     // 1.170：长按某条通知 → 清除该会话全部通知
     var clearChatId by remember { mutableStateOf<String?>(null) }
-    // 1.268：长按操作菜单（复制 / 清除该会话通知）
     var notifyMenuFor by remember { mutableStateOf<Pair<NotificationCenterItem, String?>?>(null) }
     var filter by rememberSaveable { mutableStateOf(NotifFilter.ALL) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
