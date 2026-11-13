@@ -14,7 +14,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -22,15 +21,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupAuditLogDto
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
-import java.text.SimpleDateFormat
-import java.util.Date
 
 @Composable
 fun GroupAuditRow(audit: GroupAuditLogDto) {
-    // 列表行每次重组都 new 一个 SimpleDateFormat 浪费；locale 变化时 remember 键失效重建。
     val locale = LocalConfiguration.current.locales[0]
-    val auditDateFormat = remember(locale) { SimpleDateFormat("MM-dd HH:mm", locale) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -57,7 +53,7 @@ fun GroupAuditRow(audit: GroupAuditLogDto) {
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                auditDateFormat.format(Date(audit.createdAt)),
+                ChatDateDisplay.formatMonthDayTime(audit.createdAt, locale),
                 color = LocalChatPalette.current.textHint,
                 style = MaterialTheme.typography.labelSmall
             )

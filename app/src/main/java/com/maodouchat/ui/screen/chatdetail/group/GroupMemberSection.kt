@@ -40,10 +40,9 @@ import com.maodouchat.core.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.core.model.GroupMemberUi
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
-import java.text.SimpleDateFormat
-import java.util.Date
 
 object GroupMemberSectionUtils {
     @Composable
@@ -56,9 +55,7 @@ object GroupMemberSectionUtils {
     @Composable
     fun formatMuteTime(timestamp: Long): String {
         if (timestamp <= 0) return stringResource(R.string.group_detail_not_muted)
-        val locale = LocalConfiguration.current.locales[0]
-        val formatter = remember(locale) { SimpleDateFormat("MM-dd HH:mm", locale) }
-        return formatter.format(Date(timestamp))
+        return ChatDateDisplay.formatMonthDayTime(timestamp, LocalConfiguration.current.locales[0])
     }
 
     // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。
