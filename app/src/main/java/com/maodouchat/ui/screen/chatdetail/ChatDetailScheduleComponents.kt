@@ -50,18 +50,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MuteRemaining
 import com.maodouchat.domain.messaging.ScheduleRepeatKind
 import com.maodouchat.domain.messaging.ScheduledMessageDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ScheduledMessage
-internal fun formatScheduleTime(millis: Long): String {
-    return scheduleTimeFormat.get().format(java.util.Date(millis))
-}
-
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val scheduleTimeFormat: ThreadLocal<java.text.SimpleDateFormat> =
-    ThreadLocal.withInitial { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault()) }
+internal fun formatScheduleTime(millis: Long): String =
+    ChatDateDisplay.formatMonthDayTime(millis, java.util.Locale.getDefault())
 
 @Composable
 internal fun ScheduledMessagesBanner(

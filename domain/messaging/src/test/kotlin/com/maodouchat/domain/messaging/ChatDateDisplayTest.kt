@@ -128,6 +128,52 @@ class ChatDateDisplayTest {
         assertTrue(text.contains("2:30") || text.contains("14:30"))
     }
 
+    // ─── formatMonthDayTime（新增） ───
+
+    @Test
+    fun monthDayTimeFormatsAfternoon() {
+        assertEquals(
+            "04-10 14:30",
+            ChatDateDisplay.formatMonthDayTime(localMillis(2026, 4, 10, 14, 30), Locale.US)
+        )
+    }
+
+    @Test
+    fun monthDayTimePadsSingleDigitMonthDayAndMinutes() {
+        assertEquals(
+            "01-05 00:00",
+            ChatDateDisplay.formatMonthDayTime(localMillis(2026, 1, 5, 0, 0), Locale.US)
+        )
+        assertEquals(
+            "11-09 09:05",
+            ChatDateDisplay.formatMonthDayTime(localMillis(2026, 11, 9, 9, 5), Locale.US)
+        )
+    }
+
+    @Test
+    fun monthDayTimeIsSameAcrossLocales() {
+        val ts = localMillis(2026, 4, 10, 14, 30)
+        assertEquals("04-10 14:30", ChatDateDisplay.formatMonthDayTime(ts, Locale.CHINA))
+        assertEquals("04-10 14:30", ChatDateDisplay.formatMonthDayTime(ts, Locale.US))
+    }
+
+    @Test
+    fun monthDayTimeRepeatedCallIsStable() {
+        val ts = localMillis(2026, 4, 10, 14, 30)
+        assertEquals(
+            ChatDateDisplay.formatMonthDayTime(ts, Locale.US),
+            ChatDateDisplay.formatMonthDayTime(ts, Locale.US)
+        )
+    }
+
+    @Test
+    fun monthDayTimeAtYearBoundary() {
+        assertEquals(
+            "01-01 00:00",
+            ChatDateDisplay.formatMonthDayTime(localMillis(2026, 1, 1, 0, 0), Locale.US)
+        )
+    }
+
     @Test
     fun midnightFormatsAsTwelveAmInUsLocale() {
         val text = ChatDateDisplay.formatChatDateTime(localMillis(2026, 4, 10, 0, 0), Locale.US)

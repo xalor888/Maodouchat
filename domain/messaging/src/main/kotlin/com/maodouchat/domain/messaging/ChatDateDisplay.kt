@@ -1,6 +1,7 @@
 package com.maodouchat.domain.messaging
 
 import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -40,5 +41,14 @@ object ChatDateDisplay {
     fun formatChatDateTime(timestamp: Long, locale: Locale): String =
         dateTimeFormatCache.get().getOrPut(locale) {
             DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
+        }.format(Date(timestamp))
+
+    // "MM-dd HH:mm" 短时间格式：定时提示/复制带时间/群禁言/审计行四处共用同一格式；
+    // 与 formatChatDateTime 同款 ThreadLocal 按 locale 分键缓存。
+    private val monthDayTimeFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, SimpleDateFormat>() }
+
+    fun formatMonthDayTime(timestamp: Long, locale: Locale): String =
+        monthDayTimeFormatCache.get().getOrPut(locale) {
+            SimpleDateFormat("MM-dd HH:mm", locale)
         }.format(Date(timestamp))
 }
