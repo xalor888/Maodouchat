@@ -22,17 +22,11 @@ import com.maodouchat.R
 import com.maodouchat.core.model.isMessageForwardable
 import com.maodouchat.core.model.isMessageReplyable
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.displayedTranslation
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
 
-/**
- * 长按消息的「操作」底部弹层（G328c 从 `ChatDetailRoute.kt` 的
- * `messageToActions?.let { ... }` 整块搬出，**纯搬移不改判断**）。
- *
- * 「要写回 Route 的状态」变成回调（[onMessageToActions] 等），换来的是一处能独立读、
- * 独立审的 UI 单元。块内的局部状态（`cursor`/`busy`/`copied` 这类瞬时态）随块留在这里。
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ChatDetailMessageActionsSheet(

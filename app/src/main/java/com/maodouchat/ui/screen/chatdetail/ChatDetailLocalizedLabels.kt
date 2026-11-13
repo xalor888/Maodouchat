@@ -6,24 +6,6 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiSummaryScope
-import com.maodouchat.core.model.MessageMeta
-/**
- * 会话详情页的本地化标签（G184 从 ChatDetailRoute.kt 抽出的 4 个顶层声明）。
- *
- * 抽出的理由：`ChatDetailRoute.kt` 3667 行且已顶到在监上限，
- * 而这四个声明与路由本身无耦合——一个是纯函数，三个是
- * `@Composable` 的枚举→字符串资源映射。搬过来即可，无需改任何调用点
- * （同包，顶层声明的可见性不变）。
- */
-
-/** 展示用译文：优先用户选的语言，回退中文，再回退最后一个非空译文。 */
-
-internal fun MessageMeta.displayedTranslation(): String? {
-    val preferred = preferredTranslationLanguage?.let(translations::get)
-    return preferred?.takeIf { it.isNotBlank() }
-        ?: translations["中文"]?.takeIf { it.isNotBlank() }
-        ?: translations.values.lastOrNull { it.isNotBlank() }
-}
 
 @Composable
 internal fun AiSummaryScope.localizedLabel(): String = stringResource(when (this) {
