@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.MediaCenterDisplay
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.ui.theme.LocalChatBubbleColor
@@ -81,7 +82,7 @@ internal fun FileMessageRenderer(
             ?.substringAfterLast('/')
             ?.uppercase()
             ?.takeIf { it.isNotBlank() && it != "OCTET-STREAM" }
-        val size = file?.sizeBytes?.takeIf { it > 0 }?.let(::formatPresentationFileSize)
+        val size = file?.sizeBytes?.takeIf { it > 0 }?.let(MediaCenterDisplay::formatPresentationFileSize)
         val time = fileTimeFormat.get().format(Date(presentation.timestamp))
         listOfNotNull(mime, size, time).joinToString(" · ")
     }

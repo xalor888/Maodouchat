@@ -18,7 +18,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AttachmentTransferState
-import java.util.Locale
 
 @Composable
 internal fun FileTransferActions(
@@ -59,10 +58,4 @@ private fun CancelTransferButton(messageId: String, tint: Color, onCancel: ((Str
     IconButton(onClick = { onCancel?.invoke(messageId) }, modifier = Modifier.size(32.dp), enabled = onCancel != null) {
         Icon(Icons.Default.Close, stringResource(R.string.chat_file_transfer_cancel), tint = tint, modifier = Modifier.size(18.dp))
     }
-}
-
-internal fun formatPresentationFileSize(bytes: Long): String = when {
-    bytes >= 1_048_576L -> String.format(Locale.ROOT, "%.1f MB", bytes / 1_048_576.0)
-    bytes >= 1_024L -> String.format(Locale.ROOT, "%.1f KB", bytes / 1_024.0)
-    else -> "$bytes B"
 }

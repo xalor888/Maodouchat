@@ -45,9 +45,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.model.ModerationRuleResponse
 import com.maodouchat.R
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -345,11 +343,3 @@ fun ModerationScreen(
         )
     }
 }
-
-/** 审计/审核时间戳 → 本地化短时间（AI 审计页与内容审核页共用）。 */
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val auditTimeFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("M/d HH:mm", Locale.getDefault()) }
-
-internal fun formatAuditTime(timestamp: Long): String =
-    auditTimeFormat.get().format(Date(timestamp))

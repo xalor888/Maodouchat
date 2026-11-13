@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.maodouchat.domain.messaging.formatDndTime
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
@@ -26,11 +27,4 @@ internal fun DndTimeRow(label: String, minute: Int, enabled: Boolean, onPick: ()
         Text(formatDndTime(minute), style = MaterialTheme.typography.bodyMedium, color = if (enabled) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary)
         Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = LocalChatPalette.current.textSecondary, modifier = Modifier.size(16.dp))
     }
-}
-
-internal fun formatDndTime(minuteOfDay: Int): String {
-    val safe = minuteOfDay.coerceIn(0, 1439)
-    val h = safe / 60
-    val m = safe % 60
-    return "%02d:%02d".format(h, m)
 }

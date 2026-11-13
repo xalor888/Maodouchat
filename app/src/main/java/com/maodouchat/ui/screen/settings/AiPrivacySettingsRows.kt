@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.AiAuditLogResponse
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import androidx.compose.ui.graphics.Color
 import com.maodouchat.ui.theme.LocalChatPalette

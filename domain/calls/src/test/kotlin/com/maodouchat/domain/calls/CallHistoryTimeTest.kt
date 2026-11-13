@@ -1,5 +1,8 @@
 package com.maodouchat.domain.calls
 
+import java.util.Calendar
+import java.util.Locale
+
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -84,5 +87,21 @@ class CallHistoryTimeTest {
     fun weekBoundaryFallsBackToDate() {
         val millis = 1_000_000_000_000L - 7L * 86_400_000L
         assertEquals(CallRelativeTime.Date(millis), CallHistoryTime.relativeTime(1_000_000_000_000L, millis))
+    }
+
+    private fun localMillis(y: Int, m: Int, d: Int, h: Int, min: Int): Long =
+        Calendar.getInstance().apply {
+            clear()
+            set(y, m - 1, d, h, min, 0)
+        }.timeInMillis
+
+    @Test
+    fun historyDayFormatsMonthDay() {
+        assertEquals("04-10", CallHistoryTime.formatDay(localMillis(2026, 4, 10, 14, 30), Locale.US))
+    }
+
+    @Test
+    fun historyDayPadsSingleDigitMonth() {
+        assertEquals("01-05", CallHistoryTime.formatDay(localMillis(2026, 1, 5, 9, 5), Locale.US))
     }
 }
