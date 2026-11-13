@@ -4,9 +4,9 @@ import android.content.Context
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.toEncryptedAttachmentReference
 import com.maodouchat.network.ApiService
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.util.MediaCache
 
 // 本地图片获取：缓存命中直接返回，否则按密文附件引用下载+解密到缓存。
@@ -16,7 +16,7 @@ object ImageOcrLocalImage {
      */
     suspend fun ensureLocalImage(context: Context, message: Message, token: String): Message? {
         if (MediaCache.isReadableLocalUri(context, message.parsedContent())) return message
-        val reference = toEncryptedAttachmentReference(message) ?: return null
+        val reference = message.toEncryptedAttachmentReference() ?: return null
         return try {
             val target = MediaCache.createAttachmentCacheFile(context, message.id, reference.fileName, secretChatId = null)
             if (!EncryptedAttachmentCrypto.isValidCachedPlaintext(target, reference)) {
@@ -41,26 +41,6 @@ object ImageOcrLocalImage {
         } catch (_: Exception) {
             null
         }
-    }
-
-    /** 与 ChatDetailViewModel 的私有实现等价：由 meta 字段构造解密附件引用。 */
-    private fun toEncryptedAttachmentReference(message: Message): EncryptedAttachmentReference? {
-        val meta = message.parsedMeta()
-        val reference = EncryptedAttachmentReference(
-            attachmentId = meta.attachmentId ?: return null,
-            keyBase64 = meta.attachmentKeyBase64 ?: return null,
-            ivBase64 = meta.attachmentIvBase64 ?: return null,
-            cipherSha256 = meta.attachmentCipherSha256 ?: return null,
-            plainSha256 = meta.attachmentPlainSha256 ?: return null,
-            cipherSize = meta.attachmentCipherSize ?: return null,
-            fileName = meta.fileName ?: return null,
-            mimeType = meta.fileMimeType ?: "application/octet-stream",
-            plainSize = meta.fileSizeBytes ?: return null,
-            durationMs = meta.voiceDurationMs
-        )
-        return runCatching {
-            MediaCache.decodeEncryptedAttachmentReference(MediaCache.encodeEncryptedAttachmentReference(reference))
-        }.getOrNull()
     }
 
     /** 与 ChatDetailViewModel.composeContentWithMeta 等价：统一委托 JsonFormat 权威实现。 */

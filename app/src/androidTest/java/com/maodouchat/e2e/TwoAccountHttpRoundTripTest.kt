@@ -36,7 +36,7 @@ import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.util.MediaCache
+import com.maodouchat.domain.messaging.encodeEncryptedAttachmentReference
 import com.maodouchat.messaging.v2.ApiMessagingV2ConversationSnapshotProvider
 import com.maodouchat.messaging.v2.MessagingV2ArrivalNotifier
 import com.maodouchat.messaging.v2.MessagingV2InboxSynchronizer
@@ -1885,7 +1885,7 @@ class TwoAccountHttpRoundTripTest {
             mimeType = "application/octet-stream",
             plainSize = encrypted.plainSize,
         )
-        val referenceJson = MediaCache.encodeEncryptedAttachmentReference(reference)
+        val referenceJson = encodeEncryptedAttachmentReference(reference)
         assertTrue("引用里必须带 key", referenceJson.contains(encrypted.keyBase64))
 
         // **关联之前不允许下载**：这是服务端的真实规则（实测「附件尚未关联消息」），把它钉住。
@@ -2084,7 +2084,7 @@ class TwoAccountHttpRoundTripTest {
         // 关联消息之后才允许下载（见上一条用例的「附件尚未关联消息」）。
         sendContent(
             s, s.chatId,
-            attachmentContentJson(upload.id, MediaCache.encodeEncryptedAttachmentReference(reference)),
+            attachmentContentJson(upload.id, encodeEncryptedAttachmentReference(reference)),
             messageId,
             wireAttachmentIds = listOf(upload.id),
         )

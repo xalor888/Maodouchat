@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.WidgetConfig
+import com.maodouchat.domain.conversation.chatTitle
 import com.maodouchat.core.model.Chat
 import com.maodouchat.data.repository.ChatRepository
 import kotlinx.coroutines.Dispatchers
@@ -161,13 +162,4 @@ internal fun ConversationWidgetConfigContent(
             }
         }
     }
-}
-
-internal fun chatTitle(chat: Chat, ownerUserId: String): String {
-    if (chat.isGroup) return chat.groupName?.takeIf { it.isNotBlank() } ?: chat.id.take(12)
-    return chat.participants
-        .firstOrNull { it.id != ownerUserId }
-        ?.let { it.displayName.ifBlank { it.name } }
-        ?: chat.groupName?.takeIf { it.isNotBlank() }
-        ?: chat.id.take(12)
 }

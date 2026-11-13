@@ -6,11 +6,11 @@ import com.maodouchat.core.model.AttachmentReferenceInvalidException
 import com.maodouchat.core.model.LockRef
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.messaging.toEncryptedAttachmentReference
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap
@@ -112,23 +112,4 @@ internal class AttachmentDownloadCoordinator(
             throw CancellationException("attachment_download_session_changed")
         }
     }
-}
-
-private fun Message.toEncryptedAttachmentReference(): EncryptedAttachmentReference? {
-    val metadata = parsedMeta()
-    val reference = EncryptedAttachmentReference(
-        attachmentId = metadata.attachmentId ?: return null,
-        keyBase64 = metadata.attachmentKeyBase64 ?: return null,
-        ivBase64 = metadata.attachmentIvBase64 ?: return null,
-        cipherSha256 = metadata.attachmentCipherSha256 ?: return null,
-        plainSha256 = metadata.attachmentPlainSha256 ?: return null,
-        cipherSize = metadata.attachmentCipherSize ?: return null,
-        fileName = metadata.fileName ?: return null,
-        mimeType = metadata.fileMimeType ?: "application/octet-stream",
-        plainSize = metadata.fileSizeBytes ?: return null,
-        durationMs = metadata.voiceDurationMs,
-    )
-    return runCatching {
-        MediaCache.decodeEncryptedAttachmentReference(MediaCache.encodeEncryptedAttachmentReference(reference))
-    }.getOrNull()
 }

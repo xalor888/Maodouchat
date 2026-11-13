@@ -243,7 +243,6 @@ class MediaCacheAttachmentSizeLimitTest {
         }.let { assertEquals(AttachmentCryptoFailure.TOO_LARGE, it.failure) }
     }
 
-
     // ---- 元数据声明下界：0 与负数 ----
 
     @Test
@@ -300,45 +299,6 @@ class MediaCacheAttachmentSizeLimitTest {
         assertTrue(
             e.failure != AttachmentCryptoFailure.TOO_LARGE,
             "8 字节声明远小于上界，失败也不能是 TOO_LARGE（实际因读不到流失败）",
-        )
-    }
-
-    // ---- 解码侧密文上界边界 ----
-
-    private fun validRefJson(cipherSize: Long): String =
-        "{\"kind\":\"maodouchat-attachment-v1\"," +
-            "\"attachmentId\":\"att_${"a".repeat(30)}\"," +
-            "\"keyBase64\":\"${"k".repeat(44)}\"," +
-            "\"ivBase64\":\"${"i".repeat(24)}\"," +
-            "\"cipherSha256\":\"${"c".repeat(64)}\"," +
-            "\"plainSha256\":\"${"e".repeat(64)}\"," +
-            "\"cipherSize\":$cipherSize," +
-            "\"fileName\":\"photo.jpg\"," +
-            "\"mimeType\":\"image/jpeg\"," +
-            "\"plainSize\":1000}"
-
-    @Test
-    fun `decode rejects a cipher size just over the cipher cap`() {
-        val cipherCap = MediaCache.MAX_ATTACHMENT_CIPHER_BYTES
-        assertNull(
-            MediaCache.decodeEncryptedAttachmentReference(validRefJson(cipherCap + 1)),
-            "cipherSize 恰超密文上界 1 字节必须被拒",
-        )
-        assertNotNull(
-            MediaCache.decodeEncryptedAttachmentReference(validRefJson(cipherCap)),
-            "cipherSize 恰等于密文上界必须放行",
-        )
-    }
-
-    @Test
-    fun `decode cipher size lower boundary is seventeen`() {
-        assertNotNull(
-            MediaCache.decodeEncryptedAttachmentReference(validRefJson(17)),
-            "cipherSize 恰等于 17 必须放行",
-        )
-        assertNull(
-            MediaCache.decodeEncryptedAttachmentReference(validRefJson(16)),
-            "cipherSize 16 必须被拒",
         )
     }
 

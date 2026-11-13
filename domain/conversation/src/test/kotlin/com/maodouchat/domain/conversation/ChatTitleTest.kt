@@ -1,4 +1,4 @@
-package com.maodouchat.widget
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * G157：`ConversationWidgetConfigUi.chatTitle` 的测试。
+ * G157：`chatTitle` 的测试（由 app 侧 `ConversationWidgetConfigUi.chatTitle` 随迁）。
  *
  * 桌面小组件要显示会话标题：群聊用群名，单聊用**对方**的显示名。
  * 四级回退：群名 → 对方 displayName → name → 截断 id。

@@ -6,6 +6,7 @@ import com.maodouchat.core.model.User
 import com.maodouchat.domain.messaging.AttachmentFinalizeFailure
 import com.maodouchat.domain.messaging.composeFinalizeContent
 import com.maodouchat.domain.messaging.decideFinalizeFailure
+import com.maodouchat.domain.messaging.encodeEncryptedAttachmentReference
 import com.maodouchat.domain.messaging.isFinalizeEligible
 import com.maodouchat.domain.messaging.sendFailureCode
 import com.maodouchat.data.local.entity.hasCompletedUpload
@@ -120,7 +121,7 @@ class AttachmentFinalizeUseCase(private val app: MaodouchatApp) {
                 plainSize = transfer.plainSize,
                 durationMs = transfer.durationMs
             )
-            val referencePayload = MediaCache.encodeEncryptedAttachmentReference(reference)
+            val referencePayload = encodeEncryptedAttachmentReference(reference)
             val finalMeta = original.parsedMeta().copy(
                 fileName = transfer.fileName,
                 fileMimeType = transfer.mimeType,

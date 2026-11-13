@@ -10,7 +10,6 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.util.MediaCache
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
@@ -18,6 +17,7 @@ import com.maodouchat.domain.messaging.OutboxIdempotencyPolicy
 import com.maodouchat.domain.messaging.OutboxKind
 import com.maodouchat.domain.messaging.OutboxRetryGuard
 import com.maodouchat.domain.messaging.SenderKeyRequestValidation
+import com.maodouchat.domain.messaging.decodeEncryptedAttachmentReference
 import com.maodouchat.domain.messaging.deliveryReceiptEvent
 import com.maodouchat.domain.messaging.isAttachmentMessageType
 import com.maodouchat.domain.messaging.playReceiptEvent
@@ -181,7 +181,7 @@ class MessagingV2Outbox(
                 type = type.name,
                 body = referencePayload,
                 attachmentIds = listOfNotNull(
-                    MediaCache.decodeEncryptedAttachmentReference(referencePayload)?.attachmentId,
+                    decodeEncryptedAttachmentReference(referencePayload)?.attachmentId,
                 ),
             ),
             groupRevision = groupRevision,

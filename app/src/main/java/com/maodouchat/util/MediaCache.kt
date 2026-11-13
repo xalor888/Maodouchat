@@ -5,14 +5,10 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
-import com.maodouchat.core.crypto.AttachmentCryptoException
-import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.LocalFileMetadata
 import androidx.core.net.toUri
 import java.io.File
-import kotlinx.serialization.json.Json
 
 /**
  * 媒体消息缓存与轻量转换工具。
@@ -23,14 +19,10 @@ object MediaCache {
     private const val MAX_CACHE_AGE_MS = 21L * 24L * 60L * 60L * 1000L
     private const val CACHE_DIR = "maodouchat_media"
     private const val SECRET_CACHE_DIR = "maodouchat_media_secret"
-    private const val ATTACHMENT_PAYLOAD_KIND = "maodouchat-attachment-v1"
-    private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     // 文件名净化/校验：每次调用都重复编译正则，提到对象级复用。
     private val safeIdCharsRegex = Regex("[^A-Za-z0-9_-]")
     private val attachmentExtensionRegex = Regex("^\\.[a-z0-9]{1,10}$")
-    private val attachmentIdRegex = Regex("^att_[A-Za-z0-9_-]{20,100}$")
-    private val sha256HexRegex = Regex("^[a-f0-9]{64}$")
     private val filenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
     private val extensionNameRegex = Regex("[a-z0-9]{1,10}")
 
@@ -79,24 +71,6 @@ object MediaCache {
             mimeType = context.contentResolver.getType(uri)?.lowercase()?.take(100) ?: "application/octet-stream",
             sizeBytes = reportedSize.coerceAtLeast(0L)
         )
-    }
-
-    fun encodeEncryptedAttachmentReference(reference: EncryptedAttachmentReference): String {
-        if (!isValidAttachmentReference(reference)) {
-            throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE)
-        }
-        return json.encodeToString(EncryptedAttachmentReference.serializer(), reference.copy(
-            fileName = sanitizeFileName(reference.fileName),
-            mimeType = reference.mimeType.lowercase().take(100)
-        ))
-    }
-
-    fun decodeEncryptedAttachmentReference(text: String): EncryptedAttachmentReference? {
-        if (!text.startsWith('{') || text.length > 2_048) return null
-        return runCatching { json.decodeFromString(EncryptedAttachmentReference.serializer(), text) }
-            .getOrNull()
-            ?.takeIf(::isValidAttachmentReference)
-            ?.let { it.copy(fileName = sanitizeFileName(it.fileName), mimeType = it.mimeType.lowercase().take(100)) }
     }
 
     fun attachmentUri(attachmentId: String): String = "maodou-attachment://$attachmentId"
@@ -353,20 +327,6 @@ object MediaCache {
     )
 
     private const val TAG = "MediaCache"
-
-    private fun isValidAttachmentReference(reference: EncryptedAttachmentReference): Boolean {
-        return reference.kind == ATTACHMENT_PAYLOAD_KIND &&
-            reference.attachmentId.matches(attachmentIdRegex) &&
-            reference.keyBase64.length in 40..48 &&
-            reference.ivBase64.length in 16..24 &&
-            reference.cipherSha256.matches(sha256HexRegex) &&
-            reference.plainSha256.matches(sha256HexRegex) &&
-            reference.cipherSize in 17L..MAX_ATTACHMENT_CIPHER_BYTES &&
-            reference.plainSize in 1L..MAX_ATTACHMENT_PLAIN_BYTES &&
-            (reference.durationMs == null || reference.durationMs in 500L..MAX_VOICE_DURATION_MS) &&
-            reference.fileName.isNotBlank() && reference.fileName.length <= 120 &&
-            reference.mimeType.isNotBlank() && reference.mimeType.length <= 100
-    }
 
     private fun sanitizeFileName(value: String): String {
         return value
