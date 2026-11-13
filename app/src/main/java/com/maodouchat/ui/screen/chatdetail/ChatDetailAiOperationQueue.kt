@@ -5,6 +5,7 @@ import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.core.model.AiRetryPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationState
+import com.maodouchat.domain.messaging.classifyAiOperationErrorDetailed
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

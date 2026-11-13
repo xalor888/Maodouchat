@@ -1,27 +1,14 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.local.entity.AiOperationEntity
-import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.AiClassifiedError
-import com.maodouchat.core.model.AiCostVisibilityPolicy
-import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.PendingAiAction
 import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
-
-internal fun PendingAiAction.invocationCategory(): AiRetryPolicyCategory = when (this) {
-    is PendingAiAction.AnalyzeImage,
-    is PendingAiAction.AnalyzeFile,
-    is PendingAiAction.GroupAssistant -> AiRetryPolicyCategory.HEAVY
-    else -> AiRetryPolicyCategory.LIGHT
-}
 
 internal object ChatAiOperationFactory {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -87,40 +74,4 @@ internal object ChatAiOperationFactory {
         else -> null
     }
 
-}
-
-internal fun classifyAiOperationError(error: Throwable): String = when {
-    error is ApiException &&
-        error.kind == ApiFailureKind.NETWORK &&
-        !error.requestMayHaveReachedServer -> AiOperationError.CONNECTION_NOT_ESTABLISHED
-    error is ApiException && error.kind in setOf(
-        ApiFailureKind.NETWORK,
-        ApiFailureKind.TIMEOUT,
-        ApiFailureKind.INVALID_RESPONSE,
-        ApiFailureKind.UNEXPECTED
-    ) -> AiOperationError.OUTCOME_UNKNOWN
-    error is ApiException && error.kind == ApiFailureKind.HTTP -> {
-        val signal = AiCostVisibilityPolicy.classifyHttpFailure(
-            statusCode = error.statusCode,
-            serverCode = error.serverCode,
-            serverMessage = error.serverMessage,
-            serverRetryAfterSeconds = error.retryAfterSeconds
-        )
-        AiCostVisibilityPolicy.mapToErrorCode(signal)
-            ?: AiOperationError.SERVER
-    }
-    else -> AiOperationError.UNKNOWN
-}
-
-internal fun classifyAiOperationErrorDetailed(error: Throwable): AiClassifiedError {
-    val code = classifyAiOperationError(error)
-    val retry = (error as? ApiException)?.retryAfterSeconds?.takeIf { it > 0L }
-        ?: if (code == AiOperationError.RATE_LIMITED || code == AiOperationError.QUOTA_EXCEEDED) {
-            AiCostVisibilityPolicy.waitSecondsFor(code).takeIf { it > 0L }
-        } else null
-    return AiClassifiedError(
-        code = code,
-        retryAfterSeconds = retry,
-        persistedCode = AiCostVisibilityPolicy.encodeErrorCode(code, retry)
-    )
 }

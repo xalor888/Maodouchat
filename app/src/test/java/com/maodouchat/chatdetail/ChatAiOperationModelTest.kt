@@ -1,7 +1,6 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.data.local.entity.AiOperationParameters
-import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.AiFileAnalysisMode
@@ -9,13 +8,9 @@ import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
 import com.maodouchat.core.model.PendingAiAction
-import com.maodouchat.ui.screen.chatdetail.classifyAiOperationError
-import com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed
-import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.ui.screen.chatdetail.invocationCategory
+import com.maodouchat.domain.messaging.invocationCategory
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -30,28 +25,6 @@ class ChatAiOperationModelTest {
         assertEquals(
             AiOperationPreparation.Untracked,
             ChatAiOperationFactory.prepare(PendingAiAction.Rewrite("formal"), "", "")
-        )
-    }
-
-    @Test
-    fun `all ai actions have a shared light or heavy invocation category`() {
-        assertEquals(AiRetryPolicyCategory.LIGHT, PendingAiAction.Rewrite("formal").invocationCategory())
-        assertEquals(AiRetryPolicyCategory.LIGHT, PendingAiAction.SuggestReplies().invocationCategory())
-        assertEquals(
-            AiRetryPolicyCategory.LIGHT,
-            PendingAiAction.SemanticSearch("query", listOf("m1")).invocationCategory()
-        )
-        assertEquals(
-            AiRetryPolicyCategory.HEAVY,
-            PendingAiAction.AnalyzeImage("m1", AiImageAnalysisMode.OCR).invocationCategory()
-        )
-        assertEquals(
-            AiRetryPolicyCategory.HEAVY,
-            PendingAiAction.AnalyzeFile("m1", AiFileAnalysisMode.SUMMARIZE, null).invocationCategory()
-        )
-        assertEquals(
-            AiRetryPolicyCategory.HEAVY,
-            PendingAiAction.GroupAssistant("query", "answer").invocationCategory()
         )
     }
 
@@ -114,75 +87,6 @@ class ChatAiOperationModelTest {
     }
 
     @Test
-    fun `only proven connection failure is classified as safe for retry`() {
-        assertEquals(
-            AiOperationError.CONNECTION_NOT_ESTABLISHED,
-            classifyAiOperationError(
-                ApiException(ApiFailureKind.NETWORK, requestMayHaveReachedServer = false)
-            )
-        )
-        listOf(
-            ApiException(ApiFailureKind.NETWORK, requestMayHaveReachedServer = true),
-            ApiException(ApiFailureKind.TIMEOUT),
-            ApiException(ApiFailureKind.INVALID_RESPONSE),
-            ApiException(ApiFailureKind.UNEXPECTED)
-        ).forEach { error ->
-            assertEquals(AiOperationError.OUTCOME_UNKNOWN, classifyAiOperationError(error))
-        }
-        assertEquals(
-            AiOperationError.SERVER,
-            classifyAiOperationError(ApiException(ApiFailureKind.HTTP, statusCode = 503))
-        )
-        assertEquals(AiOperationError.UNKNOWN, classifyAiOperationError(IllegalStateException("broken")))
-    }
-
-    @Test
-    fun `http 429 and rate_limited codes classify as rate limited with wait`() {
-        assertEquals(
-            AiOperationError.RATE_LIMITED,
-            classifyAiOperationError(
-                ApiException(
-                    ApiFailureKind.HTTP,
-                    statusCode = 429,
-                    serverMessage = "AI 请求过于频繁",
-                    retryAfterSeconds = 40
-                )
-            )
-        )
-        assertEquals(
-            AiOperationError.RATE_LIMITED,
-            classifyAiOperationError(
-                ApiException(
-                    ApiFailureKind.HTTP,
-                    statusCode = 503,
-                    serverCode = "rate_limited"
-                )
-            )
-        )
-        assertEquals(
-            AiOperationError.QUOTA_EXCEEDED,
-            classifyAiOperationError(
-                ApiException(
-                    ApiFailureKind.HTTP,
-                    statusCode = 403,
-                    serverCode = "QUOTA_EXCEEDED"
-                )
-            )
-        )
-        val detailed = com.maodouchat.ui.screen.chatdetail.classifyAiOperationErrorDetailed(
-            ApiException(
-                ApiFailureKind.HTTP,
-                statusCode = 429,
-                serverMessage = "AI 请求过于频繁",
-                retryAfterSeconds = 40
-            )
-        )
-        assertEquals(AiOperationError.RATE_LIMITED, detailed.code)
-        assertEquals(40L, detailed.retryAfterSeconds)
-        assertEquals("RATE_LIMITED:40", detailed.persistedCode)
-    }
-
-    @Test
     fun `stream-only suggest replies and semantic search are untracked`() {
         assertEquals(
             AiOperationPreparation.Untracked,
@@ -237,16 +141,6 @@ class ChatAiOperationModelTest {
         ) as AiOperationPreparation.Persisted
 
         assertTrue(preparation.operation.id.startsWith("aiop_"))
-    }
-
-    @Test
-    fun `detailed server failure without retry hint carries no wait`() {
-        val detailed = classifyAiOperationErrorDetailed(
-            ApiException(ApiFailureKind.HTTP, statusCode = 503)
-        )
-
-        assertEquals(AiOperationError.SERVER, detailed.code)
-        assertEquals(null, detailed.retryAfterSeconds)
     }
 
     @Test
@@ -324,17 +218,6 @@ class ChatAiOperationModelTest {
     }
 
     @Test
-    fun `detailed quota failure without retry hint falls back to default wait`() {
-        val detailed = classifyAiOperationErrorDetailed(
-            ApiException(ApiFailureKind.HTTP, statusCode = 403, serverCode = "QUOTA_EXCEEDED")
-        )
-
-        assertEquals(AiOperationError.QUOTA_EXCEEDED, detailed.code)
-        assertEquals(300L, detailed.retryAfterSeconds)
-        assertEquals("QUOTA_EXCEEDED:300", detailed.persistedCode)
-    }
-
-    @Test
     fun `heavy group assistant action is untracked despite its category`() {
         assertEquals(
             AiRetryPolicyCategory.HEAVY,
@@ -409,20 +292,6 @@ class ChatAiOperationModelTest {
         assertNull(parameters.question)
     }
 
-    @Test
-    fun `detailed non-retryable failures carry no wait and a bare persisted code`() {
-        val connection = classifyAiOperationErrorDetailed(
-            ApiException(ApiFailureKind.NETWORK, requestMayHaveReachedServer = false)
-        )
-        assertEquals(AiOperationError.CONNECTION_NOT_ESTABLISHED, connection.code)
-        assertEquals(null, connection.retryAfterSeconds)
-        assertEquals(AiOperationError.CONNECTION_NOT_ESTABLISHED, connection.persistedCode)
-
-        val timeout = classifyAiOperationErrorDetailed(ApiException(ApiFailureKind.TIMEOUT))
-        assertEquals(AiOperationError.OUTCOME_UNKNOWN, timeout.code)
-        assertEquals(null, timeout.retryAfterSeconds)
-        assertEquals(AiOperationError.OUTCOME_UNKNOWN, timeout.persistedCode)
-    }
     @Test
     fun `analyze image ocr persists the ocr wire mode`() {
         val preparation = ChatAiOperationFactory.prepare(
