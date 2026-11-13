@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 
 // ─── StickerBubble ───
@@ -73,7 +74,7 @@ internal fun StickerBubble(
                 modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }
             )
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
-                Text(formatTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
+                Text(ChatDateDisplay.formatHourMinute(message.timestamp), style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint)
                 DisappearCountdownLabel(expiresAt = message.expiresAt, isOwnMessage = isOwnMessage)
                 if (isOwnMessage && showStatusIcon) {
                     Spacer(modifier = Modifier.width(4.dp))

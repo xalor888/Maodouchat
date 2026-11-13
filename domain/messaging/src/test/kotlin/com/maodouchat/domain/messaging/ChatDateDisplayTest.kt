@@ -204,4 +204,26 @@ class ChatDateDisplayTest {
         val ts = localMillis(2026, 4, 10, 12, 0)
         assertTrue(ChatDateDisplay.formatMediumDate(ts, Locale.US) != ChatDateDisplay.formatMediumDate(ts, Locale.CHINA))
     }
+
+    // ─── formatHourMinute（收敛自 BubbleTimeHelpers.formatTime） ───
+
+    @Test
+    fun hourMinutePadsSingleDigits() {
+        assertEquals("09:05", ChatDateDisplay.formatHourMinute(localMillis(2026, 4, 10, 9, 5)))
+        assertEquals("00:00", ChatDateDisplay.formatHourMinute(localMillis(2026, 4, 10, 0, 0)))
+    }
+
+    @Test
+    fun hourMinuteKeepsTwoDigitParts() {
+        assertEquals("23:59", ChatDateDisplay.formatHourMinute(localMillis(2026, 4, 10, 23, 59)))
+        assertEquals("12:30", ChatDateDisplay.formatHourMinute(localMillis(2026, 4, 10, 12, 30)))
+    }
+
+    @Test
+    fun hourMinuteIgnoresTheDatePart() {
+        assertEquals(
+            ChatDateDisplay.formatHourMinute(localMillis(2026, 4, 10, 9, 5)),
+            ChatDateDisplay.formatHourMinute(localMillis(2026, 5, 11, 9, 5))
+        )
+    }
 }

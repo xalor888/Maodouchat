@@ -17,13 +17,6 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.Primary
 
-internal fun formatTime(timestamp: Long): String {
-    val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
-    val h = cal.get(java.util.Calendar.HOUR_OF_DAY)
-    val m = cal.get(java.util.Calendar.MINUTE)
-    return "%02d:%02d".format(h, m)
-}
-
 /** 阅后即焚剩余时间文案；无期限或已过期返回 null。 */
 @Composable
 internal fun formatDisappearCountdown(expiresAt: Long?, nowMs: Long): String? {

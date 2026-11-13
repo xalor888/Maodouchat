@@ -52,6 +52,14 @@ object ChatDateDisplay {
             SimpleDateFormat("MM-dd HH:mm", locale)
         }.format(Date(timestamp))
 
+    // 气泡时间 "HH:mm"：原 BubbleTimeHelpers.formatTime 逐字平移。
+    fun formatHourMinute(timestamp: Long): String {
+        val cal = java.util.Calendar.getInstance().apply { timeInMillis = timestamp }
+        val h = cal.get(java.util.Calendar.HOUR_OF_DAY)
+        val m = cal.get(java.util.Calendar.MINUTE)
+        return "%02d:%02d".format(h, m)
+    }
+
     // MEDIUM 日期格式（媒体中心列表用）：与 formatMonthDayTime 同款 ThreadLocal 按 locale 分键缓存。
     private val mediumDateFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, DateFormat>() }
 

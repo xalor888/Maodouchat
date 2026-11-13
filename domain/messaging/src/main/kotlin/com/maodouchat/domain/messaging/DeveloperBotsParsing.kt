@@ -1,15 +1,11 @@
-package com.maodouchat.ui.screen.settings
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.BotUi
 import org.json.JSONArray
 import org.json.JSONObject
 
-/**
- * 开发者 Bot 页的 JSON 解析簇（`tokenOnce` 提取 / Bot 数组提取 / `BotUi` 解析），
- * 从 DeveloperBotsScreen.kt 按簇搬出。
- */
-
-internal fun extractTokenOnce(raw: String?): String? {
+// 开发者 Bot 页的 JSON 解析簇：tokenOnce 提取 / Bot 数组提取 / BotUi 解析。
+fun extractTokenOnce(raw: String?): String? {
     val text = raw.orEmpty().trim()
     if (text.isEmpty()) return null
     runCatching { JSONObject(text) }.getOrNull()?.let { obj ->
@@ -22,7 +18,7 @@ internal fun extractTokenOnce(raw: String?): String? {
     return null
 }
 
-internal fun extractBotArray(raw: String): JSONArray? {
+fun extractBotArray(raw: String): JSONArray? {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return null
     runCatching { JSONArray(trimmed) }.getOrNull()?.let { return it }
@@ -34,7 +30,7 @@ internal fun extractBotArray(raw: String): JSONArray? {
     return null
 }
 
-internal fun parseBots(raw: String): List<BotUi> {
+fun parseBots(raw: String): List<BotUi> {
     val arr = extractBotArray(raw) ?: return emptyList()
     val seen = HashSet<String>()
     return buildList {

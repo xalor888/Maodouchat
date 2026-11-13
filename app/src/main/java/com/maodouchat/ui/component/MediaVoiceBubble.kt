@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.waveHeightsFor
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -282,7 +283,7 @@ internal fun VoiceBubble(
                             color = if (isOwnMessage) LocalSentBubbleContent.current else OnSurface
                         )
                         Text(
-                            text = formatTime(message.timestamp),
+                            text = ChatDateDisplay.formatHourMinute(message.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                         )
@@ -409,7 +410,6 @@ internal fun VoiceBubble(
                         .padding(horizontal = 10.dp, vertical = 7.dp)
                 ) {
                     Row(verticalAlignment = Alignment.Top) {
-                        // 稳定尺寸：转写进度占位恒为 14dp + 6dp；转写开始/结束时行宽与正文宽度不再跳变
                         Box(
                             modifier = Modifier.width(20.dp),
                             contentAlignment = Alignment.CenterStart

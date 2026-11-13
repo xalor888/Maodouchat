@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatBubbleColor
@@ -470,7 +471,7 @@ internal fun TextBubble(
                         isOwnMessage = isOwnMessage,
                         onContactCardClick = onContactCardClick,
                         // 9.266：TG 式内嵌时间戳——非 Markdown 文本消息时间戳随行尾渲染
-                        inlineTimeSuffix = formatTime(message.timestamp),
+                        inlineTimeSuffix = ChatDateDisplay.formatHourMinute(message.timestamp),
                         onLinkClick = { url ->
                             // 1.17：名片点击 → 打开该用户资料
                             if (url.startsWith("contactcard://")) {
@@ -598,7 +599,6 @@ internal fun TextBubble(
                 )
             }
 
-            // 时间 + 状态
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp, end = 4.dp)
@@ -630,7 +630,7 @@ internal fun TextBubble(
                     ))
                 if (!timeInline) {
                     Text(
-                        text = formatTime(message.timestamp),
+                        text = ChatDateDisplay.formatHourMinute(message.timestamp),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isOwnMessage) LocalSentBubbleContentSecondary.current else TextHint
                     )
