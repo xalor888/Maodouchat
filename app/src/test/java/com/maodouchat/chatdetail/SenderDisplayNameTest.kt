@@ -4,7 +4,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.ui.screen.chatdetail.senderDisplayName
+import com.maodouchat.domain.messaging.senderDisplayName
 import com.maodouchat.core.model.listSenderLabel
 import com.maodouchat.core.model.Chat
 import org.junit.Assert.assertEquals
@@ -155,7 +155,7 @@ class SenderDisplayNameTest {
         val names = mapOf("peer" to "列表名")
         assertEquals(
             senderDisplayName(state, msg, false, names, "未知", "群成员"),
-            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            com.maodouchat.domain.messaging.resolveChatDetailSenderName(
                 msg, state, names, "未知", "群成员",
             ),
         )
@@ -234,13 +234,13 @@ class SenderDisplayNameTest {
             chatIsGroup = false,
         )
         assertNull(
-            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            com.maodouchat.domain.messaging.resolveChatDetailSenderName(
                 message("me"), state, emptyMap(), "未知", "群成员",
             )
         )
         assertEquals(
             "备注名",
-            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            com.maodouchat.domain.messaging.resolveChatDetailSenderName(
                 message("peer"), state, emptyMap(), "未知", "群成员",
             ),
         )
@@ -388,7 +388,7 @@ class SenderDisplayNameTest {
             chatIsGroup = false,
         )
         assertNull(
-            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            com.maodouchat.domain.messaging.resolveChatDetailSenderName(
                 message("peer"), state, emptyMap(), "未知", "群成员", isOwn = true,
             )
         )
@@ -571,7 +571,7 @@ class SenderDisplayNameTest {
         )
         assertEquals(
             "备注名",
-            com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+            com.maodouchat.domain.messaging.resolveChatDetailSenderName(
                 message("me"), state, emptyMap(), "未知", "群成员", isOwn = false,
             ),
         )
@@ -800,7 +800,7 @@ class SenderDisplayNameTest {
     @Test
     fun resolveChatDetailSenderName_explicitNotOwnInGroupReturnsMappedName() {
         val state = ChatDetailUiState(currentUserId = "me", chatIsGroup = true)
-        val name = com.maodouchat.ui.screen.chatdetail.resolveChatDetailSenderName(
+        val name = com.maodouchat.domain.messaging.resolveChatDetailSenderName(
             message("me"), state, mapOf("me" to "自己"), "未知", "群成员", isOwn = false
         )
         assertEquals("自己", name)
