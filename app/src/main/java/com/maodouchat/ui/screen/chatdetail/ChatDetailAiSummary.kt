@@ -3,6 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.R
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiSummaryScope
+import com.maodouchat.domain.messaging.buildAiSummaryCacheKey
+import com.maodouchat.domain.messaging.normalizeAiSummaryStyle
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.AiContextMessage
@@ -18,6 +20,7 @@ import kotlinx.coroutines.withContext
  * `summaryCandidates`（按范围选参与总结的消息，见 `:domain:messaging` 的
  * `AiSummaryCandidates.kt`）已迁出，`buildAiSummaryContextMessages` 再把它们转成
  * 服务端 AI 上下文。已由 AI 生成的消息（`aiAssisted`）会被排除，避免总结套娃。
+ * 风格归一化与手动缓存键拼装亦已迁入 `:domain:messaging`（`AiSummaryCacheKey.kt`）。
  *
  * 抽出理由：与「请求 / 流式 / 取消 / 建议」逻辑无耦合。
  */
@@ -37,10 +40,7 @@ internal fun ChatDetailViewModel.summarizeMessages(
         }
         return
     }
-    val safeStyle = when (style.trim().lowercase()) {
-        "brief", "detailed", "decisions", "tasks", "timeline", "risks" -> style.trim().lowercase()
-        else -> if (scope == AiSummaryScope.RECENT) "brief" else "detailed"
-    }
+    val safeStyle = normalizeAiSummaryStyle(style, scope)
     val first = candidates.first()
     val last = candidates.last()
     val request = captureAiRequestSnapshot()
@@ -52,7 +52,7 @@ internal fun ChatDetailViewModel.summarizeMessages(
     }
     manualSummaryJob?.cancel()
     val generation = manualSummaryGate.next()
-    val cacheKey = "manual:${request.chatId}:${scope.name}:$safeStyle:${first.id}:${last.id}:${contextMessages.size}"
+    val cacheKey = buildAiSummaryCacheKey(request.chatId, scope, safeStyle, first.id, last.id, contextMessages.size)
     val job = launchTrackedAiOperation(operationId, startImmediately = false) {
         if (!manualSummaryGate.isCurrent(generation)) return@launchTrackedAiOperation
         requireAiRequestCurrent(request)
