@@ -13,12 +13,12 @@ dependencies {
     implementation(project(":core:serialization"))
     implementation(project(":core:session"))
     implementation(project(":core:realtime"))
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
     implementation("org.json:json:20240303")
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.0")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.4.21")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:6.1.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.1.3")
 }
