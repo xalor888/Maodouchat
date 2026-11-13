@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -42,11 +43,11 @@ import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ChatDateDisplay
+import com.maodouchat.domain.messaging.MediaCenterDisplay
 import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
-import java.text.DateFormat
-import java.util.Date
 // MediaCenter 的文件/语音/位置/链接列表簇：从 MediaCenterCategoryContent 拆出的同包行组件。
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -57,6 +58,7 @@ internal fun FileList(
     // 1.320：搜索关键词高亮
     highlightQuery: String = ""
 ) {
+    val locale = java.util.Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
     val context = LocalContext.current
     val exportNeedsCache = stringResource(R.string.media_export_need_cache)
     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -93,7 +95,7 @@ internal fun FileList(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        listOfNotNull(meta.fileSizeBytes?.let(::formatBytes), formatDate(message.timestamp), if (localAvailable) stringResource(R.string.media_center_cached) else stringResource(R.string.media_center_cache_missing)).joinToString(" · "),
+                        listOfNotNull(meta.fileSizeBytes?.let(MediaCenterDisplay::formatBytes), ChatDateDisplay.formatMediumDate(message.timestamp, locale), if (localAvailable) stringResource(R.string.media_center_cached) else stringResource(R.string.media_center_cache_missing)).joinToString(" · "),
                         color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1
@@ -118,6 +120,7 @@ internal fun VoiceList(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit
 ) {
+    val locale = java.util.Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
     val context = LocalContext.current
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items, key = { it.message.id }, contentType = { "voice" }) { item ->
@@ -152,7 +155,7 @@ internal fun VoiceList(
                     Text(
                         text = listOfNotNull(
                             durationSec?.let { stringResource(R.string.media_center_voice_duration, it) },
-                            formatDate(message.timestamp),
+                            ChatDateDisplay.formatMediumDate(message.timestamp, locale),
                             if (localAvailable) {
                                 stringResource(R.string.media_center_cached)
                             } else {
@@ -182,6 +185,7 @@ internal fun LocationList(
     items: List<MediaCenterItem>,
     onOpenMessage: (String) -> Unit
 ) {
+    val locale = java.util.Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items, key = { it.message.id }, contentType = { "location" }) { item ->
             val message = item.message
@@ -214,7 +218,7 @@ internal fun LocationList(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = listOfNotNull(coord, formatDate(message.timestamp)).joinToString(" · "),
+                        text = listOfNotNull(coord, ChatDateDisplay.formatMediumDate(message.timestamp, locale)).joinToString(" · "),
                         color = LocalChatPalette.current.textSecondary,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
@@ -236,6 +240,7 @@ internal fun LocationList(
 
 @Composable
 internal fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> Unit, highlightQuery: String = "") {
+    val locale = java.util.Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
     val context = LocalContext.current
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items, key = { "${it.message.id}:${it.linkUrl}" }, contentType = { "link" }) { item ->
@@ -258,7 +263,7 @@ internal fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> U
                         else highlightedText(url, highlightQuery),
                         color = LocalChatPalette.current.textSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
-                    Text(formatDate(item.message.timestamp), color = LocalChatPalette.current.textHint, style = MaterialTheme.typography.labelSmall)
+                    Text(ChatDateDisplay.formatMediumDate(item.message.timestamp, locale), color = LocalChatPalette.current.textHint, style = MaterialTheme.typography.labelSmall)
                 }
                 IconButton(onClick = { onOpenMessage(item.message.id) }) {
                     Icon(Icons.Outlined.ChatBubbleOutline, stringResource(R.string.media_center_open_message), tint = LocalChatPalette.current.textSecondary)
@@ -273,13 +278,6 @@ internal fun LinkList(items: List<MediaCenterItem>, onOpenMessage: (String) -> U
 private fun openWebLink(context: Context, url: String) {
     com.maodouchat.navigation.AppLinkOpener.openUserFacingUrl(context, url)
 }
-private fun formatBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024L -> "%.1f MB".format(bytes / (1024.0 * 1024.0))
-    bytes >= 1024L -> "%.1f KB".format(bytes / 1024.0)
-    else -> "$bytes B"
-}
-private val threadLocalDateFormatByLocale = ThreadLocal.withInitial { mutableMapOf<java.util.Locale, DateFormat>() }
-private fun formatDate(timestamp: Long): String = threadLocalDateFormatByLocale.get().getOrPut(java.util.Locale.getDefault()) { DateFormat.getDateInstance(DateFormat.MEDIUM, java.util.Locale.getDefault()) }.format(Date(timestamp))
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {
     val (c, bg) = SearchHighlightAccent
