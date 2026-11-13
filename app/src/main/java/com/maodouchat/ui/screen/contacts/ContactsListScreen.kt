@@ -57,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.User
+import com.maodouchat.domain.contacts.findLetterIndex
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
@@ -466,7 +467,6 @@ fun ContactsScreen(
         )
     }
 }
-
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

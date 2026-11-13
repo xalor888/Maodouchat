@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.waveHeightsFor
 import com.maodouchat.ui.theme.LocalChatBubbleColor
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalSentBubbleContent
@@ -204,7 +205,6 @@ internal fun VoiceBubble(
 
                         Spacer(modifier = Modifier.width(12.dp))
 
-                        // 模拟波形 + 实时进度覆盖（9.272：波形按 message.id 派生，每条语音独有）
                         val waveHeights = remember(message.id) { waveHeightsFor(message.id) }
                         Box(modifier = Modifier.weight(1f).height(28.dp)) {
                             Row(
