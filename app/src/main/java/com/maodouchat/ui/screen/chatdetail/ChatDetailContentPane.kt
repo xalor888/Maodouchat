@@ -22,6 +22,7 @@ import com.maodouchat.ui.theme.LocalLiquidGlassBackdrop
 import com.maodouchat.ui.theme.LocalMotionSettings
 import kotlinx.coroutines.CoroutineScope
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.resolveChatDetailSenderName
 
 /** 主内容组装：字号缩放 provider + 密聊水印框 + 入口对话框 + 液态背景 provider + Scaffold（顶栏/横幅/搜索/多选/时间线/输入区）+ 下半区对话框。 */
 @Composable
