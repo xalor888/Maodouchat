@@ -1,5 +1,9 @@
 package com.maodouchat.domain.calls
 
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 // 通话记录相对时间的分桶结果：文案由 app 侧按桶映射到 R.string / plurals。
 sealed interface CallRelativeTime {
     data object JustNow : CallRelativeTime
@@ -27,4 +31,12 @@ object CallHistoryTime {
         val seconds = durationMs / 1000L
         return "%d:%02d".format(seconds / 60, seconds % 60)
     }
+
+    // 通话记录日期 "MM-dd"；与 ChatDateDisplay 同款 ThreadLocal 按 locale 分键缓存。
+    private val dayFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, SimpleDateFormat>() }
+
+    fun formatDay(millis: Long, locale: Locale = Locale.getDefault()): String =
+        dayFormatCache.get().getOrPut(locale) {
+            SimpleDateFormat("MM-dd", locale)
+        }.format(Date(millis))
 }

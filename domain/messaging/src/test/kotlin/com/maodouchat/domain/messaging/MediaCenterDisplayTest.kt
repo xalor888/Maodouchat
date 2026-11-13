@@ -23,4 +23,19 @@ class MediaCenterDisplayTest {
         assertEquals("1.0 MB", MediaCenterDisplay.formatBytes(1024L * 1024L))
         assertEquals("2.5 MB", MediaCenterDisplay.formatBytes((2.5 * 1024 * 1024).toLong()))
     }
+
+    @Test
+    fun presentationBytesUseBytes() {
+        assertEquals("0 B", MediaCenterDisplay.formatPresentationFileSize(0))
+        assertEquals("512 B", MediaCenterDisplay.formatPresentationFileSize(512))
+        assertEquals("1023 B", MediaCenterDisplay.formatPresentationFileSize(1023))
+    }
+
+    @Test
+    fun presentationKilobytesAndMegabytesUseOneDecimal() {
+        assertEquals("1.0 KB", MediaCenterDisplay.formatPresentationFileSize(1024))
+        assertEquals("1.5 KB", MediaCenterDisplay.formatPresentationFileSize(1536))
+        assertEquals("1.0 MB", MediaCenterDisplay.formatPresentationFileSize(1024L * 1024L))
+        assertEquals("2.5 MB", MediaCenterDisplay.formatPresentationFileSize((2.5 * 1024 * 1024).toLong()))
+    }
 }

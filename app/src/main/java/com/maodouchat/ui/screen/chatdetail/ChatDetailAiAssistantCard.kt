@@ -45,14 +45,12 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.core.model.AiGroupTask
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionPolicy
 import com.maodouchat.ui.theme.MotionTokens
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * 群 AI 助手结果卡片（G132 从 `ChatDetailMiscDialogs.kt` 拆出，原 166 行）。
@@ -64,10 +62,6 @@ import java.util.Locale
  */
 
 /** 1.11：发送名片——选择要分享的联系人（单聊会话对端用户）。1.27：支持搜索过滤。 */
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val aiTaskDueFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
-
 @Composable
 internal fun GroupAiAssistantDialog(
     question: String,
@@ -177,7 +171,7 @@ internal fun GroupAiAssistantDialog(
                                     }
                                     val due = task.dueText?.takeIf(String::isNotBlank)
                                         ?: task.dueAt?.let {
-                                            aiTaskDueFormat.get().format(Date(it))
+                                            formatAiTaskDue(it)
                                         }
                                     due?.let {
                                         Text(

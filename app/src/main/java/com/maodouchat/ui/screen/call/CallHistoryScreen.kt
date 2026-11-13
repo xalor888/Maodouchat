@@ -59,9 +59,6 @@ import com.maodouchat.call.CallLogStore
 import com.maodouchat.domain.calls.CallHistoryTime
 import com.maodouchat.domain.calls.CallRelativeTime
 import com.maodouchat.ui.theme.UnreadRed
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.Direction
@@ -299,10 +296,6 @@ fun CallHistoryScreen(
     }
 }
 
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val callHistoryDayFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("MM-dd", Locale.getDefault()) }
-
 // 相对时间文案：分桶是 domain 纯决策，此处只做资源映射。
 private fun callHistoryRelativeText(context: android.content.Context, millis: Long): String =
     when (val bucket = CallHistoryTime.relativeTime(System.currentTimeMillis(), millis)) {
@@ -310,7 +303,7 @@ private fun callHistoryRelativeText(context: android.content.Context, millis: Lo
         is CallRelativeTime.MinutesAgo -> context.resources.getQuantityString(R.plurals.time_minutes_ago, bucket.minutes, bucket.minutes)
         is CallRelativeTime.HoursAgo -> context.resources.getQuantityString(R.plurals.time_hours_ago, bucket.hours, bucket.hours)
         is CallRelativeTime.DaysAgo -> context.resources.getQuantityString(R.plurals.time_days_ago, bucket.days, bucket.days)
-        is CallRelativeTime.Date -> callHistoryDayFormat.get().format(Date(bucket.millis))
+        is CallRelativeTime.Date -> CallHistoryTime.formatDay(bucket.millis)
     }
 
 // G156：原私有副本（18 行）收敛到 ui/component/SearchHighlightText.kt，此处仅剩薄包装。

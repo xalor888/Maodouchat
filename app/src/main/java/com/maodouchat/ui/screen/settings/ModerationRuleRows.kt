@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.RiskEventResponse
 import com.maodouchat.core.model.ModerationRuleResponse
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 
