@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.MessageSafetyScanner
 import com.maodouchat.core.model.Chat
-import java.util.Calendar
+import com.maodouchat.domain.messaging.ChatDateDisplay
+import com.maodouchat.domain.messaging.ChatDateLabel
 import java.util.Date
 
 /**
@@ -44,32 +45,15 @@ internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: Stri
     }
 }
 
-internal fun formatDateLabel(context: Context, timestamp: Long): String {
-    val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
-    val now = Calendar.getInstance()
-    return when {
-        isSameDay(now, cal) -> context.getString(R.string.chat_today)
-        isYesterday(now, cal) -> context.getString(R.string.chat_yesterday)
-        else -> android.text.format.DateFormat.getMediumDateFormat(context).format(Date(timestamp))
+internal fun formatDateLabel(context: Context, timestamp: Long): String =
+    when (ChatDateDisplay.dateLabelBucket(timestamp)) {
+        ChatDateLabel.Today -> context.getString(R.string.chat_today)
+        ChatDateLabel.Yesterday -> context.getString(R.string.chat_yesterday)
+        ChatDateLabel.Date -> android.text.format.DateFormat.getMediumDateFormat(context).format(Date(timestamp))
     }
-}
 
-// DateFormat 非线程安全：ThreadLocal 按 locale 分键缓存，语言切换后自动重建。
-private val dateTimeFormatCache = ThreadLocal.withInitial { mutableMapOf<java.util.Locale, java.text.DateFormat>() }
-
-internal fun formatDateTime(context: Context, timestamp: Long): String {
-    val locale = context.resources.configuration.locales[0]
-    return dateTimeFormatCache.get().getOrPut(locale) {
-        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, locale)
-    }.format(Date(timestamp))
-}
-
-internal fun isSameDay(a: Calendar, b: Calendar): Boolean =
-    a.get(Calendar.YEAR) == b.get(Calendar.YEAR) && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR)
-
-internal fun isYesterday(today: Calendar, other: Calendar): Boolean {
-    val y = today.clone() as Calendar; y.add(Calendar.DAY_OF_YEAR, -1); return isSameDay(y, other)
-}
+internal fun formatDateTime(context: Context, timestamp: Long): String =
+    ChatDateDisplay.formatChatDateTime(timestamp, context.resources.configuration.locales[0])
 
 // ── 小型 Composable ──────────────────
 
