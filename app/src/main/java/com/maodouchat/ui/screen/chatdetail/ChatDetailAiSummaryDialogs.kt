@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -53,9 +54,6 @@ import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.Secondary
 import com.maodouchat.ui.theme.TextHint
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** AI 摘要对话框：摘要范围/历史。所需输入全经参数传入。 */
 @Composable
@@ -185,7 +183,6 @@ internal fun AiSummaryHistoryDialog(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
     var historySearch by rememberSaveable { mutableStateOf("") }
     val filteredSummaries = remember(summaries, historySearch) {
         val q = historySearch.trim()
@@ -270,7 +267,7 @@ internal fun AiSummaryHistoryDialog(
                                             modifier = Modifier.weight(1f)
                                         )
                                         Text(
-                                            dateFormat.format(Date(item.createdAt)),
+                                            formatAiTaskDue(item.createdAt),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = LocalChatPalette.current.textHint
                                         )

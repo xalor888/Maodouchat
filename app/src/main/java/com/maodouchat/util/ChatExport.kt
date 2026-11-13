@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.core.content.FileProvider
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.formatAiTaskDue
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -18,9 +19,6 @@ import java.util.Locale
 object ChatExport {
     // 导出文件名净化：每次调用重复编译正则，提到对象级复用。
     private val exportFilenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|]")
-    // SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-    private val messageTimeFormat: ThreadLocal<SimpleDateFormat> =
-        ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
     private val headerTimeFormat: ThreadLocal<SimpleDateFormat> =
         ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
 
@@ -38,7 +36,6 @@ object ChatExport {
         messages: List<Message>,
         exportedAt: Long = System.currentTimeMillis()
     ): String {
-        val ts = messageTimeFormat.get()
         val sb = StringBuilder()
         sb.append("=== ").append(chatName.ifBlank { "-" }).append(" ===\n")
         sb.append("format_version=").append(FORMAT_VERSION).append("\n")
@@ -49,7 +46,7 @@ object ChatExport {
             val sender = if (m.senderId == ownerId) "我" else resolveSenderName(m.senderId)
             val body = renderBody(m)
             if (body.isEmpty()) return@forEach
-            sb.append("[").append(ts.format(Date(m.timestamp))).append("] ")
+            sb.append("[").append(formatAiTaskDue(m.timestamp)).append("] ")
                 .append(sender.ifBlank { m.senderId }).append(": ").append(body).append("\n")
         }
         return sb.toString()
@@ -100,7 +97,6 @@ object ChatExport {
         val file = File(dir, "$safe.txt")
         val tempFile = File(dir, "$safe.tmp")
 
-        val ts = messageTimeFormat.get()
         val exportTs = headerTimeFormat.get().format(Date(exportedAt))
 
         var cancelled = false
@@ -119,7 +115,7 @@ object ChatExport {
                     val sender = if (m.senderId == ownerId) "我" else resolveSenderName(m.senderId)
                     val body = renderBody(m)
                     if (body.isEmpty()) continue
-                    writer.write("[${ts.format(Date(m.timestamp))}] ${sender.ifBlank { m.senderId }}: $body\n")
+                    writer.write("[${formatAiTaskDue(m.timestamp)}] ${sender.ifBlank { m.senderId }}: $body\n")
                 }
             }
 
