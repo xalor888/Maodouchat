@@ -9,7 +9,8 @@ import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.CallType
-import com.maodouchat.data.local.entity.AiOperationError
+import com.maodouchat.domain.messaging.AiStreamStatusText
+import com.maodouchat.domain.messaging.resolveAiStreamStatusText
 
 /**
  * 聊天详情页的「外部意图与权限」工具（G111 从 `ChatDetailComponents.kt` 拆出，原 88 行）。
@@ -35,28 +36,19 @@ internal fun aiStreamStatusText(errorCode: String?): String {
     return stringResource(aiStreamStatusRes(base), wait)
 }
 
-/**
- * AI 流式错误码 → 提示文案资源（G161 从 `aiStreamStatusText` 抽出的纯映射）。
- *
- * 抽开之前这段 `when` 和 `stringResource` 耦在一起，只能靠仪器测试覆盖；
- * 现在映射本身是纯函数，普通 JVM 单测就能逐分支断言。
- *
- * 三处「多码一支」是**有意的**，改动时必须连测试一起改：
- * - `TIMEOUT` / `OUTCOME_UNKNOWN` / `UNKNOWN` 共用「请求可能已被处理」——
- *   三者的用户动作完全相同（确认后手动重试），文案分开只会让人以为区别对待；
- * - `EMPTY_RESULT` / `INVALID_RESPONSE` 共用「未返回有效结果」。
- */
-internal fun aiStreamStatusRes(base: String): Int = when (base) {
-    "CANCELLED" -> R.string.chat_ai_stream_cancelled
-    AiOperationError.RATE_LIMITED -> R.string.chat_ai_stream_rate_limited
-    AiOperationError.QUOTA_EXCEEDED -> R.string.chat_ai_stream_quota_exceeded
-    AiOperationError.NETWORK -> R.string.chat_ai_operation_network_failed
-    AiOperationError.TIMEOUT, AiOperationError.OUTCOME_UNKNOWN, AiOperationError.UNKNOWN ->
-        R.string.chat_ai_operation_outcome_unknown
-    AiOperationError.SERVER -> R.string.chat_ai_operation_server_failed
-    AiOperationError.EMPTY_RESULT, AiOperationError.INVALID_RESPONSE ->
-        R.string.chat_ai_operation_invalid_result
-    else -> R.string.chat_ai_operation_failed
+// AI 流式错误码 → 提示文案资源：种类判定在 domain（resolveAiStreamStatusText），这里只做枚举→R 映射。
+internal fun aiStreamStatusRes(base: String): Int =
+    aiStreamStatusResId(resolveAiStreamStatusText(base))
+
+internal fun aiStreamStatusResId(kind: AiStreamStatusText): Int = when (kind) {
+    AiStreamStatusText.CANCELLED -> R.string.chat_ai_stream_cancelled
+    AiStreamStatusText.RATE_LIMITED -> R.string.chat_ai_stream_rate_limited
+    AiStreamStatusText.QUOTA_EXCEEDED -> R.string.chat_ai_stream_quota_exceeded
+    AiStreamStatusText.NETWORK -> R.string.chat_ai_operation_network_failed
+    AiStreamStatusText.OUTCOME_UNKNOWN -> R.string.chat_ai_operation_outcome_unknown
+    AiStreamStatusText.SERVER -> R.string.chat_ai_operation_server_failed
+    AiStreamStatusText.INVALID_RESULT -> R.string.chat_ai_operation_invalid_result
+    AiStreamStatusText.FAILED -> R.string.chat_ai_operation_failed
 }
 
 internal fun openFile(context: android.content.Context, contentUri: String) {

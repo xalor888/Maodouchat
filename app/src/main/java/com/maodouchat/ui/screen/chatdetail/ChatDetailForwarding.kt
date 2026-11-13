@@ -8,6 +8,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
+import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -114,22 +115,5 @@ fun ChatDetailViewModel.forwardMessagesBatch(messages: List<Message>, targetChat
     }
 }
 
-internal fun ChatDetailViewModel.forwardSourceName(message: Message): String? {
-    if (_uiState.value.isSecretChat == true) return null
-    return _uiState.value.chat
-        ?.participants
-        ?.firstOrNull { it.id == message.senderId }
-        ?.name
-        ?.takeIf(String::isNotBlank)
-}
-
-internal fun ChatDetailViewModel.forwardPreview(type: MessageType, content: String): String = when (type) {
-    MessageType.IMAGE -> text(R.string.message_preview_image)
-    MessageType.GIF -> text(R.string.message_preview_gif)
-    MessageType.STICKER -> text(R.string.message_preview_sticker)
-    MessageType.LOCATION -> text(R.string.message_preview_location)
-    MessageType.VIDEO -> text(R.string.message_preview_video)
-    MessageType.VOICE -> text(R.string.message_preview_voice)
-    MessageType.FILE -> text(R.string.message_preview_file)
-    else -> content.take(40)
-}
+internal fun ChatDetailViewModel.forwardPreview(type: MessageType, content: String): String =
+    forwardPreviewText(type)?.let { text(chatMessagePreviewTextResId(it)) } ?: content.take(40)
