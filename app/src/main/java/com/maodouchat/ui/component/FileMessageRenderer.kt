@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MediaCenterDisplay
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
@@ -43,15 +44,8 @@ import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.UnreadRed
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** File renderer driven only by mapped presentation data and UI callbacks. */
-
-// SimpleDateFormat 非线程安全，ThreadLocal 每线程复用一个；只调 format，不残留状态。
-private val fileTimeFormat: ThreadLocal<SimpleDateFormat> =
-    ThreadLocal.withInitial { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
 @Composable
 internal fun FileMessageRenderer(
@@ -83,7 +77,7 @@ internal fun FileMessageRenderer(
             ?.uppercase()
             ?.takeIf { it.isNotBlank() && it != "OCTET-STREAM" }
         val size = file?.sizeBytes?.takeIf { it > 0 }?.let(MediaCenterDisplay::formatPresentationFileSize)
-        val time = fileTimeFormat.get().format(Date(presentation.timestamp))
+        val time = ChatDateDisplay.formatHourMinute(presentation.timestamp)
         listOfNotNull(mime, size, time).joinToString(" · ")
     }
     val transferStatus = transferState?.let { fileTransferStatusText(it, transferError) }

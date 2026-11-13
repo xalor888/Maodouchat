@@ -36,12 +36,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.ui.theme.LocalChatPalette
-import java.text.SimpleDateFormat
-import java.util.Date
 import kotlinx.coroutines.launch
 
 /**
@@ -116,10 +115,8 @@ private fun MyReportCard(report: ReportResponse) {
     } else {
         stringResource(com.maodouchat.R.string.report_status_resolved)
     }
-    // 举报卡片每次重组都 new 一个 SimpleDateFormat；locale 变化时 remember 键失效重建。
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
-    val reportDateFormat = remember(locale) { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", locale) }
-    val timeText = reportDateFormat.format(java.util.Date(report.createdAt))
+    val timeText = formatAiTaskDue(report.createdAt, locale)
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(

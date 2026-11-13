@@ -59,13 +59,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.QrCodeGenerator
-import java.text.SimpleDateFormat
-import java.util.Date
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,9 +202,7 @@ fun GroupInviteContent(
 ) {
     val context = LocalContext.current
     val inviteCopiedMessage = stringResource(R.string.group_detail_invite_copied)
-    // 二维码/邀请状态行每次重组都重复构造；locale 变化时键失效重建。
     val locale = LocalConfiguration.current.locales[0]
-    val inviteDateFormat = remember(locale) { SimpleDateFormat("yyyy-MM-dd HH:mm", locale) }
     val bitmap = remember(payload) {
         payload.takeIf { it.isNotBlank() }?.let { QrCodeGenerator.generateBitmap(it, 720) }
     }
@@ -259,7 +256,7 @@ fun GroupInviteContent(
             Text(
                 stringResource(
                     R.string.group_detail_invite_status,
-                    inviteDateFormat.format(Date(expiresAt)),
+                    formatAiTaskDue(expiresAt, locale),
                     usedCount,
                     maxUses,
                     remainingUses
