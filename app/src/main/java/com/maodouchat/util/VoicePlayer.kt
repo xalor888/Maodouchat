@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.core.model.VoicePlayerState
+import com.maodouchat.domain.messaging.VoicePlaybackSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -56,7 +57,7 @@ object VoicePlayer {
         val saved = runCatching {
             ctx.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getFloat(KEY_SPEED, 1f)
         }.getOrDefault(1f)
-        val normalized = SPEED_STEPS.firstOrNull { it == saved } ?: 1f
+        val normalized = VoicePlaybackSpeed.SPEED_STEPS.firstOrNull { it == saved } ?: 1f
         _state.value = _state.value.copy(speed = normalized)
     }
 
@@ -69,9 +70,6 @@ object VoicePlayer {
 
     private val _state = MutableStateFlow(VoicePlayerState())
     val state: StateFlow<VoicePlayerState> = _state.asStateFlow()
-
-    /** 允许的播放倍速（循环切换）。 */
-    val SPEED_STEPS: FloatArray = floatArrayOf(1f, 1.5f, 2f, 0.5f)
 
     fun ensureContext(context: Context) {
         if (appContext == null) {
@@ -89,7 +87,7 @@ object VoicePlayer {
         requestAudioFocus()
         try {
             val earpiece = _state.value.earpiece
-            val speed = _state.value.speed.let { if (it in SPEED_STEPS.toList()) it else 1f }
+            val speed = _state.value.speed.let { if (it in VoicePlaybackSpeed.SPEED_STEPS.toList()) it else 1f }
             val mp = MediaPlayer()
             player = mp
             currentId = messageId
@@ -186,11 +184,7 @@ object VoicePlayer {
 
     /** 在 1x → 1.5x → 2x → 0.5x 间循环；对当前 MediaPlayer 立即生效。 */
     fun cycleSpeed() {
-        val steps = SPEED_STEPS
-        val current = _state.value.speed
-        val idx = steps.indexOfFirst { it == current }.let { if (it < 0) 0 else it }
-        val next = steps[(idx + 1) % steps.size]
-        setSpeed(next)
+        setSpeed(VoicePlaybackSpeed.nextSpeed(_state.value.speed))
     }
 
     /**
@@ -210,7 +204,7 @@ object VoicePlayer {
     }
 
     fun setSpeed(speed: Float) {
-        val normalized = SPEED_STEPS.firstOrNull { it == speed } ?: 1f
+        val normalized = VoicePlaybackSpeed.SPEED_STEPS.firstOrNull { it == speed } ?: 1f
         _state.value = _state.value.copy(speed = normalized)
         // 1.135：倍速选择跨进程持久化（重启后仍记住用户偏好）
         persistSpeed(normalized)
@@ -425,19 +419,4 @@ object VoicePlayer {
         }
     }
 
-    /** 下一档倍速（纯函数，供 UI/单测）。 */
-    fun nextSpeed(current: Float): Float {
-        val steps = SPEED_STEPS
-        val idx = steps.indexOfFirst { it == current }.let { if (it < 0) 0 else it }
-        return steps[(idx + 1) % steps.size]
-    }
-
-    fun formatSpeedLabel(speed: Float): String {
-        return when (speed) {
-            0.5f -> "0.5x"
-            1.5f -> "1.5x"
-            2f -> "2x"
-            else -> "1x"
-        }
-    }
 }

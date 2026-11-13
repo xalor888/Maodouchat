@@ -58,7 +58,7 @@ internal fun RecordingIndicator(
         durationMillis = 800,
         label = "recordingPulse"
     )
-    val durationLabel = com.maodouchat.util.VoiceRecorder.formatDuration(elapsedMs)
+    val durationLabel = com.maodouchat.domain.messaging.VoiceMessageDuration.formatDuration(elapsedMs)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -131,7 +131,7 @@ internal fun VoicePreviewBar(
     val isPreviewPlaying =
         playerState.messageId == com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.VOICE_PREVIEW_MESSAGE_ID &&
             playerState.isPlaying
-    val durationLabel = com.maodouchat.util.VoiceRecorder.formatDuration(durationMs)
+    val durationLabel = com.maodouchat.domain.messaging.VoiceMessageDuration.formatDuration(durationMs)
     Row(
         modifier = Modifier
             .fillMaxWidth()

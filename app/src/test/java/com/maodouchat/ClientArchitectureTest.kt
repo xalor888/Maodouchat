@@ -679,10 +679,10 @@ class ClientArchitectureTest {
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/security/SecureSessionManager.kt" to 452,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
-        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（443）/
+        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
         // 与之并列 435 行的 CallViewModel 早已在表内）。
-        "com/maodouchat/util/VoicePlayer.kt" to 443,
+        "com/maodouchat/util/VoicePlayer.kt" to 422,
         "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 395,
     )
 
@@ -956,10 +956,10 @@ class ClientArchitectureTest {
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/security/SecureSessionManager.kt" to 452,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
-        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（443）/
+        // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
         // 与之并列 435 行的 CallViewModel 早已在表内）。
-        "com/maodouchat/util/VoicePlayer.kt" to 443,
+        "com/maodouchat/util/VoicePlayer.kt" to 422,
         "com/maodouchat/ui/screen/contacts/ContactsCreateAndScroll.kt" to 395,
                 )
         assertEquals(currentCaps, frozenHotspotLineCaps, "热点文件上限被改动了——收紧可以，放宽不行")
