@@ -4,6 +4,7 @@ import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.domain.messaging.inferGroupAiMode
+import com.maodouchat.domain.messaging.normalizeAiRewriteMode
 import com.maodouchat.domain.messaging.summaryCandidates
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
@@ -22,15 +23,6 @@ import com.maodouchat.core.model.VoiceTranscriptPolicy
 import com.maodouchat.core.model.PendingAiAction
 import com.maodouchat.core.model.DEFAULT_TRANSLATION_LANGUAGE
 
-
-internal fun ChatDetailViewModel.normalizeAiRewriteMode(mode: String?): String {
-    val m = mode?.trim()?.lowercase().orEmpty()
-    return when (m) {
-        "polish", "shorten", "formal", "gentle", "casual",
-        "professional", "expand", "bullet", "translate", "clarify" -> m
-        else -> "polish"
-    }
-}
 
 internal fun ChatDetailViewModel.isAiAllowed(): Boolean {
     val targetChatId = activeChatId
