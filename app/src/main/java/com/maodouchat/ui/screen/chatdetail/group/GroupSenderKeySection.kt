@@ -31,6 +31,10 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.core.crypto.Reason
 import com.maodouchat.core.model.SenderKeyTargetFilter
+import com.maodouchat.domain.messaging.SenderKeyReasonLabel
+import com.maodouchat.domain.messaging.SenderKeyStatusLabel
+import com.maodouchat.domain.messaging.senderKeyReasonLabelKind
+import com.maodouchat.domain.messaging.senderKeyStatusLabelKind
 
 private const val SENDER_KEY_TARGET_PAGE = 20
 
@@ -219,30 +223,30 @@ fun GroupSenderKeyStatusSection(
 @Composable
 fun senderKeyReasonLabel(reason: Reason): String =
     stringResource(
-        when (reason) {
-            Reason.LOCAL_MISSING ->
+        when (senderKeyReasonLabelKind(reason)) {
+            SenderKeyReasonLabel.LOCAL_MISSING ->
                 R.string.group_detail_key_reason_local_missing
-            Reason.EPOCH_MISMATCH ->
+            SenderKeyReasonLabel.EPOCH_MISMATCH ->
                 R.string.group_detail_key_reason_epoch_mismatch
-            Reason.FAILED_TARGETS ->
+            SenderKeyReasonLabel.FAILED_TARGETS ->
                 R.string.group_detail_key_reason_failed
-            Reason.PENDING_TARGETS ->
+            SenderKeyReasonLabel.PENDING_TARGETS ->
                 R.string.group_detail_key_reason_pending
-            Reason.UNKNOWN_TARGETS ->
+            SenderKeyReasonLabel.UNKNOWN_TARGETS ->
                 R.string.group_detail_key_reason_unknown
-            Reason.NO_SERVER_RECORD ->
+            SenderKeyReasonLabel.NO_SERVER_RECORD ->
                 R.string.group_detail_key_reason_no_record
-            Reason.COMPLETE ->
+            SenderKeyReasonLabel.COMPLETE ->
                 R.string.group_detail_key_reason_complete
         }
     )
 
 @Composable
-fun senderKeyStatusLabel(status: String): String = when (status.uppercase()) {
-    "SENT" -> stringResource(R.string.group_detail_key_sent)
-    "FAILED" -> stringResource(R.string.group_detail_key_failed)
-    "PENDING" -> stringResource(R.string.group_detail_key_pending)
-    else -> status
+fun senderKeyStatusLabel(status: String): String = when (senderKeyStatusLabelKind(status)) {
+    SenderKeyStatusLabel.SENT -> stringResource(R.string.group_detail_key_sent)
+    SenderKeyStatusLabel.FAILED -> stringResource(R.string.group_detail_key_failed)
+    SenderKeyStatusLabel.PENDING -> stringResource(R.string.group_detail_key_pending)
+    SenderKeyStatusLabel.OTHER -> status
 }
 
 @Composable
