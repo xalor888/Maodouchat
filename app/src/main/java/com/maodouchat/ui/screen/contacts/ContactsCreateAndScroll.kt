@@ -47,7 +47,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
-import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.contacts.ContactMemberCandidates
 import com.maodouchat.ui.component.Avatar
@@ -59,9 +58,9 @@ import androidx.compose.runtime.setValue
 /**
  * 通讯录的「新建与滚动」一族（G134 从 `ContactsScreen.kt` 拆出，原 363 行）。
  *
- * 五个声明：`NewGroupDialog`（选人建群：搜索/多选/已选条）、
+ * 四个声明：`NewGroupDialog`（选人建群：搜索/多选/已选条）、
  * `NewChannelDialog`（建频道：名称/简介/公开性）、`ContactItem`（联系人行）、
- * `AlphabetScroller`（字母快速滚动条）、`findLetterIndex`（按字母找列表首索引）。
+ * `AlphabetScroller`（字母快速滚动条）。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`。
  * 纯搬移，不改判断。
@@ -393,26 +392,4 @@ internal fun AlphabetScroller(
             }
         }
     }
-}
-
-internal fun findLetterIndex(
-    grouped: Map<String, List<User>>,
-    incomingCount: Int,
-    outgoingCount: Int,
-    groupInviteCount: Int,
-    targetLetter: String
-): Int {
-    val leadingFixedItems = ContactsIndexPolicy.leadingFixedItemCount(
-        incomingCount = incomingCount,
-        outgoingCount = outgoingCount,
-        groupInviteCount = groupInviteCount
-    )
-    val ordered = grouped.keys.toList()
-    val sizes = grouped.mapValues { it.value.size }
-    return ContactsIndexPolicy.letterListIndex(
-        orderedLetters = ordered,
-        sizes = sizes,
-        targetLetter = targetLetter,
-        leadingFixedItems = leadingFixedItems
-    )
 }
