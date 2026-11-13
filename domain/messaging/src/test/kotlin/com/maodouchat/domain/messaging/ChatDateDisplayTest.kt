@@ -180,4 +180,28 @@ class ChatDateDisplayTest {
         assertTrue(text.contains("12:00"))
         assertTrue(text.contains("AM"))
     }
+
+    // ─── formatMediumDate（新增） ───
+
+    @Test
+    fun mediumDateFormatsUsMediumStyle() {
+        assertEquals("Apr 10, 2026", ChatDateDisplay.formatMediumDate(localMillis(2026, 4, 10, 12, 0), Locale.US))
+        assertEquals("Jan 5, 2026", ChatDateDisplay.formatMediumDate(localMillis(2026, 1, 5, 12, 0), Locale.US))
+        assertEquals("Dec 31, 2025", ChatDateDisplay.formatMediumDate(localMillis(2025, 12, 31, 12, 0), Locale.US))
+    }
+
+    @Test
+    fun mediumDateRepeatedCallIsStable() {
+        val ts = localMillis(2026, 4, 10, 12, 0)
+        assertEquals(
+            ChatDateDisplay.formatMediumDate(ts, Locale.US),
+            ChatDateDisplay.formatMediumDate(ts, Locale.US)
+        )
+    }
+
+    @Test
+    fun mediumDateDiffersByLocale() {
+        val ts = localMillis(2026, 4, 10, 12, 0)
+        assertTrue(ChatDateDisplay.formatMediumDate(ts, Locale.US) != ChatDateDisplay.formatMediumDate(ts, Locale.CHINA))
+    }
 }

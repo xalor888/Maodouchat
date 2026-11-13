@@ -51,4 +51,12 @@ object ChatDateDisplay {
         monthDayTimeFormatCache.get().getOrPut(locale) {
             SimpleDateFormat("MM-dd HH:mm", locale)
         }.format(Date(timestamp))
+
+    // MEDIUM 日期格式（媒体中心列表用）：与 formatMonthDayTime 同款 ThreadLocal 按 locale 分键缓存。
+    private val mediumDateFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, DateFormat>() }
+
+    fun formatMediumDate(timestamp: Long, locale: Locale): String =
+        mediumDateFormatCache.get().getOrPut(locale) {
+            DateFormat.getDateInstance(DateFormat.MEDIUM, locale)
+        }.format(Date(timestamp))
 }
