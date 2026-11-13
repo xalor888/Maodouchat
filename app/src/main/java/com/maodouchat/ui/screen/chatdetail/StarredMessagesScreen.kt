@@ -59,6 +59,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
@@ -66,8 +67,6 @@ import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.ShimmerBox
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
-import java.text.DateFormat
-import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -284,6 +283,7 @@ private fun StarredMessageRow(
     onUnstar: () -> Unit
 ) {
     val context = LocalContext.current
+    val locale = remember { Locale.getDefault() }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -319,7 +319,7 @@ private fun StarredMessageRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(formatStarredTime(message.timestamp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
+            Text(ChatDateDisplay.formatChatDateTime(message.timestamp, locale), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -357,16 +357,6 @@ private fun Message.starredPreview(context: android.content.Context): String = w
     MessageType.FILE -> stringResource(R.string.message_preview_file)
     MessageType.REVOKED -> stringResource(R.string.chat_message_revoked_placeholder)
     else -> content
-}
-
-// DateFormat 非线程安全：ThreadLocal 按 locale 分键缓存，语言切换后自动重建。
-private val starredTimeFormatCache = ThreadLocal.withInitial { mutableMapOf<Locale, DateFormat>() }
-
-private fun formatStarredTime(timestamp: Long): String {
-    val locale = Locale.getDefault()
-    return starredTimeFormatCache.get().getOrPut(locale) {
-        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, locale)
-    }.format(Date(timestamp))
 }
 
 @Composable
