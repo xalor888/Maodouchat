@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.QuietWindow
+import com.maodouchat.domain.messaging.DisappearDurationLabel
+import com.maodouchat.domain.messaging.DisappearingMessageLabel
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -183,20 +185,20 @@ internal fun DisappearingMessagesDialog(
 }
 
 @Composable
-internal fun disappearSecondsLabel(seconds: Int): String = when (seconds) {
-    0 -> stringResource(R.string.disappear_off)
-    30 -> stringResource(R.string.disappear_30s)
-    60 -> stringResource(R.string.disappear_1m)
-    2 * 60 -> stringResource(R.string.disappear_2m)
-    5 * 60 -> stringResource(R.string.disappear_5m)
-    15 * 60 -> stringResource(R.string.disappear_15m)
-    60 * 60 -> stringResource(R.string.disappear_1h)
-    2 * 60 * 60 -> stringResource(R.string.disappear_2h)
-    4 * 60 * 60 -> stringResource(R.string.disappear_4h)
-    8 * 60 * 60 -> stringResource(R.string.disappear_8h)
-    12 * 60 * 60 -> stringResource(R.string.disappear_12h)
-    24 * 60 * 60 -> stringResource(R.string.disappear_24h)
-    7 * 24 * 60 * 60 -> stringResource(R.string.disappear_7d)
-    30 * 24 * 60 * 60 -> stringResource(R.string.disappear_30d)
-    else -> stringResource(R.string.disappear_off)
-}
+internal fun disappearSecondsLabel(seconds: Int): String =
+    when (DisappearingMessageLabel.disappearDurationLabel(seconds)) {
+        DisappearDurationLabel.Off -> stringResource(R.string.disappear_off)
+        DisappearDurationLabel.Seconds30 -> stringResource(R.string.disappear_30s)
+        DisappearDurationLabel.Minute1 -> stringResource(R.string.disappear_1m)
+        DisappearDurationLabel.Minute2 -> stringResource(R.string.disappear_2m)
+        DisappearDurationLabel.Minute5 -> stringResource(R.string.disappear_5m)
+        DisappearDurationLabel.Minute15 -> stringResource(R.string.disappear_15m)
+        DisappearDurationLabel.Hour1 -> stringResource(R.string.disappear_1h)
+        DisappearDurationLabel.Hour2 -> stringResource(R.string.disappear_2h)
+        DisappearDurationLabel.Hour4 -> stringResource(R.string.disappear_4h)
+        DisappearDurationLabel.Hour8 -> stringResource(R.string.disappear_8h)
+        DisappearDurationLabel.Hour12 -> stringResource(R.string.disappear_12h)
+        DisappearDurationLabel.Hour24 -> stringResource(R.string.disappear_24h)
+        DisappearDurationLabel.Days7 -> stringResource(R.string.disappear_7d)
+        DisappearDurationLabel.Days30 -> stringResource(R.string.disappear_30d)
+    }
