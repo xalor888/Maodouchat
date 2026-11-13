@@ -5,11 +5,11 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiContextSenders
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.buildUnreadSummaryCacheKey
+import com.maodouchat.domain.messaging.selectUnreadSummaryCandidates
 import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.isAmbiguousTransportFailure
-import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import com.maodouchat.core.model.buildPlainAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
  * 未读消息的 AI 总结 + AI 上下文构建（G169 从 ChatDetailAiGeneration.kt 抽出，123 行）。
  *
  * `maybeGenerateUnreadSummary`：用户回到有未读消息的会话时，自动起一次总结，
+ * 未读候选筛选与未读缓存键已迁入 `:domain:messaging`（`UnreadSummaryCandidates.kt`）。
  * 用 `unreadSummaryJob` 保证同一时刻只有一个在跑（晚到的取消早先的）。
  * `buildAiContextMessages` / `aiContextSenders`：把当前消息列表转成服务端 AI 上下文，
  * 并解析「我 / 对方 / 群成员」的显示名。
@@ -38,21 +39,13 @@ internal fun ChatDetailViewModel.maybeGenerateUnreadSummary(messages: List<Messa
         !com.maodouchat.ai.AiPrivacyPreferences.consentAccepted(app)
     ) return
 
-    val candidates = messages
-        .filter { message ->
-            message.senderId != currentUserId &&
-                (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) &&
-                !message.parsedMeta().aiAssisted &&
-                message.parsedContent().isNotBlank()
-        }
-        .sortedBy { it.timestamp }
-        .takeLast(unreadCount.coerceIn(1, MAX_AI_SUMMARY_MESSAGES))
+    val candidates = selectUnreadSummaryCandidates(messages, currentUserId, unreadCount)
 
     if (candidates.isEmpty()) return
     val first = candidates.first()
     val last = candidates.last()
     val request = captureAiRequestSnapshot() ?: return
-    val cacheKey = "${request.chatId}:${first.id}:${last.id}:${candidates.size}"
+    val cacheKey = buildUnreadSummaryCacheKey(request.chatId, first.id, last.id, candidates.size)
     // Only skip after a terminal success/definitive failure for this window.
     // Network blips must not permanently suppress auto unread summaries.
     if (unreadSummaryAttemptedForKey == cacheKey) return

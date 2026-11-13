@@ -4,17 +4,16 @@ import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.PreparedAiFile
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.resolveAiFileInput
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 
-// AI 媒体分析：文件分析链路 + resolveAiFileInput（附件解析成 base64 / 规范化 mime 与文件名）留守；
+// AI 媒体分析：文件分析链路（resolveAiFileInput 已迁入 :domain:messaging）。
 // 语音转写、图片分析已拆出同包 ChatDetailAiVoiceAnalysis / ChatDetailAiImageAnalysis。
 // 安全约束（代码里已 enforce）：密聊会话禁止 AI 分析——解密明文不得送服务端 AI；
 // 纯文本附件超过 120k 或含 NUL / U+FFFD 时拒绝上传。
@@ -166,30 +165,4 @@ internal fun ChatDetailViewModel.analyzeFileMessage(
             }
         )
     }
-}
-
-internal fun ChatDetailViewModel.resolveAiFileInput(message: Message, base64: String): PreparedAiFile? {
-    val metadata = message.parsedMeta()
-    val storedName = metadata.fileName?.trim()?.takeIf(String::isNotBlank)
-    val cachedName = runCatching { message.parsedContent().toUri().lastPathSegment?.substringAfterLast('/') }.getOrNull()
-    val candidateName = storedName ?: cachedName ?: "document"
-    val extension = candidateName.substringAfterLast('.', "").lowercase()
-    val canonicalMime = when (extension) {
-        "pdf" -> "application/pdf"
-        "txt" -> "text/plain"
-        "md", "markdown" -> "text/markdown"
-        "csv" -> "text/csv"
-        "json" -> "application/json"
-        "xml" -> "application/xml"
-        else -> null
-    }
-    if (canonicalMime != null) return PreparedAiFile(base64, candidateName.take(120), canonicalMime)
-
-    val bytes = runCatching { android.util.Base64.decode(base64, android.util.Base64.NO_WRAP) }.getOrNull() ?: return null
-    if (bytes.size >= 5 && bytes.copyOfRange(0, 5).contentEquals("%PDF-".toByteArray(Charsets.US_ASCII))) {
-        return PreparedAiFile(base64, "document.pdf", "application/pdf")
-    }
-    val textContent = runCatching { String(bytes, Charsets.UTF_8) }.getOrNull() ?: return null
-    if (textContent.isBlank() || textContent.length > 120_000 || '\u0000' in textContent || '\uFFFD' in textContent) return null
-    return PreparedAiFile(base64, "document.txt", "text/plain")
 }

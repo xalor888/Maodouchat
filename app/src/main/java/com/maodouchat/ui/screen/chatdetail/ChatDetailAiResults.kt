@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.core.model.AiSummaryScope
+import com.maodouchat.domain.messaging.summaryScopeFromCacheKey
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.core.model.GroupAiSharePolicy
 import com.maodouchat.core.model.TaskDraft
@@ -153,12 +154,6 @@ fun ChatDetailViewModel.openAiSummaryFromHistory(cacheKey: String) {
         }
 }
 
-internal fun ChatDetailViewModel.summaryScopeFromCacheKey(cacheKey: String): AiSummaryScope {
-        if (!cacheKey.startsWith("manual:")) return AiSummaryScope.UNREAD
-        return cacheKey.split(':').getOrNull(2)
-            ?.let { value -> AiSummaryScope.entries.firstOrNull { it.name == value } }
-            ?: AiSummaryScope.RECENT
-}
 
 fun ChatDetailViewModel.clearGroupAiAnswer() {
         _uiState.update {
