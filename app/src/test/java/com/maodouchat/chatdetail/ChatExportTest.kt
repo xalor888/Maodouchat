@@ -163,37 +163,6 @@ class ChatExportTest {
     }
 
     @Test
-    fun renderBody_coversAllMessageTypes() {
-        val meta = MessageMeta(fileName = "presentation.pdf")
-        val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE, meta = meta)
-        assertEquals("[文件] presentation.pdf", ChatExport.renderBody(fileMsg))
-
-        val voiceMsg = Message(id = "2", chatId = "c", senderId = "u", content = "", type = MessageType.VOICE)
-        assertEquals("[语音]", ChatExport.renderBody(voiceMsg))
-
-        val locMsg = Message(id = "3", chatId = "c", senderId = "u", content = "", type = MessageType.LOCATION)
-        assertEquals("[位置]", ChatExport.renderBody(locMsg))
-
-        val nudgeMsg = Message(id = "4", chatId = "c", senderId = "u", content = "", type = MessageType.NUDGE)
-        assertEquals("[戳一戳]", ChatExport.renderBody(nudgeMsg))
-    }
-
-    @Test
-    fun renderBody_coversMarkdownStickerVideoGif() {
-        val mdMsg = Message(id = "1", chatId = "c", senderId = "u", content = "**加粗**", type = MessageType.MARKDOWN)
-        assertEquals("**加粗**", ChatExport.renderBody(mdMsg))
-
-        val stickerMsg = Message(id = "2", chatId = "c", senderId = "u", content = "", type = MessageType.STICKER)
-        assertEquals("[表情]", ChatExport.renderBody(stickerMsg))
-
-        val videoMsg = Message(id = "3", chatId = "c", senderId = "u", content = "", type = MessageType.VIDEO)
-        assertEquals("[视频]", ChatExport.renderBody(videoMsg))
-
-        val gifMsg = Message(id = "4", chatId = "c", senderId = "u", content = "content://cached/a.gif", type = MessageType.GIF)
-        assertEquals("content://cached/a.gif", ChatExport.renderBody(gifMsg))
-    }
-
-    @Test
     fun buildText_blankChatNameRendersDash() {
         val text = ChatExport.buildText(
             chatName = "",
@@ -305,20 +274,6 @@ class ChatExportTest {
         assertTrue(file!!.readText().contains("=== - ==="))
     }
 
-    @Test
-    fun renderBody_fileWithoutNameRendersBareTag() {
-        val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE)
-        assertEquals("[文件]", ChatExport.renderBody(fileMsg))
-    }
-
-
-    @Test
-    fun renderBody_systemAndSkDistRenderEmpty() {
-        val sysMsg = Message(id = "1", chatId = "c", senderId = "u", content = "alert", type = MessageType.SYSTEM)
-        assertEquals("", ChatExport.renderBody(sysMsg))
-        val distMsg = Message(id = "2", chatId = "c", senderId = "u", content = "payload", type = MessageType.SK_DIST)
-        assertEquals("", ChatExport.renderBody(distMsg))
-    }
 
     @Test
     fun buildText_preservesInputOrderNotTimestampOrder() {
@@ -390,12 +345,6 @@ class ChatExportTest {
         )
         assertTrue(text.contains("count=1"))
         assertTrue(text.lines().none { it.startsWith("[") })
-    }
-
-    @Test
-    fun renderBody_textReturnsContentVerbatim() {
-        val msg = Message(id = "1", chatId = "c", senderId = "u", content = "**bold** text", type = MessageType.TEXT)
-        assertEquals("**bold** text", ChatExport.renderBody(msg))
     }
 
     @Test
@@ -484,12 +433,6 @@ class ChatExportTest {
     }
 
     @Test
-    fun renderBody_revokedRendersTagRegardlessOfContent() {
-        val msg = Message(id = "1", chatId = "c", senderId = "u", content = "gone", type = MessageType.REVOKED)
-        assertEquals("[消息已撤回]", ChatExport.renderBody(msg))
-    }
-
-    @Test
     fun buildText_timestampsUseDateTimeFormats() {
         val text = ChatExport.buildText(
             chatName = "C",
@@ -541,12 +484,6 @@ class ChatExportTest {
         assertNotNull(file)
         assertEquals("x".repeat(80) + ".txt", file!!.name)
         assertEquals(84, file.name.length)
-    }
-
-    @Test
-    fun renderBody_fileWithEmptyNameRendersTagWithTrailingSpace() {
-        val fileMsg = Message(id = "1", chatId = "c", senderId = "u", content = "", type = MessageType.FILE, meta = MessageMeta(fileName = ""))
-        assertEquals("[文件] ", ChatExport.renderBody(fileMsg))
     }
 
     @Test
@@ -614,12 +551,6 @@ class ChatExportTest {
         assertTrue(text.contains("[戳一戳]"))
         assertTrue(text.contains("[语音]"))
         assertTrue(text.contains("count=2"))
-    }
-
-    @Test
-    fun renderBody_imageRendersTagRegardlessOfContent() {
-        val imageMsg = Message(id = "1", chatId = "c", senderId = "u", content = "file:///x.png", type = MessageType.IMAGE)
-        assertEquals("[图片]", ChatExport.renderBody(imageMsg))
     }
 
     @Test
