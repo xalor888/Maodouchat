@@ -25,16 +25,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.StickerPackLabel
+import com.maodouchat.domain.messaging.stickerPackLabelKind
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
 
 @Composable
-internal fun stickerPackLabel(nameKey: String): String = when (nameKey) {
-    "mood" -> stringResource(R.string.sticker_pack_mood)
-    "gesture" -> stringResource(R.string.sticker_pack_gesture)
-    "party" -> stringResource(R.string.sticker_pack_party)
-    else -> nameKey
+internal fun stickerPackLabel(nameKey: String): String = when (stickerPackLabelKind(nameKey)) {
+    StickerPackLabel.Mood -> stringResource(R.string.sticker_pack_mood)
+    StickerPackLabel.Gesture -> stringResource(R.string.sticker_pack_gesture)
+    StickerPackLabel.Party -> stringResource(R.string.sticker_pack_party)
+    StickerPackLabel.RawKey -> nameKey
 }
 
 
