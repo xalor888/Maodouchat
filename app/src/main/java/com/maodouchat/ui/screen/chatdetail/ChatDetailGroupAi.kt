@@ -8,6 +8,7 @@ import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.AiSemanticSearchCandidate
 import com.maodouchat.core.model.semanticSearchText
 import com.maodouchat.core.model.buildPlainAiContextMessages
+import com.maodouchat.domain.messaging.parseGroupAiCommand
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -18,8 +19,8 @@ import kotlinx.coroutines.launch
  * 安全约束（代码里已 enforce，改动时勿丢）：
  * **密聊会话禁止群 AI 助手**——解密明文不得送服务端 AI。
  *
- * `inferGroupAiMode` / `parseGroupAiCommand` 是纯本地判定：
- * 从用户输入里推断助手模式与解析「/命令 参数」形式。
+ * 群助手模式推断与 @AI 命令解析已迁入 :domain:messaging（ChatGroupAiCommand.kt），
+ * 本文件只留调用点。
  *
  * 抽出理由：与「请求 / 流式 / 取消 / 建议 / 总结」逻辑无耦合。
  */
@@ -220,23 +221,4 @@ internal fun ChatDetailViewModel.buildGroupAiContextMessages(): List<AiContextMe
         senders = aiContextSenders(),
         limit = 30
     )
-}
-
-internal fun ChatDetailViewModel.inferGroupAiMode(query: String): String {
-    val normalized = query.trim().lowercase()
-    return when {
-        normalized.startsWith("总结") || normalized.startsWith("概括") || normalized.startsWith("summary") || normalized.startsWith("summarize") -> "summary"
-        normalized.startsWith("决策") || normalized.startsWith("决定") || normalized.startsWith("decisions") -> "decisions"
-        normalized.startsWith("待办") || normalized.startsWith("任务") || normalized.startsWith("tasks") || normalized.startsWith("todo") -> "tasks"
-        normalized.startsWith("时间线") || normalized.startsWith("时间轴") || normalized.startsWith("timeline") || normalized.startsWith("chronology") -> "timeline"
-        normalized.startsWith("风险") || normalized.startsWith("隐患") || normalized.startsWith("risk") || normalized.startsWith("blocker") -> "risks"
-        else -> "answer"
-    }
-}
-
-internal fun ChatDetailViewModel.parseGroupAiCommand(value: String): String? {
-    val trimmed = value.trim()
-    if (!trimmed.startsWith("@AI", ignoreCase = true)) return null
-    if (trimmed.length > 3 && !trimmed[3].isWhitespace()) return null
-    return trimmed.drop(3).trim()
 }
