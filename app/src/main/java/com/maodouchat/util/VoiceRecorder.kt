@@ -5,9 +5,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
 import java.io.File
-import kotlin.math.ln
-import kotlin.math.max
-import kotlin.math.min
+import com.maodouchat.domain.messaging.VoiceCaptureAmplitude
 
 /**
  * 语音录制：AAC/M4A + 振幅采样（供录音波形 UI）。
@@ -78,7 +76,7 @@ class VoiceRecorder(private val context: Context) {
         } catch (_: Exception) {
             0
         }
-        return normalizeAmplitude(raw)
+        return VoiceCaptureAmplitude.normalizeAmplitude(raw)
     }
 
     /** 当前已录时长毫秒；未录制返回 0。 */
@@ -139,29 +137,5 @@ class VoiceRecorder(private val context: Context) {
 
     companion object {
         private const val TAG = "VoiceRecorder"
-        private const val AMPLITUDE_FLOOR = 1.0
-        private const val AMPLITUDE_CEILING = 32767.0
-
-        /**
-         * 将 MediaRecorder 原始振幅映射到 0..1。
-         * 纯函数，便于单测。
-         */
-        fun normalizeAmplitude(raw: Int): Float {
-            if (raw <= 0) return 0f
-            val clamped = min(raw.toDouble(), AMPLITUDE_CEILING)
-            val db = 20.0 * ln(max(clamped, AMPLITUDE_FLOOR) / AMPLITUDE_FLOOR)
-            // 约 0..90 dB 压到 0..1，低音量仍可见一点起伏
-            return (db / 90.0).toFloat().coerceIn(0f, 1f)
-        }
-
-        /**
-         * 格式化时长显示（如 "0:15"）
-         */
-        fun formatDuration(millis: Long): String {
-            val seconds = millis / 1000
-            val minutes = seconds / 60
-            val secs = seconds % 60
-            return "%d:%02d".format(minutes, secs)
-        }
     }
 }
