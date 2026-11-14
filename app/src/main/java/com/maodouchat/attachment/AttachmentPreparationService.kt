@@ -6,7 +6,7 @@ import androidx.core.net.toUri
 import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.AttachmentIntent
-import com.maodouchat.domain.messaging.AttachmentKind
+import com.maodouchat.domain.messaging.AttachmentIntentPolicy
 import com.maodouchat.domain.messaging.AttachmentPreparationService
 import com.maodouchat.domain.messaging.PreparedAttachmentResult
 import com.maodouchat.util.EncryptedAttachmentCrypto
@@ -36,7 +36,7 @@ class DefaultAttachmentPreparationService(
     ): Result<PreparedAttachmentResult> = runCatching {
         require(ownerUserId.isNotBlank()) { "attachment_owner_missing" }
         val sourceUri = intent.uri.toUri()
-        val messageType = intent.kind.toMessageType()
+        val messageType = AttachmentIntentPolicy.messageTypeForKind(intent.kind)
 
         val described = withContext(Dispatchers.IO) {
             MediaCache.describeFile(appContext, sourceUri)
@@ -92,14 +92,4 @@ class DefaultAttachmentPreparationService(
         )
     }
 
-    private fun AttachmentKind.toMessageType(): MessageType = when (this) {
-        AttachmentKind.IMAGE -> MessageType.IMAGE
-        AttachmentKind.VIDEO -> MessageType.VIDEO
-        AttachmentKind.VOICE -> MessageType.VOICE
-        AttachmentKind.FILE -> MessageType.FILE
-        AttachmentKind.STICKER -> MessageType.STICKER
-        AttachmentKind.GIF -> MessageType.GIF
-        AttachmentKind.LOCATION -> MessageType.LOCATION
-        AttachmentKind.CONTACT -> MessageType.TEXT
-    }
 }
