@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
+import com.maodouchat.domain.conversation.CapturePathPolicy
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -135,7 +136,7 @@ class ScreenshotDetector(
                 val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
                 if (nowSec - dateAdded > 5) return
-                if (isScreenshotPath(path, name)) emitCapture()
+                if (CapturePathPolicy.isScreenshotPath(path, name)) emitCapture()
             }
     }
 
@@ -169,7 +170,7 @@ class ScreenshotDetector(
                 val nameIdx = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
                 val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
                 if (nowSec - dateAdded > 8) return
-                if (isScreenRecordPath(path, name)) emitCapture()
+                if (CapturePathPolicy.isScreenRecordPath(path, name)) emitCapture()
             }
     }
 
@@ -183,42 +184,5 @@ class ScreenshotDetector(
 
     companion object {
         private const val TAG = "ScreenshotDetector"
-
-        /**
-         * Secret chat always runs the detector (bypass complement). The
-         * SCREENSHOT_DETECT flag only gates non-secret disappearing-message warnings.
-         */
-        fun shouldStart(secretActive: Boolean, screenshotDetectFlag: Boolean): Boolean =
-            secretActive || screenshotDetectFlag
-
-        fun isScreenshotPath(path: String, name: String = ""): Boolean {
-            val p = path.lowercase()
-            val n = name.lowercase()
-            return p.contains("screenshot") ||
-                p.contains("screen_shot") ||
-                p.contains("screen-shot") ||
-                p.contains("截屏") ||
-                p.contains("截图") ||
-                n.startsWith("screenshot") ||
-                n.contains("screenshot") ||
-                n.startsWith("screen_") ||
-                n.contains("截屏") ||
-                n.contains("截图")
-        }
-
-        fun isScreenRecordPath(path: String, name: String = ""): Boolean {
-            val p = path.lowercase()
-            val n = name.lowercase()
-            return p.contains("screenrecord") ||
-                p.contains("screen_record") ||
-                p.contains("screen-record") ||
-                p.contains("screen recordings") ||
-                p.contains("screenrecording") ||
-                p.contains("录屏") ||
-                n.contains("screenrecord") ||
-                n.contains("screen_record") ||
-                n.contains("record") && (n.contains("screen") || n.contains("scr")) ||
-                n.contains("录屏")
-        }
     }
 }

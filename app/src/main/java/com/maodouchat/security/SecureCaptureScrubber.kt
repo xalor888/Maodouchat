@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
+import com.maodouchat.domain.conversation.CapturePathPolicy
 
 /**
  * FLAG_SECURE 被 OEM 忽略时，系统仍可能把截图/录屏写进相册。
@@ -14,8 +15,6 @@ import android.util.Log
  */
 object SecureCaptureScrubber {
     private const val TAG = "SecureCaptureScrubber"
-    private const val IMAGE_MAX_AGE_SEC = 8L
-    private const val VIDEO_MAX_AGE_SEC = 12L
 
     fun deleteLatestCapture(context: Context) {
         runCatching { deleteLatestImage(context) }
@@ -23,12 +22,6 @@ object SecureCaptureScrubber {
         runCatching { deleteLatestVideo(context) }
             .onFailure { Log.w(TAG, "delete video capture failed", it) }
     }
-
-    fun shouldDeleteImage(path: String, name: String, ageSec: Long): Boolean =
-        ageSec in 0..IMAGE_MAX_AGE_SEC && ScreenshotDetector.isScreenshotPath(path, name)
-
-    fun shouldDeleteVideo(path: String, name: String, ageSec: Long): Boolean =
-        ageSec in 0..VIDEO_MAX_AGE_SEC && ScreenshotDetector.isScreenRecordPath(path, name)
 
     private fun deleteLatestImage(context: Context) {
         val nowSec = System.currentTimeMillis() / 1000L
@@ -45,7 +38,7 @@ object SecureCaptureScrubber {
                 MediaStore.Images.Media.DATA
             },
         )?.let { hit ->
-            if (shouldDeleteImage(hit.path, hit.name, nowSec - hit.dateAdded)) {
+            if (CapturePathPolicy.shouldDeleteImage(hit.path, hit.name, nowSec - hit.dateAdded)) {
                 deleteUri(context, hit.uri)
             }
         }
@@ -66,7 +59,7 @@ object SecureCaptureScrubber {
                 MediaStore.Video.Media.DATA
             },
         )?.let { hit ->
-            if (shouldDeleteVideo(hit.path, hit.name, nowSec - hit.dateAdded)) {
+            if (CapturePathPolicy.shouldDeleteVideo(hit.path, hit.name, nowSec - hit.dateAdded)) {
                 deleteUri(context, hit.uri)
             }
         }
