@@ -1,6 +1,6 @@
-package com.maodouchat.data
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.data.repository.MessageSearchTokenizer
+import com.maodouchat.domain.messaging.MessageSearchTokenizer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
