@@ -1,10 +1,10 @@
-package com.maodouchat.data
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.data.repository.MessageSearchTokenizer
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.domain.messaging.MessageSearchTokenizer
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 /**
  * 搜索分词器契约测试（9.235）。分词是索引/查询两端共用的对齐契约：
