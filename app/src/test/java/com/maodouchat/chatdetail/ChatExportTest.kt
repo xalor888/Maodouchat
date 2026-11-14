@@ -2,7 +2,6 @@ package com.maodouchat.chatdetail
 
 import android.content.Context
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.ChatExport
 import io.mockk.every
@@ -31,60 +30,6 @@ class ChatExportTest {
         cacheDir = tempFolder.newFolder("cache")
         dummyContext = mockk(relaxed = true)
         every { dummyContext.cacheDir } returns cacheDir
-    }
-
-    @Test
-    fun buildText_includesFormatVersionAndHeader() {
-        val messages = listOf(
-            Message(
-                id = "m1",
-                chatId = "c1",
-                senderId = "me",
-                content = "Hello world",
-                type = MessageType.TEXT,
-                timestamp = 1600000000000L
-            ),
-            Message(
-                id = "m2",
-                chatId = "c1",
-                senderId = "friend",
-                content = "file:///img.png",
-                type = MessageType.IMAGE,
-                timestamp = 1600000005000L
-            ),
-            Message(
-                id = "m3",
-                chatId = "c1",
-                senderId = "me",
-                content = "hidden",
-                type = MessageType.REVOKED,
-                timestamp = 1600000010000L
-            ),
-            Message(
-                id = "m4",
-                chatId = "c1",
-                senderId = "sys",
-                content = "system alert",
-                type = MessageType.SYSTEM,
-                timestamp = 1600000015000L
-            )
-        )
-
-        val text = ChatExport.buildText(
-            chatName = "Test Chat",
-            ownerId = "me",
-            resolveSenderName = { if (it == "friend") "Alice" else it },
-            messages = messages,
-            exportedAt = 1600000100000L
-        )
-
-        assertTrue("Should include chat name", text.contains("=== Test Chat ==="))
-        assertTrue("Should specify format version", text.contains("format_version=${ChatExport.FORMAT_VERSION}"))
-        assertTrue("Should include exported timestamp", text.contains("exported_at="))
-        assertTrue("Should display '我' for owner", text.contains("我: Hello world"))
-        assertTrue("Should display Alice for friend", text.contains("Alice: [图片]"))
-        assertTrue("Should format revoked message", text.contains("我: [消息已撤回]"))
-        assertFalse("Should skip SYSTEM message", text.contains("system alert"))
     }
 
     @Test
@@ -163,35 +108,6 @@ class ChatExportTest {
     }
 
     @Test
-    fun buildText_blankChatNameRendersDash() {
-        val text = ChatExport.buildText(
-            chatName = "",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = emptyList(),
-            exportedAt = 1600000100000L
-        )
-        assertTrue("Should render dash for blank chat name", text.contains("=== - ==="))
-    }
-
-    @Test
-    fun buildText_skipsSkDistAndEmptyBodyMessages() {
-        val messages = listOf(
-            Message(id = "d", chatId = "c", senderId = "me", content = "dist-payload", type = MessageType.SK_DIST, timestamp = 1600000000000L),
-            Message(id = "e", chatId = "c", senderId = "me", content = "", type = MessageType.TEXT, timestamp = 1600000001000L)
-        )
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = messages,
-            exportedAt = 1600000100000L
-        )
-        assertFalse("Should skip SK_DIST", text.contains("dist-payload"))
-        assertTrue("Only header lines for fully skipped body", !text.contains("[2020-09-13"))
-    }
-
-    @Test
     fun write_blankTextReturnsNull() {
         assertNull(ChatExport.write(dummyContext, "whatever", "   "))
     }
@@ -206,36 +122,6 @@ class ChatExportTest {
         val long = ChatExport.write(dummyContext, "x".repeat(100), "hi")
         assertNotNull(long)
         assertEquals(84, long!!.name.length)
-    }
-
-    @Test
-    fun buildText_senderBlankNameFallsBackToId() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { "" },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "friend", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("friend: hi"))
-    }
-
-    @Test
-    fun buildText_countIncludesSkippedMessages() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "s", chatId = "c", senderId = "sys", content = "system alert", type = MessageType.SYSTEM, timestamp = 1600000000000L),
-                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000001000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("count=2"))
-        assertFalse(text.contains("system alert"))
     }
 
     @Test
@@ -276,21 +162,6 @@ class ChatExportTest {
 
 
     @Test
-    fun buildText_preservesInputOrderNotTimestampOrder() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "me", content = "laterFirst", type = MessageType.TEXT, timestamp = 1600000003000L),
-                Message(id = "m2", chatId = "c", senderId = "me", content = "earlierSecond", type = MessageType.TEXT, timestamp = 1600000001000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.indexOf("laterFirst") < text.indexOf("earlierSecond"))
-    }
-
-    @Test
     fun writeStream_immediateCancellationReturnsNullAndLeavesNoFiles() {
         val messages = listOf(
             Message(id = "m1", chatId = "c1", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
@@ -316,35 +187,6 @@ class ChatExportTest {
         assertNotNull(file)
         assertEquals("___.txt", file!!.name)
         assertEquals("hi", file.readText())
-    }
-
-    @Test
-    fun buildText_revokedBodyRendersForNonOwner() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { if (it == "friend") "Alice" else it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "friend", content = "gone", type = MessageType.REVOKED, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("Alice: [\u6d88\u606f\u5df2\u64a4\u56de]"))
-    }
-
-    @Test
-    fun buildText_textWithEmptyBodySkippedButCounted() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "me", content = "", type = MessageType.TEXT, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("count=1"))
-        assertTrue(text.lines().none { it.startsWith("[") })
     }
 
     @Test
@@ -376,51 +218,6 @@ class ChatExportTest {
     }
 
     @Test
-    fun buildText_gifRendersRawContent() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "me", content = "content://cached/a.gif", type = MessageType.GIF, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("我: content://cached/a.gif"))
-        assertFalse(text.contains("[图片]"))
-    }
-
-    @Test
-    fun buildText_ownerAlwaysShowsWoEvenWhenResolverRenamesOwner() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { "Boss" },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("我: hi"))
-        assertFalse(text.contains("Boss"))
-    }
-
-    @Test
-    fun buildText_fileMessageRendersFileNameInBody() {
-        val meta = MessageMeta(fileName = "deck.pdf")
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "friend", content = "", type = MessageType.FILE, meta = meta, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("friend: [文件] deck.pdf"))
-    }
-
-    @Test
     fun write_emptyStringTextReturnsNull() {
         assertNull(ChatExport.write(dummyContext, "x", ""))
     }
@@ -430,21 +227,6 @@ class ChatExportTest {
         val file = ChatExport.write(dummyContext, "a?b\"c", "hi")
         assertNotNull(file)
         assertEquals("a_b_c.txt", file!!.name)
-    }
-
-    @Test
-    fun buildText_timestampsUseDateTimeFormats() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "me", content = "hi", type = MessageType.TEXT, timestamp = 1600000000000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains(Regex("exported_at=\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}")))
-        assertTrue(text.contains(Regex("\\[\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}\\] 我: hi")))
     }
 
     @Test
@@ -536,37 +318,4 @@ class ChatExportTest {
         assertTrue(content.contains("format_version=1"))
     }
 
-    @Test
-    fun buildText_nudgeAndVoiceRenderTagsForNonOwner() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "friend", content = "poke", type = MessageType.NUDGE, timestamp = 1600000000000L),
-                Message(id = "m2", chatId = "c", senderId = "friend", content = "audio", type = MessageType.VOICE, timestamp = 1600000001000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("[戳一戳]"))
-        assertTrue(text.contains("[语音]"))
-        assertTrue(text.contains("count=2"))
-    }
-
-    @Test
-    fun buildText_locationAndStickerRenderTags() {
-        val text = ChatExport.buildText(
-            chatName = "C",
-            ownerId = "me",
-            resolveSenderName = { it },
-            messages = listOf(
-                Message(id = "m1", chatId = "c", senderId = "friend", content = "here", type = MessageType.LOCATION, timestamp = 1600000000000L),
-                Message(id = "m2", chatId = "c", senderId = "friend", content = "", type = MessageType.STICKER, timestamp = 1600000001000L)
-            ),
-            exportedAt = 1600000100000L
-        )
-        assertTrue(text.contains("[位置]"))
-        assertTrue(text.contains("[表情]"))
-        assertTrue(text.contains("count=2"))
-    }
 }

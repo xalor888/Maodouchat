@@ -10,8 +10,8 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.semanticSearchText
 import com.maodouchat.core.model.ChatListPreviewPolicy
+import com.maodouchat.domain.messaging.MessageSearchContentHash
 import com.maodouchat.domain.messaging.MessageSearchTokenizer
-import java.security.MessageDigest
 
 class MessageSearchRepository(private val database: AppDatabase) {
     private val messageDao = database.messageDao()
@@ -53,7 +53,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
     suspend fun refreshIndex(): Int {
         // 删除已不存在/不可搜索消息的孤儿索引：SQL 子查询批量清理，
         // 不再把完整消息 ID 集合载入内存（大库 OOM 风险）。
-        searchDao.deleteDocumentsNotInSearchableTypes(SEARCHABLE_TYPES.map { it.name })
+        searchDao.deleteDocumentsNotInSearchableTypes(MessageSearchContentHash.SEARCHABLE_TYPES.map { it.name })
 
         // 分批建索引，避免一次性把全部实体载入内存（超大历史 OOM）。
         // 游标分页：以上一批最后一条的 (timestamp, id) 为游标，稳定且不受并发插入影响。
@@ -104,7 +104,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
             return knownFingerprint != null
         }
         // REVOKED/SK_DIST must drop any prior index even if the caller only re-indexes.
-        if (message.type !in SEARCHABLE_TYPES) {
+        if (message.type !in MessageSearchContentHash.SEARCHABLE_TYPES) {
             if (message.type == MessageType.REVOKED || message.type == MessageType.SK_DIST) {
                 searchDao.deleteDocument(message.id)
                 return knownFingerprint != null
@@ -118,7 +118,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
         }
         // Never index ciphertext / multi-device JSON as searchable body.
         if (ChatListPreviewPolicy.looksLikeWireEnvelope(text)) return false
-        val hash = contentHash(message.chatId, message.senderId, message.timestamp, text)
+        val hash = MessageSearchContentHash.contentHash(message.chatId, message.senderId, message.timestamp, text)
         val previous = knownFingerprint ?: searchDao.getFingerprint(message.id)
         if (previous?.contentHash == hash && previous.messageType == message.type.name) return false
         val document = MessageSearchDocumentEntity(
@@ -169,32 +169,11 @@ class MessageSearchRepository(private val database: AppDatabase) {
         )
     }
 
-    private fun contentHash(chatId: String, senderId: String, timestamp: Long, text: String): String {
-        val bytes = "$chatId\u0000$senderId\u0000$timestamp\u0000$text".toByteArray(Charsets.UTF_8)
-        return sha256Digest.get().digest(bytes)
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-    }
-
     private companion object {
-        // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
-        val sha256Digest: ThreadLocal<MessageDigest> =
-            ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
         /** 文档数与消息数偏差超过此比例或最小绝对值即触发全量重建（8.31 F18）。 */
         const val STALE_DRIFT_RATIO = 0.1
         const val MIN_STALE_DRIFT = 50
         const val MAX_DOCUMENT_CHARS = 10_000
         const val MAX_QUERY_TOKENS = 48
-        val SEARCHABLE_TYPES = setOf(
-            MessageType.TEXT,
-            MessageType.MARKDOWN,
-            MessageType.VOICE,
-            MessageType.LOCATION,
-            MessageType.NUDGE,
-            MessageType.IMAGE,
-            MessageType.GIF,
-            MessageType.STICKER,
-            MessageType.VIDEO,
-            MessageType.FILE
-        )
     }
 }
