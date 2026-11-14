@@ -4,9 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ChatExportBody
-import com.maodouchat.domain.messaging.formatAiTaskDue
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -22,7 +20,7 @@ object ChatExport {
         ThreadLocal.withInitial { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
 
     const val MAX_MESSAGES = 2000
-    const val FORMAT_VERSION = 1
+    const val FORMAT_VERSION = ChatExportBody.FORMAT_VERSION
 
     /**
      * 渲染导出文本。ownerId 用「我」标注本人；senderName 由调用方解析（群内显示成员名）。
@@ -34,22 +32,13 @@ object ChatExport {
         resolveSenderName: (senderId: String) -> String,
         messages: List<Message>,
         exportedAt: Long = System.currentTimeMillis()
-    ): String {
-        val sb = StringBuilder()
-        sb.append("=== ").append(chatName.ifBlank { "-" }).append(" ===\n")
-        sb.append("format_version=").append(FORMAT_VERSION).append("\n")
-        sb.append("exported_at=").append(headerTimeFormat.get().format(Date(exportedAt))).append("\n")
-        sb.append("count=").append(messages.size).append("\n\n")
-        messages.forEach { m ->
-            if (m.type == MessageType.SYSTEM || m.type == MessageType.SK_DIST) return@forEach
-            val sender = if (m.senderId == ownerId) "我" else resolveSenderName(m.senderId)
-            val body = ChatExportBody.renderBody(m)
-            if (body.isEmpty()) return@forEach
-            sb.append("[").append(formatAiTaskDue(m.timestamp)).append("] ")
-                .append(sender.ifBlank { m.senderId }).append(": ").append(body).append("\n")
-        }
-        return sb.toString()
-    }
+    ): String = ChatExportBody.buildText(
+        chatName = chatName,
+        ownerId = ownerId,
+        resolveSenderName = resolveSenderName,
+        messages = messages,
+        exportedAtText = headerTimeFormat.get().format(Date(exportedAt)),
+    )
 
     /** 写入 cacheDir/exports 下的 txt 文件，返回 File 供分享。失败返回 null。 */
     fun write(context: Context, fileName: String, text: String): File? {
@@ -97,11 +86,7 @@ object ChatExport {
                         cancelled = true
                         break
                     }
-                    if (m.type == MessageType.SYSTEM || m.type == MessageType.SK_DIST) continue
-                    val sender = if (m.senderId == ownerId) "我" else resolveSenderName(m.senderId)
-                    val body = ChatExportBody.renderBody(m)
-                    if (body.isEmpty()) continue
-                    writer.write("[${formatAiTaskDue(m.timestamp)}] ${sender.ifBlank { m.senderId }}: $body\n")
+                    ChatExportBody.formatLine(m, ownerId, resolveSenderName)?.let { writer.write("$it\n") }
                 }
             }
 
