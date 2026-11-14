@@ -10,6 +10,7 @@ import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.conversation.CapturePathPolicy
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable
@@ -27,7 +28,7 @@ internal fun ChatDetailScreenshotGuards(
         if (!captureGuardActive) return@LaunchedEffect
         // 密聊必须始终启动检测器：FLAG_SECURE 挡住系统截屏时不会有 MediaStore 事件，
         // 检测器只覆盖 OEM / adb / 外置相机等绕过。SCREENSHOT_DETECT 只闸非密聊阅后即焚。
-        val detectEnabled = com.maodouchat.security.ScreenshotDetector.shouldStart(
+        val detectEnabled = CapturePathPolicy.shouldStart(
             secretActive = secretActive,
             screenshotDetectFlag = RuntimeFlags.isEnabled(context, RuntimeFlags.SCREENSHOT_DETECT)
         )

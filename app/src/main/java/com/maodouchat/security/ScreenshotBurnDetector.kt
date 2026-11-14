@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
+import com.maodouchat.domain.conversation.CapturePathPolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.SecretScreenshotBurnPrefs
 import java.util.concurrent.atomic.AtomicLong
@@ -137,7 +138,7 @@ class ScreenshotBurnDetector(
             val path = if (pathIdx >= 0) cursor.getString(pathIdx).orEmpty() else ""
             val nameIdx = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
             val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
-            if (ScreenshotDetector.isScreenshotPath(path, name)) burnAll()
+            if (CapturePathPolicy.isScreenshotPath(path, name)) burnAll()
         }
     }
 
@@ -173,7 +174,7 @@ class ScreenshotBurnDetector(
             val path = if (pathIdx >= 0) cursor.getString(pathIdx).orEmpty() else ""
             val nameIdx = cursor.getColumnIndex(MediaStore.Video.Media.DISPLAY_NAME)
             val name = if (nameIdx >= 0) cursor.getString(nameIdx).orEmpty() else ""
-            if (ScreenshotDetector.isScreenRecordPath(path, name)) burnAll()
+            if (CapturePathPolicy.isScreenRecordPath(path, name)) burnAll()
         }
     }
 
