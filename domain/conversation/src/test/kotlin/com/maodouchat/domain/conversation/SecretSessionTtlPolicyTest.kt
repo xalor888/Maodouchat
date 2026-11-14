@@ -1,14 +1,14 @@
-package com.maodouchat.security
+package com.maodouchat.domain.conversation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class SecretSessionTtlTest {
+class SecretSessionTtlPolicyTest {
 
     @Test
     fun unknownLastActivityFailsClosedToExpired() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 86_400L,
             lastActivityAt = 0L,
             nowMs = 1_000_000L,
@@ -18,7 +18,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun negativeLastActivityFailsClosedToExpired() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 86_400L,
             lastActivityAt = -1L,
             nowMs = 1_000_000L,
@@ -28,7 +28,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun activeSessionStillExpiresByTtl() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_000_000L,
@@ -38,7 +38,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun exactBoundaryCountsAsExpired() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_060_000L,
@@ -48,7 +48,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun partialRemainingIsReported() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_030_000L,
@@ -58,7 +58,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun zeroTtlExpiresImmediately() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 0L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_000_000L,
@@ -69,7 +69,7 @@ class SecretSessionTtlTest {
     @Test
     fun futureLastActivityYieldsMoreThanTtl() {
         // 时钟回拨/活动时间超前不做钳制：剩余按公式原样算。
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 2_000_000L,
             nowMs = 1_000_000L,
@@ -79,7 +79,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun subSecondRemainderIsTruncated() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_000_500L,
@@ -89,7 +89,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun negativeTtlExpiresImmediately() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = -60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_000_000L,
@@ -100,7 +100,7 @@ class SecretSessionTtlTest {
     @Test
     fun oneMillisecondPastExpiryTruncatesToZero() {
         // 整数除法向零截断：-1ms 的剩余按 0 算，仍满足 isExpired 的 <=0 判定。
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_060_001L,
@@ -110,7 +110,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun oneSecondPastExpiryReportsNegativeOne() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_061_000L,
@@ -121,7 +121,7 @@ class SecretSessionTtlTest {
     @Test
     fun tinyPositiveLastActivityUsesFormulaNotFailClosed() {
         // fail-closed 只认 <=0；1ms 的活动时间照公式算，不走快速过期分支。
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 60L,
             lastActivityAt = 1L,
             nowMs = 1_000_000L,
@@ -131,7 +131,7 @@ class SecretSessionTtlTest {
 
     @Test
     fun largeTtlHasNoOverflow() {
-        val remaining = SecretSessionTtl.remainingSecondsFor(
+        val remaining = SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = 315_360_000L,
             lastActivityAt = 1_000_000L,
             nowMs = 1_000_000L,
