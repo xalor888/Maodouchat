@@ -1,6 +1,7 @@
 package com.maodouchat.security
 
 import android.content.Context
+import com.maodouchat.domain.conversation.SecretSessionTtlPolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.SecretAutoDestroyPrefs
 
@@ -24,18 +25,13 @@ object SecretSessionTtl {
     fun remainingSeconds(context: Context, chatId: String, lastActivityAt: Long): Long {
         if (chatId.isBlank()) return Long.MAX_VALUE
         if (!SecretAutoDestroyPrefs.isEnabled(context)) return Long.MAX_VALUE
-        return remainingSecondsFor(
+        return SecretSessionTtlPolicy.remainingSecondsFor(
             ttlSeconds = SecretAutoDestroyPrefs.ttlSeconds(context),
             lastActivityAt = lastActivityAt,
             nowMs = System.currentTimeMillis(),
         )
     }
 
-    /** 纯计算：活动时间未知（<=0）时 fail-closed，按已过期处理。 */
-    internal fun remainingSecondsFor(ttlSeconds: Long, lastActivityAt: Long, nowMs: Long): Long {
-        if (lastActivityAt <= 0L) return 0L
-        return (lastActivityAt + ttlSeconds * 1000L - nowMs) / 1000L
-    }
 
     fun isExpired(context: Context, chatId: String, lastActivityAt: Long): Boolean =
         remainingSeconds(context, chatId, lastActivityAt) <= 0L
