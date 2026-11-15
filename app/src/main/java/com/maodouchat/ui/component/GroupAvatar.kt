@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.maodouchat.core.model.GroupParticipant
+import com.maodouchat.domain.contacts.AvatarDisplayPolicy
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -248,10 +249,8 @@ private fun StaggeredAvatarCell(
                     .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
             )
         } else {
-            val initial = participant.name.firstOrNull()?.toString() ?: "?"
-            val gradientIndex = (participant.name.hashCode().mod(AvatarGradients.size)).let {
-                if (it < 0) it + AvatarGradients.size else it
-            }
+            val initial = AvatarDisplayPolicy.initial(participant.name)
+            val gradientIndex = AvatarDisplayPolicy.gradientIndex(participant.name, AvatarGradients.size)
             val gradient = AvatarGradients[gradientIndex]
             Box(
                 contentAlignment = Alignment.Center,
