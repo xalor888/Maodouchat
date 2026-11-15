@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable
@@ -19,7 +20,7 @@ internal fun ChatDetailMessageArrivalEffects(
     LaunchedEffect(com.maodouchat.util.VoicePlayer.lastCompletedId) {
         val completed = com.maodouchat.util.VoicePlayer.lastCompletedId ?: return@LaunchedEffect
         val voiceMessages = state.messages.filter { it.type == MessageType.VOICE }
-        val completedMsg = voiceMessages.firstOrNull { it.id == completed } ?: return@LaunchedEffect
+        val completedMsg = MessageLookupPolicy.findById(voiceMessages, completed) ?: return@LaunchedEffect
         val next = voiceMessages
             .filter { m -> m.timestamp > completedMsg.timestamp || (m.timestamp == completedMsg.timestamp && m.id > completedMsg.id) }
             .minByOrNull { it.timestamp }

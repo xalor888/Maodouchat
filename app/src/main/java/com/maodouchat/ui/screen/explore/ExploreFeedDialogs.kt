@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ExplorePostLookupPolicy
 import com.maodouchat.session.CurrentSession
 
 @Composable
@@ -51,7 +52,7 @@ internal fun ExploreFeedDialogs(
             onOpenAuthor = { onOpenAuthor(it) },
             // 1.199：楼主（动态作者）徽章
             postAuthorId = uiState.detailPost?.author?.id
-                ?: uiState.posts.firstOrNull { it.id == selectedPostId }?.author?.id,
+                ?: ExplorePostLookupPolicy.findById(uiState.posts, selectedPostId)?.author?.id,
             // 1.246：举报评论
             onReportComment = viewModel::reportComment
         )

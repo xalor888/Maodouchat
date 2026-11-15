@@ -67,6 +67,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ExploreFeedPolicy
+import com.maodouchat.domain.conversation.ExplorePostLookupPolicy
 import com.maodouchat.domain.conversation.ExploreSearchPolicy
 import com.maodouchat.domain.conversation.ExploreShareTextPolicy
 import androidx.compose.runtime.getValue
@@ -144,7 +145,7 @@ fun PostDetailScreen(
     val comments = state.comments
     val isLoading = state.isCommentsLoading
     val post = state.detailPost?.takeIf { it.id == postId }
-        ?: state.posts.firstOrNull { it.id == postId }
+        ?: ExplorePostLookupPolicy.findById(state.posts, postId)
 
     Scaffold(
         topBar = {
@@ -469,4 +470,3 @@ fun PostDetailScreen(
         )
     }
 }
-
