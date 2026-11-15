@@ -32,6 +32,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageTimelineGroupingPolicy
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ReadReceiptPolicy
@@ -185,8 +186,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
         // 消息在 index+1，本项 top padding 即与它的间隙
         val prevItem = allItems.getOrNull(index + 1)
         val groupedWithPrev = prevItem is ChatItem.Msg &&
-            prevItem.message.senderId == message.senderId &&
-            kotlin.math.abs(message.timestamp - prevItem.message.timestamp) < 6L * 60L * 1000L
+            MessageTimelineGroupingPolicy.isGroupedWithPrevious(message, prevItem.message)
         Column(Modifier.fillMaxWidth().padding(top = if (groupedWithPrev) 0.dp else 5.dp)) {
         ChatMessageRow(
             state = ChatMessageRowState(
