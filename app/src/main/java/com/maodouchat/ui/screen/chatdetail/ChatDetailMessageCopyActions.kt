@@ -14,6 +14,7 @@ import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
+import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MessageShareMimePolicy
 import com.maodouchat.util.RuntimeFlags
@@ -154,7 +155,7 @@ internal fun ChatDetailMessageCopyActions(
             ) { Text(stringResource(R.string.chat_copy_plain), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
         }
         // 1.84：名片消息复制干净文本（不含 [contactUser:...] 标记）
-        if (message.parsedContent().contains("[contactUser:")) {
+        if (ContactCardMarkerPolicy.containsMarker(message.parsedContent())) {
             TextButton(
                 onClick = {
                     val clean = ChatMarkdown.stripContactCardMarker(message.parsedContent()).trim()
