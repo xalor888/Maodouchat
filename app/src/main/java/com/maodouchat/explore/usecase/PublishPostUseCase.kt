@@ -4,6 +4,7 @@ import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.core.model.PublishPostValidation
 import com.maodouchat.core.model.PostVisibilityPolicy
+import com.maodouchat.domain.conversation.PublishPostValidationPolicy
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.MediaUploadQueue
 import com.maodouchat.explore.repository.PostMutationRepository
@@ -14,16 +15,8 @@ class PublishPostUseCase(
     private val draftRepository: DraftRepository,
     private val uploadQueue: MediaUploadQueue
 ) {
-    fun validate(content: String, imageUrls: List<String>): PublishPostValidation {
-        val trimmed = content.trim()
-        if (trimmed.isEmpty() && imageUrls.isEmpty()) {
-            return PublishPostValidation.Invalid("Post content or image cannot be empty")
-        }
-        if (trimmed.length > 5000) {
-            return PublishPostValidation.Invalid("Post content exceeds 5000 characters")
-        }
-        return PublishPostValidation.Valid
-    }
+    fun validate(content: String, imageUrls: List<String>): PublishPostValidation =
+        PublishPostValidationPolicy.validate(content, imageUrls)
 
     suspend fun publish(
         ownerUserId: String,
