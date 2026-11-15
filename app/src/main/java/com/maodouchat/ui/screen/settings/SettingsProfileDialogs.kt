@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.CustomStatusPolicy
+import com.maodouchat.domain.contacts.UsernamePolicy
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -146,7 +147,7 @@ internal fun UsernameEditorDialog(
                     ),
                     supportingText = {
                         Text(
-                            "${username.length}/50",
+                            "${username.length}/${UsernamePolicy.MAX_LENGTH}",
                             color = if (username.length > 45) MaterialTheme.colorScheme.error else LocalChatPalette.current.textSecondary,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -163,12 +164,12 @@ internal fun UsernameEditorDialog(
                         com.maodouchat.network.ApiConfig.BASE_URL.removePrefix("https://").removePrefix("http://").trimEnd('/') + "/u/" + username
                     ),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (username.length >= 3) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
+                    color = if (username.length >= UsernamePolicy.MIN_LENGTH) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = onSave, enabled = username.length >= 3 && !isSaving) {
+            TextButton(onClick = onSave, enabled = username.length >= UsernamePolicy.MIN_LENGTH && !isSaving) {
                 if (isSaving) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 } else {
