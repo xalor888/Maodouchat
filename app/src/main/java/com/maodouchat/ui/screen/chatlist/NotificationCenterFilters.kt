@@ -15,6 +15,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.NotifFilter
+import com.maodouchat.domain.conversation.ExploreRelativeTimeBucket
+import com.maodouchat.domain.conversation.relativeTimeBucket
 import com.maodouchat.domain.messaging.StringBucket
 
 @Composable
@@ -68,13 +70,18 @@ fun StringBucket.displayLabel(): String = when (this) {
     StringBucket.EARLIER -> stringResource(R.string.notif_center_bucket_earlier)
 }
 
+// 分桶判定已迁入 :domain:conversation（relativeTimeBucket，与 Explore 侧同源同阈值）；
+// 本函数只留 R.string 映射壳。
 @Composable
 internal fun notifRelativeTime(timestamp: Long): String {
     val diff = System.currentTimeMillis() - timestamp
-    return when {
-        diff < 60_000 -> stringResource(R.string.time_just_now)
-        diff < 3600_000 -> stringResource(R.string.notif_center_minutes_ago, (diff / 60_000).toInt())
-        diff < 86_400_000 -> stringResource(R.string.notif_center_hours_ago, (diff / 3600_000).toInt())
-        else -> stringResource(R.string.notif_center_days_ago, (diff / 86_400_000).toInt())
+    return when (val bucket = relativeTimeBucket(diff)) {
+        ExploreRelativeTimeBucket.JustNow -> stringResource(R.string.time_just_now)
+        is ExploreRelativeTimeBucket.Minutes ->
+            stringResource(R.string.notif_center_minutes_ago, bucket.count)
+        is ExploreRelativeTimeBucket.Hours ->
+            stringResource(R.string.notif_center_hours_ago, bucket.count)
+        is ExploreRelativeTimeBucket.Days ->
+            stringResource(R.string.notif_center_days_ago, bucket.count)
     }
 }
