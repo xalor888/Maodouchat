@@ -32,8 +32,8 @@ interface GroupNetworkGateway {
         token: String,
         chatId: String,
         rotate: Boolean = false,
-        expiresInSeconds: Long = 7L * 24L * 60L * 60L,
-        maxUses: Int = 100,
+        expiresInSeconds: Long = GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS,
+        maxUses: Int = GroupInvitePolicy.DEFAULT_MAX_USES,
     ): Result<GroupInviteResponse>
     suspend fun getGroupAudit(token: String, chatId: String, limit: Int = 50, offset: Int = 0): Result<List<GroupAuditLogDto>>
     suspend fun listBots(token: String): Result<String>

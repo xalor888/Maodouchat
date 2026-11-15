@@ -23,7 +23,7 @@ class GroupInviteLoadController(
     private val ownerUserId: () -> String,
     private val pendingRetrySet: ((() -> Unit)?) -> Unit,
 ) {
-    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) {
+    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS, maxUses: Int = GroupInvitePolicy.DEFAULT_MAX_USES) {
         if (!invitesEnabled()) {
             return
         }
