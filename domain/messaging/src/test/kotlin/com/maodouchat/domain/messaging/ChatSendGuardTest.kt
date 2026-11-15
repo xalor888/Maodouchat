@@ -192,6 +192,27 @@ class ChatSendGuardTest {
         assertIs<SendDecision.Allow>(result, "角色未加载时必须 fail-open，否则刚进群的管理员被误拦")
     }
 
+    // ─── canMentionEveryone（抽出后的独立判定，发送守卫与输入框共用）───
+
+    @Test
+    fun `mentioning everyone is always allowed outside a group`() {
+        assertTrue(ChatSendGuard.canMentionEveryone("MEMBER", false))
+        assertTrue(ChatSendGuard.canMentionEveryone(null, false))
+    }
+
+    @Test
+    fun `mentioning everyone in a group allows owner admin and unloaded role`() {
+        assertTrue(ChatSendGuard.canMentionEveryone("OWNER", true))
+        assertTrue(ChatSendGuard.canMentionEveryone("ADMIN", true))
+        assertTrue(ChatSendGuard.canMentionEveryone("admin", true))
+        assertTrue(ChatSendGuard.canMentionEveryone(null, true))
+    }
+
+    @Test
+    fun `mentioning everyone in a group rejects a plain member`() {
+        assertFalse(ChatSendGuard.canMentionEveryone("MEMBER", true))
+    }
+
     @Test
     fun `mentions are ignored entirely when the feature flag is off`() {
         val result = ChatSendGuard.checkSend(

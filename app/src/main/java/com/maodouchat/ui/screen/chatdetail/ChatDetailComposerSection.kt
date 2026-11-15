@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatSendGuard
 
 /**
  * G355：输入区（`ComposerPane`）的接线从 `ChatDetailRoute.kt` 抽出（纯搬移不改判断）——
@@ -200,11 +201,8 @@ internal fun ChatDetailComposerSection(
         onSendNudge = { viewModel.sendNudge() },
         mentionParticipants = state.chat?.participants.orEmpty(),
         currentUserId = state.currentUserId,
-        // 1.37：仅群主/管理员可选「@所有人」（1.45：角色未加载时 fail-open 避免误拦管理员）
-        canMentionEveryone = !state.chatIsGroup || run {
-            val role = state.myMemberRole?.uppercase()
-            role == null || role == "OWNER" || role == "ADMIN"
-        },
+        // 1.37：仅群主/管理员可选「@所有人」，与发送守卫共用同一判定
+        canMentionEveryone = ChatSendGuard.canMentionEveryone(state.myMemberRole, state.chatIsGroup),
         silentSend = state.silentSend,
         onToggleSilentSend = viewModel::toggleSilentSend,
         isSending = state.isSending,
