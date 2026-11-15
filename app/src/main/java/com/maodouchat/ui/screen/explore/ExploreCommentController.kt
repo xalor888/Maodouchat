@@ -8,6 +8,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.core.model.ExplorePaging
+import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.security.BackgroundSessionGate
@@ -281,10 +282,7 @@ internal class ExploreCommentController(
                 onSuccess = {},
                 onFailure = { error ->
                     updateState { state ->
-                        val restored = state.comments.toMutableList().apply {
-                            val idx = originalIndex.coerceIn(0, size)
-                            add(idx, comment)
-                        }
+                        val restored = ExploreDeleteRollbackPolicy.restore(state.comments, comment, originalIndex)
                         state.copy(
                             comments = restored,
                             posts = ExploreFeedPolicy.incrementCommentCount(state.posts, postId),

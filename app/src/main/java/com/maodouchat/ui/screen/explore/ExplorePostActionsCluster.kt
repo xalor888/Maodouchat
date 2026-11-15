@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.explore
 import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
+import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
 import com.maodouchat.network.api.SocialApiClient
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -117,10 +118,7 @@ import kotlinx.coroutines.launch
                 onSuccess = {},
                 onFailure = { error ->
                     _uiState.update { state ->
-                        val restored = state.posts.toMutableList().apply {
-                            val idx = originalIndex.coerceIn(0, size)
-                            add(idx, post)
-                        }
+                        val restored = ExploreDeleteRollbackPolicy.restore(state.posts, post, originalIndex)
                         state.copy(posts = restored, errorMessage = error.message ?: text(R.string.explore_delete_failed))
                     }
                 }
