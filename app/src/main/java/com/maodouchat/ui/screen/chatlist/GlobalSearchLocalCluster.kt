@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchHit
 import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchNamePolicy
 import com.maodouchat.domain.conversation.GlobalSearchTypeFilter
 import com.maodouchat.core.model.Chat
 import kotlinx.coroutines.Dispatchers
@@ -165,24 +166,22 @@ fun GlobalSearchViewModel.toHit(document: MessageSearchDocumentEntity, score: Do
         messageId = document.messageId,
         chatName = chatName(document.chatId),
         senderName = senderName(document),
-        text = document.searchableText.replace('\n', ' ').trim(),
+        text = GlobalSearchNamePolicy.hitText(document.searchableText),
         timestamp = document.timestamp,
         semanticScore = score,
         messageType = document.messageType
     )
 }
 
-fun GlobalSearchViewModel.chatName(chatId: String): String {
-    val chat = chatsById[chatId] ?: return text(R.string.chat_unknown)
-    return if (chat.isGroup) chat.groupName?.takeIf(String::isNotBlank) ?: text(R.string.chat_group)
-    else chat.participants.firstOrNull()?.displayName?.takeIf(String::isNotBlank)
-        ?: text(R.string.chat_unknown)
-}
+fun GlobalSearchViewModel.chatName(chatId: String): String =
+    GlobalSearchNamePolicy.chatName(
+        chatsById[chatId], text(R.string.chat_unknown), text(R.string.chat_group)
+    )
 
-fun GlobalSearchViewModel.senderName(document: MessageSearchDocumentEntity): String {
-    if (document.senderId == com.maodouchat.session.CurrentSession.snapshot().userId) return text(R.string.chat_me)
-    return chatsById[document.chatId]?.participants
-        ?.firstOrNull { it.id == document.senderId }
-        ?.displayName
-        ?: document.senderId
-}
+fun GlobalSearchViewModel.senderName(document: MessageSearchDocumentEntity): String =
+    GlobalSearchNamePolicy.senderName(
+        document.senderId,
+        com.maodouchat.session.CurrentSession.snapshot().userId,
+        text(R.string.chat_me),
+        chatsById[document.chatId]?.participants.orEmpty()
+    )
