@@ -12,6 +12,8 @@ import com.maodouchat.R
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatParticipantsPolicy
+import com.maodouchat.domain.messaging.MessageReminderRemovePolicy
 
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串在回调内读取，非组合作用域；lint 无法区分（同 ChatDetailRoute）
 @Composable
@@ -146,7 +148,7 @@ internal fun ChatDetailUpperDialogHost(
             onDismiss = { schedule.closeReminderList() },
             onCancelReminder = { id ->
                 viewModel.cancelReminder(id)
-                schedule.reminderList = schedule.reminderList.filterNot { it.id == id }
+                schedule.reminderList = MessageReminderRemovePolicy.removeById(schedule.reminderList, id)
             },
             onClearAll = { chatId ->
                 viewModel.clearRemindersForChat(chatId)
@@ -314,10 +316,10 @@ internal fun ChatDetailUpperDialogHost(
 
     GroupCallTypeDialog(
         visible = groupCall.showGroupCallTypeDialog,
-        candidateCount = state.chat?.participants.orEmpty().count { it.id != state.currentUserId },
+        candidateCount = ChatParticipantsPolicy.excludingCurrentUser(state.chat?.participants.orEmpty(), state.currentUserId).size,
         onPick = { type ->
             groupCall.showGroupCallTypeDialog = false
-            val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
+            val candidates = ChatParticipantsPolicy.excludingCurrentUser(state.chat?.participants.orEmpty(), state.currentUserId)
             if (candidates.size <= GroupCallPolicy.MAX_MESH_MEMBERS - 1) {
                 viewModel.startGroupCallFromChat(type)
             } else {
