@@ -4,6 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
+import com.maodouchat.domain.conversation.ExplorePostLookupPolicy
 import com.maodouchat.domain.conversation.ExplorePostReplacePolicy
 import com.maodouchat.network.api.SocialApiClient
 import kotlinx.coroutines.flow.update
@@ -53,7 +54,7 @@ import kotlinx.coroutines.launch
     }
 
     fun ExploreOrchestrator.requestEditPost(postId: String) {
-        val post = _uiState.value.posts.firstOrNull { it.id == postId } ?: return
+        val post = ExplorePostLookupPolicy.findById(_uiState.value.posts, postId) ?: return
         _uiState.update {
             it.copy(
                 postPendingEditId = postId,
@@ -106,7 +107,7 @@ import kotlinx.coroutines.launch
 
     fun ExploreOrchestrator.confirmDeletePost() {
         val postId = _uiState.value.postPendingDeleteId ?: return
-        val post = _uiState.value.posts.firstOrNull { it.id == postId } ?: return
+        val post = ExplorePostLookupPolicy.findById(_uiState.value.posts, postId) ?: return
         _uiState.update { it.copy(postPendingDeleteId = null) }
         val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (!com.maodouchat.session.CurrentSession.hasSession() || ownerUserId.isBlank()) return
