@@ -42,12 +42,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.CheckinRankItem
 import com.maodouchat.core.model.GroupCheckinUiState
-import com.maodouchat.core.model.GroupPlayJson
+import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 
 class GroupCheckinViewModel(application: Application, savedStateHandle: SavedStateHandle) :
@@ -122,17 +121,14 @@ class GroupCheckinViewModel(application: Application, savedStateHandle: SavedSta
         }
     }
 
-    private fun parseRanking(text: String): List<CheckinRankItem> {
-        val arr = JSONArray(GroupPlayJson.arrayText(text))
-        return (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+    private fun parseRanking(text: String): List<CheckinRankItem> =
+        GroupPlayJsonPolicy.parseObjectList(text) { o ->
             CheckinRankItem(
                 userId = o.optString("userId"),
                 streak = o.optInt("streak"),
                 totalCount = o.optInt("totalCount")
             )
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

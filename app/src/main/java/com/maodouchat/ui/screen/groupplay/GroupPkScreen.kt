@@ -41,14 +41,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupPkUiState
-import com.maodouchat.core.model.GroupPlayJson
 import com.maodouchat.core.model.PkListItem
 import com.maodouchat.domain.groups.GroupPkValidationPolicy
+import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 
 class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHandle) :
@@ -150,10 +149,8 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         }
     }
 
-    private fun parseList(text: String): List<PkListItem> {
-        val arr = JSONArray(GroupPlayJson.arrayText(text))
-        return (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+    private fun parseList(text: String): List<PkListItem> =
+        GroupPlayJsonPolicy.parseObjectList(text) { o ->
             PkListItem(
                 id = o.optString("id"),
                 leftTitle = o.optString("leftTitle"),
@@ -165,7 +162,6 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
                 myChoice = o.optString("myChoice").takeIf { it.isNotBlank() }
             )
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

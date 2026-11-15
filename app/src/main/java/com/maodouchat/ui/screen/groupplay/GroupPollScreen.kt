@@ -46,18 +46,17 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupPlayJson
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.GroupPollPolicy
 import com.maodouchat.core.model.GroupPollUiState
 import com.maodouchat.core.model.PollListItem
 import com.maodouchat.domain.groups.GroupPlayErrorPolicy
+import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 
 class GroupPollViewModel(application: Application, savedStateHandle: SavedStateHandle) :
@@ -196,32 +195,20 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
         }
     }
 
-    private fun parsePolls(text: String): List<PollListItem> {
-        val arr = JSONArray(GroupPlayJson.arrayText(text))
-        return (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val options = o.optJSONArray("options")?.let { ja ->
-                (0 until ja.length()).map { ja.optString(it) }
-            }.orEmpty()
-            val counts = o.optJSONArray("counts")?.let { ja ->
-                (0 until ja.length()).map { ja.optInt(it) }
-            }.orEmpty()
-            val myVotes = o.optJSONArray("myVotes")?.let { ja ->
-                (0 until ja.length()).map { ja.optInt(it) }
-            }.orEmpty()
+    private fun parsePolls(text: String): List<PollListItem> =
+        GroupPlayJsonPolicy.parseObjectList(text) { o ->
             PollListItem(
                 id = o.optString("id"),
                 question = o.optString("question"),
-                options = options,
+                options = GroupPlayJsonPolicy.stringList(o.optJSONArray("options")),
                 multi = o.optBoolean("multi"),
                 anonymous = o.optBoolean("anonymous"),
                 closed = o.optBoolean("closed"),
-                counts = counts,
+                counts = GroupPlayJsonPolicy.intList(o.optJSONArray("counts")),
                 totalVoters = o.optInt("totalVoters"),
-                myVotes = myVotes
+                myVotes = GroupPlayJsonPolicy.intList(o.optJSONArray("myVotes"))
             )
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
