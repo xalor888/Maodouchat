@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
+import com.maodouchat.domain.groups.GroupNamePolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：群组/会话写操作（创建单聊与群/改名/公告/成员管理/解散）。
@@ -18,7 +19,7 @@ internal object AgentGroupWriteTools {
         }
 
         internal suspend fun createGroup(app: MaodouchatApp, name: String, memberIds: String): String {
-            val groupName = name.trim().take(50)
+            val groupName = GroupNamePolicy.normalize(name)
             val members = ids(memberIds)
             if (groupName.isBlank() || members.isEmpty()) return "Error: name and memberIds required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
@@ -27,7 +28,7 @@ internal object AgentGroupWriteTools {
         }
 
         internal suspend fun renameGroup(app: MaodouchatApp, chatId: String, name: String): String {
-            val groupName = name.trim().take(50)
+            val groupName = GroupNamePolicy.normalize(name)
             if (chatId.isBlank() || groupName.isBlank()) return "Error: chatId and name required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.renameGroup(token, chatId, groupName).getOrElse { return AgentToolHost.fail(it) }

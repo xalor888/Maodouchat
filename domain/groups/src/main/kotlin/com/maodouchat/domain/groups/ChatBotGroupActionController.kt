@@ -78,12 +78,12 @@ class ChatBotGroupActionController(
     fun renameGroup(newName: String) {
         if (currentState().isUpdatingGroup) return
         val chat = currentState().chat ?: return
-        val trimmed = newName.trim()
         if (!chat.isGroup) return
-        if (trimmed.isBlank() || trimmed.length > 50) {
+        if (GroupNamePolicy.validate(newName) != GroupNamePolicy.Validation.Valid) {
             warn(BotGroupActionMessage.GROUP_NAME_LENGTH)
             return
         }
+        val trimmed = GroupNamePolicy.normalize(newName)
         mutateGroup(
             chat = chat,
             successMessage = string(BotGroupActionMessage.GROUP_NAME_UPDATED),
