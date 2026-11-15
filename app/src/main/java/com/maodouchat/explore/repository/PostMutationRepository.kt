@@ -10,6 +10,7 @@ import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostMutationJournal
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.network.SocialApi
+import com.maodouchat.domain.conversation.ExploreLikeTogglePolicy
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.security.BackgroundSessionGate
 
@@ -118,9 +119,8 @@ class DefaultPostMutationRepository(
         }
 
         val wasLiked = post.likedByMe
-        val newLiked = !wasLiked
-        val newCount = (post.likeCount + if (newLiked) 1 else -1).coerceAtLeast(0)
-        val optimisticPost = post.copy(likedByMe = newLiked, likeCount = newCount)
+        val toggled = ExploreLikeTogglePolicy.toggle(post.likeCount, wasLiked)
+        val optimisticPost = post.copy(likedByMe = toggled.likedByMe, likeCount = toggled.likeCount)
 
         val entry = JournalEntry(
             type = MutationType.LIKE_POST,
@@ -168,9 +168,8 @@ class DefaultPostMutationRepository(
         }
 
         val wasLiked = comment.likedByMe
-        val newLiked = !wasLiked
-        val newCount = (comment.likeCount + if (newLiked) 1 else -1).coerceAtLeast(0)
-        val optimisticComment = comment.copy(likedByMe = newLiked, likeCount = newCount)
+        val toggled = ExploreLikeTogglePolicy.toggle(comment.likeCount, wasLiked)
+        val optimisticComment = comment.copy(likedByMe = toggled.likedByMe, likeCount = toggled.likeCount)
 
         val entry = JournalEntry(
             type = MutationType.LIKE_COMMENT,
@@ -194,7 +193,7 @@ class DefaultPostMutationRepository(
         return if (apiResult.isSuccess) {
             journal.commit(entry.id)
             val resp = apiResult.getOrThrow()
-            val isNowLiked = if (resp.status.isNotBlank()) resp.status == "LIKED" else newLiked
+            val isNowLiked = if (resp.status.isNotBlank()) resp.status == "LIKED" else toggled.likedByMe
             val finalComment = comment.copy(likedByMe = isNowLiked, likeCount = resp.likeCount)
             Result.success(finalComment)
         } else {
