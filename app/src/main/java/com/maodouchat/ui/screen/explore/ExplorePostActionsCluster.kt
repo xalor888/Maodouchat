@@ -4,6 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
 import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
+import com.maodouchat.domain.conversation.ExplorePostReplacePolicy
 import com.maodouchat.network.api.SocialApiClient
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -163,7 +164,7 @@ import kotlinx.coroutines.launch
     private fun ExploreOrchestrator.updatePost(post: PostDto) {
         _uiState.update { state ->
             state.copy(
-                posts = state.posts.map { if (it.id == post.id) post else it },
+                posts = ExplorePostReplacePolicy.replace(state.posts, post.id, post),
                 detailPost = state.detailPost?.takeIf { it.id == post.id }?.let { post }
             )
         }

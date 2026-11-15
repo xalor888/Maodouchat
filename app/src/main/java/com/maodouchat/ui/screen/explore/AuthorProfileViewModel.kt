@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.domain.conversation.ExploreLikeTogglePolicy
+import com.maodouchat.domain.conversation.ExplorePostReplacePolicy
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.data.repository.ModerationNetworkRepository
 import com.maodouchat.data.repository.PostNetworkRepository
@@ -273,7 +274,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         )
         _uiState.update { state ->
             state.copy(
-                posts = state.posts.map { if (it.id == post.id) optimistic else it },
+                posts = ExplorePostReplacePolicy.replace(state.posts, post.id, optimistic),
                 updatingPostIds = state.updatingPostIds + post.id,
                 errorMessage = null
             )
@@ -286,7 +287,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 ) {
                     _uiState.update { state ->
                         state.copy(
-                            posts = state.posts.map { if (it.id == post.id) currentPost else it },
+                            posts = ExplorePostReplacePolicy.replace(state.posts, post.id, currentPost),
                             updatingPostIds = state.updatingPostIds - post.id
                         )
                     }
@@ -305,7 +306,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         if (loadGeneration == generation) {
                             _uiState.update { state ->
                                 state.copy(
-                                    posts = state.posts.map { if (it.id == updated.id) updated else it },
+                                    posts = ExplorePostReplacePolicy.replace(state.posts, updated.id, updated),
                                     updatingPostIds = state.updatingPostIds - post.id
                                 )
                             }
@@ -315,7 +316,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                         if (loadGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == likeOwnerUserId) {
                             _uiState.update { state ->
                                 state.copy(
-                                    posts = state.posts.map { if (it.id == post.id) currentPost else it },
+                                    posts = ExplorePostReplacePolicy.replace(state.posts, post.id, currentPost),
                                     updatingPostIds = state.updatingPostIds - post.id,
                                     errorMessage = error.message ?: text(R.string.explore_like_failed)
                                 )
@@ -327,7 +328,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
                 if (loadGeneration == generation) {
                     _uiState.update { state ->
                         state.copy(
-                            posts = state.posts.map { if (it.id == post.id) currentPost else it },
+                            posts = ExplorePostReplacePolicy.replace(state.posts, post.id, currentPost),
                             updatingPostIds = state.updatingPostIds - post.id
                         )
                     }

@@ -9,6 +9,7 @@ import com.maodouchat.core.model.PostCommentDto
 import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.core.model.ExplorePaging
 import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
+import com.maodouchat.domain.conversation.ExploreCommentReplacePolicy
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.security.BackgroundSessionGate
@@ -247,13 +248,13 @@ internal class ExploreCommentController(
                 comment = comment,
                 onOptimisticUpdate = { optimisticComment ->
                     updateState { state ->
-                        state.copy(comments = state.comments.map { if (it.id == comment.id) optimisticComment else it })
+                        state.copy(comments = ExploreCommentReplacePolicy.replace(state.comments, comment.id, optimisticComment))
                     }
                 }
             ).fold(
                 onSuccess = { updated ->
                     updateState { state ->
-                        state.copy(comments = state.comments.map { if (it.id == comment.id) updated else it })
+                        state.copy(comments = ExploreCommentReplacePolicy.replace(state.comments, comment.id, updated))
                     }
                 },
                 onFailure = { error ->
@@ -308,7 +309,7 @@ internal class ExploreCommentController(
                     updateState { state ->
                         state.copy(
                             isSavingCommentEdit = false,
-                            comments = state.comments.map { if (it.id == comment.id) updated else it }
+                            comments = ExploreCommentReplacePolicy.replace(state.comments, comment.id, updated)
                         )
                     }
                 },
