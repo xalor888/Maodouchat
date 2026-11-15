@@ -7,6 +7,7 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.resolveAiFileInput
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -143,7 +144,7 @@ internal fun ChatDetailViewModel.analyzeFileMessage(
                     state.copy(
                         isAiWorking = false,
                         analyzingFileMessageIds = state.analyzingFileMessageIds - messageId,
-                        messages = state.messages.map { if (it.id == messageId) updated else it },
+                        messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                         aiFileAnalysisResult = displayFileResult,
                         aiFileAnalysisMode = mode,
                         aiFileAnalysisName = prepared.fileName.take(120)

@@ -10,6 +10,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.toOptimisticEdit
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.LiveLocationPolicy
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.LocationProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -110,7 +111,7 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
     val terminalUpdate = payload.liveUntil?.let { it <= System.currentTimeMillis() + 1_000L } == true
     if (terminalUpdate) {
         _uiState.update { state ->
-            state.copy(messages = state.messages.map { if (it.id == messageId) stagedUpdate else it })
+            state.copy(messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, stagedUpdate))
         }
         withContext(Dispatchers.IO) { messageRepo.insertMessage(stagedUpdate) }
     }
@@ -132,7 +133,7 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
         )
         ) {
             _uiState.update { state ->
-                state.copy(messages = state.messages.map { if (it.id == messageId) updated else it })
+                state.copy(messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated))
             }
         }
     } catch (cancelled: CancellationException) {
