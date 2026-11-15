@@ -4,6 +4,7 @@ import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
+import com.maodouchat.domain.contacts.UserMergePolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.Flow
@@ -62,17 +63,7 @@ class ChatRepository(
                     .associateBy { it.id }
             }
             val merged = users.map { incoming ->
-                val existing = existingById[incoming.id]
-                val nick = incoming.nickname?.takeIf { it.isNotBlank() } ?: existing?.nickname
-                incoming.copy(
-                    nickname = nick,
-                    avatar = incoming.avatar?.takeIf { it.isNotBlank() } ?: existing?.avatar,
-                    email = incoming.email.takeIf { it.isNotBlank() } ?: existing?.email ?: "",
-                    isOnline = if (incoming.isOnline) true else existing?.isOnline ?: false,
-                    status = incoming.status.takeIf { it.isNotBlank() } ?: existing?.status ?: "",
-                    // 8.38：同 UserRepository.insertUsers——lastSeen 仅入站真实值时更新
-                    lastSeen = if (incoming.lastSeen > 0) incoming.lastSeen else existing?.lastSeen ?: 0
-                ).toEntity()
+                UserMergePolicy.merge(incoming, existingById[incoming.id]?.toDomain()).toEntity()
             }
             userDao.insertUsers(merged)
         }
