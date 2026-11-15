@@ -5,13 +5,13 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
  * 从 ChatDetailViewModel.kt 拆分的 AI 生成函数。
- * 包含群助手、语义搜索、改写、回复建议、摘要、语音转写、图片/文件分析、翻译等。
  * 作为 ChatDetailViewModel 的扩展函数，访问 internal 成员。
  */
 
@@ -294,7 +294,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                     if (!commitAiMessageResult(operationId, updated, request.userId, request.chatId)) return@fold
                     _uiState.update { state ->
                         state.copy(
-                            messages = state.messages.map { if (it.id == messageId) updated else it },
+                            messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                             translatingMessageIds = state.translatingMessageIds - messageId,
                             groupEncryptionWarning = text(R.string.chat_translated)
                         )

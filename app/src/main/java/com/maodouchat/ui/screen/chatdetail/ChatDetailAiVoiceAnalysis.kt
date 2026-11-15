@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.VoiceTranscriptPolicy
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 
 // 语音转写链路（从 ChatDetailAiMediaAnalysis.kt 拆出，纯搬移）。
 
@@ -100,7 +101,7 @@ internal fun ChatDetailViewModel.transcribeVoiceMessage(messageId: String, opera
                 if (!commitAiMessageResult(operationId, updated, request.userId, request.chatId)) return@fold
                 _uiState.update { state ->
                     state.copy(
-                        messages = state.messages.map { if (it.id == messageId) updated else it },
+                        messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                         transcribingVoiceMessageIds = state.transcribingVoiceMessageIds - messageId,
                         groupEncryptionWarning = text(R.string.chat_voice_transcribed)
                     )

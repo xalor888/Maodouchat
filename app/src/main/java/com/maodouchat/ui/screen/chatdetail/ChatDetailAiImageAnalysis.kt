@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -125,7 +126,7 @@ internal fun ChatDetailViewModel.analyzeImageMessage(messageId: String, mode: Ai
                     state.copy(
                         isAiWorking = false,
                         analyzingImageMessageIds = state.analyzingImageMessageIds - messageId,
-                        messages = state.messages.map { if (it.id == messageId) updated else it },
+                        messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                         aiImageAnalysisResult = displayImageResult,
                         aiImageAnalysisMode = mode
                     )

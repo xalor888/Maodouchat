@@ -8,6 +8,7 @@ import com.maodouchat.domain.messaging.normalizeAiRewriteMode
 import com.maodouchat.domain.messaging.normalizeAiSummaryStyle
 import com.maodouchat.domain.messaging.resolveGroupAiMode
 import com.maodouchat.domain.messaging.summaryCandidates
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.viewModelScope
@@ -228,7 +229,7 @@ fun ChatDetailViewModel.requestMessageTranslation(messageId: String, targetLangu
         val updated = message.copy(content = composeContentWithMeta(message.parsedContent(), updatedMeta))
         _uiState.update { state ->
             state.copy(
-                messages = state.messages.map { if (it.id == messageId) updated else it },
+                messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                 groupEncryptionWarning = text(R.string.chat_translation_selected)
             )
         }

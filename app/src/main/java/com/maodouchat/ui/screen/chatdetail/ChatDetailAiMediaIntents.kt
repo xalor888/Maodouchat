@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -35,7 +36,7 @@ fun ChatDetailViewModel.requestAiImageAnalysis(messageId: String, mode: AiImageA
         )
         _uiState.update { state ->
             state.copy(
-                messages = state.messages.map { if (it.id == messageId) updated else it },
+                messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                 aiImageAnalysisResult = cached,
                 aiImageAnalysisMode = mode
             )
@@ -89,7 +90,7 @@ fun ChatDetailViewModel.requestAiFileAnalysis(messageId: String, mode: AiFileAna
         )
         _uiState.update { state ->
             state.copy(
-                messages = state.messages.map { if (it.id == messageId) updated else it },
+                messages = TimelineMessageReplacePolicy.replace(state.messages, messageId, updated),
                 aiFileAnalysisResult = cached,
                 aiFileAnalysisMode = mode,
                 aiFileAnalysisName = message.parsedMeta().fileName
