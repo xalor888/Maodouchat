@@ -4,6 +4,7 @@ import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
+import com.maodouchat.domain.contacts.UserMergePolicy
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -43,18 +44,7 @@ class UserRepository(private val userDao: UserDao) {
             userDao.getUsersByIds(chunk).forEach { existingById[it.id] = it }
         }
         val merged = users.map { incoming ->
-            val existing = existingById[incoming.id]
-            val nick = incoming.nickname?.takeIf { it.isNotBlank() } ?: existing?.nickname
-            incoming.copy(
-                nickname = nick,
-                avatar = incoming.avatar?.takeIf { it.isNotBlank() } ?: existing?.avatar,
-                email = incoming.email.takeIf { it.isNotBlank() } ?: existing?.email ?: "",
-                isOnline = if (incoming.isOnline) true else existing?.isOnline ?: false,
-                status = incoming.status.takeIf { it.isNotBlank() } ?: existing?.status ?: "",
-                // 8.38：lastSeen 仅当入站携带真实值才更新，否则保留本地（避免聊天列表下发
-                // 的参与者 UserDto 无 lastSeen 时把已有最近上线时间清成 0）
-                lastSeen = if (incoming.lastSeen > 0) incoming.lastSeen else existing?.lastSeen ?: 0
-            ).toEntity()
+            UserMergePolicy.merge(incoming, existingById[incoming.id]?.toDomain()).toEntity()
         }
         userDao.insertUsers(merged)
     }
