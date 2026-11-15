@@ -12,7 +12,7 @@ import com.maodouchat.core.model.MessagePinPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageActionAvailabilityPolicy
 import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ChatDetailUiState
@@ -108,7 +108,7 @@ internal fun ChatDetailMessageManageActions(
             modifier = Modifier.fillMaxWidth()
         ) { Text(stringResource(R.string.chat_read_details), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
     }
-    if (isOwn && withinEditWindow && (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN)) {
+    if (MessageActionAvailabilityPolicy.canEdit(isOwn, withinEditWindow, message.type)) {
         TextButton(
             onClick = {
                 onEditDraft(message.parsedContent())
@@ -118,7 +118,7 @@ internal fun ChatDetailMessageManageActions(
             modifier = Modifier.fillMaxWidth()
         ) { Text(stringResource(R.string.chat_edit), modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.onSurface) }
     }
-    if (isOwn && withinEditWindow && message.type != MessageType.REVOKED) {
+    if (MessageActionAvailabilityPolicy.canRevoke(isOwn, withinEditWindow, message.type)) {
         // 1.152：撤回倒计时（5 分钟窗口，向上取整分钟）
         val revokeRemainingMin = MessageEditWindowPolicy.remainingMinutes(System.currentTimeMillis(), message.timestamp)
         TextButton(
@@ -129,7 +129,7 @@ internal fun ChatDetailMessageManageActions(
             modifier = Modifier.fillMaxWidth()
         ) { Text(stringResource(R.string.chat_revoke_with_limit, revokeRemainingMin), modifier = Modifier.fillMaxWidth(), color = LocalChatPalette.current.unreadRed) }
     }
-    if (!isOwn && message.type !in setOf(MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED)) {
+    if (MessageActionAvailabilityPolicy.canReport(isOwn, message.type)) {
         TextButton(
             onClick = {
                 onMessageToReport(message)
