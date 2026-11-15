@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.PinnedMessageDto
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -48,7 +49,7 @@ internal fun PinnedMessagesBanner(
     var pinIndex by remember(pins.map { it.messageId }.joinToString()) { mutableIntStateOf(0) }
     val safeIndex = pinIndex.coerceIn(0, pins.lastIndex)
     val current = pins[safeIndex]
-    val message = messages.firstOrNull { it.id == current.messageId }
+    val message = MessageLookupPolicy.findById(messages, current.messageId)
     val preview = pinnedPreviewText(message)
     Row(
         verticalAlignment = Alignment.CenterVertically,

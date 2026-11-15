@@ -32,6 +32,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.MessageTimelineGroupingPolicy
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -283,7 +284,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
             onViewOnceOpened = { id -> viewModel.markViewOnceOpened(id) },
             onInlineKeyboardClick = { msgId, data ->
                 val botId = messagesById[msgId]?.senderId
-                    ?: state.messages.firstOrNull { it.id == msgId }?.senderId
+                    ?: MessageLookupPolicy.findById(state.messages, msgId)?.senderId
                 if (!botId.isNullOrBlank()) viewModel.sendBotCallback(msgId, botId, data)
             },
             onToggleSelection = {
