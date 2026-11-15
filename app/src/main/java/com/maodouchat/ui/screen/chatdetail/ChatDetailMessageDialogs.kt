@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -131,7 +132,7 @@ internal fun RevokeMessageConfirmDialog(
 ) {
     if (!visible) return
     // 1.152：撤回剩余分钟（向上取整，防显示 0 分钟）
-    val remainingMin = ((300_000L - (System.currentTimeMillis() - sentAtMillis)) / 60_000L).toInt() + 1
+    val remainingMin = MessageEditWindowPolicy.remainingMinutes(System.currentTimeMillis(), sentAtMillis)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_revoke_title)) },

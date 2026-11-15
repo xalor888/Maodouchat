@@ -13,6 +13,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.core.model.isMessageForwardable
+import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
@@ -56,7 +57,7 @@ internal fun ChatDetailMessageActionsDialog(
     val state = ChatDetailUiState(currentUserId = currentUserId, isSecretChat = isSecretChat)
 
     val isOwn = msg.senderId == state.currentUserId
-    val withinEditWindow = System.currentTimeMillis() - msg.timestamp < 300_000
+    val withinEditWindow = MessageEditWindowPolicy.withinWindow(System.currentTimeMillis(), msg.timestamp)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.chat_message_actions)) },

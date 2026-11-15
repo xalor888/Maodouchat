@@ -135,7 +135,7 @@ class ChatMessageMutationController(
         if (
             original.senderId != editOwnerUserId ||
             original.type !in setOf(MessageType.TEXT, MessageType.MARKDOWN) ||
-            System.currentTimeMillis() - original.timestamp >= 300_000
+            !MessageEditWindowPolicy.withinWindow(System.currentTimeMillis(), original.timestamp)
         ) {
             updateState { it.copy(groupEncryptionWarning = text(ChatMessageMutationText.EDIT_NOT_ALLOWED)) }
             return
