@@ -21,8 +21,8 @@ class GroupInviteController(
     suspend fun fetchInvite(
         chatId: String,
         rotate: Boolean = false,
-        expiresInSeconds: Long = 7L * 24L * 60L * 60L,
-        maxUses: Int = 100,
+        expiresInSeconds: Long = GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS,
+        maxUses: Int = GroupInvitePolicy.DEFAULT_MAX_USES,
     ): Result<GroupInviteResponse> = withContext(Dispatchers.IO) {
         val token = tokenProvider().trim()
         if (token.isBlank()) return@withContext Result.failure(IllegalStateException("session_missing"))
@@ -37,8 +37,8 @@ class GroupInviteController(
 
     suspend fun rotateInvite(
         chatId: String,
-        expiresInSeconds: Long = 7L * 24L * 60L * 60L,
-        maxUses: Int = 100,
+        expiresInSeconds: Long = GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS,
+        maxUses: Int = GroupInvitePolicy.DEFAULT_MAX_USES,
     ): Result<GroupInviteResponse> = fetchInvite(
         chatId = chatId,
         rotate = true,

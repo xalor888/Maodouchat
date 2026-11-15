@@ -17,6 +17,7 @@ import com.maodouchat.domain.groups.GroupEncryptionHealthController
 import com.maodouchat.domain.groups.GroupInviteBotController
 import com.maodouchat.domain.groups.GroupInviteController
 import com.maodouchat.domain.groups.GroupInviteLoadController
+import com.maodouchat.domain.groups.GroupInvitePolicy
 import com.maodouchat.domain.groups.GroupMutationController
 import com.maodouchat.domain.groups.SenderKeyMaintenanceController
 import com.maodouchat.domain.groups.SenderKeyMessage
@@ -131,7 +132,6 @@ class GroupDetailViewModel(
         realtimeObserver.start()
     }
 
-    /** Last failed mutation params so the error dialog can offer a real retry. */
     private var pendingRetry: (() -> Unit)? = null
 
     fun load(feedbackMessage: String? = null) = loader.load(feedbackMessage)
@@ -205,7 +205,7 @@ class GroupDetailViewModel(
         )
     }
 
-    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = 7L * 24L * 60L * 60L, maxUses: Int = 100) =
+    fun loadGroupInvite(rotate: Boolean = false, expiresInSeconds: Long = GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS, maxUses: Int = GroupInvitePolicy.DEFAULT_MAX_USES) =
         inviteLoadController.loadGroupInvite(rotate, expiresInSeconds, maxUses)
 
     fun uploadGroupAvatar(uri: Uri) = mutationController.uploadGroupAvatar(uri.toString())

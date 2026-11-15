@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.groups.GroupInvitePolicy
 import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
@@ -74,8 +75,8 @@ fun GroupInviteQrScreen(
     viewModel: GroupDetailViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var inviteExpirySeconds by rememberSaveable { mutableLongStateOf(7L * 24L * 60L * 60L) }
-    var inviteMaxUses by rememberSaveable { mutableIntStateOf(100) }
+    var inviteExpirySeconds by rememberSaveable { mutableLongStateOf(GroupInvitePolicy.DEFAULT_EXPIRY_SECONDS) }
+    var inviteMaxUses by rememberSaveable { mutableIntStateOf(GroupInvitePolicy.DEFAULT_MAX_USES) }
     val context = LocalContext.current
     val chooserTitle = stringResource(R.string.group_detail_share_invite)
 
