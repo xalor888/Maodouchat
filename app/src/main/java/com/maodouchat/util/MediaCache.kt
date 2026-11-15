@@ -5,8 +5,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.LocalFileMetadata
+import com.maodouchat.domain.messaging.AttachmentFileExtensionPolicy
 import androidx.core.net.toUri
 import java.io.File
 
@@ -24,7 +24,6 @@ object MediaCache {
     private val safeIdCharsRegex = Regex("[^A-Za-z0-9_-]")
     private val attachmentExtensionRegex = Regex("^\\.[a-z0-9]{1,10}$")
     private val filenameUnsafeCharsRegex = Regex("[\\\\/:*?\"<>|\\p{Cntrl}]")
-    private val extensionNameRegex = Regex("[a-z0-9]{1,10}")
 
 
     fun uriToRawBase64(context: Context, uri: Uri, maxBytes: Long = MAX_INLINE_MEDIA_BYTES): String? {
@@ -152,7 +151,7 @@ object MediaCache {
             File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
         }
         val safeId = messageId.replace(safeIdCharsRegex, "_")
-        val extension = MessageType.FILE.extension(fileName)
+        val extension = AttachmentFileExtensionPolicy.fileExtension(fileName)
         val target = File(dir, "$safeId$extension")
         require(target.canonicalPath.startsWith(dir.canonicalPath + File.separator))
         return target
@@ -335,20 +334,6 @@ object MediaCache {
             .trim('.')
             .take(120)
             .ifBlank { "file" }
-    }
-
-    private fun MessageType.extension(originalFileName: String?): String = when (this) {
-        MessageType.IMAGE -> ".jpg"
-        MessageType.GIF -> ".gif"
-        MessageType.VIDEO -> ".mp4"
-        MessageType.VOICE -> ".m4a"
-        MessageType.FILE -> originalFileName
-            ?.substringAfterLast('.', missingDelimiterValue = "")
-            ?.lowercase()
-            ?.takeIf { it.matches(extensionNameRegex) }
-            ?.let { ".$it" }
-            ?: ".bin"
-        else -> ".bin"
     }
 
     const val MAX_ATTACHMENT_PLAIN_BYTES = 100L * 1024L * 1024L

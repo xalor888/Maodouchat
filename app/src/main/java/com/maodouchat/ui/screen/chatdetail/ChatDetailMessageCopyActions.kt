@@ -15,6 +15,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.domain.messaging.ChatDateDisplay
+import com.maodouchat.domain.messaging.MessageShareMimePolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
 
@@ -100,12 +101,7 @@ internal fun ChatDetailMessageCopyActions(
             onClick = {
                 // 1.197：图片/GIF 且本地可读时直接分享原图；1.198：扩展到视频/文件
                 val contentUri = message.parsedContent()
-                val fileMime = when (message.type) {
-                    MessageType.IMAGE, MessageType.GIF -> "image/*"
-                    MessageType.VIDEO -> "video/*"
-                    MessageType.FILE -> "application/octet-stream"
-                    else -> null
-                }
+                val fileMime = MessageShareMimePolicy.shareMimeType(message.type)
                 val shareFile = fileMime != null &&
                     runCatching { com.maodouchat.util.MediaCache.isReadableLocalUri(context, contentUri) }.getOrDefault(false)
                 if (shareFile) {
