@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.R
+import com.maodouchat.domain.contacts.UserIdDisplayPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
@@ -152,7 +153,7 @@ fun AuthorProfileScreen(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     author.username?.takeIf { it.isNotBlank() }?.let { "@$it" }
-                                        ?: if (author.id.length > 16) author.id.take(8) + "…" + author.id.takeLast(4) else author.id,
+                                        ?: UserIdDisplayPolicy.abbreviate(author.id),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = LocalChatPalette.current.textSecondary
                                 )

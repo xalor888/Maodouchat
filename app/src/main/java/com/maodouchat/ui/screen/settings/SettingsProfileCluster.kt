@@ -48,6 +48,7 @@ import android.widget.Toast
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
+import com.maodouchat.domain.contacts.UserIdDisplayPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouDimens
@@ -177,7 +178,7 @@ internal fun ProfileCard(
                 val clipboard = LocalClipboardManager.current
                 val idCopiedMsg = stringResource(R.string.profile_id_copied)
                 val handle = username?.takeIf { it.isNotBlank() }?.let { "@$it" }
-                    ?: if (userId.length > 16) userId.take(8) + "…" + userId.takeLast(4) else userId
+                    ?: UserIdDisplayPolicy.abbreviate(userId)
                 Text(
                     stringResource(R.string.profile_maodou_id, handle),
                     style = MaterialTheme.typography.bodySmall,
