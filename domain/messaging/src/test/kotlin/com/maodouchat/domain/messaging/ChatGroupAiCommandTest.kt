@@ -84,4 +84,46 @@ class ChatGroupAiCommandTest {
         assertEquals("tasks", inferGroupAiMode("TODO"))
         assertEquals("risks", inferGroupAiMode("Risk: delay"))
     }
+
+    @Test
+    fun modePrefix() {
+        assertEquals("总结 ", groupAiModePrefix("summary"))
+        assertEquals("决策 ", groupAiModePrefix("decisions"))
+        assertEquals("待办 ", groupAiModePrefix("tasks"))
+        assertEquals("时间线 ", groupAiModePrefix("timeline"))
+        assertEquals("风险 ", groupAiModePrefix("risks"))
+        assertEquals("", groupAiModePrefix("answer"))
+        assertEquals("", groupAiModePrefix("unknown"))
+    }
+
+    @Test
+    fun stripSummaryKeywords() {
+        assertEquals("一下", stripGroupAiModeKeyword("总结一下"))
+        assertEquals("要点", stripGroupAiModeKeyword("概括要点"))
+        assertEquals("of x", stripGroupAiModeKeyword("summary of x"))
+        assertEquals("this", stripGroupAiModeKeyword("SUMMARIZE this"))
+        assertEquals(": x", stripGroupAiModeKeyword("Summary: x"))
+    }
+
+    @Test
+    fun stripDecisionsAndTasksKeywords() {
+        assertEquals("：上线", stripGroupAiModeKeyword("决策：上线"))
+        assertEquals("一下方案", stripGroupAiModeKeyword("决定一下方案"))
+        assertEquals("made", stripGroupAiModeKeyword("decisions made"))
+        assertEquals("买菜", stripGroupAiModeKeyword("待办买菜"))
+        assertEquals("列表", stripGroupAiModeKeyword("任务列表"))
+        assertEquals("for today", stripGroupAiModeKeyword("tasks for today"))
+        assertEquals("buy milk", stripGroupAiModeKeyword("TODO buy milk"))
+    }
+
+    @Test
+    fun stripLeavesTimelineRisksAndPlainUntouched() {
+        // 时间线/风险/无模式分支原样返回，这是 app 侧旧行为，逐字保留。
+        assertEquals("时间线梳理", stripGroupAiModeKeyword("时间线梳理"))
+        assertEquals("timeline of events", stripGroupAiModeKeyword("timeline of events"))
+        assertEquals("风险点有哪些", stripGroupAiModeKeyword("风险点有哪些"))
+        assertEquals("blocker: deploy", stripGroupAiModeKeyword("blocker: deploy"))
+        assertEquals("你好", stripGroupAiModeKeyword("你好"))
+        assertEquals("", stripGroupAiModeKeyword(""))
+    }
 }
