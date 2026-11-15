@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.R
 import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.domain.conversation.ExplorePostLookupPolicy
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
 
     fun ExploreOrchestrator.loadPostDetail(postId: String) {
         if (postId.isBlank()) return
-        val cached = _uiState.value.posts.firstOrNull { it.id == postId }
+        val cached = ExplorePostLookupPolicy.findById(_uiState.value.posts, postId)
         if (cached != null) {
             _uiState.update {
                 it.copy(detailPost = cached, isPostDetailLoading = false, postDetailError = null)

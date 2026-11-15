@@ -16,6 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.domain.conversation.ExploreLikeTogglePolicy
+import com.maodouchat.domain.conversation.ExplorePostLookupPolicy
 import com.maodouchat.domain.conversation.ExplorePostReplacePolicy
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.data.repository.ModerationNetworkRepository
@@ -264,7 +265,7 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
             _uiState.update { it.copy(errorMessage = text(R.string.error_session_expired)) }
             return
         }
-        val currentPost = _uiState.value.posts.firstOrNull { it.id == post.id } ?: return
+        val currentPost = ExplorePostLookupPolicy.findById(_uiState.value.posts, post.id) ?: return
         if (post.id in _uiState.value.updatingPostIds) return
         val generation = loadGeneration
         val toggled = ExploreLikeTogglePolicy.toggle(currentPost.likeCount, currentPost.likedByMe)
