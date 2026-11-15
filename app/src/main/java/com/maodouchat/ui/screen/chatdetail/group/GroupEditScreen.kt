@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.groups.GroupNamePolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
@@ -158,7 +159,7 @@ fun GroupEditScreen(
                             SettingTextFieldRow(
                                 label = stringResource(R.string.chat_group_name),
                                 value = groupNameDraft,
-                                onValueChange = { groupNameDraft = it.take(50) },
+                                onValueChange = { groupNameDraft = GroupNamePolicy.filterInput(it) },
                                 enabled = !state.isUpdating,
                                 onSave = { viewModel.renameGroup(groupNameDraft) },
                                 saveEnabled = groupNameDraft.trim().isNotBlank() && groupNameDraft.trim() != state.groupName

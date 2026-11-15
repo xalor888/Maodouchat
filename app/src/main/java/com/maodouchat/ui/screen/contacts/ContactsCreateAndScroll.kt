@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.contacts.ContactMemberCandidates
+import com.maodouchat.domain.groups.GroupNamePolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -88,7 +89,7 @@ internal fun NewGroupDialog(
             Column {
                 TextField(
                     value = groupName,
-                    onValueChange = { groupName = it.take(50) },
+                    onValueChange = { groupName = GroupNamePolicy.filterInput(it) },
                     placeholder = { Text(stringResource(R.string.contacts_group_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -315,7 +316,6 @@ internal fun AlphabetScroller(
     val hapticContext = LocalContext.current
 
     Box(modifier = modifier.fillMaxHeight().padding(end = 4.dp)) {
-        // Active letter bubble indicator
         val bubbleScale by animateFloatAsState(
             targetValue = if (activeLetter != null) 1f else 0f,
             animationSpec = spring(dampingRatio = 0.6f, stiffness = 500f),
