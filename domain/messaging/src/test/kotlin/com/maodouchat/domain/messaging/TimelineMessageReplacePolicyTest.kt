@@ -7,7 +7,7 @@ import kotlin.test.assertEquals
 class TimelineMessageReplacePolicyTest {
 
     private fun message(id: String, content: String) =
-        Message(id = id, chatId = "c1", senderId = "u1", content = content)
+        Message(id = id, chatId = "c1", senderId = "u1", content = content, timestamp = 1L)
 
     @Test
     fun `replaces matching message and keeps order and others`() {

@@ -11,6 +11,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.StarredMessagesUiState
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -186,7 +187,7 @@ class StarredMessagesViewModel(
     fun unstarMessage(messageId: String) {
         val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
         if (!com.maodouchat.session.CurrentSession.hasSession()) return
-        val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+        val message = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
         loadGeneration.incrementAndGet()
         _uiState.update { it.copy(messages = it.messages.filter { m -> m.id != messageId }) }
         viewModelScope.launch {

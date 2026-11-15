@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.util.RuntimeFlags
@@ -106,7 +107,7 @@ internal fun ChatDetailViewModel.analyzeImageMessage(messageId: String, mode: Ai
                     return@fold
                 }
                 val resultText = analysis.trim().take(6_000)
-                val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: message
+                val current = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: message
                 val currentMeta = current.parsedMeta()
                 val updatedMeta = currentMeta.copy(
                     aiImageAnalyses = currentMeta.aiImageAnalyses + (mode.wireValue to resultText),

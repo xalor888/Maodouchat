@@ -5,14 +5,14 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 从 ChatDetailViewModel.kt 拆分的 AI 生成函数。
- * 作为 ChatDetailViewModel 的扩展函数，访问 internal 成员。
+ * 从 ChatDetailViewModel.kt 拆分的 AI 生成函数，作为 ChatDetailViewModel 的扩展函数，访问 internal 成员。
  */
 
 internal fun ChatDetailViewModel.captureAiRequestSnapshot(): AiRequestSnapshot? {
@@ -281,7 +281,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
                         }
                         return@fold
                     }
-                    val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: message
+                    val current = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: message
                     val currentMeta = current.parsedMeta()
                     val updatedMeta = currentMeta.copy(
                         translations = currentMeta.translations + (targetLanguage to translated),

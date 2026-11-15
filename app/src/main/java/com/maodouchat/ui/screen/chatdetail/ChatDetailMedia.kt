@@ -9,6 +9,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ViewOncePolicy
 import com.maodouchat.util.MediaCache
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -16,7 +17,7 @@ import kotlinx.coroutines.launch
 
 fun ChatDetailViewModel.revealSpoilerMedia(messageId: String) {
     if (messageId.isBlank()) return
-    val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val current = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     val currentMeta = current.parsedMeta()
     if (!currentMeta.spoilerMedia || currentMeta.spoilerRevealed) return
     val revealed = current.withEncodedMeta(currentMeta.copy(spoilerRevealed = true))
@@ -37,7 +38,7 @@ fun ChatDetailViewModel.revealSpoilerMedia(messageId: String) {
 
 fun ChatDetailViewModel.markViewOnceOpened(messageId: String) {
     if (messageId.isBlank()) return
-    val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val current = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     val opened = ViewOncePolicy.markOpened(current)
     if (opened == current) return
     _uiState.update { state ->
