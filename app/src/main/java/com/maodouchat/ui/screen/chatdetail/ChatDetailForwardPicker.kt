@@ -39,8 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ForwardMergePolicy
+import com.maodouchat.domain.messaging.forwardPreviewText
 import android.widget.Toast
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -113,19 +113,11 @@ internal fun ChatDetailForwardPicker(
                 ) {
                     // 1.164：转发内容预览（最多显示 3 条，其余折叠为数量提示）
                     forwardMessages.take(3).forEach { fm ->
-                        val previewText = when (fm.type) {
-                            MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-                            MessageType.GIF -> stringResource(R.string.message_preview_gif)
-                            MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-                            MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-                            MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-                            MessageType.FILE -> stringResource(R.string.message_preview_file)
-                            MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-                            else -> com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                        val previewText = forwardPreviewText(fm.type)?.let { stringResource(chatMessagePreviewTextResId(it)) }
+                            ?: com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
                                 fm.parsedContent(),
                                 stringResource(R.string.chat_decrypt_failed)
                             ).replace('\n', ' ').take(40)
-                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()

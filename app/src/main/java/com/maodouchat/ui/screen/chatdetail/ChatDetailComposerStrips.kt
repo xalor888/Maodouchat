@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessagePreviewText
-import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.TypingPresence
 import com.maodouchat.core.model.ChatDetailUiState
@@ -60,16 +60,8 @@ internal fun ChatDetailComposerStrips(
             preview = MessagePreviewText.replyOrQuote(
                 message = target,
                 mediaLabel = { type ->
-                    when (type) {
-                        MessageType.IMAGE -> context.getString(R.string.message_preview_image)
-                        MessageType.GIF -> context.getString(R.string.message_preview_gif)
-                        MessageType.STICKER -> context.getString(R.string.message_preview_sticker)
-                        MessageType.VOICE -> context.getString(R.string.message_preview_voice)
-                        MessageType.VIDEO -> context.getString(R.string.message_preview_video)
-                        MessageType.FILE -> context.getString(R.string.message_preview_file)
-                        MessageType.LOCATION -> context.getString(R.string.message_preview_location)
-                        else -> context.getString(R.string.message_preview_encrypted)
-                    }
+                    forwardPreviewText(type)?.let { context.getString(chatMessagePreviewTextResId(it)) }
+                        ?: context.getString(R.string.message_preview_encrypted)
                 },
                 encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
             ).take(60),
