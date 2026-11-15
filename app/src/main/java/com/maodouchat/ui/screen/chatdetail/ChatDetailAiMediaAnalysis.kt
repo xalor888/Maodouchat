@@ -44,7 +44,7 @@ internal fun ChatDetailViewModel.analyzeFileMessage(
         }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId && it.type == MessageType.FILE }
+    val message = MessageLookupPolicy.findByIdAndType(_uiState.value.messages, messageId, MessageType.FILE)
     if (message == null) {
         launchTrackedAiOperation(operationId) {
             failAiOperation(operationId, AiOperationError.CONTEXT_MISSING)

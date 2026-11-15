@@ -235,7 +235,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             }
             return
         }
-        val message = _uiState.value.messages.firstOrNull { it.id == messageId && (it.type == MessageType.TEXT || it.type == MessageType.MARKDOWN) }
+        val message = MessageLookupPolicy.findByIdAndType(_uiState.value.messages, messageId, MessageType.TEXT, MessageType.MARKDOWN)
         if (message == null) {
             launchTrackedAiOperation(operationId) {
                 failAiOperation(operationId, AiOperationError.CONTEXT_MISSING)

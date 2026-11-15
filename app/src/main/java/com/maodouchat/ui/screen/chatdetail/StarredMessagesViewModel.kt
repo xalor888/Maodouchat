@@ -11,6 +11,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.StarredMessagesUiState
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
+import com.maodouchat.domain.messaging.DistinctMergePolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -205,14 +206,14 @@ class StarredMessagesViewModel(
                     // 避免覆盖刷新后的最新列表
                     if (response.starred && _uiState.value.messages.none { it.id == messageId }) {
                         _uiState.update { state ->
-                            state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
+                            state.copy(messages = DistinctMergePolicy.mergeById(state.messages, listOf(message)) { it.id })
                         }
                     }
                 },
                 onFailure = { _ ->
                     if (_uiState.value.messages.none { it.id == messageId }) {
                         _uiState.update { state ->
-                            state.copy(messages = (state.messages + message).distinctBy { m -> m.id })
+                            state.copy(messages = DistinctMergePolicy.mergeById(state.messages, listOf(message)) { it.id })
                         }
                     }
                 }

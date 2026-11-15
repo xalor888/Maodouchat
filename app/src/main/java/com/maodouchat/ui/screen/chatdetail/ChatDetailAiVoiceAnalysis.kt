@@ -36,7 +36,7 @@ internal fun ChatDetailViewModel.transcribeVoiceMessage(messageId: String, opera
         }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId && it.type == MessageType.VOICE }
+    val message = MessageLookupPolicy.findByIdAndType(_uiState.value.messages, messageId, MessageType.VOICE)
     if (message == null) {
         launchTrackedAiOperation(operationId) {
             failAiOperation(operationId, AiOperationError.CONTEXT_MISSING)

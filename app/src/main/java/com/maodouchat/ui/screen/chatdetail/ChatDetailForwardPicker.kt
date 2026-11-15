@@ -40,6 +40,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.ForwardMergePolicy
 import android.widget.Toast
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -84,9 +85,7 @@ internal fun ChatDetailForwardPicker(
     // 1.34：多选转发目标（勾选多个会话后一次转发）
     var selectedForwardChatIds by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf<Set<String>>(emptySet()) }
     // 1.149：合并转发（多条文本消息合并为一条发送）
-    val forwardMergeable = forwardMessages.size > 1 && forwardMessages.all {
-        it.type == MessageType.TEXT || it.type == MessageType.MARKDOWN
-    }
+    val forwardMergeable = ForwardMergePolicy.isMergeable(forwardMessages)
     var forwardMerged by remember(forwardMessages.map { it.id }.joinToString()) { mutableStateOf(false) }
     val filteredForwardTargets = remember(state.forwardTargets, forwardQuery) {
         val q = forwardQuery.trim()
@@ -273,14 +272,9 @@ internal fun ChatDetailForwardPicker(
                     onClick = {
                         // 1.149：合并转发——多条文本合并为一条（带发送者标签）
                         val mergedText = if (forwardMerged && forwardMergeable) {
-                            forwardMessages.joinToString("\n") { msg ->
-                                val senderLabel = when {
-                                    msg.senderId == state.currentUserId -> forwardMeLabel
-                                    else -> state.chat?.participants?.firstOrNull { it.id == msg.senderId }?.displayName?.takeIf { it.isNotBlank() }
-                                }
-                                val content = msg.parsedContent().take(4_000)
-                                (senderLabel?.let { "$it：$content" } ?: content)
-                            }.take(4_000)
+                            ForwardMergePolicy.buildMergedText(
+                                forwardMessages, state.currentUserId, forwardMeLabel, state.chat?.participants
+                            )
                         } else null
                         if (mergedText != null) {
                             selectedForwardChatIds.forEach { chatId ->
