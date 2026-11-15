@@ -46,6 +46,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.core.model.UserDto
+import com.maodouchat.domain.contacts.BlockedUsersFilterPolicy
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -64,9 +65,7 @@ fun BlockedUsersScreen(onBack: () -> Unit = {}) {
     val blockedLoadFailedText = stringResource(com.maodouchat.R.string.blocked_load_failed)
     val unblockFailedText = stringResource(com.maodouchat.R.string.blocked_unblock_failed)
     val filteredBlocked = remember(blocked.value, blockedSearch) {
-        val q = blockedSearch.trim()
-        if (q.isBlank()) blocked.value
-        else blocked.value.filter { it.name.contains(q, ignoreCase = true) || it.id.contains(q, ignoreCase = true) }
+        BlockedUsersFilterPolicy.filter(blocked.value, blockedSearch)
     }
 
     suspend fun load() {

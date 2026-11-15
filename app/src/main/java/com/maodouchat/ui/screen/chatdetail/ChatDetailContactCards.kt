@@ -52,6 +52,7 @@ import androidx.compose.ui.window.Dialog
 import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
+import com.maodouchat.domain.contacts.ContactCardPickerFilterPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -188,14 +189,7 @@ internal fun ContactCardPickerDialog(
 ) {
     var pickerQuery by rememberSaveable { mutableStateOf("") }
     val filteredContacts = remember(contacts, pickerQuery) {
-        val q = pickerQuery.trim()
-        if (q.isEmpty()) {
-            contacts
-        } else {
-            contacts.filter { (_, user) ->
-                user.displayName.contains(q, ignoreCase = true) || user.name.contains(q, ignoreCase = true)
-            }
-        }
+        ContactCardPickerFilterPolicy.filter(contacts, pickerQuery)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
