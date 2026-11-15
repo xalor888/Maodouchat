@@ -9,13 +9,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.maodouchat.core.model.findUrlRanges
 import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextHint
-
-// ─── CONTACT_CARD_USER_RE ───
-internal val CONTACT_CARD_USER_RE = Regex("\\[contactUser:([^\\]]+)")
 
 // ─── RichTextContent ───
 @Composable
@@ -44,7 +42,7 @@ internal fun RichTextContent(
     // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
     val cleanText = ChatMarkdown.stripContactCardMarker(text)
     // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
-    val cardUserId = remember(text) { CONTACT_CARD_USER_RE.find(text)?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() } }
+    val cardUserId = remember(text) { ContactCardMarkerPolicy.extractUserId(text) }
     if (cardUserId != null) {
         val cardUrl = "contactcard://$cardUserId"
         val annotatedCard = androidx.compose.ui.text.buildAnnotatedString {
