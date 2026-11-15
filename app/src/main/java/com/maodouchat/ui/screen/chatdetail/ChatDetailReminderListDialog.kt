@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.MessageReminder
+import com.maodouchat.domain.messaging.MessageReminderRemovePolicy
 
 /**
  * 稍后提醒列表对话框（G82 从 `ChatDetailRoute.kt` 拆出，原 65 行）。
@@ -89,7 +90,7 @@ internal fun ChatDetailReminderListDialog(
                             }
                             TextButton(onClick = {
                                 onCancelReminder(reminder.id)
-                                visible = visible.filterNot { it.id == reminder.id }
+                                visible = MessageReminderRemovePolicy.removeById(visible, reminder.id)
                         onRemindersChange(visible)
                             }) {
                                 Text(stringResource(R.string.common_delete), color = LocalChatPalette.current.unreadRed)

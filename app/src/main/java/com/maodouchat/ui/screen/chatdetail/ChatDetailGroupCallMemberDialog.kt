@@ -32,6 +32,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ChatParticipantsPolicy
 
 /**
  * 群通话成员选择对话框（G78 从 `ChatDetailRoute.kt` 拆出，原 123 行）。
@@ -64,7 +65,7 @@ internal fun ChatDetailGroupCallMemberDialog(
 ) {
     val state = ChatDetailUiState(chat = chat, currentUserId = currentUserId)
 
-    val candidates = state.chat?.participants.orEmpty().filter { it.id != state.currentUserId }
+    val candidates = ChatParticipantsPolicy.excludingCurrentUser(state.chat?.participants.orEmpty(), state.currentUserId)
     val maxSelected = GroupCallPolicy.MAX_MESH_MEMBERS - 1
     val memberQuery = memberQuery.trim()
     val filteredCallCandidates = if (memberQuery.isBlank()) {
