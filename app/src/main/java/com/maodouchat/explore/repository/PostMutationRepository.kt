@@ -10,6 +10,7 @@ import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostMutationJournal
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.core.network.SocialApi
+import com.maodouchat.domain.conversation.ExploreCommentLikeStatusPolicy
 import com.maodouchat.domain.conversation.ExploreLikeTogglePolicy
 import com.maodouchat.network.api.SocialApiClient
 import com.maodouchat.security.BackgroundSessionGate
@@ -193,7 +194,7 @@ class DefaultPostMutationRepository(
         return if (apiResult.isSuccess) {
             journal.commit(entry.id)
             val resp = apiResult.getOrThrow()
-            val isNowLiked = if (resp.status.isNotBlank()) resp.status == "LIKED" else toggled.likedByMe
+            val isNowLiked = ExploreCommentLikeStatusPolicy.resolve(resp.status, toggled.likedByMe)
             val finalComment = comment.copy(likedByMe = isNowLiked, likeCount = resp.likeCount)
             Result.success(finalComment)
         } else {
