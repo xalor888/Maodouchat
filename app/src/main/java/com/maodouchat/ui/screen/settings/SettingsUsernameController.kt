@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import com.maodouchat.R
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.core.model.SettingsUiState
+import com.maodouchat.domain.contacts.UsernamePolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -51,21 +52,21 @@ internal class SettingsUsernameController(
     }
 
     fun onEditUsernameChange(value: String) {
-        // 只允许字母、数字、下划线、连字符，小写
-        val filtered = value.filter { ch -> ch.isLetterOrDigit() || ch == '_' || ch == '-' }
-            .take(50).lowercase().removePrefix("@")
-        updateState { it.copy(editUsername = filtered) }
+        updateState { it.copy(editUsername = UsernamePolicy.filterInput(value)) }
     }
 
     fun saveUsername() {
         val username = currentState().editUsername.trim()
-        if (username.length < 3) {
-            updateState { it.copy(errorMessage = text(R.string.settings_username_too_short)) }
-            return
-        }
-        if (!username.all { it.isLetterOrDigit() || it == '_' || it == '-' }) {
-            updateState { it.copy(errorMessage = text(R.string.settings_username_invalid)) }
-            return
+        when (UsernamePolicy.validate(username)) {
+            UsernamePolicy.Validation.TooShort -> {
+                updateState { it.copy(errorMessage = text(R.string.settings_username_too_short)) }
+                return
+            }
+            UsernamePolicy.Validation.InvalidCharacters -> {
+                updateState { it.copy(errorMessage = text(R.string.settings_username_invalid)) }
+                return
+            }
+            UsernamePolicy.Validation.Valid -> {}
         }
         scope.launch {
             val ownerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
