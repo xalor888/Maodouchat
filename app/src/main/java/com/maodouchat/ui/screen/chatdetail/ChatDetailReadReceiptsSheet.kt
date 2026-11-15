@@ -62,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.ReadReceiptUi
+import com.maodouchat.domain.messaging.ReadReceiptFilterPolicy
 import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -87,19 +88,9 @@ internal fun ChatDetailReadReceiptsSheet(
     val readCount = receipts.count { it.readAt != null }
     val totalCount = receipts.size
     val progress = if (totalCount > 0) readCount.toFloat() / totalCount else 0f
-    val q = readReceiptSearch.trim()
     // 1.68：remember 避免每次重组都全量排序
     val filteredReadReceipts = remember(readReceiptSearch, receipts) {
-        val q = readReceiptSearch.trim()
-        if (q.isEmpty()) {
-            // 1.63：未读成员优先展示（readAt==null 排前），便于发现谁还没读
-            receipts.sortedBy { it.readAt != null }
-        } else {
-            receipts.filter { receipt ->
-                receipt.name.contains(q, ignoreCase = true) ||
-                    receipt.userId.contains(q, ignoreCase = true)
-            }.sortedBy { it.readAt != null }
-        }
+        ReadReceiptFilterPolicy.filter(receipts, readReceiptSearch)
     }
     ModalBottomSheet(
         onDismissRequest = {

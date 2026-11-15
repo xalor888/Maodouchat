@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
+import com.maodouchat.domain.calls.CallHistoryFilterPolicy
 import com.maodouchat.domain.calls.CallHistoryTime
 import com.maodouchat.domain.calls.CallRelativeTime
 import com.maodouchat.ui.theme.UnreadRed
@@ -87,10 +88,7 @@ fun CallHistoryScreen(
     // 1.333：只看未接
     var onlyMissed by rememberSaveable { mutableStateOf(false) }
     val filteredLogs = remember(logs, searchQuery, onlyMissed) {
-        var base = if (onlyMissed) logs.filter { it.state == State.MISSED } else logs
-        val q = searchQuery.trim()
-        if (q.isBlank()) base
-        else base.filter { it.peerName.contains(q, ignoreCase = true) || it.peerId.contains(q, ignoreCase = true) }
+        CallHistoryFilterPolicy.filter(logs, searchQuery, onlyMissed)
     }
     val showSearch = logs.size >= 6
 
