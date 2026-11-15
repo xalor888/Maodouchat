@@ -45,11 +45,13 @@ import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
+import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.MessageStatusIcon
+import com.maodouchat.ui.screen.chatdetail.chatMessagePreviewTextResId
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.util.HapticGate
@@ -103,15 +105,8 @@ internal fun ChatListItem(
     val messagePreview = if (isLocked) lockedPreview
     else if (secretListBlock) secretPreview
     else when (chat.lastMessageType) {
-        MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-        MessageType.GIF -> stringResource(R.string.message_preview_gif)
-        MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-        MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-        MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-        MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-        MessageType.FILE -> stringResource(R.string.message_preview_file)
         MessageType.NUDGE -> stringResource(R.string.message_preview_nudge)
-        else -> {
+        else -> forwardPreviewText(chat.lastMessageType)?.let { stringResource(chatMessagePreviewTextResId(it)) } ?: run {
             val placeholder = stringResource(R.string.message_preview_encrypted)
             val stripped = com.maodouchat.core.model.ChatListPreviewPolicy
                 .listVisibleText(

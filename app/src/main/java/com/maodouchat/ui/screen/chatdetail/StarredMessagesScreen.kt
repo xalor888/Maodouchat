@@ -61,6 +61,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.StarredMessageSearchPolicy
+import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
@@ -321,22 +322,16 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String =
     )
 
 @Composable
-private fun Message.starredPreview(context: android.content.Context): String = when (type) {
-    MessageType.TEXT, MessageType.MARKDOWN ->
-        com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
-            parsedContent(),
-            context.getString(R.string.starred_encrypted_message),
-        )
-    MessageType.IMAGE -> stringResource(R.string.message_preview_image)
-    MessageType.GIF -> stringResource(R.string.message_preview_gif)
-    MessageType.STICKER -> stringResource(R.string.message_preview_sticker)
-    MessageType.LOCATION -> stringResource(R.string.message_preview_location)
-    MessageType.VIDEO -> stringResource(R.string.message_preview_video)
-    MessageType.VOICE -> stringResource(R.string.message_preview_voice)
-    MessageType.FILE -> stringResource(R.string.message_preview_file)
-    MessageType.REVOKED -> stringResource(R.string.chat_message_revoked_placeholder)
-    else -> content
-}
+private fun Message.starredPreview(context: android.content.Context): String =
+    forwardPreviewText(type)?.let { stringResource(chatMessagePreviewTextResId(it)) } ?: when (type) {
+        MessageType.TEXT, MessageType.MARKDOWN ->
+            com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                parsedContent(),
+                context.getString(R.string.starred_encrypted_message),
+            )
+        MessageType.REVOKED -> stringResource(R.string.chat_message_revoked_placeholder)
+        else -> content
+    }
 
 @Composable
 private fun highlightedText(text: String, query: String): AnnotatedString {

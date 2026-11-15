@@ -34,6 +34,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.MessageTimelineGroupingPolicy
+import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ReadReceiptPolicy
@@ -100,13 +101,9 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
     // 把 (index, item) 传进来——因为 `Modifier.animateItem` 是 LazyItemScope 的扩展，
     // 只有待在 itemsIndexed 的 lambda 里才能用，搬到普通 Composable 会丢 placement 动画。
     val context = androidx.compose.ui.platform.LocalContext.current
-    val previewImageLabel = stringResource(R.string.message_preview_image)
-    val previewGifLabel = stringResource(R.string.message_preview_gif)
-    val previewStickerLabel = stringResource(R.string.message_preview_sticker)
-    val previewVoiceLabel = stringResource(R.string.message_preview_voice)
-    val previewVideoLabel = stringResource(R.string.message_preview_video)
-    val previewFileLabel = stringResource(R.string.message_preview_file)
-    val previewLocationLabel = stringResource(R.string.message_preview_location)
+    // mediaLabel 是普通 lambda，里面不能调 stringResource；走 LocalResources
+    // 读字符串，配置变化时能刷新，lint 也不报 LocalContextGetResourceValueCall。
+    val resources = androidx.compose.ui.platform.LocalResources.current
     val previewEncryptedLabel = stringResource(R.string.message_preview_encrypted)
     val transcriptCopiedTip = stringResource(R.string.chat_transcript_copied)
     val contactCardTapHint = stringResource(R.string.chat_contact_card_tap_hint)
@@ -203,16 +200,8 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                         preview = MessagePreviewText.replyOrQuote(
                             message = it,
                             mediaLabel = { type ->
-                                when (type) {
-                                    MessageType.IMAGE -> previewImageLabel
-                                    MessageType.GIF -> previewGifLabel
-                                    MessageType.STICKER -> previewStickerLabel
-                                    MessageType.VOICE -> previewVoiceLabel
-                                    MessageType.VIDEO -> previewVideoLabel
-                                    MessageType.FILE -> previewFileLabel
-                                    MessageType.LOCATION -> previewLocationLabel
-                                    else -> previewEncryptedLabel
-                                }
+                                forwardPreviewText(type)?.let { resources.getString(chatMessagePreviewTextResId(it)) }
+                                    ?: previewEncryptedLabel
                             },
                             encryptedPlaceholder = previewEncryptedLabel,
                         ).take(60)
