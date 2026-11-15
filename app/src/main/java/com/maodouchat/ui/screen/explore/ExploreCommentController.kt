@@ -11,6 +11,7 @@ import com.maodouchat.core.model.ExplorePaging
 import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
 import com.maodouchat.domain.conversation.ExploreCommentReplacePolicy
 import com.maodouchat.domain.conversation.ExploreOwnerPolicy
+import com.maodouchat.domain.messaging.DistinctMergePolicy
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.security.BackgroundSessionGate
@@ -207,7 +208,7 @@ internal class ExploreCommentController(
                             if (commentsGeneration == generation && com.maodouchat.session.CurrentSession.snapshot().userId == ownerUserId) {
                                 updateState { current ->
                                     if (current.selectedPostId != postId) current else current.copy(
-                                        comments = (older + current.comments).distinctBy { it.id },
+                                        comments = DistinctMergePolicy.mergeById(older, current.comments) { it.id },
                                         isLoadingOlderComments = false,
                                         hasMoreComments = older.size >= ExplorePaging.COMMENTS_PAGE_SIZE
                                     )

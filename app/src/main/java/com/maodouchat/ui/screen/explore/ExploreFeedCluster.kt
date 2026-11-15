@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.core.model.ExploreDraftPolicy
 import com.maodouchat.core.model.ExplorePaging
+import com.maodouchat.domain.messaging.DistinctMergePolicy
 
 // 信息流加载一族：刷新/加载更多/隐私默认可见性。纯搬移，调用点与协程语义不变。
     fun ExploreOrchestrator.loadPrivacyDefaults() {
@@ -124,7 +125,7 @@ import com.maodouchat.core.model.ExplorePaging
                     result.fold(
                         onSuccess = { newPosts ->
                             _uiState.update { current ->
-                                val combined = (current.posts + newPosts).distinctBy { it.id }
+                                val combined = DistinctMergePolicy.mergeById(current.posts, newPosts) { it.id }
                                 current.copy(
                                     posts = combined,
                                     isLoadingMore = false,

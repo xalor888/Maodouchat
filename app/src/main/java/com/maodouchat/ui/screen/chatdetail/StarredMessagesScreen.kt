@@ -60,6 +60,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ChatDateDisplay
+import com.maodouchat.domain.messaging.StarredMessageSearchPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
@@ -92,29 +93,10 @@ fun StarredMessagesScreen(
     val groupLabel = stringResource(R.string.chat_group)
     val memberLabel = stringResource(R.string.chat_group_member)
     val filteredMessages = remember(state.messages, state.chatsById, state.chat, state.currentUserId, searchQuery, meLabel, groupLabel, memberLabel) {
-        val q = searchQuery.trim()
-        if (q.isEmpty()) state.messages
-        else state.messages.filter { message ->
-            val scopeChat = state.chatsById[message.chatId] ?: state.chat
-            val sender = when {
-                message.senderId == state.currentUserId -> meLabel
-                else -> scopeChat?.participants?.firstOrNull { it.id == message.senderId }?.displayName ?: memberLabel
-            }
-            val chatName = when {
-                scopeChat == null -> groupLabel
-                scopeChat.isGroup -> scopeChat.groupName?.takeIf { it.isNotBlank() } ?: groupLabel
-                else -> {
-                    val other = scopeChat.participants.firstOrNull { it.id != state.currentUserId }
-                        ?: scopeChat.participants.firstOrNull()
-                    other?.displayName ?: memberLabel
-                }
-            }
-            // 9.153：与正文解析口径一致——meta 恒在末尾，取最后一个 <meta> 之前的内容做搜索预览
-            val preview = message.content.substringBeforeLast("<meta>").trim()
-            sender.contains(q, ignoreCase = true) ||
-                chatName.contains(q, ignoreCase = true) ||
-                preview.contains(q, ignoreCase = true)
-        }
+        StarredMessageSearchPolicy.filter(
+            state.messages, state.chatsById, state.chat, state.currentUserId,
+            searchQuery, meLabel, groupLabel, memberLabel
+        )
     }
     val secretPagePayload = rememberSecretPageWatermarkPayload(
         isSecretChat = state.isSecretChat,
@@ -325,21 +307,18 @@ private fun StarredMessageRow(
 }
 
 @Composable
-private fun senderName(chat: Chat?, message: Message, currentUserId: String): String {
-    if (message.senderId == currentUserId) return stringResource(R.string.chat_sender_me)
-    return chat?.participants?.firstOrNull { it.id == message.senderId }?.displayName
-        ?: stringResource(R.string.chat_group_member)
-}
+private fun senderName(chat: Chat?, message: Message, currentUserId: String): String =
+    StarredMessageSearchPolicy.senderLabel(
+        chat, message, currentUserId,
+        stringResource(R.string.chat_sender_me), stringResource(R.string.chat_group_member)
+    )
 
 @Composable
-private fun chatTitle(chat: Chat?, currentUserId: String): String {
-    if (chat == null) return stringResource(R.string.chat_group)
-    if (chat.isGroup) {
-        return chat.groupName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.chat_group)
-    }
-    val other = chat.participants.firstOrNull { it.id != currentUserId } ?: chat.participants.firstOrNull()
-    return other?.displayName ?: stringResource(R.string.chat_group_member)
-}
+private fun chatTitle(chat: Chat?, currentUserId: String): String =
+    StarredMessageSearchPolicy.chatTitle(
+        chat, currentUserId,
+        stringResource(R.string.chat_group), stringResource(R.string.chat_group_member)
+    )
 
 @Composable
 private fun Message.starredPreview(context: android.content.Context): String = when (type) {
