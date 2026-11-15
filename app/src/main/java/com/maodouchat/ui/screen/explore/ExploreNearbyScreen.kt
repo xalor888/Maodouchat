@@ -63,6 +63,7 @@ import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.core.model.NearbyPolicy
 import com.maodouchat.domain.contacts.formatNearbyRadiusOption
+import com.maodouchat.domain.contacts.NearbySearchPolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -296,17 +297,7 @@ fun NearbyScreen(
                         else -> {
                             var nearbySearch by rememberSaveable { mutableStateOf("") }
                             val filteredPeople = remember(state.items, nearbySearch) {
-                                val query = nearbySearch.trim()
-                                if (query.isBlank()) {
-                                    state.items
-                                } else {
-                                    state.items.filter {
-                                        it.user.displayName.contains(query, ignoreCase = true) ||
-                                            it.user.name.contains(query, ignoreCase = true) ||
-                                            it.user.id.contains(query, ignoreCase = true) ||
-                                            it.user.status.contains(query, ignoreCase = true)
-                                    }
-                                }
+                                NearbySearchPolicy.filter(state.items, nearbySearch)
                             }
                             Column(modifier = Modifier.fillMaxSize()) {
                                 if (state.items.size >= 4) {

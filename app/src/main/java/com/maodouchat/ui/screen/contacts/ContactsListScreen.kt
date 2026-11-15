@@ -58,6 +58,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.contacts.findLetterIndex
+import com.maodouchat.domain.contacts.FriendRequestFilterPolicy
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
@@ -205,22 +206,10 @@ fun ContactsScreen(
             } else {
                 val requestQuery = state.searchQuery.trim()
                 val visibleIncoming = remember(state.incomingRequests, requestQuery) {
-                    if (requestQuery.isBlank()) state.incomingRequests
-                    else state.incomingRequests.filter { req ->
-                        req.user.displayName.contains(requestQuery, ignoreCase = true) ||
-                            req.user.name.contains(requestQuery, ignoreCase = true) ||
-                            req.user.id.contains(requestQuery, ignoreCase = true) ||
-                            req.message.contains(requestQuery, ignoreCase = true)
-                    }
+                    FriendRequestFilterPolicy.filter(state.incomingRequests, requestQuery)
                 }
                 val visibleOutgoing = remember(state.outgoingRequests, requestQuery) {
-                    if (requestQuery.isBlank()) state.outgoingRequests
-                    else state.outgoingRequests.filter { req ->
-                        req.user.displayName.contains(requestQuery, ignoreCase = true) ||
-                            req.user.name.contains(requestQuery, ignoreCase = true) ||
-                            req.user.id.contains(requestQuery, ignoreCase = true) ||
-                            req.message.contains(requestQuery, ignoreCase = true)
-                    }
+                    FriendRequestFilterPolicy.filter(state.outgoingRequests, requestQuery)
                 }
                 LazyColumn(
                     state = listState,

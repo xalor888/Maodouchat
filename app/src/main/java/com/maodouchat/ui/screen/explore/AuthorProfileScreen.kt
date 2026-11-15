@@ -56,6 +56,7 @@ import coil.compose.AsyncImage
 import com.maodouchat.ui.component.OwnerScopedImageKeys
 import com.maodouchat.R
 import com.maodouchat.domain.contacts.UserIdDisplayPolicy
+import com.maodouchat.domain.conversation.ExploreFeedFilterPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
@@ -73,12 +74,7 @@ fun AuthorProfileScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var authorPostSearch by rememberSaveable { mutableStateOf("") }
     val filteredAuthorPosts = remember(state.posts, authorPostSearch) {
-        val query = authorPostSearch.trim()
-        if (query.isBlank()) {
-            state.posts
-        } else {
-            state.posts.filter { it.content.contains(query, ignoreCase = true) }
-        }
+        ExploreFeedFilterPolicy.filterByContent(state.posts, authorPostSearch)
     }
     androidx.compose.runtime.LaunchedEffect(authorId) { viewModel.load(authorId) }
 

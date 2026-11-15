@@ -57,7 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.domain.conversation.ExploreSearchPolicy
+import com.maodouchat.domain.conversation.ExploreFeedFilterPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.PullToRefreshLayout
@@ -111,12 +111,9 @@ fun MomentsScreen(
         var momentsSearch by rememberSaveable { mutableStateOf("") }
         // 1.330：只看带图片的动态（与 Explore 动态流 1.192 一致）
         var momentsOnlyMedia by rememberSaveable { mutableStateOf(false) }
-        val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 3600 * 1000
-        val publicPosts = remember(state.posts) { state.posts.filter { it.visibility == "PUBLIC" && it.createdAt >= thirtyDaysAgo } }
-        val filteredMoments = remember(publicPosts, momentsSearch, momentsOnlyMedia) {
-            var base = publicPosts
-            if (momentsOnlyMedia) base = base.filter { it.imageUrls.isNotEmpty() }
-            ExploreSearchPolicy.filter(base, momentsSearch, { it.content }, { it.author.name }, { it.author.id })
+        val publicPosts = remember(state.posts) { ExploreFeedFilterPolicy.publicRecent(state.posts, System.currentTimeMillis()) }
+        val filteredMoments = remember(state.posts, momentsSearch, momentsOnlyMedia) {
+            ExploreFeedFilterPolicy.filterMoments(state.posts, System.currentTimeMillis(), momentsOnlyMedia, momentsSearch)
         }
         // 8.59：朋友圈接分页——滚动到底触发 loadMore（与 ExploreScreen 一致）；
         // 搜索激活或已到底暂停，避免过滤视图不增长时持续拉取
