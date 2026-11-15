@@ -9,6 +9,7 @@ import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.domain.contacts.ContactsRepository
+import com.maodouchat.domain.contacts.ContactsFriendListPolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -43,8 +44,7 @@ internal class AndroidContactsRepository(
             userRepository.getAllUsers(),
             FriendCacheStore.observeFriendIds(app, session.ownerUserId)
         ) { users, friendIds ->
-            users.filter { it.id != session.ownerUserId && it.id in friendIds }
-                .sortedBy { it.displayName.lowercase() }
+            ContactsFriendListPolicy.visibleFriends(users, session.ownerUserId, friendIds)
         }
 
     override suspend fun loadFriends(session: ContactsSession): ContactsLoadResult {
@@ -61,10 +61,10 @@ internal class AndroidContactsRepository(
                         .map { it.toContactUser() }
                     userRepository.insertUsers(users)
                     FriendCacheStore.replaceAll(app, dtos.map { it.id }.toSet(), session.ownerUserId)
-                    val merged = users.map { user ->
+                    val merged = ContactsFriendListPolicy.sortByDisplayName(users.map { user ->
                         val nickname = userRepository.getUserById(user.id)?.nickname
                         if (nickname.isNullOrBlank()) user else user.copy(nickname = nickname)
-                    }.sortedBy { it.displayName.lowercase() }
+                    })
                     ContactsLoadResult(merged)
                 },
                 onFailure = { cachedFriends(session, it, sessionMissing = false) },
@@ -108,9 +108,9 @@ internal class AndroidContactsRepository(
         sessionMissing: Boolean,
     ): ContactsLoadResult {
         val friendIds = FriendCacheStore.getFriendIds(app, session.ownerUserId)
-        val users = userRepository.getAllUsers().firstOrNull().orEmpty()
-            .filter { it.id != session.ownerUserId && it.id in friendIds }
-            .sortedBy { it.displayName.lowercase() }
+        val users = ContactsFriendListPolicy.visibleFriends(
+            userRepository.getAllUsers().firstOrNull().orEmpty(), session.ownerUserId, friendIds
+        )
         return ContactsLoadResult(users, failure, sessionMissing)
     }
 }

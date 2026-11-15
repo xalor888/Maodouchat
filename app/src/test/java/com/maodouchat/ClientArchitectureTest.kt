@@ -507,7 +507,7 @@ class ClientArchitectureTest {
         // （432 → 442，接线改走 CallWebRtcSession/画像/文案端口），两处同步收紧。
         "com/maodouchat/ui/screen/call/CallViewModel.kt" to 442,
                 // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 405,
+"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 396,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
         // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
         // 1100+ 行源文件全部在监。
@@ -521,7 +521,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
         // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
         // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移；AlertDialog/TextField 随迁后在母文件变闲置一并删除；另收尾部 9 空行为 2），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 474,
+        "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 463,
         // 2026-11-11：会话列表加载与未接来电动作簇迁入 :domain:conversation，ChatListViewModel
         // 只改接线与 import（423 → 466）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         // 2026-11-11：设置开关簇迁入 :domain:conversation，接线改动 + 4 处纯格式折行对冲（466 → 465），上限同步收紧（两份 map 一起改）。
@@ -801,7 +801,7 @@ class ClientArchitectureTest {
             // 通话 VM 瘦身第十六批：群组网格状态簇 → :domain:calls（432 → 442）。
             "com/maodouchat/ui/screen/call/CallViewModel.kt" to 442,
                     // 2026-10-19：LikersDialog 抽出同包 ExploreLikersDialog（590 → 532 纯搬移），上限同步收紧（两份 map 一起改）。
-"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 405,
+"com/maodouchat/ui/screen/explore/ExploreFeedScreen.kt" to 396,
         // G126：以下七个文件此前**没有任何行数门禁**（其中 ChatDetailMiscDialogs.kt 是
             // G108 我自己拆出来的——拆完不纳管，等于给新热点留了门）。纳入后 app 内
             // 1100+ 行源文件全部在监。
@@ -814,7 +814,7 @@ class ClientArchitectureTest {
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
                 // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
                 // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移），上限同步收紧。
-                "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 474,
+                "com/maodouchat/ui/screen/contacts/ContactsListScreen.kt" to 463,
                 // 2026-11-11：会话列表加载与未接来电动作簇迁入 :domain:conversation，ChatListViewModel
                 // 只改接线与 import（423 → 466）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
                 // 2026-11-11：设置开关簇迁入 :domain:conversation，接线改动 + 4 处纯格式折行对冲（466 → 465），上限同步收紧（两份 map 一起改）。

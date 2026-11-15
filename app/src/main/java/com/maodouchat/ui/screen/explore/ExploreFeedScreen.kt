@@ -61,8 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.PostDto
-import com.maodouchat.domain.conversation.ExploreSearchPolicy
+import com.maodouchat.domain.conversation.ExploreFeedFilterPolicy
 import com.maodouchat.domain.conversation.ExploreShareTextPolicy
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
@@ -104,15 +103,7 @@ fun ExploreScreen(
     var composerExpanded by rememberSaveable { mutableStateOf(false) }
     val currentUserId = com.maodouchat.session.CurrentSession.ownerUserId()
     val filteredPosts = remember(uiState.posts, feedSearch, showOnlyMine, showOnlyMedia) {
-        val mine = if (showOnlyMine) { post: PostDto ->
-            post.isMine || post.author.id == currentUserId
-        } else null
-        val media = if (showOnlyMedia) { post: PostDto ->
-            post.imageUrls.isNotEmpty()
-        } else null
-        var base = if (mine == null) uiState.posts else uiState.posts.filter(mine)
-        if (media != null) base = base.filter(media)
-        ExploreSearchPolicy.filter(base, feedSearch, { it.content }, { it.author.name }, { it.author.id })
+        ExploreFeedFilterPolicy.filterFeed(uiState.posts, currentUserId, showOnlyMine, showOnlyMedia, feedSearch)
     }
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9),
