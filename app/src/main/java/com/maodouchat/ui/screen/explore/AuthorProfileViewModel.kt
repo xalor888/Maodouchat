@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.core.model.ExploreFeedPolicy
+import com.maodouchat.domain.conversation.ExploreLikeTogglePolicy
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.data.repository.ModerationNetworkRepository
 import com.maodouchat.data.repository.PostNetworkRepository
@@ -265,9 +266,10 @@ class AuthorProfileViewModel(application: Application) : AndroidViewModel(applic
         val currentPost = _uiState.value.posts.firstOrNull { it.id == post.id } ?: return
         if (post.id in _uiState.value.updatingPostIds) return
         val generation = loadGeneration
+        val toggled = ExploreLikeTogglePolicy.toggle(currentPost.likeCount, currentPost.likedByMe)
         val optimistic = currentPost.copy(
-            likedByMe = !currentPost.likedByMe,
-            likeCount = (currentPost.likeCount + if (currentPost.likedByMe) -1 else 1).coerceAtLeast(0)
+            likedByMe = toggled.likedByMe,
+            likeCount = toggled.likeCount
         )
         _uiState.update { state ->
             state.copy(
