@@ -63,6 +63,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.domain.conversation.ExploreSearchPolicy
+import com.maodouchat.domain.conversation.ExploreShareTextPolicy
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
@@ -369,19 +370,10 @@ fun ExploreScreen(
                 onOpenAuthor = { onOpenAuthor(post.author.id) },
                 // 1.01：动态分享到系统（ACTION_SEND）；1.140：附作者公开主页链接
                 onShare = {
-                    val shareText = buildString {
-                        append(post.content.takeIf { it.isNotBlank() }?.let { "\"$it\"" } ?: "")
-                        if (post.imageUrls.isNotEmpty()) {
-                            if (isNotBlank()) append("\n")
-                            append("[图片]")
-                        }
-                        val authorUsername = post.author.username?.takeIf { it.isNotBlank() }
-                        if (authorUsername != null) {
-                            if (isNotBlank()) append("\n")
-                            // 9.289：跟随当前服务器地址，自建部署不再分享无效的官服域名
-                            append(com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')).append("/u/").append(authorUsername)
-                        }
-                    }.ifBlank { "动态" }
+                    val shareText = ExploreShareTextPolicy.buildShareText(
+                        post = post,
+                        baseUrl = com.maodouchat.network.ApiConfig.BASE_URL
+                    )
                     val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                         type = "text/plain"
                         putExtra(android.content.Intent.EXTRA_TEXT, shareText)

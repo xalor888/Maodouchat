@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.domain.conversation.ExploreSearchPolicy
+import com.maodouchat.domain.conversation.ExploreShareTextPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -301,19 +302,10 @@ fun PostDetailScreen(
                             }
                             // 1.100：详情页分享（与动态流一致）
                             IconButton(onClick = {
-                                val shareText = buildString {
-                                    append(post.content.takeIf { it.isNotBlank() }?.let { "\"$it\"" } ?: "")
-                                    if (post.imageUrls.isNotEmpty()) {
-                                        if (isNotBlank()) append("\n")
-                                        append("[图片]")
-                                    }
-                                    // 1.140：附作者公开主页链接（9.289：跟随当前服务器地址，自建部署不再分享无效的官服域名）
-                                    val authorUsername = post.author.username?.takeIf { it.isNotBlank() }
-                                    if (authorUsername != null) {
-                                        if (isNotBlank()) append("\n")
-                                        append(com.maodouchat.network.ApiConfig.BASE_URL.trimEnd('/')).append("/u/").append(authorUsername)
-                                    }
-                                }.ifBlank { "动态" }
+                                val shareText = ExploreShareTextPolicy.buildShareText(
+                                    post = post,
+                                    baseUrl = com.maodouchat.network.ApiConfig.BASE_URL
+                                )
                                 val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(android.content.Intent.EXTRA_TEXT, shareText)
