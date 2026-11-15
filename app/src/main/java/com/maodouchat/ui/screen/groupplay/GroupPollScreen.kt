@@ -52,6 +52,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.GroupPollPolicy
 import com.maodouchat.core.model.GroupPollUiState
 import com.maodouchat.core.model.PollListItem
+import com.maodouchat.domain.groups.GroupPlayErrorPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -156,7 +157,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
             }
             if (pollId == null) {
                 val fail = result.exceptionOrNull()?.message.orEmpty()
-                val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
+                val serverError = GroupPlayErrorPolicy.serverErrorText(fail)
                 _uiState.value = _uiState.value.copy(
                     creating = false,
                     error = serverError ?: localizedString(R.string.group_play_create_failed)
@@ -189,7 +190,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
                 refresh()
             } else {
                 val fail = result.exceptionOrNull()?.message.orEmpty()
-                val serverError = GroupPlayJson.errorMessage(fail.substringAfter(':', missingDelimiterValue = fail))
+                val serverError = GroupPlayErrorPolicy.serverErrorText(fail)
                 _uiState.value = _uiState.value.copy(error = serverError ?: localizedString(R.string.group_play_vote_failed))
             }
         }
