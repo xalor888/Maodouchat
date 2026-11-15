@@ -38,6 +38,14 @@ object ChatSendGuard {
         MessageType.NUDGE,
     )
 
+    // 1.45：角色未加载（null）时 fail-open，避免刚进群的管理员在成员刷新前被误拦。
+    // 发送守卫与输入框 @所有人开关共用同一判定。
+    fun canMentionEveryone(myRole: String?, isGroup: Boolean): Boolean {
+        if (!isGroup) return true
+        val role = myRole?.uppercase()
+        return role == null || role == "OWNER" || role == "ADMIN"
+    }
+
     /**
      * 发送准入。
      *
@@ -77,12 +85,8 @@ object ChatSendGuard {
         } else {
             emptyList()
         }
-        val canMentionEveryone = !isGroup || run {
-            // 1.45：角色未加载（null）时 fail-open，避免刚进群的管理员在成员刷新前被误拦
-            val role = state.myMemberRole?.uppercase()
-            role == null || role == "OWNER" || role == "ADMIN"
-        }
-        if (isGroup && extractedMentions.contains(MentionPolicy.EVERYONE_ID) && !canMentionEveryone) {
+        val mentionEveryoneAllowed = canMentionEveryone(state.myMemberRole, isGroup)
+        if (isGroup && extractedMentions.contains(MentionPolicy.EVERYONE_ID) && !mentionEveryoneAllowed) {
             return SendDecision.Reject(SendRejectReason.MENTION_EVERYONE_FORBIDDEN)
         }
 

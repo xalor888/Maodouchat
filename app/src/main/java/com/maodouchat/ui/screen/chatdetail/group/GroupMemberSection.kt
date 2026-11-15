@@ -40,6 +40,7 @@ import com.maodouchat.core.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.core.model.GroupMemberUi
+import com.maodouchat.domain.groups.GroupMemberActionPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
@@ -149,7 +150,7 @@ fun MemberRow(
                         onClick = { actionsExpanded = false; onSetTitle() },
                         leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) }
                     )
-                    if (isOwner && !isMe && member.role != "OWNER") {
+                    if (GroupMemberActionPolicy.canManageMemberRole(isOwner, isMe, member.role)) {
                         DropdownMenuItem(
                             text = {
                                 Text(
@@ -168,7 +169,7 @@ fun MemberRow(
                             leadingIcon = { Icon(Icons.Outlined.SwapHoriz, contentDescription = null, tint = LocalChatPalette.current.unreadRed) }
                         )
                     }
-                    if (!isMe && member.role != "OWNER" && (isOwner || member.role != "ADMIN")) {
+                    if (GroupMemberActionPolicy.canModerateMember(isOwner, isMe, member.role)) {
                         DropdownMenuItem(
                             text = {
                                 Text(
@@ -179,7 +180,7 @@ fun MemberRow(
                             onClick = { actionsExpanded = false; onMute() }
                         )
                     }
-                    if (!isMe && member.role != "OWNER" && (isOwner || member.role != "ADMIN")) {
+                    if (GroupMemberActionPolicy.canModerateMember(isOwner, isMe, member.role)) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.chat_remove), color = LocalChatPalette.current.unreadRed) },
                             onClick = { actionsExpanded = false; onRemove() }
