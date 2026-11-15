@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.maodouchat.domain.contacts.AvatarDisplayPolicy
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -86,10 +87,8 @@ fun Avatar(
             )
         } else {
             // 无头像，显示首字母渐变背景
-            val initial = name.firstOrNull()?.toString() ?: "?"
-            val gradientIndex = (name.hashCode().mod(AvatarGradients.size)).let {
-                if (it < 0) it + AvatarGradients.size else it
-            }
+            val initial = AvatarDisplayPolicy.initial(name)
+            val gradientIndex = AvatarDisplayPolicy.gradientIndex(name, AvatarGradients.size)
             val gradient = AvatarGradients[gradientIndex]
 
             Box(
