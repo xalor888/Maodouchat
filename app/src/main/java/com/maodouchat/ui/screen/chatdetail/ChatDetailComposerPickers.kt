@@ -34,6 +34,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.BotCommandItem
+import com.maodouchat.domain.messaging.groupAiModePrefix
+import com.maodouchat.domain.messaging.inferGroupAiMode
+import com.maodouchat.domain.messaging.stripGroupAiModeKeyword
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -171,54 +174,13 @@ internal fun AiAssistantCommandStrip(
                     "risks" to R.string.chat_group_ai_mode_risks
                 )
                 val currentQuery = value.trim().removePrefix("@AI").removePrefix("@ai").trimStart()
-                val activeMode = when {
-                    currentQuery.startsWith("总结") || currentQuery.startsWith("概括") ||
-                        currentQuery.startsWith("summary", ignoreCase = true) ||
-                        currentQuery.startsWith("summarize", ignoreCase = true) -> "summary"
-                    currentQuery.startsWith("决策") || currentQuery.startsWith("决定") ||
-                        currentQuery.startsWith("decisions", ignoreCase = true) -> "decisions"
-                    currentQuery.startsWith("待办") || currentQuery.startsWith("任务") ||
-                        currentQuery.startsWith("tasks", ignoreCase = true) ||
-                        currentQuery.startsWith("todo", ignoreCase = true) -> "tasks"
-                    currentQuery.startsWith("时间线") || currentQuery.startsWith("时间轴") ||
-                        currentQuery.startsWith("timeline", ignoreCase = true) ||
-                        currentQuery.startsWith("chronology", ignoreCase = true) -> "timeline"
-                    currentQuery.startsWith("风险") || currentQuery.startsWith("隐患") ||
-                        currentQuery.startsWith("risk", ignoreCase = true) ||
-                        currentQuery.startsWith("blocker", ignoreCase = true) -> "risks"
-                    else -> "answer"
-                }
+                val activeMode = inferGroupAiMode(currentQuery)
                 modeChips.forEach { (mode, labelRes) ->
-                    val prefix = when (mode) {
-                        "summary" -> "总结 "
-                        "decisions" -> "决策 "
-                        "tasks" -> "待办 "
-                        "timeline" -> "时间线 "
-                        "risks" -> "风险 "
-                        else -> ""
-                    }
+                    val prefix = groupAiModePrefix(mode)
                     FilterChip(
                         selected = activeMode == mode,
                         onClick = {
-                            val body = when {
-                                currentQuery.startsWith("总结") || currentQuery.startsWith("概括") ->
-                                    currentQuery.removePrefix("总结").removePrefix("概括").trimStart()
-                                currentQuery.startsWith("summary", ignoreCase = true) ->
-                                    currentQuery.drop(7).trimStart()
-                                currentQuery.startsWith("summarize", ignoreCase = true) ->
-                                    currentQuery.drop(9).trimStart()
-                                currentQuery.startsWith("决策") || currentQuery.startsWith("决定") ->
-                                    currentQuery.removePrefix("决策").removePrefix("决定").trimStart()
-                                currentQuery.startsWith("decisions", ignoreCase = true) ->
-                                    currentQuery.drop(9).trimStart()
-                                currentQuery.startsWith("待办") || currentQuery.startsWith("任务") ->
-                                    currentQuery.removePrefix("待办").removePrefix("任务").trimStart()
-                                currentQuery.startsWith("tasks", ignoreCase = true) ->
-                                    currentQuery.drop(5).trimStart()
-                                currentQuery.startsWith("todo", ignoreCase = true) ->
-                                    currentQuery.drop(4).trimStart()
-                                else -> currentQuery
-                            }
+                            val body = stripGroupAiModeKeyword(currentQuery)
                             onValueChange("@AI $prefix$body".trimEnd())
                         },
                         label = { Text(stringResource(labelRes)) }
