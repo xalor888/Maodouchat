@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.explore
 import android.app.Application
 import android.content.Context
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ExploreOwnerPolicy
 import com.maodouchat.explore.repository.DefaultMediaUploadQueue
 import com.maodouchat.explore.repository.DefaultPostMutationRepository
 import com.maodouchat.explore.repository.DraftRepository
@@ -43,7 +44,6 @@ class ExploreOrchestrator(
     private val commentPostUseCase: CommentPostUseCase = CommentPostUseCase(postMutationRepository),
     private val resolveNearbyUseCase: ResolveNearbyUseCase = ResolveNearbyUseCase()
 ) {
-
     internal val _uiState = MutableStateFlow(
         ExploreUiState(
             composerText = "",
@@ -97,7 +97,7 @@ class ExploreOrchestrator(
     )
 
     internal fun isCurrentOwner(expectedUserId: String): Boolean =
-        com.maodouchat.session.CurrentSession.snapshot().userId == expectedUserId && expectedUserId.isNotBlank()
+        ExploreOwnerPolicy.isCurrentOwner(com.maodouchat.session.CurrentSession.snapshot().userId, expectedUserId)
 
     internal fun draftOwnerId(): String = com.maodouchat.session.CurrentSession.ownerUserId()
 

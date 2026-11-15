@@ -10,6 +10,7 @@ import com.maodouchat.core.model.ExploreFeedPolicy
 import com.maodouchat.core.model.ExplorePaging
 import com.maodouchat.domain.conversation.ExploreDeleteRollbackPolicy
 import com.maodouchat.domain.conversation.ExploreCommentReplacePolicy
+import com.maodouchat.domain.conversation.ExploreOwnerPolicy
 import com.maodouchat.explore.usecase.CommentPostUseCase
 import com.maodouchat.explore.usecase.ToggleLikeUseCase
 import com.maodouchat.security.BackgroundSessionGate
@@ -36,7 +37,7 @@ internal class ExploreCommentController(
     private fun text(id: Int, vararg args: Any): String = textFn(id, args)
 
     private fun isCurrentOwner(expectedUserId: String): Boolean =
-        com.maodouchat.session.CurrentSession.snapshot().userId == expectedUserId && expectedUserId.isNotBlank()
+        ExploreOwnerPolicy.isCurrentOwner(com.maodouchat.session.CurrentSession.snapshot().userId, expectedUserId)
 
     fun openComments(postId: String) {
         val commentsOwnerUserId = com.maodouchat.session.CurrentSession.ownerUserId()
