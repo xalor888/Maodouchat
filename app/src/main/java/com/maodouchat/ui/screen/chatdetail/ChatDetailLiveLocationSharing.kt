@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.LocationPayloadPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.core.model.LiveLocationPolicy
@@ -54,13 +55,14 @@ fun ChatDetailViewModel.sendLiveLocation(durationMs: Long = LiveLocationPolicy.D
                         LiveLocationPolicy.DURATION_OPTIONS_MS.first(),
                         LiveLocationPolicy.DURATION_OPTIONS_MS.last()
                     )
-                    val payload = LocationPayload(
+                    val payload = LocationPayloadPolicy.live(
                         latitude = location.latitude,
                         longitude = location.longitude,
-                        accuracyMeters = location.accuracy.takeIf { location.hasAccuracy() },
+                        accuracy = location.accuracy,
+                        hasAccuracy = location.hasAccuracy(),
+                        time = location.time,
+                        now = now,
                         label = text(R.string.chat_live_location_send),
-                        capturedAt = location.time.takeIf { it > 0 } ?: now,
-                        live = true,
                         liveUntil = until,
                         sessionId = sessionId
                     )

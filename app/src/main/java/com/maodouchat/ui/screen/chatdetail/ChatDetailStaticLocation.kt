@@ -6,6 +6,7 @@ import com.maodouchat.core.model.LocationException
 import com.maodouchat.core.model.LocationFailure
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.LocationPayloadPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.LocationProvider
 import com.maodouchat.util.RuntimeFlags
@@ -47,11 +48,13 @@ fun ChatDetailViewModel.sendCurrentLocation() {
                         _uiState.update { it.copy(isSending = false, groupEncryptionWarning = text(R.string.error_session_expired)) }
                         return@fold
                     }
-                    val payload = LocationPayload(
+                    val payload = LocationPayloadPolicy.static(
                         latitude = location.latitude,
                         longitude = location.longitude,
-                        accuracyMeters = location.accuracy.takeIf { location.hasAccuracy() },
-                        capturedAt = location.time.takeIf { it > 0 } ?: System.currentTimeMillis()
+                        accuracy = location.accuracy,
+                        hasAccuracy = location.hasAccuracy(),
+                        time = location.time,
+                        now = System.currentTimeMillis()
                     )
                     val content = Json.encodeToString(
                         LocationPayload.serializer(),
