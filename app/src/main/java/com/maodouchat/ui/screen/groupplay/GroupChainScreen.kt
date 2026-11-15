@@ -44,8 +44,8 @@ import com.maodouchat.core.model.ChainEntryItem
 import com.maodouchat.core.model.ChainListItem
 import com.maodouchat.core.model.GroupChainDetailState
 import com.maodouchat.core.model.GroupChainUiState
-import com.maodouchat.core.model.GroupPlayJson
 import com.maodouchat.domain.groups.GroupChainValidationPolicy
+import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -203,10 +203,8 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         }
     }
 
-    private fun parseList(text: String): List<ChainListItem> {
-        val arr = JSONArray(GroupPlayJson.arrayText(text))
-        return (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+    private fun parseList(text: String): List<ChainListItem> =
+        GroupPlayJsonPolicy.parseObjectList(text) { o ->
             ChainListItem(
                 id = o.optString("id"),
                 title = o.optString("title"),
@@ -217,12 +215,9 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 myJoined = o.optBoolean("myJoined")
             )
         }
-    }
 
-    private fun parseEntries(arr: JSONArray?): List<ChainEntryItem> {
-        if (arr == null) return emptyList()
-        return (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+    private fun parseEntries(arr: JSONArray?): List<ChainEntryItem> =
+        GroupPlayJsonPolicy.parseObjectList(arr) { o ->
             ChainEntryItem(
                 id = o.optString("id"),
                 userId = o.optString("userId"),
@@ -230,7 +225,6 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 content = o.optString("content")
             )
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
