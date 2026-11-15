@@ -62,6 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.PostDto
+import com.maodouchat.domain.conversation.ExploreSearchPolicy
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
@@ -108,18 +109,9 @@ fun ExploreScreen(
         val media = if (showOnlyMedia) { post: PostDto ->
             post.imageUrls.isNotEmpty()
         } else null
-        val query = feedSearch.trim()
         var base = if (mine == null) uiState.posts else uiState.posts.filter(mine)
         if (media != null) base = base.filter(media)
-        if (query.isBlank()) {
-            base
-        } else {
-            base.filter { post ->
-                post.content.contains(query, ignoreCase = true) ||
-                    post.author.name.contains(query, ignoreCase = true) ||
-                    post.author.id.contains(query, ignoreCase = true)
-            }
-        }
+        ExploreSearchPolicy.filter(base, feedSearch, { it.content }, { it.author.name }, { it.author.id })
     }
     val imagePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9),

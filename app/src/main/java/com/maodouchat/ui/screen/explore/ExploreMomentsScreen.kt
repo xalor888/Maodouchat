@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ExploreSearchPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.PullToRefreshLayout
@@ -115,16 +116,7 @@ fun MomentsScreen(
         val filteredMoments = remember(publicPosts, momentsSearch, momentsOnlyMedia) {
             var base = publicPosts
             if (momentsOnlyMedia) base = base.filter { it.imageUrls.isNotEmpty() }
-            val query = momentsSearch.trim()
-            if (query.isBlank()) {
-                base
-            } else {
-                base.filter {
-                    it.content.contains(query, ignoreCase = true) ||
-                        it.author.name.contains(query, ignoreCase = true) ||
-                        it.author.id.contains(query, ignoreCase = true)
-                }
-            }
+            ExploreSearchPolicy.filter(base, momentsSearch, { it.content }, { it.author.name }, { it.author.id })
         }
         // 8.59：朋友圈接分页——滚动到底触发 loadMore（与 ExploreScreen 一致）；
         // 搜索激活或已到底暂停，避免过滤视图不增长时持续拉取

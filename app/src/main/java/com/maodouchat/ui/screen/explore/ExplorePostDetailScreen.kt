@@ -67,6 +67,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ExploreFeedPolicy
+import com.maodouchat.domain.conversation.ExploreSearchPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
@@ -350,16 +351,7 @@ fun PostDetailScreen(
                 else -> {
             var commentSearch by rememberSaveable { mutableStateOf("") }
             val filteredComments = remember(comments, commentSearch) {
-                val query = commentSearch.trim()
-                if (query.isBlank()) {
-                    comments
-                } else {
-                    comments.filter {
-                        it.content.contains(query, ignoreCase = true) ||
-                            it.author.name.contains(query, ignoreCase = true) ||
-                            it.author.id.contains(query, ignoreCase = true)
-                    }
-                }
+                ExploreSearchPolicy.filter(comments, commentSearch, { it.content }, { it.author.name }, { it.author.id })
             }
             // 1.104：父评论作者索引（避免逐条 O(n²) 扫描）
             val commentAuthorById = remember(comments) { comments.associateBy { it.id } }
