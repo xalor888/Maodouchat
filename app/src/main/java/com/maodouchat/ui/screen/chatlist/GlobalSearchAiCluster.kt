@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiSearchOutcome
 import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchTypeFilter
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -66,7 +67,7 @@ fun GlobalSearchViewModel.performAiSearch(query: String) {
                 // U02 延伸：隐藏集合收进非 ui 的 ChatVisibilitySets（同文本搜索路径）。
                 val redacted = com.maodouchat.data.repository.ChatVisibilitySets.redactedChatIds()
                 val filterType = _uiState.value.filterType
-                val docs = filterToMessageTypes(filterType)?.let { types ->
+                val docs = GlobalSearchTypeFilter.messageTypesForFilter(filterType.apiValue)?.let { types ->
                     searchRepository.searchByTypes(query, types, limit = 80)
                 } ?: searchRepository.search(query, limit = 80)
                 docs
