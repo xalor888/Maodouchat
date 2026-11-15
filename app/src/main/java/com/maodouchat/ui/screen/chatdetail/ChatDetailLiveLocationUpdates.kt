@@ -10,6 +10,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.toOptimisticEdit
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.core.model.LiveLocationPolicy
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.LocationProvider
 import kotlinx.coroutines.CancellationException
@@ -100,7 +101,7 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
         expectedUserId = ownerUserId,
     )
     ) return@withLock
-    val stagedOriginal = _uiState.value.messages.firstOrNull { it.id == messageId }
+    val stagedOriginal = MessageLookupPolicy.findById(_uiState.value.messages, messageId)
         ?.takeIf { it.senderId == ownerUserId && it.type == MessageType.LOCATION }
         ?: return@withLock
     val content = Json.encodeToString(
@@ -116,7 +117,7 @@ internal suspend fun ChatDetailViewModel.updateLiveLocationMessage(
         withContext(Dispatchers.IO) { messageRepo.insertMessage(stagedUpdate) }
     }
     if (inlineSendCompletions[messageId]?.await() == false) return@withLock
-    val original = _uiState.value.messages.firstOrNull { it.id == messageId }
+    val original = MessageLookupPolicy.findById(_uiState.value.messages, messageId)
         ?.takeIf { it.senderId == ownerUserId && it.type == MessageType.LOCATION }
         ?: stagedUpdate
     val updated = if (original.content == content) original else original.toOptimisticEdit(content)

@@ -14,6 +14,7 @@ import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -127,7 +128,7 @@ internal suspend fun ChatDetailViewModel.restoreAiAction(operation: AiOperationE
 }
 
 internal suspend fun ChatDetailViewModel.ensureAiOperationMessage(messageId: String): Message? {
-    _uiState.value.messages.firstOrNull { it.id == messageId }?.let { return it }
+    MessageLookupPolicy.findById(_uiState.value.messages, messageId)?.let { return it }
     val cached = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) }
         ?.takeIf { it.chatId == activeChatId }
         ?: return null

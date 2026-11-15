@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.domain.messaging.ConversationPrivacyCapabilities
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.domain.messaging.normalizeAiReplyTone
 import com.maodouchat.domain.messaging.normalizeAiRewriteMode
@@ -167,7 +168,7 @@ fun ChatDetailViewModel.requestVoiceTranscription(messageId: String) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val message = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     val isTranscribing = messageId in _uiState.value.transcribingVoiceMessageIds
     if (!VoiceTranscriptPolicy.canRequest(
             isVoiceMessage = message.type == MessageType.VOICE,
@@ -211,7 +212,7 @@ fun ChatDetailViewModel.requestMessageTranslation(messageId: String, targetLangu
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val message = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     if (message.type != MessageType.TEXT && message.type != MessageType.MARKDOWN) return
     if (messageId in _uiState.value.translatingMessageIds) return
     if (!_uiState.value.aiEnabled) {

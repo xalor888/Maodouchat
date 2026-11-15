@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +18,7 @@ fun ChatDetailViewModel.requestAiImageAnalysis(messageId: String, mode: AiImageA
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_ai_blocked)) }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val message = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     if (message.type != MessageType.IMAGE || _uiState.value.isAiWorking) return
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_image_disabled)) }
@@ -62,7 +63,7 @@ fun ChatDetailViewModel.requestAiFileAnalysis(messageId: String, mode: AiFileAna
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.ai_analyze_file_disabled)) }
         return
     }
-    val message = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return
+    val message = MessageLookupPolicy.findById(_uiState.value.messages, messageId) ?: return
     if (message.type != MessageType.FILE || _uiState.value.isAiWorking) return
     val normalizedQuestion = question?.trim()?.take(500)
     if (mode == AiFileAnalysisMode.QUESTION && normalizedQuestion.isNullOrBlank()) {
