@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.maodouchat.domain.conversation.UnreadBadgePolicy
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.UnreadRed
 
@@ -79,7 +80,7 @@ fun AnimatedNotificationBadge(
         ) {
             if (count > 0) {
                 Text(
-                    text = if (count > 99) "99+" else count.toString(),
+                    text = UnreadBadgePolicy.format(count),
                     color = Color.White,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,

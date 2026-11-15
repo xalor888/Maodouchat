@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderPolicy
+import com.maodouchat.domain.conversation.UnreadBadgePolicy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -75,7 +76,7 @@ internal fun ChatFolderStrip(
 
 @Composable
 internal fun FolderChip(label: String, selected: Boolean, badge: Int, onClick: () -> Unit) {
-    val chipLabel = if (badge > 0) "$label ${if (badge > 99) "99+" else badge}" else label
+    val chipLabel = if (badge > 0) "$label ${UnreadBadgePolicy.format(badge)}" else label
     FilterChip(
         selected = selected,
         onClick = onClick,

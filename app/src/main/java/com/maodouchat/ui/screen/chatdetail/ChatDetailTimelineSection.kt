@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.conversation.UnreadBadgePolicy
 import com.maodouchat.perf.CoalescedScroller
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
@@ -179,7 +180,7 @@ internal fun BoxScope.ChatDetailTimelineSection(
                         .background(UnreadRed, CircleShape)
                 ) {
                     Text(
-                        text = if (scroll.pendingNewMessageCount > 99) "99+" else scroll.pendingNewMessageCount.toString(),
+                        text = UnreadBadgePolicy.format(scroll.pendingNewMessageCount),
                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onError
                     )
