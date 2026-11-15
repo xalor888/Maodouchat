@@ -10,9 +10,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.core.model.isMessageForwardable
+import com.maodouchat.domain.messaging.MessageActionAvailabilityPolicy
 import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
@@ -78,7 +78,7 @@ internal fun ChatDetailMessageActionsDialog(
                 if (isMessageForwardable(msg.type, isSecretChat = state.isSecretChat == true, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK))) {
                     TextButton(onClick = { onForward() }) { Text(stringResource(R.string.chat_forward)) }
                 }
-                if (isOwn && withinEditWindow && (msg.type == MessageType.TEXT || msg.type == MessageType.MARKDOWN)) {
+                if (MessageActionAvailabilityPolicy.canEdit(isOwn, withinEditWindow, msg.type)) {
                     TextButton(onClick = { onEdit() }) { Text(stringResource(R.string.chat_edit)) }
                 }
             }
@@ -86,7 +86,7 @@ internal fun ChatDetailMessageActionsDialog(
         dismissButton = {
             if (isOwn) {
                 Row {
-                    if (withinEditWindow && msg.type != MessageType.REVOKED) {
+                    if (MessageActionAvailabilityPolicy.canRevoke(isOwn, withinEditWindow, msg.type)) {
                         TextButton(onClick = { onRevoke() }) {
                             Text(stringResource(R.string.chat_revoke), color = LocalChatPalette.current.unreadRed)
                         }
