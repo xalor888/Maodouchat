@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchHit
 import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchTypeFilter
 import com.maodouchat.core.model.Chat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -13,32 +14,14 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * 搜索类型过滤 → 对应可索引消息类型。
- * LINK 无独立 MessageType，落在 TEXT/MARKDOWN 上，返回后在内存按 URL 判定。
- */
-fun GlobalSearchViewModel.filterToMessageTypes(filterType: SearchFilterType): List<String>? {
-    return when (filterType) {
-        SearchFilterType.ALL -> null
-        SearchFilterType.TEXT -> listOf("TEXT", "MARKDOWN")
-        SearchFilterType.IMAGE -> listOf("IMAGE", "GIF", "STICKER")
-        SearchFilterType.FILE -> listOf("FILE")
-        SearchFilterType.VOICE -> listOf("VOICE")
-        SearchFilterType.VIDEO -> listOf("VIDEO")
-        SearchFilterType.LINK -> listOf("TEXT", "MARKDOWN")
-    }
-}
-
-fun GlobalSearchViewModel.isLinkDocument(document: MessageSearchDocumentEntity): Boolean =
-    document.searchableText.contains("://") ||
-        document.searchableText.contains(Regex("(?i)\\b(www\\.|t\\.me/|chat\\.mdou\\.me/)"))
-
 /** 按当前 filterType 过滤搜索结果；LINK 类型在内存按 URL 判定。 */
 fun GlobalSearchViewModel.applyTypeFilter(
     documents: List<MessageSearchDocumentEntity>,
     filterType: SearchFilterType
 ): List<MessageSearchDocumentEntity> {
-    if (filterType == SearchFilterType.LINK) return documents.filter(::isLinkDocument)
+    if (filterType == SearchFilterType.LINK) {
+        return documents.filter { GlobalSearchTypeFilter.isLinkText(it.searchableText) }
+    }
     return documents
 }
 
@@ -135,7 +118,7 @@ fun GlobalSearchViewModel.scheduleLocalSearch(query: String) {
                 // U02 延伸：PIN 锁 ∪ 密聊的隐藏集合收进非 ui 的 ChatVisibilitySets。
                 val redacted = com.maodouchat.data.repository.ChatVisibilitySets.redactedChatIds()
                 val filterType = _uiState.value.filterType
-                val all = filterToMessageTypes(filterType)?.let { types ->
+                val all = GlobalSearchTypeFilter.messageTypesForFilter(filterType.apiValue)?.let { types ->
                     searchRepository.searchByTypes(query, types, limit = 80)
                 } ?: searchRepository.search(query, limit = 80)
                 val visible = all
