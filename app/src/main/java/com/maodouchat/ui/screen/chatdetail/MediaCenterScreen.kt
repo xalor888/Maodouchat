@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.conversation.MediaExportUseCase
+import com.maodouchat.domain.messaging.ChatNameResolvePolicy
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -202,18 +203,15 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
     private suspend fun resolveChatName(): String {
         return try {
             val entity = com.maodouchat.data.repository.AppRepositories.chatEntityOrNull(chatId) ?: return ""
-            entity.groupName?.takeIf { it.isNotBlank() }
-                ?: entity.participantIds
-                    .split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotBlank() && it != ownerUserId }
-                    .firstOrNull()
-                    ?.let { peerId ->
-                        com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)?.let { u ->
-                            u.nickname?.takeIf { it.isNotBlank() } ?: u.name
-                        }
-                    }
-                ?: ""
+            ChatNameResolvePolicy.resolve(
+                groupName = entity.groupName,
+                participantIds = entity.participantIds,
+                ownerUserId = ownerUserId,
+                peerName = { peerId ->
+                    com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)
+                        ?.let { ChatNameResolvePolicy.displayName(it) }
+                }
+            )
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (_: Exception) {

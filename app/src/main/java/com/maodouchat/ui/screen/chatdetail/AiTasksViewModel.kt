@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiTaskEntity
+import com.maodouchat.domain.messaging.ChatNameResolvePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,18 +60,15 @@ class AiTasksViewModel(
     private suspend fun resolveChatName(): String {
         return try {
             val entity = com.maodouchat.data.repository.AppRepositories.chatEntityOrNull(chatId) ?: return ""
-            entity.groupName?.takeIf { it.isNotBlank() }
-                ?: entity.participantIds
-                    .split(",")
-                    .map { it.trim() }
-                    .filter { it.isNotBlank() && it != ownerUserId }
-                    .firstOrNull()
-                    ?.let { peerId ->
-                        com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)?.let { u ->
-                            u.nickname?.takeIf { it.isNotBlank() } ?: u.name
-                        }
-                    }
-                ?: ""
+            ChatNameResolvePolicy.resolve(
+                groupName = entity.groupName,
+                participantIds = entity.participantIds,
+                ownerUserId = ownerUserId,
+                peerName = { peerId ->
+                    com.maodouchat.data.repository.AppRepositories.users.getUserById(peerId)
+                        ?.let { ChatNameResolvePolicy.displayName(it) }
+                }
+            )
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (_: Exception) {
