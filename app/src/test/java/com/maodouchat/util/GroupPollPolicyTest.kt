@@ -87,25 +87,6 @@ class GroupPollPolicyTest {
     }
 
     @Test
-    fun chainAndPkValidationBounds() {
-        assertTrue(GroupPollPolicy.isValidChainTitle("x".repeat(200)))
-        assertFalse(GroupPollPolicy.isValidChainTitle("x".repeat(201)))
-        assertFalse(GroupPollPolicy.isValidChainTitle(""))
-        assertFalse(GroupPollPolicy.isValidChainTitle("   "))
-        assertTrue(GroupPollPolicy.isValidChainTopic("x".repeat(500)))
-        assertFalse(GroupPollPolicy.isValidChainTopic("x".repeat(501)))
-        assertTrue(GroupPollPolicy.isValidChainTopic(""))
-        assertTrue(GroupPollPolicy.isValidChainTopic("   "))
-        assertFalse(GroupPollPolicy.isValidChainContent(""))
-        assertFalse(GroupPollPolicy.isValidChainContent("   "))
-        assertTrue(GroupPollPolicy.isValidChainContent("x".repeat(500)))
-        assertFalse(GroupPollPolicy.isValidChainContent("x".repeat(501)))
-        assertTrue(GroupPollPolicy.isValidPkTitle("x".repeat(120)))
-        assertFalse(GroupPollPolicy.isValidPkTitle("x".repeat(121)))
-        assertFalse(GroupPollPolicy.isValidPkTitle(""))
-    }
-
-    @Test
     fun pkShortcutParseEdges() {
         assertEquals("k1" to "left", GroupPollPolicy.parsePkShortcut("~pk:k1|LEFT"))
         assertEquals("k1" to "right", GroupPollPolicy.parsePkShortcut("~pk:k1| RIGHT "))

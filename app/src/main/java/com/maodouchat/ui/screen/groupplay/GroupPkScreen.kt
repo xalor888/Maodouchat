@@ -43,6 +43,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.GroupPkUiState
 import com.maodouchat.core.model.GroupPlayJson
 import com.maodouchat.core.model.PkListItem
+import com.maodouchat.domain.groups.GroupPkValidationPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,7 +109,7 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
         if (s.creating) return
         val left = s.leftTitle.trim()
         val right = s.rightTitle.trim()
-        if (left.isBlank() || right.isBlank() || left.length > 120 || right.length > 120) {
+        if (!GroupPkValidationPolicy.isValidTitles(left, right)) {
             _uiState.value = s.copy(error = localizedString(R.string.group_play_pk_titles_invalid), notice = null)
             return
         }

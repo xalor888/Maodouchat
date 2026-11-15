@@ -45,6 +45,7 @@ import com.maodouchat.core.model.ChainListItem
 import com.maodouchat.core.model.GroupChainDetailState
 import com.maodouchat.core.model.GroupChainUiState
 import com.maodouchat.core.model.GroupPlayJson
+import com.maodouchat.domain.groups.GroupChainValidationPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -111,7 +112,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         if (s.creating) return
         val title = s.title.trim()
         val topic = s.topic.trim()
-        if (title.isBlank() || title.length > 200 || topic.length > 500) {
+        if (!GroupChainValidationPolicy.isValidTitle(title) || !GroupChainValidationPolicy.isValidTopic(topic)) {
             _uiState.value = s.copy(error = text(R.string.group_play_chain_title_invalid))
             return
         }
@@ -173,12 +174,12 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
     fun joinChain() {
         val detail = _uiState.value.detail ?: return
         if (detail.submitting) return
-        if (detail.myJoined || !detail.active) {
+        if (!GroupChainValidationPolicy.canJoin(detail.myJoined, detail.active)) {
             _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_entry_failed))
             return
         }
         val content = _uiState.value.entryInput.trim()
-        if (content.isBlank() || content.length > 500) {
+        if (!GroupChainValidationPolicy.isValidEntryContent(content)) {
             _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_entry_failed))
             return
         }

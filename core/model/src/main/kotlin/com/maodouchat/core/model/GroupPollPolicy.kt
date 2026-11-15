@@ -122,11 +122,6 @@ object GroupPollPolicy {
     fun sanitizePollOptions(options: List<String>): List<String> =
         options.map { it.trim() }.filter { it.isNotBlank() }.map { it.take(MAX_POLL_OPTION_LENGTH) }
 
-    fun isValidChainTitle(title: String): Boolean = title.isNotBlank() && title.trim().length <= 200
-    fun isValidChainTopic(topic: String): Boolean = topic.length <= 500
-    fun isValidChainContent(content: String): Boolean = content.isNotBlank() && content.trim().length <= 500
-    fun isValidPkTitle(title: String): Boolean = title.isNotBlank() && title.trim().length <= 120
-
     // ── 聊天内共享文本格式化（消息气泡展示）────────────
 
     /** 投票创建后生成的分享文本（含快捷符，便于群友直接 ~vote 参与）。 */
