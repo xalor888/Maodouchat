@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.PostCommentDto
+import com.maodouchat.domain.conversation.ExploreSearchPolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.SearchHighlightAccent
@@ -132,16 +133,7 @@ internal fun CommentsDialog(
                 } else {
                     var commentSearch by rememberSaveable { mutableStateOf("") }
                     val filteredComments = remember(comments, commentSearch) {
-                        val query = commentSearch.trim()
-                        if (query.isBlank()) {
-                            comments
-                        } else {
-                            comments.filter {
-                                it.content.contains(query, ignoreCase = true) ||
-                                    it.author.name.contains(query, ignoreCase = true) ||
-                                    it.author.id.contains(query, ignoreCase = true)
-                            }
-                        }
+                        ExploreSearchPolicy.filter(comments, commentSearch, { it.content }, { it.author.name }, { it.author.id })
                     }
                     if (comments.size >= 5) {
                         OutlinedTextField(
