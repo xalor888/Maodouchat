@@ -22,6 +22,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.isMessageForwardable
 import com.maodouchat.core.model.isMessageReplyable
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.domain.messaging.displayedTranslation
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
@@ -42,7 +43,6 @@ internal fun ChatDetailMessageActionsSheet(
     state: ChatDetailUiState,
     viewModel: ChatDetailViewModel,
     context: android.content.Context,
-    /** 发送者显示名；由 Route 侧的 `resolveSenderName` 算好传入（它依赖 Route 的参与者映射）。 */
     senderName: String?,
     onMessageToActions: (Message?) -> Unit,
     onMessageToDelete: (Message?) -> Unit,
@@ -60,7 +60,7 @@ internal fun ChatDetailMessageActionsSheet(
     onSelectedMessageIds: (Set<String>) -> Unit,
 ) {
         val isOwn = message.senderId == state.currentUserId
-        val withinEditWindow = System.currentTimeMillis() - message.timestamp < 300_000
+        val withinEditWindow = MessageEditWindowPolicy.withinWindow(System.currentTimeMillis(), message.timestamp)
         val canForward = isMessageForwardable(message.type, isSecretChat = state.isSecretChat == true, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK))
         val meta = message.parsedMeta()
         val voiceTranscript = meta.voiceTranscript

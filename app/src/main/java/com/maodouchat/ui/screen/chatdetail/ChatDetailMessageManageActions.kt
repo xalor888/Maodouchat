@@ -13,6 +13,7 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ChatDetailUiState
 
@@ -119,7 +120,7 @@ internal fun ChatDetailMessageManageActions(
     }
     if (isOwn && withinEditWindow && message.type != MessageType.REVOKED) {
         // 1.152：撤回倒计时（5 分钟窗口，向上取整分钟）
-        val revokeRemainingMin = ((300_000L - (System.currentTimeMillis() - message.timestamp)) / 60_000L).toInt() + 1
+        val revokeRemainingMin = MessageEditWindowPolicy.remainingMinutes(System.currentTimeMillis(), message.timestamp)
         TextButton(
             onClick = {
                 onMessageToRevoke(message)
