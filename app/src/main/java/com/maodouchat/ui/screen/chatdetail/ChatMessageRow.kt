@@ -50,6 +50,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.isMessageGestureEligible
 import com.maodouchat.core.model.shouldTriggerSwipeReply
+import com.maodouchat.domain.messaging.MessageSwipeReplyPolicy
 import com.maodouchat.domain.messaging.displayedTranslation
 import com.maodouchat.ui.component.MessageBubble
 import com.maodouchat.ui.theme.LocalMotionSettings
@@ -138,9 +139,9 @@ internal fun ChatMessageRow(
             animationSpec = motion.springSpec(dampingRatio = 0.82f, stiffness = 620f),
             label = "messageSwipeReply"
         )
-        val replyProgress = (abs(displayedSwipeOffset) / replyThresholdPx).coerceIn(0f, 1f)
+        val replyProgress = MessageSwipeReplyPolicy.replyProgress(displayedSwipeOffset, replyThresholdPx)
         val replyIconScale by animateFloatAsState(
-            targetValue = if (abs(displayedSwipeOffset) >= replyThresholdPx) 1.12f else 0.7f + 0.3f * replyProgress,
+            targetValue = MessageSwipeReplyPolicy.replyIconScale(displayedSwipeOffset, replyThresholdPx),
             animationSpec = motion.springSpec(dampingRatio = 0.55f, stiffness = 480f),
             label = "replyIconScale"
         )
@@ -152,7 +153,7 @@ internal fun ChatMessageRow(
 
         Box(modifier = Modifier.fillMaxWidth()) {
             // 左滑露出的回复图标（对标 Telegram 手势反馈）
-            if (replyProgress > 0.05f && gestureEligible) {
+            if (MessageSwipeReplyPolicy.isReplyIconVisible(replyProgress, gestureEligible)) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -236,7 +237,7 @@ internal fun ChatMessageRow(
                             detectHorizontalDragGestures(
                                 onHorizontalDrag = { change, dragAmount ->
                                     change.consume()
-                                    swipeOffsetPx = (swipeOffsetPx + dragAmount).coerceIn(-maxSwipePx, 0f)
+                                    swipeOffsetPx = MessageSwipeReplyPolicy.clampSwipeOffset(swipeOffsetPx + dragAmount, maxSwipePx)
                                     val crossed = shouldTriggerSwipeReply(swipeOffsetPx, replyThresholdPx)
                                     if (crossed && !crossedReplyThreshold) {
                                         com.maodouchat.util.HapticGate.perform(hapticContext, haptic, HapticFeedbackType.TextHandleMove)

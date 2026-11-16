@@ -38,6 +38,8 @@ import com.maodouchat.R
 import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.core.model.GroupInviteItem
 import com.maodouchat.core.model.User
+import com.maodouchat.domain.conversation.ContactSearchActionKind
+import com.maodouchat.domain.conversation.contactSearchActionKind
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.EmptyState
@@ -156,20 +158,20 @@ internal fun SearchUserRow(
                 )
             }
         }
-        when {
-            isFriend -> {
+        when (contactSearchActionKind(isFriend, requestPending)) {
+            ContactSearchActionKind.START_CHAT -> {
                 TextButton(onClick = onOpenChat) {
                     Text(stringResource(R.string.contacts_start_chat), color = MaterialTheme.colorScheme.primary)
                 }
             }
-            requestPending -> {
+            ContactSearchActionKind.REQUEST_PENDING -> {
                 Text(
                     stringResource(R.string.contacts_friend_request_pending),
                     style = MaterialTheme.typography.labelMedium,
                     color = LocalChatPalette.current.textSecondary
                 )
             }
-            else -> {
+            ContactSearchActionKind.ADD_FRIEND -> {
                 TextButton(onClick = onAddFriend) {
                     Text(stringResource(R.string.contacts_add_friend), color = MaterialTheme.colorScheme.primary)
                 }
