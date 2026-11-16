@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.domain.messaging.AiAuditLogFilterPolicy
+import com.maodouchat.domain.messaging.AiProviderFormPolicy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,13 +62,6 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-/**
- * 「AI 与隐私」页（G99 从 `SettingsSubScreens.kt` 拆出，原 633 行）。
- * 聊天内 AI 开关 + 本机授权 + 调用审计。审计行组件与文案映射见 `AiPrivacySettingsRows.kt`。
- *
- * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）。
- * 纯搬移，不改判断。
- */
 
 /**
  * 「AI 与隐私」页 — 聊天内 AI 开关 + 本机授权 + 调用审计
@@ -286,7 +280,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerName,
-                        onValueChange = { providerName = it.take(80) },
+                        onValueChange = { providerName = AiProviderFormPolicy.clipName(it) },
                         label = { Text(stringResource(R.string.agent_provider_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -294,7 +288,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerBaseUrl,
-                        onValueChange = { providerBaseUrl = it.take(240) },
+                        onValueChange = { providerBaseUrl = AiProviderFormPolicy.clipBaseUrl(it) },
                         label = { Text(stringResource(R.string.agent_provider_base_url)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -302,7 +296,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerModel,
-                        onValueChange = { providerModel = it.take(80) },
+                        onValueChange = { providerModel = AiProviderFormPolicy.clipModel(it) },
                         label = { Text(stringResource(R.string.agent_provider_model)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -310,7 +304,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerApiKey,
-                        onValueChange = { providerApiKey = it.take(200) },
+                        onValueChange = { providerApiKey = AiProviderFormPolicy.clipApiKey(it) },
                         label = { Text(stringResource(R.string.agent_provider_api_key)) },
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
@@ -320,7 +314,7 @@ fun AiPrivacySettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = providerOrg,
-                            onValueChange = { providerOrg = it.take(80) },
+                            onValueChange = { providerOrg = AiProviderFormPolicy.clipOrganization(it) },
                             label = { Text(stringResource(R.string.agent_provider_organization)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -329,7 +323,7 @@ fun AiPrivacySettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(
                             value = providerAnthropicVersion,
-                            onValueChange = { providerAnthropicVersion = it.take(40) },
+                            onValueChange = { providerAnthropicVersion = AiProviderFormPolicy.clipAnthropicVersion(it) },
                             label = { Text(stringResource(R.string.agent_provider_anthropic_version)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
@@ -338,7 +332,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerExtraHeaders,
-                        onValueChange = { providerExtraHeaders = it.take(1_000) },
+                        onValueChange = { providerExtraHeaders = AiProviderFormPolicy.clipExtraHeaders(it) },
                         label = { Text(stringResource(R.string.agent_provider_extra_headers)) },
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -351,7 +345,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     OutlinedTextField(
                         value = providerContextWindow,
-                        onValueChange = { providerContextWindow = it.filter(Char::isDigit).take(8) },
+                        onValueChange = { providerContextWindow = AiProviderFormPolicy.clipContextWindow(it) },
                         label = { Text(stringResource(R.string.agent_provider_context_window)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -360,7 +354,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerHistoryLimit,
-                        onValueChange = { providerHistoryLimit = it.filter(Char::isDigit).take(3) },
+                        onValueChange = { providerHistoryLimit = AiProviderFormPolicy.clipHistoryLimit(it) },
                         label = { Text(stringResource(R.string.agent_provider_history_limit)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -369,7 +363,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerMaxTokens,
-                        onValueChange = { providerMaxTokens = it.filter(Char::isDigit).take(6) },
+                        onValueChange = { providerMaxTokens = AiProviderFormPolicy.clipMaxTokens(it) },
                         label = { Text(stringResource(R.string.agent_provider_max_tokens)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -378,7 +372,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerTemperature,
-                        onValueChange = { providerTemperature = it.take(8) },
+                        onValueChange = { providerTemperature = AiProviderFormPolicy.clipTemperature(it) },
                         label = { Text(stringResource(R.string.agent_provider_temperature)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -386,7 +380,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerTopP,
-                        onValueChange = { providerTopP = it.take(8) },
+                        onValueChange = { providerTopP = AiProviderFormPolicy.clipTopP(it) },
                         label = { Text(stringResource(R.string.agent_provider_top_p)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
@@ -394,7 +388,7 @@ fun AiPrivacySettingsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = providerTimeout,
-                        onValueChange = { providerTimeout = it.filter(Char::isDigit).take(3) },
+                        onValueChange = { providerTimeout = AiProviderFormPolicy.clipTimeout(it) },
                         label = { Text(stringResource(R.string.agent_provider_timeout)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -422,20 +416,20 @@ fun AiPrivacySettingsScreen(
                                 com.maodouchat.ai.agent.LocalAiProviderStore.upsertProvider(
                                     context,
                                     current.copy(
-                                        name = providerName.ifBlank { current.name },
-                                        baseUrl = providerBaseUrl.trim().trimEnd('/'),
+                                        name = AiProviderFormPolicy.normalizeName(providerName, current.name),
+                                        baseUrl = AiProviderFormPolicy.normalizeBaseUrl(providerBaseUrl),
                                         model = providerModel.trim(),
                                         apiKey = providerApiKey.trim(),
                                         protocol = providerProtocol,
                                         organization = providerOrg.trim(),
-                                        anthropicVersion = providerAnthropicVersion.trim().ifBlank { "2023-06-01" },
-                                        extraHeadersJson = providerExtraHeaders.trim().ifBlank { "{}" },
-                                        temperature = providerTemperature.trim().toDoubleOrNull(),
-                                        topP = providerTopP.trim().toDoubleOrNull(),
-                                        maxTokens = providerMaxTokens.toIntOrNull() ?: 4_096,
-                                        contextWindowTokens = providerContextWindow.toIntOrNull() ?: 128_000,
-                                        historyMessageLimit = providerHistoryLimit.toIntOrNull() ?: 24,
-                                        timeoutSeconds = providerTimeout.toIntOrNull() ?: 120,
+                                        anthropicVersion = AiProviderFormPolicy.normalizeAnthropicVersion(providerAnthropicVersion),
+                                        extraHeadersJson = AiProviderFormPolicy.normalizeExtraHeaders(providerExtraHeaders),
+                                        temperature = AiProviderFormPolicy.parseTemperature(providerTemperature),
+                                        topP = AiProviderFormPolicy.parseTopP(providerTopP),
+                                        maxTokens = AiProviderFormPolicy.parseMaxTokens(providerMaxTokens),
+                                        contextWindowTokens = AiProviderFormPolicy.parseContextWindow(providerContextWindow),
+                                        historyMessageLimit = AiProviderFormPolicy.parseHistoryLimit(providerHistoryLimit),
+                                        timeoutSeconds = AiProviderFormPolicy.parseTimeout(providerTimeout),
                                         stream = providerStream,
                                         supportsVision = providerSupportsVision
                                     )

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.BotUi
+import com.maodouchat.domain.messaging.BotCreateInputPolicy
 import com.maodouchat.domain.messaging.extractTokenOnce
 import com.maodouchat.domain.messaging.parseBots
 import com.maodouchat.session.CurrentSession
@@ -52,8 +53,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-// Bot JSON 解析簇已迁入 :domain:messaging（DeveloperBotsParsing.kt）。
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,14 +143,14 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedTextField(
                             value = name,
-                            onValueChange = { name = it.take(120) },
+                            onValueChange = { name = BotCreateInputPolicy.clipName(it) },
                             label = { Text(stringResource(R.string.developer_bots_name)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
                         OutlinedTextField(
                             value = username,
-                            onValueChange = { username = it.filter { ch -> ch.isLetterOrDigit() || ch == '_' }.take(32).lowercase() },
+                            onValueChange = { username = BotCreateInputPolicy.sanitizeUsername(it) },
                             label = { Text(stringResource(R.string.developer_bots_username)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
@@ -259,7 +258,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                             )
                             OutlinedTextField(
                                 value = webhookDraft,
-                                onValueChange = { webhookDraft = it.take(500) },
+                                onValueChange = { webhookDraft = BotCreateInputPolicy.clipWebhookUrl(it) },
                                 label = { Text(stringResource(R.string.developer_bots_webhook_url)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
@@ -272,7 +271,7 @@ fun DeveloperBotsScreen(onBack: () -> Unit, onOpenChat: (String) -> Unit = {}) {
                                     onClick = {
                                     if (activeBotActionId != null || creating) return@Button
                                     val url = webhookDraft.trim()
-                                    if (url.isNotEmpty() && !url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+                                    if (!BotCreateInputPolicy.isValidWebhookUrl(webhookDraft)) {
                                         error = context.getString(R.string.developer_bots_webhook_invalid)
                                         return@Button
                                     }

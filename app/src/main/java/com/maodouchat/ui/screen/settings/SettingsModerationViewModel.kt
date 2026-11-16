@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.ModerationUiState
 import com.maodouchat.core.model.UpdateModerationRuleRequest
+import com.maodouchat.domain.conversation.ModerationRuleSettingsPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -259,8 +260,8 @@ class ModerationViewModel(application: Application) : AndroidViewModel(applicati
     fun updateRuleSettings(ruleId: String, action: String, hitThreshold: Int, windowMinutes: Long) {
         val request = UpdateModerationRuleRequest(
             action = action,
-            hitThreshold = hitThreshold.coerceIn(1, 10_000),
-            windowMs = windowMinutes.coerceIn(1, 43_200) * 60_000L
+            hitThreshold = ModerationRuleSettingsPolicy.clampHitThreshold(hitThreshold),
+            windowMs = ModerationRuleSettingsPolicy.windowMs(windowMinutes)
         )
         rulesGeneration++
         rulesJob?.cancel()
