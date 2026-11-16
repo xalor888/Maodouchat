@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.core.model.AiSemanticSearchCandidate
+import com.maodouchat.domain.messaging.AiSemanticSearchPolicy
 import com.maodouchat.core.model.semanticSearchText
 import com.maodouchat.core.model.buildPlainAiContextMessages
 import com.maodouchat.domain.messaging.parseGroupAiCommand
@@ -131,15 +131,15 @@ internal fun ChatDetailViewModel.semanticSearch(query: String, candidateMessageI
                 state.chat?.participants?.firstOrNull { it.id == message.senderId }?.displayName
                     ?: state.contact.displayName
             }
-            AiSemanticSearchCandidate(
+            AiSemanticSearchPolicy.candidate(
                 messageId = message.id,
-                sender = sender.take(80),
-                text = searchableText.take(700),
+                sender = sender,
+                text = searchableText,
                 timestamp = message.timestamp
             )
         }
-        .take(80)
         .toList()
+        .let { AiSemanticSearchPolicy.limitCandidates(it) }
     if (candidates.isEmpty()) {
         _uiState.update { it.copy(semanticSearchError = text(R.string.chat_semantic_search_no_context)) }
         return
@@ -169,7 +169,7 @@ internal fun ChatDetailViewModel.semanticSearch(query: String, candidateMessageI
             requireAiRequestCurrent(request)
             if (!semanticSearchGate.isCurrent(generation)) return@launch
             val allowedIds = candidates.mapTo(hashSetOf()) { it.messageId }
-            val resultIds = ranked.filter { it in allowedIds }.distinct().take(12)
+            val resultIds = AiSemanticSearchPolicy.selectResultIds(ranked, allowedIds)
             _uiState.update {
                 it.copy(
                     semanticSearchResultIds = resultIds,

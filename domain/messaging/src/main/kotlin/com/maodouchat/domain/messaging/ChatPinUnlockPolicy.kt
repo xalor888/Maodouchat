@@ -7,6 +7,12 @@ import kotlinx.coroutines.CancellationException
 // 协程启动、IO 调度与解锁后的状态刷新仍在各 ViewModel；这里只收校验本身。
 object ChatPinUnlockPolicy {
 
+    const val MAX_PIN_LENGTH: Int = 8
+
+    // 输入框草稿过滤：只留数字、截 8 位。
+    fun filterPinDraft(raw: String): String =
+        raw.filter { it.isDigit() }.take(MAX_PIN_LENGTH)
+
     // 与 setChatLockPin 的校验一致：4–8 位纯数字。
     fun isValidPin(pin: String): Boolean =
         pin.length in 4..8 && pin.all { it.isDigit() }

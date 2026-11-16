@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiSearchOutcome
 import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchQueryPolicy
 import com.maodouchat.domain.conversation.GlobalSearchTypeFilter
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -68,8 +69,8 @@ fun GlobalSearchViewModel.performAiSearch(query: String) {
                 val redacted = com.maodouchat.data.repository.ChatVisibilitySets.redactedChatIds()
                 val filterType = _uiState.value.filterType
                 val docs = GlobalSearchTypeFilter.messageTypesForFilter(filterType.apiValue)?.let { types ->
-                    searchRepository.searchByTypes(query, types, limit = 80)
-                } ?: searchRepository.search(query, limit = 80)
+                    searchRepository.searchByTypes(query, types, limit = GlobalSearchQueryPolicy.AI_CANDIDATE_LIMIT)
+                } ?: searchRepository.search(query, limit = GlobalSearchQueryPolicy.AI_CANDIDATE_LIMIT)
                 docs
                     .filterNot { it.chatId in redacted }
                     .let { applyTypeFilter(it, filterType) }
@@ -83,8 +84,8 @@ fun GlobalSearchViewModel.performAiSearch(query: String) {
                 }
                 return@launch
             }
-            val selectedChatIds = localCandidates.map(MessageSearchDocumentEntity::chatId).distinct().take(32)
-            val allowedDocuments = localCandidates.take(80)
+            val selectedChatIds = GlobalSearchQueryPolicy.limitChatIds(localCandidates.map(MessageSearchDocumentEntity::chatId))
+            val allowedDocuments = GlobalSearchQueryPolicy.limitDocuments(localCandidates)
             val outcome = if (allowedDocuments.isEmpty()) {
                 AiSearchOutcome(emptyList(), 0, noContext = true)
             } else {
@@ -93,10 +94,11 @@ fun GlobalSearchViewModel.performAiSearch(query: String) {
                     allowedDocuments.map { "${it.chatId}\t${it.messageId}" to it.searchableText }
                 )
                 val documentsByKey = allowedDocuments.associateBy { "${it.chatId}\t${it.messageId}" }
-                val hits = ranked
-                    .mapNotNull { (key, score) -> documentsByKey[key]?.let { toHit(it, score) } }
-                    .distinctBy { it.chatId to it.messageId }
-                    .take(32)
+                val hits = GlobalSearchQueryPolicy.limitHits(
+                    ranked
+                        .mapNotNull { (key, score) -> documentsByKey[key]?.let { toHit(it, score) } }
+                        .distinctBy { it.chatId to it.messageId },
+                )
                 AiSearchOutcome(hits, selectedChatIds.size - allowedDocuments.map { it.chatId }.toSet().size, noContext = false)
             }
             if (requestGeneration != generation) return@launch
