@@ -453,7 +453,7 @@ class ClientArchitectureTest {
         // G113：以下六个文件此前**没有任何行数门禁**，是 app 内剩下的大文件。
         // 纳入棘轮，之后每拆一块就往下调。
         // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 312,
         // 死 import 删除：文件 671 → 670 行，上限同步收紧（两份 map 一起改）。
         // 2026-10-08：展示行组件簇搬出同包 AccountSecurityDisplayRows.kt
         // （670 → 455 纯搬移；修 CI 时补 import 并清掉 53 个闲置 import → 402；
@@ -598,7 +598,7 @@ class ClientArchitectureTest {
         // 2 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：节簇抽出 GlobalSearchSections.kt（475 → 353，纯搬移；
         // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 353,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 351,
         // G164b：监控判据从「>1000 行」换成「行数排名前 20」，这 8 个原本在 1000 以下的
         // 文件随之进入监管范围。按当前实测值冻结，只许降不许升。
         // 2026-10-10：事件/错误枚举簇 → WebSocketEvents.kt（84）、payload 解析声明族 →
@@ -769,7 +769,7 @@ class ClientArchitectureTest {
         // 2026-10-17：删闲置 import（265 → 264 纯删行），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailAiDialogs2.kt" to 264,
             // 2026-10-16：删 18 个闲置 import（333 → 315 纯删行），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 315,
+            "com/maodouchat/ui/screen/chatdetail/ChatDetailAiGeneration.kt" to 312,
                 "com/maodouchat/ui/screen/settings/SettingsAccountSecurity.kt" to 194,
             // 2026-10-17：删闲置 import（324 → 323 纯删行），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/settings/SettingsGeneral.kt" to 323,
@@ -886,7 +886,7 @@ class ClientArchitectureTest {
         // 2 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：节簇抽出 GlobalSearchSections.kt（475 → 353，纯搬移；
         // 12 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 353,
+        "com/maodouchat/ui/screen/chatlist/GlobalSearchScreen.kt" to 351,
         // G164b：Top-20 排名门禁纳入的 8 个
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。

@@ -64,6 +64,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchMode
+import com.maodouchat.domain.conversation.GlobalSearchContentKind
+import com.maodouchat.domain.conversation.globalSearchContentKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.MotionPolicy
@@ -267,8 +269,8 @@ fun GlobalSearchScreen(
                 )
             }
 
-            when {
-                state.query.isBlank() -> {
+            when (globalSearchContentKind(state.query.isBlank(), state.isIndexing, state.isSearching, state.results.isEmpty(), state.error != null, state.mode, state.aiSearchCompleted)) {
+                GlobalSearchContentKind.RECENT_OR_INITIAL -> {
                     if (state.recentSearches.isNotEmpty()) {
                         RecentSearchesSection(
                             queries = state.recentSearches,
@@ -279,17 +281,13 @@ fun GlobalSearchScreen(
                         GlobalSearchEmpty(stringResource(R.string.global_search_empty_initial))
                     }
                 }
-                state.isIndexing || state.isSearching -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                GlobalSearchContentKind.LOADING -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-                state.results.isEmpty() && state.error != null -> { /* 失败横幅已展示，避免误报「无结果」 */ }
-                state.results.isEmpty() -> GlobalSearchEmpty(
-                    stringResource(
-                        if (state.mode == GlobalSearchMode.AI && !state.aiSearchCompleted) R.string.global_search_ai_ready
-                        else R.string.global_search_empty_results
-                    )
-                )
-                else -> LazyColumn(
+                GlobalSearchContentKind.ERROR_EMPTY -> { /* 失败横幅已展示，避免误报「无结果」 */ }
+                GlobalSearchContentKind.AI_READY -> GlobalSearchEmpty(stringResource(R.string.global_search_ai_ready))
+                GlobalSearchContentKind.NO_RESULTS -> GlobalSearchEmpty(stringResource(R.string.global_search_empty_results))
+                GlobalSearchContentKind.RESULTS -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 20.dp)
                 ) {

@@ -53,6 +53,7 @@ import com.maodouchat.R
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MuteRemaining
 import com.maodouchat.domain.messaging.ScheduleRepeatKind
+import com.maodouchat.domain.messaging.ScheduledMessageBannerPolicy
 import com.maodouchat.domain.messaging.ScheduledMessageDisplay
 import com.maodouchat.domain.messaging.ScheduledMessageFilterPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -68,7 +69,7 @@ internal fun ScheduledMessagesBanner(
     onViewAll: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val preview = items.take(3)
+    val preview = ScheduledMessageBannerPolicy.preview(items)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -86,7 +87,7 @@ internal fun ScheduledMessagesBanner(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
-            if (items.size > 3) {
+            if (ScheduledMessageBannerPolicy.hasMore(items.size)) {
                 Text(
                     text = stringResource(R.string.schedule_view_all),
                     style = MaterialTheme.typography.labelMedium,
@@ -177,10 +178,10 @@ internal fun ScheduledMessagesListSheet(
                     Text(stringResource(R.string.schedule_cancel_all), color = LocalChatPalette.current.unreadRed)
                 }
             }
-            if (items.size >= 4) {
+            if (ScheduledMessageBannerPolicy.showSearchField(items.size)) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it.take(120) },
+                    onValueChange = { searchQuery = ScheduledMessageBannerPolicy.clipSearchQuery(it) },
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.schedule_search_hint)) },
                     modifier = Modifier
