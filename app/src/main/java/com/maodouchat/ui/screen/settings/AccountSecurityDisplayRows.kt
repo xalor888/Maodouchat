@@ -30,11 +30,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.core.model.DeviceInfoDto
+import com.maodouchat.domain.contacts.AccountDeviceFingerprintPolicy
 import com.maodouchat.R
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.OnlineGreen
 import com.maodouchat.ui.theme.LocalChatPalette
-import java.util.Locale
 
 /**
  * 账号安全页的展示行组件簇（2026-10-08 从 `SettingsAccountSecurity.kt` 按簇拆出；
@@ -83,7 +83,7 @@ internal fun DeviceRow(
                     }
                 }
                 Text(
-                    stringResource(R.string.account_device_fingerprint, device.deviceId, device.identityKey.take(8), device.identityKey.takeLast(6)),
+                    stringResource(R.string.account_device_fingerprint, device.deviceId, AccountDeviceFingerprintPolicy.identityKeyHead(device.identityKey), AccountDeviceFingerprintPolicy.identityKeyTail(device.identityKey)),
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalChatPalette.current.textSecondary,
                     maxLines = 1,
@@ -179,10 +179,7 @@ internal fun SecurityStatusCard(
             color = LocalChatPalette.current.textSecondary
         )
         Spacer(modifier = Modifier.height(4.dp))
-        val shortFp = fingerprint
-            ?.replace(" ", "")
-            ?.take(8)
-            ?.uppercase(Locale.US)
+        val shortFp = AccountDeviceFingerprintPolicy.shortFingerprint(fingerprint)
             ?: stringResource(R.string.security_fingerprint_unavailable)
         Text(
             pluralStringResource(R.plurals.security_devices_confirmed, confirmedDeviceCount, confirmedDeviceCount, shortFp),

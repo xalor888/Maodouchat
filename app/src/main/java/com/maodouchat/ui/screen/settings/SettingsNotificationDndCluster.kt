@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.core.model.LocalNotificationSuppressPolicy
+import com.maodouchat.domain.messaging.DndWindowPolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import com.maodouchat.R
@@ -19,8 +20,7 @@ internal fun NotificationSettingsViewModel.setDndSchedule(enabled: Boolean, star
         _uiState.update { it.copy(infoMessage = context.getString(R.string.dnd_disabled)) }
         return
     }
-    val safeStart = startMinute.coerceIn(0, 1439)
-    val safeEnd = endMinute.coerceIn(0, 1439)
+    val (safeStart, safeEnd) = DndWindowPolicy.clampWindow(startMinute, endMinute)
     if (_uiState.value.dndEnabled == enabled &&
         _uiState.value.dndStartMinute == safeStart &&
         _uiState.value.dndEndMinute == safeEnd

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.NotificationSettingsRequest
 import com.maodouchat.core.model.NotificationSettingsResponse
+import com.maodouchat.domain.messaging.DndWindowPolicy
 import com.maodouchat.notification.NotificationPreferences
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -44,11 +45,11 @@ internal fun NotificationSettingsViewModel.refresh() {
                                 soundEnabled = remote.soundEnabled,
                                 previewEnabled = remote.previewEnabled,
                                 ringtoneEnabled = remote.ringtoneEnabled,
-                                dndStartHour = remote.dndStartHour.coerceIn(0, 23),
-                                dndEndHour = remote.dndEndHour.coerceIn(0, 23),
+                                dndStartHour = DndWindowPolicy.clampHourOfDay(remote.dndStartHour),
+                                dndEndHour = DndWindowPolicy.clampHourOfDay(remote.dndEndHour),
                                 dndEnabled = remote.dndEnabled,
-                                dndStartMinute = remote.dndStartMinute.coerceIn(0, 1439),
-                                dndEndMinute = remote.dndEndMinute.coerceIn(0, 1439),
+                                dndStartMinute = DndWindowPolicy.clampMinuteOfDay(remote.dndStartMinute),
+                                dndEndMinute = DndWindowPolicy.clampMinuteOfDay(remote.dndEndMinute),
                                 pushConfigured = com.maodouchat.session.CurrentSession.hasSession(),
                                 pushReady = isRealtimeConnected(),
                                 infoMessage = text(R.string.notifications_synced)
@@ -148,11 +149,11 @@ internal fun NotificationSettingsViewModel.sync() {
                                 soundEnabled = remote.soundEnabled,
                                 previewEnabled = remote.previewEnabled,
                                 ringtoneEnabled = remote.ringtoneEnabled,
-                                dndStartHour = remote.dndStartHour.coerceIn(0, 23),
-                                dndEndHour = remote.dndEndHour.coerceIn(0, 23),
+                                dndStartHour = DndWindowPolicy.clampHourOfDay(remote.dndStartHour),
+                                dndEndHour = DndWindowPolicy.clampHourOfDay(remote.dndEndHour),
                                 dndEnabled = remote.dndEnabled,
-                                dndStartMinute = remote.dndStartMinute.coerceIn(0, 1439),
-                                dndEndMinute = remote.dndEndMinute.coerceIn(0, 1439),
+                                dndStartMinute = DndWindowPolicy.clampMinuteOfDay(remote.dndStartMinute),
+                                dndEndMinute = DndWindowPolicy.clampMinuteOfDay(remote.dndEndMinute),
                                 infoMessage = text(R.string.notifications_saved_to_account)
                             )
                         }
