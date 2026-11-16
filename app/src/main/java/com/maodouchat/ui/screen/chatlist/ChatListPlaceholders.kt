@@ -10,6 +10,7 @@ import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.ShimmerChatRow
 import com.maodouchat.domain.conversation.ChatListEmptyKind
+import com.maodouchat.domain.conversation.ChatListEmptyStatePolicy
 import com.maodouchat.domain.conversation.chatListEmptyKind
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -33,7 +34,7 @@ internal fun EmptyChatState(
     onScan: (() -> Unit)?
 ) {
     // 加载失败且无缓存时显示错误空态，而非「还没有聊天」
-    if (loadError != null && !hasSearchQuery && !showArchived && selectedFolderId.isNullOrBlank()) {
+    if (ChatListEmptyStatePolicy.isLoadErrorState(loadError, hasSearchQuery, showArchived, selectedFolderId)) {
         EmptyState(
             type = EmptyStateType.NETWORK_ERROR,
             title = stringResource(R.string.chat_load_failed_title),
@@ -66,7 +67,7 @@ internal fun EmptyChatState(
         ChatListEmptyKind.CUSTOM_FOLDER -> R.string.chat_folder_empty_subtitle
         ChatListEmptyKind.DEFAULT -> R.string.chat_empty_subtitle
     })
-    val showActions = !hasSearchQuery && !showArchived && selectedFolderId.isNullOrBlank()
+    val showActions = ChatListEmptyStatePolicy.showEmptyActions(hasSearchQuery, showArchived, selectedFolderId)
     EmptyState(
         type = if (hasSearchQuery) EmptyStateType.SEARCH else EmptyStateType.CHAT_LIST,
         title = title,

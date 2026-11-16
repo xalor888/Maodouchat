@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderPolicy
+import com.maodouchat.domain.conversation.ChatFolderStripPolicy
 import com.maodouchat.domain.conversation.UnreadBadgePolicy
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,10 +47,10 @@ internal fun ChatFolderStrip(
         FolderChip(stringResource(R.string.chat_folder_unread), selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_UNREAD_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_UNREAD_ID) }
         FolderChip(stringResource(R.string.chat_folder_groups), selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_GROUPS_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_GROUPS_ID) }
         FolderChip(stringResource(R.string.chat_folder_direct), selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID, unreadInFolder(ChatFolderPolicy.SYSTEM_DIRECT_ID)) { onSelectFolder(ChatFolderPolicy.SYSTEM_DIRECT_ID) }
-        if (secretChatCount > 0 || selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID) {
+        if (ChatFolderStripPolicy.showSecretChip(secretChatCount, selectedFolderId)) {
             FolderChip(stringResource(R.string.chat_folder_secret), selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID, secretChatCount) { onSelectFolder(ChatFolderPolicy.SYSTEM_SECRET_ID) }
         }
-        if (lockedChatCount > 0 || selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID) {
+        if (ChatFolderStripPolicy.showLockedChip(lockedChatCount, selectedFolderId)) {
             FolderChip(stringResource(R.string.chat_folder_locked), selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID, lockedChatCount) { onSelectFolder(ChatFolderPolicy.SYSTEM_LOCKED_ID) }
         }
         folders.forEach { folder ->
