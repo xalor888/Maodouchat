@@ -550,7 +550,7 @@ class ClientArchitectureTest {
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 300,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 299,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
@@ -590,7 +590,7 @@ class ClientArchitectureTest {
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
         // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
         // 界面簇留守（AiTasksScreen + AiTaskSummary），580 → 303，纯搬移；上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 304,
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         // 2026-10-08：VM 簇（枚举/data/VM/RecentSearches）搬出同包 GlobalSearchViewModel.kt
         // （502 行，未进前 20 不纳管）+ UseKtx 收尾（两处 .edit().apply() → edit{}）+ 删 9 个死 import，
         // 纯搬移，上限同步收紧（两份 map 一起改）。
@@ -841,7 +841,7 @@ class ClientArchitectureTest {
         // 2026-10-08：媒体中心内容区按专题拆分（网格→MediaCenterContentGrid、
         // 图片预览→MediaCenterImageViewer；openLocalContent 随网格迁移，仍 internal；
         // 513 → 345，纯搬移），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 300,
+        "com/maodouchat/ui/screen/chatdetail/MediaCenterCategoryContent.kt" to 299,
         // 2026-10-10：AppLinkRouter 按域拆簇，parseLegacyCenterDeeplink 搬到簇文件后
         // 该文件新增一行 import（479 → 480，纯接线；不是堆逻辑），上限按实测同步上调
         // （两份 map 一起改）。
@@ -881,7 +881,7 @@ class ClientArchitectureTest {
         // AiTaskRowCluster（807 → 580，纯搬移；AiTaskFilter 提为 internal；openTaskInCalendar 提为 internal，删文件尾悬空 @Composable），
         // 2026-10-08：状态簇（AiTasksUiState + AiTaskFilter）→ AiTasksUiState.kt、ViewModel 簇 → AiTasksViewModel.kt，
         // 界面簇留守（AiTasksScreen + AiTaskSummary），580 → 303，纯搬移；上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 304,
+        "com/maodouchat/ui/screen/chatdetail/AiTasksScreen.kt" to 303,
         // 2026-10-17：highlightedText 抽出 GlobalSearchHighlight.kt（483 → 475，纯搬移；
         // 2 个随迁 import 在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
         // 2026-10-17：节簇抽出 GlobalSearchSections.kt（475 → 353，纯搬移；

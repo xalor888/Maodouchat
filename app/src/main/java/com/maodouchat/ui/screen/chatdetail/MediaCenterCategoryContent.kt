@@ -5,6 +5,7 @@ import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.MediaCenterUiState
 import com.maodouchat.core.model.MediaExportResult
 import com.maodouchat.domain.messaging.MediaCenterCategoryKind
+import com.maodouchat.domain.messaging.MediaCenterQueryPolicy
 import com.maodouchat.domain.messaging.mediaCenterCategoryKind
 import com.maodouchat.domain.messaging.mediaCenterItemMatches
 import android.widget.Toast
@@ -95,9 +96,7 @@ internal fun MediaCenterCategoryContent(
                 ) {
                     Icon(
                         imageVector = if (searchExpanded) Icons.Outlined.Close else Icons.Outlined.Search,
-                        contentDescription = stringResource(
-                            if (searchExpanded) R.string.chat_search_close else R.string.chat_search_action
-                        ),
+                        contentDescription = stringResource(if (searchExpanded) R.string.chat_search_close else R.string.chat_search_action),
                         tint = MaterialTheme.colorScheme.primary,
                     )
                 }
@@ -109,7 +108,7 @@ internal fun MediaCenterCategoryContent(
             ) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it.take(200) },
+                    onValueChange = { searchQuery = MediaCenterQueryPolicy.filterQuery(it) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     placeholder = { Text(stringResource(R.string.media_center_search_hint)) },

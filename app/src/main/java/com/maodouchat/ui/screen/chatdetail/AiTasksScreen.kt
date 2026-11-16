@@ -51,6 +51,7 @@ import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.core.model.AiTaskFilter
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
+import com.maodouchat.domain.messaging.AiTaskQueryPolicy
 import com.maodouchat.domain.messaging.AiTaskSearchPolicy
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
@@ -206,16 +207,14 @@ fun AiTasksScreen(
                         AiTaskFilterStrip(
                             selected = taskFilter,
                             onSelect = { taskFilter = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
                     if (showTaskSearch) {
                         item(key = "task_search", contentType = "search") {
                             OutlinedTextField(
                                 value = taskSearch,
-                                onValueChange = { taskSearch = it.take(160) },
+                                onValueChange = { taskSearch = AiTaskQueryPolicy.filterQuery(it) },
                                 singleLine = true,
                                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                                 placeholder = { Text(stringResource(R.string.ai_tasks_search_hint)) },
