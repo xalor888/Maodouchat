@@ -3,18 +3,15 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import com.maodouchat.core.model.MessagePinPolicy
-import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.isMessageCopyable
-import com.maodouchat.core.model.isMessageForwardable
+import com.maodouchat.domain.messaging.resolveMessageSelectionToolbar
+import com.maodouchat.domain.messaging.selectableMessageIds
 import com.maodouchat.util.RuntimeFlags
 
 /**
  * 消息多选模式的工具条（G84 从 `ChatDetailRoute.kt` 拆出，原 79 行）。
  *
- * 六项派生状态全部内聚在此（原先散在 Route 的 `AnimatedVisibility` 里）：
+ * 六项派生判定在 :domain:messaging 的 `MessageSelectionToolbarPolicy`，此处只留接线：
  * - `forwardableMessages`：选中里可转发的（密聊 + 开关可禁转发）；
  * - `shouldStar`：存在未置星的就显示「置星」，否则「取消置星」；
  * - `shouldPin` / `canBatchPin`：置顶入口只在有权限且选中可置顶时出现（1.20）；
@@ -50,26 +47,21 @@ internal fun ChatDetailSelectionToolbar(
 ) {
     val context = LocalContext.current
 
-        val forwardableMessages = selectedMessages.filter { isMessageForwardable(it.type, isSecretChat = isSecretChat, forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK)) }
-        val shouldStar = selectedMessages.any { !it.starred }
-        // 1.10：选中的消息里只要存在未置顶的即可点「置顶」，全部已置顶则显示「取消置顶」
-        val pinnedIds = pinnedMessageIds
-        val shouldPin = selectedMessages.any { it.id !in pinnedIds }
-        // 1.20：与单条置顶一致——群聊非群主/管理员不显示批量置顶入口
-        val canBatchPin = selectedMessages.any {
-            MessagePinPolicy.canPin(chatIsGroup, myMemberRole, it.type)
-        }
+        val toolbarState = resolveMessageSelectionToolbar(
+            selectedMessages = selectedMessages,
+            chatIsGroup = chatIsGroup,
+            myMemberRole = myMemberRole,
+            pinnedMessageIds = pinnedMessageIds,
+            isSecretChat = isSecretChat,
+            forwardBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_FORWARD_BLOCK),
+            copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK),
+        )
+        val forwardableMessages = toolbarState.forwardableMessages
+        val shouldStar = toolbarState.shouldStar
+        val shouldPin = toolbarState.shouldPin
+        val canBatchPin = toolbarState.canBatchPin
         val selectableIds = remember(allMessages) {
-            allMessages
-                .filter { it.type != MessageType.SYSTEM && it.type != MessageType.SK_DIST }
-                // 8.53：排除在途消息（SENDING）与附件仍在上传准备中的消息——
-                // 删了会与服务端 404 竞态，outbox flusher 仍可能把消息发出去
-                .filter {
-                    it.status != MessageStatus.SENDING &&
-                        it.id !in preparingAttachmentMessageIds
-                }
-                .map { it.id }
-                .toSet()
+            selectableMessageIds(allMessages, preparingAttachmentMessageIds)
         }
         ChatSelectionToolbar(
             selectedCount = selectedIds.size,
@@ -88,18 +80,9 @@ internal fun ChatDetailSelectionToolbar(
             onDelete = { onDelete() },
             onCopy = if (isSecretChat) null else {
                 {
-                    val copyable = selectedMessages
-                        .filter {
-                            isMessageCopyable(
-                                it.type,
-                                isSecretChat = isSecretChat,
-                                copyBlockEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.SECRET_COPY_BLOCK)
-                            )
-                        }
-                        .map { it.parsedContent() }
-                        .filter { it.isNotBlank() }
-                    if (copyable.isNotEmpty()) {
-                        onCopied(copyable.joinToString("\n"))
+                    val copyText = toolbarState.copyText
+                    if (copyText != null) {
+                        onCopied(copyText)
                         onClearSelection()
                     } else {
                         onCopyFailed()

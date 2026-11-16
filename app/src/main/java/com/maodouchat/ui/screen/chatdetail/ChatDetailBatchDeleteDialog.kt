@@ -16,12 +16,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.MessageBatchDeletePolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * 批量删除确认对话框（G86 从 `ChatDetailRoute.kt` 拆出，原 50 行）。
  *
- * 内含四条容易在后续改动中被破坏的判定：
+ * 四条判定在 :domain:messaging 的 `MessageBatchDeletePolicy`，此处只留对话框接线：
  * 1. **仅删除本人消息**（8.53）——服务端 403 只能删自己发送的，选中他人消息不参与删除，
  *    仅作转发/星标用途，因此要把「跳过几条他人的」明确告知用户；
  * 2. **批量封顶 60 条**（8.55）——服务端 mutation 限流 60/min，超出必须提示分批，
@@ -47,34 +48,27 @@ internal fun ChatDetailBatchDeleteDialog(
 ) {
     val context = LocalContext.current
 
-    // 8.53：与单条删除语义一致——仅删除本人消息（服务端 403 只能删自己发送的消息）；
-    // 选中他人消息不参与删除，仅作转发/星标用途
-    val deletableBatch = remember(selectedMessages, currentUserId) {
-        selectedMessages.filter { it.senderId == currentUserId }
+    val batch = remember(selectedMessages, currentUserId) {
+        MessageBatchDeletePolicy.resolve(selectedMessages, currentUserId)
     }
-    // 8.55：服务端 mutation 限流 60/min——批量封顶 60 条，超出提示分批，避免 429「删一半剩一半」
-    val batchCap = 60
-    val cappedBatch = deletableBatch.take(batchCap)
-    val batchDeleteDoneTip = pluralStringResource(R.plurals.chat_batch_delete_done, cappedBatch.size)
-    val cappedOut = deletableBatch.size - cappedBatch.size
-    val skippedCount = selectedMessages.size - deletableBatch.size
+    val batchDeleteDoneTip = pluralStringResource(R.plurals.chat_batch_delete_done, batch.cappedCount)
     AlertDialog(
         onDismissRequest = { onDismiss() },
         title = { Text(stringResource(R.string.chat_delete_selected_title)) },
         text = {
             Column {
-                Text(stringResource(R.string.chat_delete_selected_message, cappedBatch.size))
-                if (skippedCount > 0) {
+                Text(stringResource(R.string.chat_delete_selected_message, batch.cappedCount))
+                if (batch.skippedCount > 0) {
                     Text(
-                        stringResource(R.string.chat_batch_delete_skipped_others, skippedCount),
+                        stringResource(R.string.chat_batch_delete_skipped_others, batch.skippedCount),
                         style = MaterialTheme.typography.bodySmall,
                         color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(top = 6.dp)
                     )
                 }
-                if (cappedOut > 0) {
+                if (batch.cappedOut > 0) {
                     Text(
-                        stringResource(R.string.chat_batch_delete_capped, cappedOut),
+                        stringResource(R.string.chat_batch_delete_capped, batch.cappedOut),
                         style = MaterialTheme.typography.bodySmall,
                         color = LocalChatPalette.current.textSecondary,
                         modifier = Modifier.padding(top = 6.dp)
@@ -83,9 +77,9 @@ internal fun ChatDetailBatchDeleteDialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = cappedBatch.isNotEmpty(), onClick = {
+            TextButton(enabled = batch.canConfirm, onClick = {
                 // 9.229：串行批量删除，避免逐条并发打满服务端 mutation 限流
-                onDelete(cappedBatch.map { it.id })
+                onDelete(batch.cappedIds)
                 onSelectionCleared()
                 onDismiss()
                 // 1.50：删除完成提示

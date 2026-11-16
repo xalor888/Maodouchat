@@ -3,6 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.domain.messaging.filterUnexpiredMessages
+import com.maodouchat.domain.messaging.filterUnexpiredPins
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -130,38 +132,12 @@ internal suspend fun ChatDetailViewModel.armSecretDisappearing(targetChatId: Str
     com.maodouchat.security.SecretConversationActions.armOnRead(targetChatId)
 }
 
-internal suspend fun ChatDetailViewModel.applyMessageExpires(messageId: String, expiresAt: Long) {
-    if (messageId.isBlank() || expiresAt <= 0L) return
-    val existing = withContext(Dispatchers.IO) { messageRepo.getMessageById(messageId) } ?: return
-    val existingExpiresAt = existing.expiresAt
-    if (existingExpiresAt != null && existingExpiresAt > 0L) {
-        // 已有截止时间不延长
-        if (existingExpiresAt <= expiresAt) return
-    }
-    val updated = existing.copy(expiresAt = expiresAt)
-    withContext(Dispatchers.IO) { messageRepo.insertMessage(updated) }
-    _uiState.update { state ->
-        if (!state.messages.any { it.id == messageId }) return@update state
-        state.copy(
-            messages = state.messages.map { if (it.id == messageId) it.copy(expiresAt = expiresAt) else it }
-        )
-    }
-}
-
 internal suspend fun ChatDetailViewModel.purgeExpiredLocalMessages(nowMs: Long = System.currentTimeMillis()) {
     com.maodouchat.security.SecretConversationActions.purgeExpiredMessages(nowMs)
     _uiState.update { s ->
         s.copy(
-            messages = s.messages.filter {
-                val expiresAt = it.expiresAt
-                expiresAt == null || expiresAt <= 0L || expiresAt > nowMs
-            },
-            pinnedMessages = s.pinnedMessages.filter { pin ->
-                s.messages.none {
-                    val expiresAt = it.expiresAt
-                    it.id == pin.messageId && expiresAt != null && expiresAt > 0L && expiresAt <= nowMs
-                }
-            }
+            messages = filterUnexpiredMessages(s.messages, nowMs),
+            pinnedMessages = filterUnexpiredPins(s.pinnedMessages, s.messages, nowMs)
         )
     }
 }

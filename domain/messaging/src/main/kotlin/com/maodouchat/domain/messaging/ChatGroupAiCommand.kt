@@ -1,5 +1,7 @@
 package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.AiGroupTask
+
 // 群助手模式推断与 @AI 命令解析：纯字符串判定，自 app 侧 ChatDetailGroupAi.kt 逐字平移。
 fun inferGroupAiMode(query: String): String {
     val normalized = query.trim().lowercase()
@@ -11,6 +13,17 @@ fun inferGroupAiMode(query: String): String {
         normalized.startsWith("风险") || normalized.startsWith("隐患") || normalized.startsWith("risk") || normalized.startsWith("blocker") -> "risks"
         else -> "answer"
     }
+}
+
+// 群助手待办解析：回答按行拆解、去前缀、去空行、取前 30 条、标题截 300 字。
+fun parseGroupAiTasks(answer: String, mode: String): List<AiGroupTask> {
+    if (mode != "tasks") return emptyList()
+    return answer.lineSequence()
+        .map { it.trim().trimStart('-', '*', '•') }
+        .filter { it.isNotBlank() }
+        .take(30)
+        .map { line -> AiGroupTask(title = line.take(300)) }
+        .toList()
 }
 
 fun parseGroupAiCommand(value: String): String? {
