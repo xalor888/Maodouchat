@@ -86,7 +86,7 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
                 )
                 return@launch
             }
-            val pks = runCatching { parseList(resp.body) }.getOrNull()
+            val pks = runCatching { GroupPlayJsonPolicy.parsePkList(resp.body) }.getOrNull()
             if (pks == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = localizedString(R.string.group_play_load_failed))
                 return@launch
@@ -148,20 +148,6 @@ class GroupPkViewModel(application: Application, savedStateHandle: SavedStateHan
             }
         }
     }
-
-    private fun parseList(text: String): List<PkListItem> =
-        GroupPlayJsonPolicy.parseObjectList(text) { o ->
-            PkListItem(
-                id = o.optString("id"),
-                leftTitle = o.optString("leftTitle"),
-                rightTitle = o.optString("rightTitle"),
-                active = o.optBoolean("active"),
-                leftCount = o.optInt("leftCount"),
-                rightCount = o.optInt("rightCount"),
-                totalVoters = o.optInt("totalVoters"),
-                myChoice = o.optString("myChoice").takeIf { it.isNotBlank() }
-            )
-        }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

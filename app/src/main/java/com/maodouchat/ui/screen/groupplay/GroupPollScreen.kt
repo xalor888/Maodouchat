@@ -97,7 +97,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
                 )
                 return@launch
             }
-            val polls = runCatching { parsePolls(resp.body) }.getOrNull()
+            val polls = runCatching { GroupPlayJsonPolicy.parsePolls(resp.body) }.getOrNull()
             if (polls == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = localizedString(R.string.group_play_load_failed))
                 return@launch
@@ -194,21 +194,6 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
             }
         }
     }
-
-    private fun parsePolls(text: String): List<PollListItem> =
-        GroupPlayJsonPolicy.parseObjectList(text) { o ->
-            PollListItem(
-                id = o.optString("id"),
-                question = o.optString("question"),
-                options = GroupPlayJsonPolicy.stringList(o.optJSONArray("options")),
-                multi = o.optBoolean("multi"),
-                anonymous = o.optBoolean("anonymous"),
-                closed = o.optBoolean("closed"),
-                counts = GroupPlayJsonPolicy.intList(o.optJSONArray("counts")),
-                totalVoters = o.optInt("totalVoters"),
-                myVotes = GroupPlayJsonPolicy.intList(o.optJSONArray("myVotes"))
-            )
-        }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
