@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.AccentColorKind
+import com.maodouchat.domain.messaging.NightWindowPolicy
 import com.maodouchat.domain.messaging.accentColorKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
@@ -197,7 +198,6 @@ internal fun NightWindowRow() {
     val nightStart by com.maodouchat.util.ThemePreferences.nightStart.collectAsState()
     val nightEnd by com.maodouchat.util.ThemePreferences.nightEnd.collectAsState()
     var editing by remember { mutableStateOf<String?>(null) }
-    fun formatMinutes(minutes: Int): String = String.format("%02d:00", minutes / 60)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             stringResource(R.string.general_night_window_title),
@@ -206,11 +206,11 @@ internal fun NightWindowRow() {
             modifier = Modifier.weight(1f)
         )
         TextButton(onClick = { editing = "start" }) {
-            Text(formatMinutes(nightStart), color = MaterialTheme.colorScheme.primary)
+            Text(NightWindowPolicy.formatNightWindowHour(nightStart), color = MaterialTheme.colorScheme.primary)
         }
         Text("→", style = MaterialTheme.typography.bodyMedium, color = LocalChatPalette.current.textSecondary)
         TextButton(onClick = { editing = "end" }) {
-            Text(formatMinutes(nightEnd), color = MaterialTheme.colorScheme.primary)
+            Text(NightWindowPolicy.formatNightWindowHour(nightEnd), color = MaterialTheme.colorScheme.primary)
         }
     }
     if (editing != null) {
@@ -238,7 +238,7 @@ internal fun NightWindowRow() {
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                String.format("%02d:00", hour),
+                                NightWindowPolicy.formatNightWindowHour(hour * 60),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }

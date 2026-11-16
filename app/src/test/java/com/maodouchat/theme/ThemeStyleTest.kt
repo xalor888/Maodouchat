@@ -2,9 +2,11 @@ package com.maodouchat.theme
 
 import androidx.compose.ui.graphics.Color
 import com.maodouchat.core.model.ThemeFamily
+import com.maodouchat.domain.messaging.NightWindowPolicy
+import com.maodouchat.domain.messaging.ThemeModePolicy
+import com.maodouchat.domain.messaging.ThemeStylePolicy
 import com.maodouchat.ui.theme.resolveSentBubble
 import com.maodouchat.ui.theme.resolveThemePaint
-import com.maodouchat.util.ThemePreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -23,8 +25,8 @@ class ThemeStyleTest {
         assertEquals(ThemeFamily.TG_CLASSIC, ThemeFamily.normalize("telegram"))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize(null))
         assertEquals(ThemeFamily.MAODOU, ThemeFamily.normalize("unknown"))
-        assertEquals("tg_midnight", ThemePreferences.normalizeStyle("tg_midnight"))
-        assertEquals("maodou", ThemePreferences.normalizeStyle("default"))
+        assertEquals("tg_midnight", ThemeStylePolicy.normalizeThemeStyle("tg_midnight"))
+        assertEquals("maodou", ThemeStylePolicy.normalizeThemeStyle("default"))
         assertEquals(listOf(ThemeFamily.MAODOU), ThemeFamily.PICKABLE)
     }
 
@@ -104,25 +106,25 @@ class ThemeStyleTest {
     @Test
     fun `night window crossing midnight covers both sides`() {
         // 21:00 → 07:00 跨午夜窗口
-        assertTrue(ThemePreferences.isWithinNightWindow(22 * 60, 21 * 60, 7 * 60))
-        assertTrue(ThemePreferences.isWithinNightWindow(2 * 60, 21 * 60, 7 * 60))
-        assertTrue(ThemePreferences.isWithinNightWindow(21 * 60, 21 * 60, 7 * 60))
-        assertFalse(ThemePreferences.isWithinNightWindow(7 * 60, 21 * 60, 7 * 60))
-        assertFalse(ThemePreferences.isWithinNightWindow(12 * 60, 21 * 60, 7 * 60))
+        assertTrue(NightWindowPolicy.isWithinNightWindow(22 * 60, 21 * 60, 7 * 60))
+        assertTrue(NightWindowPolicy.isWithinNightWindow(2 * 60, 21 * 60, 7 * 60))
+        assertTrue(NightWindowPolicy.isWithinNightWindow(21 * 60, 21 * 60, 7 * 60))
+        assertFalse(NightWindowPolicy.isWithinNightWindow(7 * 60, 21 * 60, 7 * 60))
+        assertFalse(NightWindowPolicy.isWithinNightWindow(12 * 60, 21 * 60, 7 * 60))
     }
 
     @Test
     fun `night window within same day`() {
         // 09:00 → 17:00 同天窗口
-        assertTrue(ThemePreferences.isWithinNightWindow(10 * 60, 9 * 60, 17 * 60))
-        assertFalse(ThemePreferences.isWithinNightWindow(17 * 60, 9 * 60, 17 * 60))
-        assertFalse(ThemePreferences.isWithinNightWindow(8 * 60, 9 * 60, 17 * 60))
+        assertTrue(NightWindowPolicy.isWithinNightWindow(10 * 60, 9 * 60, 17 * 60))
+        assertFalse(NightWindowPolicy.isWithinNightWindow(17 * 60, 9 * 60, 17 * 60))
+        assertFalse(NightWindowPolicy.isWithinNightWindow(8 * 60, 9 * 60, 17 * 60))
     }
 
     @Test
     fun `theme mode normalize supports scheduled`() {
-        assertEquals("scheduled", ThemePreferences.normalize("scheduled"))
-        assertEquals("scheduled", ThemePreferences.normalize(" Scheduled "))
-        assertEquals("system", ThemePreferences.normalize("unknown"))
+        assertEquals("scheduled", ThemeModePolicy.normalizeThemeMode("scheduled"))
+        assertEquals("scheduled", ThemeModePolicy.normalizeThemeMode(" Scheduled "))
+        assertEquals("system", ThemeModePolicy.normalizeThemeMode("unknown"))
     }
 }

@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.LanguageModeKind
+import com.maodouchat.domain.messaging.ThemeAccentPolicy
+import com.maodouchat.domain.messaging.ThemeModePolicy
+import com.maodouchat.domain.messaging.ThemeStylePolicy
 import com.maodouchat.domain.messaging.languageModeKind
 import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.core.model.ClientPrefsDto
@@ -50,11 +53,11 @@ internal fun GeneralSettingsViewModel.pullClientPrefsFromCloud() {
 internal fun GeneralSettingsViewModel.applyRemotePrefs(remote: ClientPrefsDto) {
     val context = getApplication<Application>()
     com.maodouchat.util.ClientPrefsSync.apply(context, remote)
-    val theme = com.maodouchat.util.ThemePreferences.normalize(remote.themeMode)
+    val theme = ThemeModePolicy.normalizeThemeMode(remote.themeMode)
     // 9.204：主题风格云端拉取——写入本地偏好（ThemePreferences 的 StateFlow 驱动全局重组）
-    val themeStyle = com.maodouchat.util.ThemePreferences.normalizeStyle(remote.themeStyle)
+    val themeStyle = ThemeStylePolicy.normalizeThemeStyle(remote.themeStyle)
     com.maodouchat.util.ThemePreferences.setStyle(context, themeStyle)
-    val accentColor = com.maodouchat.util.ThemePreferences.normalizeAccent(remote.accentColor)
+    val accentColor = ThemeAccentPolicy.normalizeThemeAccent(remote.accentColor)
     com.maodouchat.util.ThemePreferences.setAccent(context, accentColor)
     val language = when (languageModeKind(remote.languageMode, allowAliases = true)) {
         LanguageModeKind.CHINESE -> AppLocaleManager.MODE_CHINESE

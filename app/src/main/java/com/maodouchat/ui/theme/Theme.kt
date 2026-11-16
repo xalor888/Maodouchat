@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowInsetsControllerCompat
 import com.maodouchat.core.model.ThemeFamily
+import com.maodouchat.domain.messaging.NightWindowPolicy
 import com.maodouchat.util.ThemePreferences
 import kotlinx.coroutines.launch
 
@@ -153,7 +154,7 @@ fun MaodouchatTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
     val useDark = when (themePref) {
         "dark" -> true
         "light" -> false
-        "scheduled" -> ThemePreferences.isWithinNightWindow(currentMinute, nightStart, nightEnd)
+        "scheduled" -> NightWindowPolicy.isWithinNightWindow(currentMinute, nightStart, nightEnd)
         else -> darkTheme
     }
     // Telegram 级主题风格：按家族 + 深浅解析完整绘制参数；强调色可覆盖主题默认 primary
