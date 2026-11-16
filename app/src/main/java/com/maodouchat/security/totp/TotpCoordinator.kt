@@ -2,10 +2,10 @@ package com.maodouchat.security.totp
 
 import com.maodouchat.core.session.TotpState
 import com.maodouchat.core.network.AuthApi
+import com.maodouchat.domain.messaging.TotpResponsePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.json.JSONObject
 
 /**
  * 统一两步验证（TOTP 2FA）状态机与领域协调器。
@@ -37,9 +37,7 @@ class TotpCoordinator(
                 val fallback = authApi.getTotpStatus(token)
                 fallback.fold(
                     onSuccess = { raw ->
-                        val enabled = runCatching {
-                            JSONObject(raw).optBoolean("enabled", false)
-                        }.getOrDefault(false)
+                        val enabled = TotpResponsePolicy.parseTotpEnabled(raw)
                         _state.value = if (enabled) TotpState.Enabled() else TotpState.Disabled
                         Result.success(enabled)
                     },
@@ -62,24 +60,7 @@ class TotpCoordinator(
         val result = authApi.setupTotp(token)
         return result.fold(
             onSuccess = { rawJson ->
-                val parsed = runCatching {
-                    val obj = JSONObject(rawJson)
-                    val secret = obj.optString("secret").takeIf { it.isNotBlank() }
-                        ?: throw IllegalArgumentException("Missing secret in TOTP response")
-                    val otpauthUrl = obj.optString("otpauthUrl").takeIf { it.isNotBlank() }
-                    val backupCodesList = mutableListOf<String>()
-                    val backupArray = obj.optJSONArray("backupCodes")
-                    if (backupArray != null) {
-                        for (i in 0 until backupArray.length()) {
-                            backupCodesList.add(backupArray.getString(i))
-                        }
-                    }
-                    TotpState.SetupReady(
-                        secret = secret,
-                        otpauthUrl = otpauthUrl,
-                        recoveryCodes = backupCodesList
-                    )
-                }
+                val parsed = runCatching { TotpResponsePolicy.parseTotpSetupResponse(rawJson) }
 
                 parsed.fold(
                     onSuccess = { setupReady ->

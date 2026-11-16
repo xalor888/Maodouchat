@@ -19,12 +19,11 @@ import com.maodouchat.core.model.WidgetRowLabels
 import com.maodouchat.core.model.WidgetSnapshot
 import com.maodouchat.core.model.buildWidgetRows
 import com.maodouchat.data.repository.ChatRepository
+import com.maodouchat.domain.conversation.WidgetConfigJsonPolicy
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.AppLockManager
-import org.json.JSONArray
-import org.json.JSONObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,13 +43,13 @@ object ConversationWidgetData {
     // ---- 配置读写 ----
     fun widgetConfig(context: Context, widgetId: Int): WidgetConfig {
         val json = prefs(context).getString(configKey(widgetId), null) ?: return WidgetConfig()
-        return decodeConfig(json)
+        return WidgetConfigJsonPolicy.decodeConfig(json)
     }
 
     fun saveConfig(context: Context, widgetId: Int, config: WidgetConfig) {
         // 8.40：保存配置即置「已配置」标记——onUpdate 不再无条件抹掉既有实例配置
         prefs(context).edit {
-            putString(configKey(widgetId), encodeConfig(config))
+            putString(configKey(widgetId), WidgetConfigJsonPolicy.encodeConfig(config))
             putBoolean(configuredKey(widgetId), true)
         }
     }
@@ -313,26 +312,6 @@ object ConversationWidgetData {
             DateUtils.getRelativeTimeSpanString(ts, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS).toString()
         }.getOrDefault("")
     }
-
-
-    // ---- JSON 编解码 ----
-    private fun encodeConfig(config: WidgetConfig): String =
-        JSONObject()
-            .put("chatIds", JSONArray(config.chatIds))
-            .put("badge", config.showUnreadBadge)
-            .put("compact", config.compact)
-            .toString()
-
-    private fun decodeConfig(json: String): WidgetConfig = runCatching {
-        val obj = JSONObject(json)
-        val arr = obj.optJSONArray("chatIds")
-        val ids = if (arr == null) emptyList() else (0 until arr.length()).map { arr.getString(it) }
-        WidgetConfig(
-            chatIds = ids.take(ConversationWidgetContract.MAX_CONFIG_CHATS),
-            showUnreadBadge = obj.optBoolean("badge", true),
-            compact = obj.optBoolean("compact", false),
-        )
-    }.getOrDefault(WidgetConfig())
 
     private fun prefs(context: Context) =
         context.getSharedPreferences(ConversationWidgetContract.PREFS, Context.MODE_PRIVATE)

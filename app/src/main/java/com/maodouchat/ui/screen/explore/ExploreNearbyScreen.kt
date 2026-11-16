@@ -63,6 +63,8 @@ import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.core.model.NearbyPolicy
 import com.maodouchat.domain.contacts.formatNearbyRadiusOption
+import com.maodouchat.domain.contacts.NearbyRemainingHint
+import com.maodouchat.domain.contacts.NearbyRemainingPolicy
 import com.maodouchat.domain.contacts.NearbySearchPolicy
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -120,14 +122,10 @@ fun NearbyScreen(
     val remainingMs = remember(state.expiresAt, nowMs, state.isSharing) {
         if (!state.isSharing) 0L else NearbyPolicy.remainingVisibleMs(state.expiresAt, nowMs)
     }
-    val remainingHint = when {
-        !state.isSharing -> stringResource(R.string.explore_nearby_disabled_hint)
-        remainingMs <= 0L -> stringResource(R.string.explore_nearby_remaining_soon)
-        remainingMs < 60_000L -> stringResource(R.string.explore_nearby_remaining_soon)
-        else -> stringResource(
-            R.string.explore_nearby_remaining,
-            ((remainingMs + 59_999L) / 60_000L).toInt().coerceAtLeast(1)
-        )
+    val remainingHint = when (val hint = NearbyRemainingPolicy.nearbyRemainingHint(state.isSharing, remainingMs)) {
+        NearbyRemainingHint.Disabled -> stringResource(R.string.explore_nearby_disabled_hint)
+        NearbyRemainingHint.Soon -> stringResource(R.string.explore_nearby_remaining_soon)
+        is NearbyRemainingHint.Minutes -> stringResource(R.string.explore_nearby_remaining, hint.minutes)
     }
 
     Scaffold(

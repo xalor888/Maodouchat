@@ -9,7 +9,7 @@ import com.maodouchat.core.model.RemoteSticker
 import com.maodouchat.core.model.StickerFilePolicy
 import com.maodouchat.core.model.StickerNamePolicy
 import com.maodouchat.core.model.StickerPackDownloadResult
-import com.maodouchat.core.model.StickerSourcePolicy
+import com.maodouchat.domain.messaging.StickerManifestPolicy
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
@@ -18,8 +18,6 @@ import okhttp3.Request
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import org.json.JSONArray
-import org.json.JSONObject
 
 /**
  * 按需贴纸包存储（B1 区块 · 包体瘦身与构建基线，2026-08-01）。
@@ -60,11 +58,8 @@ object OnDemandStickerStore {
     private const val MAX_TOTAL_BYTES = 24L * 1024L * 1024L
     private const val MANIFEST_TTL_MS = 10 * 60 * 1000L
     private const val MAX_MANIFEST_BYTES = 1_048_576
-    private const val MAX_MANIFEST_PACKS = 64
-    private const val MAX_STICKERS_PER_PACK = 300
     /** 单个贴纸文件最大字节数（2MB）：防异常贴纸源磁盘耗尽。 */
     private const val MAX_STICKER_FILE_BYTES = 2L * 1024L * 1024L
-    private val SHA256_REGEX = Regex("^[0-9a-fA-F]{64}$")
 
     /** 内置最小集合：1 包「基础表情」（纯 emoji，无需下载）。 */
     const val BUILT_IN_PACK_ID = "basic"
@@ -115,7 +110,7 @@ object OnDemandStickerStore {
     suspend fun getSticker(context: Context, name: String): File? {
         val fileName = StickerNamePolicy.sanitizeFileName(name)
         if (fileName.isEmpty()) return null
-        val pack = findPackContaining(fileName)
+        val pack = StickerManifestPolicy.findPackContaining(cachedManifest, fileName)
         if (pack != null) {
             val expected = pack.stickers.firstOrNull { StickerNamePolicy.sanitizeFileName(it.name) == fileName } ?: return null
             val local = File(packDir(context, pack.id), fileName)
@@ -154,7 +149,7 @@ object OnDemandStickerStore {
                 if (!response.isSuccessful) throw IllegalStateException("manifest HTTP ${response.code}")
                 val body = response.body?.string().orEmpty()
                 if (body.length > MAX_MANIFEST_BYTES) throw IllegalStateException("manifest too large")
-                val parsed = parseManifest(body)
+                val parsed = StickerManifestPolicy.parseManifest(body, ApiConfig.BASE_URL)
                 if (parsed.isEmpty()) throw IllegalStateException("manifest empty")
                 cachedManifest = parsed
                 manifestFetchedAtMs = now
@@ -175,7 +170,7 @@ object OnDemandStickerStore {
             )
         }
         val pack = (if (cachedManifest.isNotEmpty()) cachedManifest
-            else runCatching { parseManifest(fetchManifestRaw()) }.getOrDefault(emptyList()))
+            else runCatching { StickerManifestPolicy.parseManifest(fetchManifestRaw(), ApiConfig.BASE_URL) }.getOrDefault(emptyList()))
             .firstOrNull { it.id == safeId }
         if (pack == null) {
             Log.w(TAG, "ensurePack: 清单中无此包 $safeId")
@@ -277,9 +272,6 @@ object OnDemandStickerStore {
 
     // ---- 内部实现 ----
 
-    private fun findPackContaining(fileName: String): RemotePack? =
-        cachedManifest.firstOrNull { pack -> pack.stickers.any { StickerNamePolicy.sanitizeFileName(it.name) == fileName } }
-
     private fun fetchManifestRaw(): String {
         val request = Request.Builder()
             .url("${ApiConfig.BASE_URL}$MANIFEST_ROUTE")
@@ -290,41 +282,6 @@ object OnDemandStickerStore {
             val body = response.body?.string().orEmpty()
             if (body.length > MAX_MANIFEST_BYTES) throw IllegalStateException("manifest too large")
             body
-        }
-    }
-
-    private fun parseManifest(raw: String): List<RemotePack> {
-        val root = JSONObject(raw)
-        val packs = root.optJSONArray("packs") ?: JSONArray()
-        return buildList {
-            var packCount = 0
-            for (i in 0 until packs.length()) {
-                if (packCount >= MAX_MANIFEST_PACKS) break
-                val pack = packs.optJSONObject(i) ?: continue
-                val id = pack.optString("id").trim()
-                if (id.isEmpty() || StickerNamePolicy.sanitizePackId(id) != id) continue
-                val stickers = pack.optJSONArray("stickers") ?: JSONArray()
-                val items = buildList {
-                    var stickerCount = 0
-                    for (j in 0 until stickers.length()) {
-                        if (stickerCount >= MAX_STICKERS_PER_PACK) break
-                        val s = stickers.optJSONObject(j) ?: continue
-                        val name = s.optString("name").trim()
-                        if (name.isEmpty() || StickerNamePolicy.sanitizeFileName(name) != name) continue
-                        val rawUrl = s.optString("url").trim()
-                        if (name.isEmpty() || rawUrl.isEmpty()) continue
-                        val url = StickerSourcePolicy.resolve(rawUrl, ApiConfig.BASE_URL) ?: continue
-                        val rawSha256 = s.optString("sha256").trim()
-                        if (rawSha256.length != 64 || !SHA256_REGEX.matches(rawSha256)) continue
-                        add(RemoteSticker(name, url, rawSha256.lowercase()))
-                        stickerCount++
-                    }
-                }
-                if (items.isNotEmpty()) {
-                    add(RemotePack(id, items))
-                    packCount++
-                }
-            }
         }
     }
 
