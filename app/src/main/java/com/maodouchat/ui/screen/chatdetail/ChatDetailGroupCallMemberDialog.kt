@@ -32,6 +32,7 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.calls.GroupCallMemberFilterPolicy
 import com.maodouchat.domain.messaging.ChatParticipantsPolicy
 
 /**
@@ -68,14 +69,7 @@ internal fun ChatDetailGroupCallMemberDialog(
     val candidates = ChatParticipantsPolicy.excludingCurrentUser(state.chat?.participants.orEmpty(), state.currentUserId)
     val maxSelected = GroupCallPolicy.MAX_MESH_MEMBERS - 1
     val memberQuery = memberQuery.trim()
-    val filteredCallCandidates = if (memberQuery.isBlank()) {
-        candidates
-    } else {
-        candidates.filter { user ->
-            user.displayName.contains(memberQuery, ignoreCase = true) ||
-                user.id.contains(memberQuery, ignoreCase = true)
-        }
-    }
+    val filteredCallCandidates = GroupCallMemberFilterPolicy.filter(candidates, memberQuery)
     AlertDialog(
         onDismissRequest = {
             onDismiss()

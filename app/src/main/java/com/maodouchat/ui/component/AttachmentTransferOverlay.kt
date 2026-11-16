@@ -31,6 +31,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.domain.messaging.FileTransferStatusKind
+import com.maodouchat.domain.messaging.fileTransferStatusKind
 
 @Composable
 internal fun AttachmentTransferOverlay(
@@ -101,19 +103,17 @@ internal fun AttachmentTransferOverlay(
 }
 
 @Composable
-internal fun fileTransferStatusText(state: String, errorCode: String?): String = when (state) {
-    AttachmentTransferState.PREPARING -> stringResource(R.string.chat_file_transfer_preparing)
-    AttachmentTransferState.QUEUED -> stringResource(R.string.chat_file_transfer_queued)
-    AttachmentTransferState.UPLOADING -> stringResource(R.string.chat_file_transfer_uploading)
-    AttachmentTransferState.READY -> stringResource(R.string.chat_file_transfer_ready)
-    AttachmentTransferState.SENDING -> stringResource(R.string.chat_file_transfer_sending)
-    AttachmentTransferState.PAUSED -> stringResource(R.string.chat_file_transfer_paused)
-    AttachmentTransferState.FAILED -> when {
-        errorCode == "SOURCE_MISSING" -> stringResource(R.string.chat_file_transfer_source_missing)
-        errorCode?.startsWith("NETWORK_") == true -> stringResource(R.string.chat_file_transfer_network_failed)
-        errorCode?.startsWith("TIMEOUT_") == true -> stringResource(R.string.chat_file_transfer_timeout)
-        errorCode?.startsWith("SEND_") == true -> stringResource(R.string.chat_file_transfer_send_failed)
-        else -> stringResource(R.string.chat_file_transfer_failed)
+internal fun fileTransferStatusText(state: String, errorCode: String?): String =
+    when (fileTransferStatusKind(state, errorCode)) {
+        FileTransferStatusKind.PREPARING -> stringResource(R.string.chat_file_transfer_preparing)
+        FileTransferStatusKind.QUEUED -> stringResource(R.string.chat_file_transfer_queued)
+        FileTransferStatusKind.UPLOADING -> stringResource(R.string.chat_file_transfer_uploading)
+        FileTransferStatusKind.READY -> stringResource(R.string.chat_file_transfer_ready)
+        FileTransferStatusKind.SENDING -> stringResource(R.string.chat_file_transfer_sending)
+        FileTransferStatusKind.PAUSED -> stringResource(R.string.chat_file_transfer_paused)
+        FileTransferStatusKind.SOURCE_MISSING -> stringResource(R.string.chat_file_transfer_source_missing)
+        FileTransferStatusKind.NETWORK_FAILED -> stringResource(R.string.chat_file_transfer_network_failed)
+        FileTransferStatusKind.TIMEOUT -> stringResource(R.string.chat_file_transfer_timeout)
+        FileTransferStatusKind.SEND_FAILED -> stringResource(R.string.chat_file_transfer_send_failed)
+        FileTransferStatusKind.FAILED -> stringResource(R.string.chat_file_transfer_failed)
     }
-    else -> stringResource(R.string.chat_file_transfer_queued)
-}
