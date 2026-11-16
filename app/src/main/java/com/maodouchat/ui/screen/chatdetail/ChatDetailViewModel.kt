@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.domain.messaging.ComposerLengthPolicy
 import com.maodouchat.domain.messaging.ResolvedOutgoingChat
 
 class ChatDetailViewModel(
@@ -332,7 +333,7 @@ class ChatDetailViewModel(
     fun onInputChange(text: String) {
         hasUserEditedInput = true
         // 8.52 UX：对齐服务端 4000 上限本地截断（此前粘贴超长文本会无限进入输入态/被服务端拒绝）
-        val clipped = if (text.length > MAX_COMPOSER_TEXT_LENGTH) text.take(MAX_COMPOSER_TEXT_LENGTH) else text
+        val clipped = ComposerLengthPolicy.clip(text)
         if (_uiState.value.aiDraftOriginal != null) discardAiDraftPreview()
         if (_uiState.value.isAiReplyStreaming) cancelAiReplyStream(clearSuggestions = true)
         // 1.162：用户编辑后清除「已恢复草稿」标识
@@ -599,8 +600,6 @@ class ChatDetailViewModel(
     companion object {
         /** 试听占用的伪 messageId，避免与真实消息播放冲突。 */
         const val VOICE_PREVIEW_MESSAGE_ID: String = "__voice_preview__"
-        /** 8.52 UX：输入框内容上限，与服务端 sendMessage 4000 校验对齐（防超长发送被拒/卡输入）。 */
-        const val MAX_COMPOSER_TEXT_LENGTH: Int = 4000
     }
 
     /** 删除消息时清理附件传输记录和本地密文文件，防止孤儿行和磁盘泄漏。 */

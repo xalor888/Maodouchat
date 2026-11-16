@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.data.repository.BotNetworkRepository
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.ChatFeatureGatePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -33,19 +34,26 @@ internal fun ChatDetailViewModel.votePoll(pollId: String, optionIndex: Int) {
 }
 internal fun ChatDetailViewModel.requireVoiceMessages(): Boolean {
     val ctx = getApplication<Application>()
-    if (!RuntimeFlags.isEnabled(ctx, RuntimeFlags.VOICE_MESSAGES)) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.voice_messages_disabled)) }
-        return false
+    return when (
+        ChatFeatureGatePolicy.voiceMessagesGate(
+            RuntimeFlags.isEnabled(ctx, RuntimeFlags.VOICE_MESSAGES),
+            RuntimeFlags.isEnabled(ctx, RuntimeFlags.MEDIA_UPLOAD)
+        )
+    ) {
+        ChatFeatureGatePolicy.VoiceMessagesGate.Allowed -> true
+        ChatFeatureGatePolicy.VoiceMessagesGate.VoiceDisabled -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.voice_messages_disabled)) }
+            false
+        }
+        ChatFeatureGatePolicy.VoiceMessagesGate.MediaUploadDisabled -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_media_upload_disabled)) }
+            false
+        }
     }
-    if (!RuntimeFlags.isEnabled(ctx, RuntimeFlags.MEDIA_UPLOAD)) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.chat_media_upload_disabled)) }
-        return false
-    }
-    return true
 }
 internal fun ChatDetailViewModel.requireStickers(): Boolean {
     val ctx = getApplication<Application>()
-    if (!RuntimeFlags.isEnabled(ctx, RuntimeFlags.STICKERS)) {
+    if (!ChatFeatureGatePolicy.stickersAllowed(RuntimeFlags.isEnabled(ctx, RuntimeFlags.STICKERS))) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.stickers_disabled)) }
         return false
     }
@@ -53,7 +61,7 @@ internal fun ChatDetailViewModel.requireStickers(): Boolean {
 }
 internal fun ChatDetailViewModel.requireSilentSend(): Boolean {
     val ctx = getApplication<Application>()
-    if (!RuntimeFlags.isEnabled(ctx, RuntimeFlags.SILENT_SEND)) {
+    if (!ChatFeatureGatePolicy.silentSendAllowed(RuntimeFlags.isEnabled(ctx, RuntimeFlags.SILENT_SEND))) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.silent_send_disabled)) }
         return false
     }
@@ -61,28 +69,43 @@ internal fun ChatDetailViewModel.requireSilentSend(): Boolean {
 }
 internal fun ChatDetailViewModel.requireReactions(): Boolean {
     val ctx = getApplication<Application>()
-    if (!RuntimeFlags.isEnabled(ctx, RuntimeFlags.REACTIONS)) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.reactions_disabled)) }
-        return false
+    return when (
+        ChatFeatureGatePolicy.reactionsGate(
+            RuntimeFlags.isEnabled(ctx, RuntimeFlags.REACTIONS),
+            _uiState.value.isSecretChat,
+            RuntimeFlags.isEnabled(ctx, RuntimeFlags.SECRET_REACTION_BLOCK)
+        )
+    ) {
+        ChatFeatureGatePolicy.ReactionsGate.Allowed -> true
+        ChatFeatureGatePolicy.ReactionsGate.ReactionsDisabled -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.reactions_disabled)) }
+            false
+        }
+        ChatFeatureGatePolicy.ReactionsGate.SecretReactionBlocked -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_reaction_blocked)) }
+            false
+        }
     }
-    if (_uiState.value.isSecretChat == true && RuntimeFlags.isEnabled(ctx, RuntimeFlags.SECRET_REACTION_BLOCK)) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_reaction_blocked)) }
-        return false
-    }
-    return true
 }
 
 /** 仅群聊可用的功能门卫（真实功能保留；假玩法已删除）。 */
 internal fun ChatDetailViewModel.requireGroupPlay(): Boolean {
-    if (_uiState.value.chat?.isGroup != true) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_group_only)) }
-        return false
+    return when (
+        ChatFeatureGatePolicy.groupPlayGate(
+            _uiState.value.chat?.isGroup,
+            RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GROUP_PLAY)
+        )
+    ) {
+        ChatFeatureGatePolicy.GroupPlayGate.Allowed -> true
+        ChatFeatureGatePolicy.GroupPlayGate.NotGroup -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_group_only)) }
+            false
+        }
+        ChatFeatureGatePolicy.GroupPlayGate.GroupPlayDisabled -> {
+            _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_disabled)) }
+            false
+        }
     }
-    if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GROUP_PLAY)) {
-        _uiState.update { it.copy(groupEncryptionWarning = text(R.string.group_play_disabled)) }
-        return false
-    }
-    return true
 }
 
     internal fun ChatDetailViewModel.refreshSealedSenderCertificate() {

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.groups.GroupAnnouncementPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 
 @Composable
@@ -126,7 +127,7 @@ fun AnnouncementRow(
             shape = RoundedCornerShape(10.dp)
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${value.length}/1200", style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, modifier = Modifier.weight(1f))
+            Text("${value.length}/${GroupAnnouncementPolicy.MAX_LENGTH}", style = MaterialTheme.typography.labelSmall, color = LocalChatPalette.current.textHint, modifier = Modifier.weight(1f))
             if (canManage) {
                 TextButton(onClick = { onValueChange("") }, enabled = enabled && value.isNotBlank()) { Text(stringResource(R.string.common_clear)) }
                 Spacer(modifier = Modifier.width(6.dp))
