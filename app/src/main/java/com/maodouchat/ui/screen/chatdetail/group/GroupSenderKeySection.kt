@@ -34,6 +34,7 @@ import com.maodouchat.core.model.SenderKeyTargetFilter
 import com.maodouchat.domain.messaging.SenderKeyReasonLabel
 import com.maodouchat.domain.messaging.SenderKeyStatusLabel
 import com.maodouchat.domain.messaging.senderKeyReasonLabelKind
+import com.maodouchat.domain.groups.SenderKeyTargetFilterPolicy
 import com.maodouchat.domain.messaging.senderKeyStatusLabelKind
 
 private const val SENDER_KEY_TARGET_PAGE = 20
@@ -90,12 +91,7 @@ fun GroupSenderKeyStatusSection(
         }
         val needsAction = assessment.requiresDistribution
         val filteredTargets = remember(status.targets, targetFilter) {
-            when (targetFilter) {
-                SenderKeyTargetFilter.ALL -> status.targets
-                SenderKeyTargetFilter.FAILED -> status.targets.filter { it.status.equals("FAILED", ignoreCase = true) }
-                SenderKeyTargetFilter.PENDING -> status.targets.filter { it.status.equals("PENDING", ignoreCase = true) }
-                SenderKeyTargetFilter.SENT -> status.targets.filter { it.status.equals("SENT", ignoreCase = true) }
-            }
+            SenderKeyTargetFilterPolicy.filter(status.targets, targetFilter)
         }
         val visibleTargets = remember(filteredTargets, targetsExpanded) {
             if (targetsExpanded || filteredTargets.size <= SENDER_KEY_TARGET_PAGE) {

@@ -41,16 +41,18 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.domain.groups.GroupMemberActionPolicy
+import com.maodouchat.domain.groups.GroupMemberRoleKind
+import com.maodouchat.domain.groups.groupMemberRoleKind
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 
 object GroupMemberSectionUtils {
     @Composable
-    fun roleLabel(role: String): String = when (role) {
-        "OWNER" -> stringResource(R.string.group_detail_role_owner)
-        "ADMIN" -> stringResource(R.string.group_detail_role_admin)
-        else -> stringResource(R.string.group_detail_role_member)
+    fun roleLabel(role: String): String = when (groupMemberRoleKind(role)) {
+        GroupMemberRoleKind.OWNER -> stringResource(R.string.group_detail_role_owner)
+        GroupMemberRoleKind.ADMIN -> stringResource(R.string.group_detail_role_admin)
+        GroupMemberRoleKind.MEMBER -> stringResource(R.string.group_detail_role_member)
     }
 
     @Composable
