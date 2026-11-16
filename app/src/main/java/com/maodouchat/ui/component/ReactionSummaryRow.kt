@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ReactionSummaryPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.OnSurface
@@ -30,21 +31,19 @@ internal fun ReactionSummaryRow(
 ) {
     val palette = LocalChatPalette.current
     if (message.reactions.isEmpty()) return
-    val grouped = remember(message.reactions) {
-        message.reactions.groupBy { it.emoji }
-            .map { (emoji, reactions) -> emoji to reactions.sortedBy { it.reactedAt } }
-            .sortedBy { (_, reactions) -> reactions.firstOrNull()?.reactedAt ?: 0L }
+    val summary = remember(message.reactions, currentUserId) {
+        ReactionSummaryPolicy.summarize(message.reactions, currentUserId)
     }
-    val visible = grouped.take(24)
-    val overflow = (grouped.size - visible.size).coerceAtLeast(0)
+    val visible = summary.visible
+    val overflow = summary.overflow
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.padding(top = 4.dp)
     ) {
-        visible.forEach { (emoji, reactions) ->
-            val reactedByMe = currentUserId != null && reactions.any { it.userId == currentUserId }
+        visible.forEach { group ->
+            val reactedByMe = group.reactedByMe
             Text(
-                text = "$emoji ${reactions.size}",
+                text = "${group.emoji} ${group.reactions.size}",
                 style = MaterialTheme.typography.labelMedium,
                 color = if (reactedByMe) Primary else if (isOwnMessage) LocalSentBubbleContent.current else OnSurface,
                 modifier = Modifier
@@ -58,7 +57,7 @@ internal fun ReactionSummaryRow(
                     )
                     .then(
                         if (onReactionClick != null) {
-                            Modifier.clickable { onReactionClick(emoji) }
+                            Modifier.clickable { onReactionClick(group.emoji) }
                         } else {
                             Modifier
                         }
