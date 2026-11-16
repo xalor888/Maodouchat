@@ -5,6 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.core.model.AiRetryPolicy
 import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.AiOperationWaitPolicy
 import com.maodouchat.domain.messaging.invocationCategory
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ internal fun ChatDetailViewModel.executeAiAction(action: PendingAiAction) {
     val category = action.invocationCategory()
     val wait = AiRetryPolicy.remainingDelayMs(activeChatId, category)
     if (wait > 0L) {
-        val message = text(R.string.chat_ai_too_soon, (wait / 1000L).coerceAtLeast(1L))
+        val message = text(R.string.chat_ai_too_soon, AiOperationWaitPolicy.waitSeconds(wait))
         _uiState.update {
             if (action is PendingAiAction.SemanticSearch) it.copy(semanticSearchError = message)
             else it.copy(groupEncryptionWarning = message)

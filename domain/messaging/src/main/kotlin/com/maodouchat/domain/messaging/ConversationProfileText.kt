@@ -21,7 +21,7 @@ fun conversationProfileText(
     )
     if (profile.local.topTerms.isNotEmpty()) {
         append("\n")
-        append(topTermsText(profile.local.topTerms.take(8).joinToString(" · ")))
+        append(topTermsText(AiProfileTopTermsPolicy.displayTerms(profile.local.topTerms, " · ")))
     }
     profile.narrative?.takeIf { it.isNotBlank() }?.let { append("\n\n").append(it) }
 }

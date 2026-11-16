@@ -186,7 +186,7 @@ internal fun ChatDetailForwardPicker(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            filteredForwardTargets.take(6).forEach { recentChat ->
+                            filteredForwardTargets.take(ForwardPreviewPolicy.RECENT_CHIPS_MAX).forEach { recentChat ->
                                 val recentSelected = selectedForwardChatIds.contains(recentChat.id)
                                 FilterChip(
                                     selected = recentSelected,

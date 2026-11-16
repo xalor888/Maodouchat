@@ -38,5 +38,6 @@ class ForwardPreviewPolicyTest {
         assertEquals(3, ForwardPreviewPolicy.PREVIEW_COUNT)
         assertEquals(40, ForwardPreviewPolicy.PREVIEW_TEXT_LENGTH)
         assertEquals(500, ForwardPreviewPolicy.NOTE_MAX_LENGTH)
+        assertEquals(6, ForwardPreviewPolicy.RECENT_CHIPS_MAX)
     }
 }

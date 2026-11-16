@@ -6,6 +6,7 @@ import com.maodouchat.core.model.LocalStats
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiProfileTopTermsPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -33,7 +34,7 @@ internal object AiProfileNarrative {
             )?.let { AiContextMessage(it.sender, it.text) }
         }
         if (contextMessages.isEmpty()) return ""
-        val statsHint = "消息 ${stats.messageCount} 条，活跃 ${stats.activeDays} 天，主题 ${stats.topTerms.take(8).joinToString("、")}"
+        val statsHint = "消息 ${stats.messageCount} 条，活跃 ${stats.activeDays} 天，主题 ${AiProfileTopTermsPolicy.displayTerms(stats.topTerms, "、")}"
         return com.maodouchat.ai.agent.LocalAiGateway.summarize(
             context,
             contextMessages,

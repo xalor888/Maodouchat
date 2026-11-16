@@ -116,8 +116,7 @@ internal fun VoiceBubble(
     val knownDuration = playerState.takeIf { it.messageId == message.id && it.durationMs > 0L }?.durationMs
         ?: presentation.meta.voiceDurationMs
         ?: 1_000L
-    val totalSeconds = knownDuration / 1000
-    val displaySeconds = if (totalSeconds > 0) totalSeconds else 1 // 无 duration 时默认 1s
+    val displaySeconds = com.maodouchat.domain.messaging.VoiceMessageDuration.floorSecondsAtLeastOne(knownDuration) // 无 duration 时默认 1s
     val displayText = com.maodouchat.domain.messaging.VoiceMessageDuration.formatDuration(displaySeconds * 1000L)
     val speedLabel = com.maodouchat.domain.messaging.VoicePlaybackSpeed.formatSpeedLabel(
         if (isThisActive) playerState.speed else 1f
