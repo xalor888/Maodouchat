@@ -7,8 +7,10 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ForwardFailureReason
 import com.maodouchat.domain.messaging.ForwardRequest
+import com.maodouchat.domain.messaging.ForwardResultWarningKind
 import com.maodouchat.domain.messaging.DefaultConversationForwardCoordinator
 import com.maodouchat.domain.messaging.forwardPreviewText
+import com.maodouchat.domain.messaging.forwardResultWarningKind
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
@@ -100,16 +102,22 @@ fun ChatDetailViewModel.forwardMessagesBatch(messages: List<Message>, targetChat
         val anyFailed = allResults.any { !it.success }
         val anyPinLocked = allResults.any { it.reason == ForwardFailureReason.PIN_LOCKED }
         val anyForbidden = allResults.any { it.reason == ForwardFailureReason.FORBIDDEN }
+        val warningKind = forwardResultWarningKind(
+            hasResults = allResults.isNotEmpty(),
+            anyFailed = anyFailed,
+            anyPinLocked = anyPinLocked,
+            anyForbidden = anyForbidden,
+            hasReliableAttachment = usable.any { msg -> msg.type in RELIABLE_ATTACHMENT_TYPES },
+        )
         _uiState.update {
             it.copy(
                 isForwarding = false,
-                groupEncryptionWarning = when {
-                    allResults.isNotEmpty() && !anyFailed -> text(R.string.chat_forwarded)
-                    anyPinLocked -> text(R.string.secret_chat_forward_blocked)
-                    anyForbidden -> text(R.string.secret_chat_forward_blocked)
-                    usable.any { msg -> msg.type in RELIABLE_ATTACHMENT_TYPES } && anyFailed -> text(R.string.chat_attachment_upload_failed)
-                    else -> if (anyFailed) text(R.string.chat_refresh_failed_cached) else text(R.string.chat_forwarded)
-                },
+                groupEncryptionWarning = text(when (warningKind) {
+                    ForwardResultWarningKind.FORWARDED -> R.string.chat_forwarded
+                    ForwardResultWarningKind.SECRET_BLOCKED -> R.string.secret_chat_forward_blocked
+                    ForwardResultWarningKind.ATTACHMENT_UPLOAD_FAILED -> R.string.chat_attachment_upload_failed
+                    ForwardResultWarningKind.REFRESH_FAILED_CACHED -> R.string.chat_refresh_failed_cached
+                }),
             )
         }
     }

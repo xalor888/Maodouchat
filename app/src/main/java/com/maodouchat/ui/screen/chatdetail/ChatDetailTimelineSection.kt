@@ -42,6 +42,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.conversation.UnreadBadgePolicy
+import com.maodouchat.domain.messaging.timelineContentType
 import com.maodouchat.perf.CoalescedScroller
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
@@ -86,11 +87,7 @@ internal fun BoxScope.ChatDetailTimelineSection(
     itemsIndexed(
         reversedChatItems,
         key = { _, item -> item.listKey },
-        contentType = { _, item -> when (item) {
-            is ChatItem.DateSeparator -> "date_separator"
-            is ChatItem.Msg -> "message_${item.message.type.name}"
-            is ChatItem.UnreadSeparator -> "unread_separator"
-        } }
+        contentType = { _, item -> item.timelineContentType() }
     ) { index, item ->
         // G85：单条 item 渲染（231 行）抽到 ChatDetailTimelineItems.kt。
         // 必须是 LazyItemScope 扩展——`Modifier.animateItem` 只在 itemsIndexed 内有效，

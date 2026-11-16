@@ -9,7 +9,8 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
 import com.maodouchat.ui.component.ShimmerChatRow
-import com.maodouchat.core.model.ChatFolderPolicy
+import com.maodouchat.domain.conversation.ChatListEmptyKind
+import com.maodouchat.domain.conversation.chatListEmptyKind
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
@@ -42,28 +43,29 @@ internal fun EmptyChatState(
         )
         return
     }
-    val title = when {
-        hasSearchQuery -> stringResource(R.string.chat_empty_search_title)
-        showArchived -> stringResource(R.string.chat_empty_archived_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID -> stringResource(R.string.chat_folder_empty_unread_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID -> stringResource(R.string.chat_folder_empty_groups_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID -> stringResource(R.string.chat_folder_empty_direct_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID -> stringResource(R.string.chat_folder_empty_secret_title)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID -> stringResource(R.string.chat_folder_empty_locked_title)
-        !selectedFolderId.isNullOrBlank() -> stringResource(R.string.chat_folder_empty)
-        else -> stringResource(R.string.chat_empty_title)
-    }
-    val subtitle = when {
-        hasSearchQuery -> stringResource(R.string.chat_empty_search_subtitle)
-        showArchived -> stringResource(R.string.chat_empty_archived_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_UNREAD_ID -> stringResource(R.string.chat_folder_empty_unread_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID -> stringResource(R.string.chat_folder_empty_groups_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID -> stringResource(R.string.chat_folder_empty_direct_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_SECRET_ID -> stringResource(R.string.chat_folder_empty_secret_subtitle)
-        selectedFolderId == ChatFolderPolicy.SYSTEM_LOCKED_ID -> stringResource(R.string.chat_folder_empty_locked_subtitle)
-        !selectedFolderId.isNullOrBlank() -> stringResource(R.string.chat_folder_empty_subtitle)
-        else -> stringResource(R.string.chat_empty_subtitle)
-    }
+    val emptyKind = chatListEmptyKind(hasSearchQuery, showArchived, selectedFolderId)
+    val title = stringResource(when (emptyKind) {
+        ChatListEmptyKind.SEARCH -> R.string.chat_empty_search_title
+        ChatListEmptyKind.ARCHIVED -> R.string.chat_empty_archived_title
+        ChatListEmptyKind.UNREAD -> R.string.chat_folder_empty_unread_title
+        ChatListEmptyKind.GROUPS -> R.string.chat_folder_empty_groups_title
+        ChatListEmptyKind.DIRECT -> R.string.chat_folder_empty_direct_title
+        ChatListEmptyKind.SECRET -> R.string.chat_folder_empty_secret_title
+        ChatListEmptyKind.LOCKED -> R.string.chat_folder_empty_locked_title
+        ChatListEmptyKind.CUSTOM_FOLDER -> R.string.chat_folder_empty
+        ChatListEmptyKind.DEFAULT -> R.string.chat_empty_title
+    })
+    val subtitle = stringResource(when (emptyKind) {
+        ChatListEmptyKind.SEARCH -> R.string.chat_empty_search_subtitle
+        ChatListEmptyKind.ARCHIVED -> R.string.chat_empty_archived_subtitle
+        ChatListEmptyKind.UNREAD -> R.string.chat_folder_empty_unread_subtitle
+        ChatListEmptyKind.GROUPS -> R.string.chat_folder_empty_groups_subtitle
+        ChatListEmptyKind.DIRECT -> R.string.chat_folder_empty_direct_subtitle
+        ChatListEmptyKind.SECRET -> R.string.chat_folder_empty_secret_subtitle
+        ChatListEmptyKind.LOCKED -> R.string.chat_folder_empty_locked_subtitle
+        ChatListEmptyKind.CUSTOM_FOLDER -> R.string.chat_folder_empty_subtitle
+        ChatListEmptyKind.DEFAULT -> R.string.chat_empty_subtitle
+    })
     val showActions = !hasSearchQuery && !showArchived && selectedFolderId.isNullOrBlank()
     EmptyState(
         type = if (hasSearchQuery) EmptyStateType.SEARCH else EmptyStateType.CHAT_LIST,

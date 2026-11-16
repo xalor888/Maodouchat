@@ -18,6 +18,8 @@ import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MessageShareMimePolicy
 import com.maodouchat.domain.messaging.MessageSharePreviewKind
+import com.maodouchat.domain.messaging.copyMessageLabelWithSender
+import com.maodouchat.domain.messaging.copyMessageLabelWithSenderTime
 import com.maodouchat.domain.messaging.messageSharePreviewKind
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
@@ -63,7 +65,7 @@ internal fun ChatDetailMessageCopyActions(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )
-                val label = if (sender.isBlank()) copied else "$sender: $copied"
+                val label = copyMessageLabelWithSender(sender, copied)
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, label))
                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()
@@ -80,11 +82,7 @@ internal fun ChatDetailMessageCopyActions(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )
-                val label = when {
-                    body.isBlank() -> time
-                    sender.isBlank() -> "$time $body"
-                    else -> "$time $sender: $body"
-                }
+                val label = copyMessageLabelWithSenderTime(time, sender, body)
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, label))
                 Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()

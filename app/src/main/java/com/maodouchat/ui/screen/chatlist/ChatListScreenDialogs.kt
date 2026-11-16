@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.conversation.copyableName
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -116,11 +117,7 @@ internal fun ChatListScreenDialogs(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.chat_copy_chat_name)) },
                 onClick = {
-                    val name = when {
-                        chat.isChannel -> chat.groupName?.takeIf(String::isNotBlank) ?: ""
-                        chat.isGroup -> chat.groupName?.takeIf(String::isNotBlank) ?: ""
-                        else -> chat.participants.firstOrNull()?.displayName.orEmpty()
-                    }
+                    val name = chat.copyableName()
                     if (name.isNotBlank()) {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText(copyChatNameLabel, name))
