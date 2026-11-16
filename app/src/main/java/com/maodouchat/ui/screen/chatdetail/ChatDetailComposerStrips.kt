@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessagePreviewText
+import com.maodouchat.domain.messaging.ReplyPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.component.ReplyTargetBar
 import com.maodouchat.ui.component.TypingPresence
@@ -64,7 +65,7 @@ internal fun ChatDetailComposerStrips(
                         ?: context.getString(R.string.message_preview_encrypted)
                 },
                 encryptedPlaceholder = context.getString(R.string.message_preview_encrypted),
-            ).take(60),
+            ).let(ReplyPreviewPolicy::preview),
             onCancel = { targets.replyTarget = null }
         )
     }

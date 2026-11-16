@@ -34,6 +34,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.MessageTimelineGroupingPolicy
+import com.maodouchat.domain.messaging.ReplyPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -204,7 +205,7 @@ internal fun LazyItemScope.ChatDetailTimelineItem(
                                     ?: previewEncryptedLabel
                             },
                             encryptedPlaceholder = previewEncryptedLabel,
-                        ).take(60)
+                        ).let(ReplyPreviewPolicy::preview)
                     )
                 },
                 isSearchHit = isSearchHit,
