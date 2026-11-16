@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.SilentUntilOption
+import com.maodouchat.domain.messaging.SilentUntilLabelKind
 import com.maodouchat.domain.messaging.SilentUntilPolicy
+import com.maodouchat.domain.messaging.silentUntilLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
@@ -79,10 +81,10 @@ internal fun ChatSilentUntilDialog(
         }
     )}
 
-private fun silentUntilLabelRes(option: SilentUntilOption): Int = when (option) {
-    SilentUntilOption.Hour1 -> R.string.chat_silent_until_1h
-    SilentUntilOption.Hours8 -> R.string.chat_silent_until_8h
-    SilentUntilOption.Hours24 -> R.string.chat_silent_until_24h
+private fun silentUntilLabelRes(option: SilentUntilOption): Int = when (silentUntilLabelKind(option)) {
+    SilentUntilLabelKind.HOUR_1 -> R.string.chat_silent_until_1h
+    SilentUntilLabelKind.HOURS_8 -> R.string.chat_silent_until_8h
+    SilentUntilLabelKind.HOURS_24 -> R.string.chat_silent_until_24h
 }
 
 /** 解除聊天锁对话框（输 PIN 解除）。 */

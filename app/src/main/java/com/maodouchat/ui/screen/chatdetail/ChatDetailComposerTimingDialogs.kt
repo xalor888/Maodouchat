@@ -34,6 +34,8 @@ import com.maodouchat.core.model.QuietWindow
 import com.maodouchat.domain.messaging.DisappearDurationLabel
 import com.maodouchat.domain.messaging.DisappearingMessageLabel
 import com.maodouchat.domain.messaging.QuietHoursPreset
+import com.maodouchat.domain.messaging.QuietHoursPresetLabelKind
+import com.maodouchat.domain.messaging.quietHoursPresetLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -97,11 +99,11 @@ internal fun ChatQuietHoursDialog(
     )
 }
 
-private fun quietHoursPresetLabelRes(preset: QuietHoursPreset): Int = when (preset) {
-    QuietHoursPreset.Night -> R.string.chat_quiet_hours_night
-    QuietHoursPreset.Lunch -> R.string.chat_quiet_hours_lunch
-    QuietHoursPreset.Sleep -> R.string.chat_quiet_hours_sleep
-    QuietHoursPreset.Workday -> R.string.chat_quiet_hours_workday
+private fun quietHoursPresetLabelRes(preset: QuietHoursPreset): Int = when (quietHoursPresetLabelKind(preset)) {
+    QuietHoursPresetLabelKind.NIGHT -> R.string.chat_quiet_hours_night
+    QuietHoursPresetLabelKind.LUNCH -> R.string.chat_quiet_hours_lunch
+    QuietHoursPresetLabelKind.SLEEP -> R.string.chat_quiet_hours_sleep
+    QuietHoursPresetLabelKind.WORKDAY -> R.string.chat_quiet_hours_workday
 }
 
 @Composable

@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.domain.calls.CallAudioRouteKind
+import com.maodouchat.domain.calls.callAudioRouteKind
 
 internal fun audioRouteIcon(route: CallAudioRoute?) = when (route) {
     CallAudioRoute.BLUETOOTH -> Icons.Filled.BluetoothAudio
@@ -33,11 +35,11 @@ internal fun audioRouteIcon(route: CallAudioRoute?) = when (route) {
     CallAudioRoute.SPEAKER, null -> Icons.AutoMirrored.Filled.VolumeUp
 }
 
-private fun audioRouteLabel(route: CallAudioRoute): Int = when (route) {
-    CallAudioRoute.BLUETOOTH -> R.string.call_audio_route_bluetooth
-    CallAudioRoute.WIRED -> R.string.call_audio_route_wired
-    CallAudioRoute.EARPIECE -> R.string.call_audio_route_earpiece
-    CallAudioRoute.SPEAKER -> R.string.call_audio_route_speaker
+private fun audioRouteLabel(route: CallAudioRoute): Int = when (callAudioRouteKind(route)) {
+    CallAudioRouteKind.BLUETOOTH -> R.string.call_audio_route_bluetooth
+    CallAudioRouteKind.WIRED -> R.string.call_audio_route_wired
+    CallAudioRouteKind.EARPIECE -> R.string.call_audio_route_earpiece
+    CallAudioRouteKind.SPEAKER -> R.string.call_audio_route_speaker
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

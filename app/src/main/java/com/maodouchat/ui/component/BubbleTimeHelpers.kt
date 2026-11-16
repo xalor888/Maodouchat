@@ -14,27 +14,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.DisappearCountdownKind
+import com.maodouchat.domain.messaging.disappearCountdownKind
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.Primary
 
 /** 阅后即焚剩余时间文案；无期限或已过期返回 null。 */
 @Composable
 internal fun formatDisappearCountdown(expiresAt: Long?, nowMs: Long): String? {
-    val remaining = com.maodouchat.core.model.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
-    if (remaining < 0L) return null
-    val totalSec = (remaining / 1000L).coerceAtLeast(0L)
-    return when {
-        totalSec < 60L -> stringResource(R.string.disappear_countdown_s, totalSec.toInt())
-        totalSec < 3600L -> {
-            val m = (totalSec / 60L).toInt()
-            val s = (totalSec % 60L).toInt()
-            stringResource(R.string.disappear_countdown_m, m, s)
-        }
-        else -> {
-            val h = (totalSec / 3600L).toInt()
-            val m = ((totalSec % 3600L) / 60L).toInt()
-            stringResource(R.string.disappear_countdown_h, h, m)
-        }
+    return when (val kind = disappearCountdownKind(expiresAt, nowMs)) {
+        null -> null
+        is DisappearCountdownKind.Seconds -> stringResource(R.string.disappear_countdown_s, kind.totalSec)
+        is DisappearCountdownKind.Minutes -> stringResource(R.string.disappear_countdown_m, kind.minutes, kind.seconds)
+        is DisappearCountdownKind.Hours -> stringResource(R.string.disappear_countdown_h, kind.hours, kind.minutes)
     }
 }
 
