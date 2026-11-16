@@ -3,8 +3,11 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.core.model.ComposerSection
 import com.maodouchat.core.model.MessageAiAction
+import com.maodouchat.domain.messaging.AiEntryVisibilityPolicy
+import com.maodouchat.domain.messaging.MessageAiActionPolicy
+import com.maodouchat.util.RuntimeFlags
 
-/** AI 入口信息架构：薄门面，逻辑已按簇拆入 AiEntryVisibility / AiContextActionPolicy。 */
+/** AI 入口信息架构：薄门面，纯逻辑已收敛到 :domain:messaging 的新策略。 */
 object AiEntryPolicy {
 
     const val PRIMARY_SURFACE = AiEntryVisibility.PRIMARY_SURFACE
@@ -17,7 +20,7 @@ object AiEntryPolicy {
         consentAccepted: Boolean,
         userEnabled: Boolean = false,
         masterEnabled: Boolean = true
-    ): Boolean = AiEntryVisibility.shouldShowAiSurfaces(
+    ): Boolean = AiEntryVisibilityPolicy.shouldShowAiSurfaces(
         chatAiEnabled = chatAiEnabled,
         consentAccepted = consentAccepted,
         userEnabled = userEnabled,
@@ -31,36 +34,40 @@ object AiEntryPolicy {
         messageType: String?,
         hasTranscript: Boolean = false
     ): List<MessageAiAction> =
-        AiContextActionPolicy.contextActionsFor(messageType, hasTranscript)
+        MessageAiActionPolicy.contextActionsFor(messageType, hasTranscript)
 
     fun hasContextAiActions(
         messageType: String?,
         hasTranscript: Boolean = false
-    ): Boolean = AiContextActionPolicy.hasContextAiActions(messageType, hasTranscript)
+    ): Boolean = MessageAiActionPolicy.hasContextAiActions(messageType, hasTranscript)
 
     fun isComposerEntryActive(chatAiEnabled: Boolean): Boolean =
-        AiEntryVisibility.isComposerEntryActive(chatAiEnabled)
+        AiEntryVisibilityPolicy.isComposerEntryActive(chatAiEnabled)
 
     fun isComposerEntryActive(context: Context, chatAiEnabled: Boolean): Boolean =
         AiEntryVisibility.isComposerEntryActive(context, chatAiEnabled)
 
     fun canOpenComposerMenu(isBusy: Boolean, isUpdatingSetting: Boolean = false): Boolean =
-        AiContextActionPolicy.canOpenComposerMenu(isBusy, isUpdatingSetting)
+        MessageAiActionPolicy.canOpenComposerMenu(isBusy, isUpdatingSetting)
 
     fun canRunContextAction(
         chatAiEnabled: Boolean,
         isBusy: Boolean
-    ): Boolean = AiContextActionPolicy.canRunContextAction(chatAiEnabled, isBusy)
+    ): Boolean = MessageAiActionPolicy.canRunContextAction(chatAiEnabled, isBusy)
 
     fun canRunContextAction(
         context: Context,
         chatAiEnabled: Boolean,
         isBusy: Boolean
-    ): Boolean = AiContextActionPolicy.canRunContextAction(context, chatAiEnabled, isBusy)
+    ): Boolean = MessageAiActionPolicy.canRunContextAction(
+        masterEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER),
+        chatAiEnabled = chatAiEnabled,
+        isBusy = isBusy
+    )
 
     fun canRunContextAction(
         masterEnabled: Boolean,
         chatAiEnabled: Boolean,
         isBusy: Boolean
-    ): Boolean = AiContextActionPolicy.canRunContextAction(masterEnabled, chatAiEnabled, isBusy)
+    ): Boolean = MessageAiActionPolicy.canRunContextAction(masterEnabled, chatAiEnabled, isBusy)
 }

@@ -1,16 +1,10 @@
-package com.maodouchat.ai
+package com.maodouchat.domain.messaging
 
-import android.content.Context
 import com.maodouchat.core.model.MessageAiAction
-import com.maodouchat.util.RuntimeFlags
 
-/** 上下文动作簇：长按消息可用的 AI 动作与执行门闩。 */
-object AiContextActionPolicy {
+// 长按消息可用的 AI 动作与执行门闩：纯核，自 app 侧 AiContextActionPolicy 收敛。
+object MessageAiActionPolicy {
 
-    /**
-     * 长按消息可用的 AI 动作（不含复制结果等非 AI 项）。
-     * 调用方在入口不可见时不要渲染这一段。
-     */
     fun contextActionsFor(
         messageType: String?,
         hasTranscript: Boolean = false
@@ -36,16 +30,6 @@ object AiContextActionPolicy {
         chatAiEnabled: Boolean,
         isBusy: Boolean
     ): Boolean = canRunContextAction(masterEnabled = true, chatAiEnabled = chatAiEnabled, isBusy = isBusy)
-
-    fun canRunContextAction(
-        context: Context,
-        chatAiEnabled: Boolean,
-        isBusy: Boolean
-    ): Boolean = canRunContextAction(
-        masterEnabled = RuntimeFlags.isEnabled(context, RuntimeFlags.AI_MASTER),
-        chatAiEnabled = chatAiEnabled,
-        isBusy = isBusy
-    )
 
     fun canRunContextAction(
         masterEnabled: Boolean,

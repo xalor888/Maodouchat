@@ -2,8 +2,8 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentToolPolicy
+import com.maodouchat.domain.messaging.AgentToolArgs
 import com.maodouchat.network.TokenManager
-import org.json.JSONObject
 
 object AgentToolHost {
     suspend fun execute(name: String, argumentsJson: String): String {
@@ -26,24 +26,12 @@ object AgentToolHost {
             ?: "$name ${argumentsJson.take(160)}"
     }
 
-    internal fun parseArgs(raw: String): Map<String, String> {
-        val obj = runCatching { JSONObject(raw.ifBlank { "{}" }) }.getOrNull() ?: return emptyMap()
-        val out = mutableMapOf<String, String>()
-        obj.keys().forEach { key ->
-            val value = obj.opt(key) ?: return@forEach
-            out[key] = value.toString()
-        }
-        return out
-    }
+    internal fun parseArgs(raw: String): Map<String, String> = AgentToolArgs.parseArgs(raw)
 
-    internal fun parseBool(raw: String?): Boolean? = when (raw?.trim()?.lowercase()) {
-        "true", "1", "yes" -> true
-        "false", "0", "no" -> false
-        else -> null
-    }
+    internal fun parseBool(raw: String?): Boolean? = AgentToolArgs.parseBool(raw)
 
     internal fun token(app: MaodouchatApp): String? =
         TokenManager.getInstance(app).getToken()?.takeIf { it.isNotBlank() }
 
-    internal fun fail(error: Throwable): String = "Error: ${error.message ?: error.javaClass.simpleName}"
+    internal fun fail(error: Throwable): String = AgentToolArgs.fail(error)
 }

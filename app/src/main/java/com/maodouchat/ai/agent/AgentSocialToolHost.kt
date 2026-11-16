@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentToolPreview
 
 // Agent 工具分发：社交簇（联系人/好友/动态/黑名单）。从 AgentToolHost.execute/preview 按簇搬出，分支逐字一致。
 internal object AgentSocialToolHost {
@@ -28,16 +29,6 @@ internal object AgentSocialToolHost {
         else -> null
     }
 
-    internal fun preview(name: String, args: Map<String, String>): String? = when (name) {
-        "send_friend_request" -> "好友申请 ${args["userId"].orEmpty().take(24)}"
-        "accept_friend_request" -> "同意好友 ${args["requestId"].orEmpty().take(24)}"
-        "reject_friend_request" -> "拒绝好友 ${args["requestId"].orEmpty().take(24)}"
-        "create_text_post" -> "发动态：${args["text"].orEmpty().take(80)}"
-        "like_post" -> "赞动态 ${args["postId"].orEmpty().take(24)} liked=${args["liked"]}"
-        "comment_on_post" -> "评论动态 ${args["postId"].orEmpty().take(24)}"
-        "delete_post" -> "删除动态 ${args["postId"].orEmpty().take(24)}"
-        "block_user" -> "拉黑 ${args["userId"].orEmpty().take(24)}"
-        "unblock_user" -> "取消拉黑 ${args["userId"].orEmpty().take(24)}"
-        else -> null
-    }
+    internal fun preview(name: String, args: Map<String, String>): String? =
+        AgentToolPreview.preview(name, args)
 }
