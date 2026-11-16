@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
 import androidx.compose.ui.graphics.Color
-import com.maodouchat.util.CustomThemeStore
+import com.maodouchat.domain.messaging.ThemeFileColorPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -120,7 +120,7 @@ class ThemeEditorParseTest {
     @Test
     fun `every slot key is accepted by the value line`() {
         // SLOTS 里的每个键都应该能通过 value 行落地（未知键才被忽略）
-        CustomThemeStore.SLOTS.forEach { slot ->
+        ThemeFileColorPolicy.SLOTS.forEach { slot ->
             val out = parseThemeFile("$slot=#FF123456")
             assertEquals("槽位 $slot 没被接受", 1, out.size)
         }

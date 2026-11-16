@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-// 主题编辑器颜色槽位 id → 种类；与 CustomThemeStore.SLOTS 同词汇表。
+// 主题编辑器颜色槽位 id → 种类；与 ThemeFileColorPolicy.SLOTS 同词汇表。
 // "window_background" 与未知 id 均归为页面背景（原 else 分支语义）。
 enum class ThemeSlotKind {
     ACCENT, CHAT_BACKGROUND, CHAT_IN_BUBBLE, CHAT_IN_TEXT, CHAT_OUT_BUBBLE,

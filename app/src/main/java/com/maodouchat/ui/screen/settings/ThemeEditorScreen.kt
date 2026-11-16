@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.ThemeFamily
+import com.maodouchat.domain.messaging.ThemeFileColorPolicy
 import com.maodouchat.domain.messaging.ThemeSlotKind
 import com.maodouchat.domain.messaging.themeSlotKind
 import com.maodouchat.util.CustomThemeStore
@@ -212,7 +213,7 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
 
         // 颜色槽位列表（revision 驱动重绘）
         LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
-            items(CustomThemeStore.SLOTS, key = { it }) { slot ->
+            items(ThemeFileColorPolicy.SLOTS, key = { it }) { slot ->
                 val current = remember(revision, variant, slot) { CustomThemeStore.getColor(context, variant, slot) }
                 ThemeColorRow(
                     name = slotDisplayName(slot),

@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
 import androidx.compose.ui.graphics.Color
-import com.maodouchat.util.CustomThemeStore
+import com.maodouchat.domain.messaging.ThemeFileColorPolicy
 
 /**
  * 槽位 → 主题绘制参数的映射（G160 从 `defaultSlotColor` 抽出）。
@@ -30,34 +30,12 @@ internal fun slotDefaultColor(paint: com.maodouchat.theme.ThemePaint, slot: Stri
 }
 
 /**
- * 屏幕层解析：先吃 [CustomThemeStore.parseAtTheme] 的 TG 键，再补原生槽位名
+ * 屏幕层解析：先吃 [ThemeFileColorPolicy.parseAtTheme] 的 TG 键，再补原生槽位名
  * （`parseAtTheme` 只认 TG_KEY_MAP，导出/手写 native slot 会被丢掉）。
  */
 
-internal fun parseThemeFile(text: String): Map<String, Color> {
-    val out = LinkedHashMap(CustomThemeStore.parseAtTheme(text))
-    val known = CustomThemeStore.SLOTS.toSet()
-    text.lineSequence().forEach { line ->
-        val trimmed = line.trim()
-        if (trimmed.isEmpty() || trimmed.startsWith("//")) return@forEach
-        val eq = trimmed.indexOf('=')
-        if (eq <= 0) return@forEach
-        val key = trimmed.substring(0, eq).trim()
-        if (key !in known || out.containsKey(key)) return@forEach
-        val value = trimmed.substring(eq + 1).trim()
-        val color = parseHexColor(value) ?: runCatching { Color(value.toInt()) }.getOrNull()
-        if (color != null) out[key] = color
-    }
-    return out
-}
+internal fun parseThemeFile(text: String): Map<String, Color> =
+    ThemeFileColorPolicy.parseThemeFile(text).mapValues { Color(it.value) }
 
-internal fun parseHexColor(raw: String): Color? {
-    val hex = raw.trim().removePrefix("#").filter { it.isDigit() || it in 'a'..'f' || it in 'A'..'F' }
-    return runCatching {
-        when (hex.length) {
-            6 -> Color(("FF$hex").toLong(16).toInt())
-            8 -> Color(hex.toLong(radix = 16).toInt())
-            else -> null
-        }
-    }.getOrNull()
-}
+internal fun parseHexColor(raw: String): Color? =
+    ThemeFileColorPolicy.parseHexArgb(raw)?.let { Color(it) }

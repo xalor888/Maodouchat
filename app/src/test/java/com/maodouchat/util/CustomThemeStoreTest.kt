@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import androidx.compose.ui.graphics.Color
+import com.maodouchat.domain.messaging.ThemeFileColorPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -74,7 +75,7 @@ class CustomThemeStoreTest {
                 "chat_outBubble", "chat_outText", "text_primary", "window_background",
                 "input_background", "unread_badge", "system_message"
             ),
-            CustomThemeStore.SLOTS
+            ThemeFileColorPolicy.SLOTS
         )
     }
 
