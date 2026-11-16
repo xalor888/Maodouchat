@@ -17,6 +17,8 @@ import com.maodouchat.core.model.isMessageCopyable
 import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MessageShareMimePolicy
+import com.maodouchat.domain.messaging.MessageSharePreviewKind
+import com.maodouchat.domain.messaging.messageSharePreviewKind
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
 
@@ -116,12 +118,12 @@ internal fun ChatDetailMessageCopyActions(
                     runCatching { context.startActivity(fileChooser) }
                 } else {
                     val shareText = ChatMarkdown.toPlainText(contentUri).ifBlank {
-                        when (message.type) {
-                            MessageType.IMAGE -> previewImageLabel
-                            MessageType.GIF -> previewGifLabel
-                            MessageType.STICKER -> previewStickerLabel
-                            MessageType.LOCATION -> previewLocationLabel
-                            else -> previewFileLabel
+                        when (messageSharePreviewKind(message.type)) {
+                            MessageSharePreviewKind.IMAGE -> previewImageLabel
+                            MessageSharePreviewKind.GIF -> previewGifLabel
+                            MessageSharePreviewKind.STICKER -> previewStickerLabel
+                            MessageSharePreviewKind.LOCATION -> previewLocationLabel
+                            MessageSharePreviewKind.FILE -> previewFileLabel
                         }
                     }
                     val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {

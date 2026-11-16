@@ -30,7 +30,8 @@ import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiOperationUi
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationState
-import com.maodouchat.data.local.entity.AiOperationType
+import com.maodouchat.domain.messaging.AiOperationTitleKind
+import com.maodouchat.domain.messaging.aiOperationTitleKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.TextSecondary
 import com.maodouchat.ui.theme.UnreadRed
@@ -48,13 +49,13 @@ internal fun AiOperationStatusBar(
     val operation = operations.firstOrNull() ?: return
     val isFailed = operation.state == AiOperationState.FAILED
     val context = LocalContext.current
-    val title = when (operation.type) {
-        AiOperationType.TRANSCRIBE_VOICE -> stringResource(R.string.chat_ai_operation_transcribe)
-        AiOperationType.TRANSLATE_MESSAGE -> stringResource(R.string.chat_ai_operation_translate)
-        AiOperationType.SUMMARIZE_MESSAGES -> stringResource(R.string.chat_ai_operation_summary)
-        AiOperationType.ANALYZE_IMAGE -> stringResource(R.string.chat_ai_operation_image)
-        AiOperationType.ANALYZE_FILE -> stringResource(R.string.chat_ai_operation_file)
-        else -> stringResource(R.string.chat_ai_consent_title)
+    val title = when (aiOperationTitleKind(operation.type)) {
+        AiOperationTitleKind.TRANSCRIBE_VOICE -> stringResource(R.string.chat_ai_operation_transcribe)
+        AiOperationTitleKind.TRANSLATE_MESSAGE -> stringResource(R.string.chat_ai_operation_translate)
+        AiOperationTitleKind.SUMMARIZE_MESSAGES -> stringResource(R.string.chat_ai_operation_summary)
+        AiOperationTitleKind.ANALYZE_IMAGE -> stringResource(R.string.chat_ai_operation_image)
+        AiOperationTitleKind.ANALYZE_FILE -> stringResource(R.string.chat_ai_operation_file)
+        AiOperationTitleKind.GENERIC -> stringResource(R.string.chat_ai_consent_title)
     }
     val errorBase = AiCostVisibilityPolicy.baseErrorCode(operation.lastErrorCode)
     val waitSeconds = operation.retryAfterSeconds

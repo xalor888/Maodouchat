@@ -31,6 +31,7 @@ import com.maodouchat.domain.conversation.ModerationReportActionKind
 import com.maodouchat.domain.conversation.ModerationReportStatusKind
 import com.maodouchat.domain.conversation.moderationReportActionKind
 import com.maodouchat.domain.conversation.moderationReportStatusKind
+import com.maodouchat.domain.conversation.moderationReportTargetCanDeleteContent
 import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -71,7 +72,7 @@ internal fun ReportReviewDialog(
     onAction: (action: String, note: String?) -> Unit
 ) {
     var note by rememberSaveable(report.id) { mutableStateOf(report.resolutionNote.orEmpty()) }
-    val canDeleteContent = report.targetType in setOf("MESSAGE", "POST", "COMMENT")
+    val canDeleteContent = moderationReportTargetCanDeleteContent(report.targetType)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.moderation_report_details)) },
