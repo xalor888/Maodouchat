@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.formatAiTaskDue
+import com.maodouchat.domain.messaging.AiSummaryHistoryFilterPolicy
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -185,16 +186,7 @@ internal fun AiSummaryHistoryDialog(
 ) {
     var historySearch by rememberSaveable { mutableStateOf("") }
     val filteredSummaries = remember(summaries, historySearch) {
-        val q = historySearch.trim()
-        if (q.isEmpty()) {
-            summaries
-        } else {
-            summaries.filter { item ->
-                item.summary.contains(q, ignoreCase = true) ||
-                    item.scope.name.contains(q, ignoreCase = true) ||
-                    item.cacheKey.contains(q, ignoreCase = true)
-            }
-        }
+        AiSummaryHistoryFilterPolicy.filter(summaries, historySearch)
     }
     AlertDialog(
         onDismissRequest = onDismiss,

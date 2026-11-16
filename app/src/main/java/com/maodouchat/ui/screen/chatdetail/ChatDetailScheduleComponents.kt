@@ -54,6 +54,7 @@ import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MuteRemaining
 import com.maodouchat.domain.messaging.ScheduleRepeatKind
 import com.maodouchat.domain.messaging.ScheduledMessageDisplay
+import com.maodouchat.domain.messaging.ScheduledMessageFilterPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.ScheduledMessage
 internal fun formatScheduleTime(millis: Long): String =
@@ -155,12 +156,7 @@ internal fun ScheduledMessagesListSheet(
     // 1.174：全部取消确认
     var showCancelAllConfirm by rememberSaveable { mutableStateOf(false) }
     val filteredItems = remember(items, searchQuery) {
-        val query = searchQuery.trim()
-        if (query.isBlank()) {
-            items
-        } else {
-            items.filter { it.text.contains(query, ignoreCase = true) }
-        }
+        ScheduledMessageFilterPolicy.filter(items, searchQuery)
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
