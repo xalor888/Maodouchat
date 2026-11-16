@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：好友写操作（好友请求/接受/拒绝/撤销/删除/拉黑）。
@@ -9,7 +10,7 @@ internal object AgentFriendWriteTools {
         internal suspend fun sendFriend(app: MaodouchatApp, userId: String, message: String): String {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
-            val result = ApiService.sendFriendRequest(token, userId, message.take(300)).getOrElse { return AgentToolHost.fail(it) }
+            val result = ApiService.sendFriendRequest(token, userId, AgentToolInputPolicy.cleanFriendRequestMessage(message)).getOrElse { return AgentToolHost.fail(it) }
             return "Friend request ${result.id} status=${result.status}"
         }
 

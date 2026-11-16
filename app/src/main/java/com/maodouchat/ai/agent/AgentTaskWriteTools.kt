@@ -2,13 +2,14 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AiTaskEntity
+import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import java.util.UUID
 
 // Agent 工具执行簇：任务写操作（创建/完成/删除）。
 // 从 AgentMessagingWriteTools 按簇搬出，函数体逐字一致。
 internal object AgentTaskWriteTools {
         internal suspend fun createTask(app: MaodouchatApp, chatId: String, title: String, dueText: String?): String {
-            val cleanTitle = title.trim().take(300)
+            val cleanTitle = AgentToolInputPolicy.cleanTaskTitle(title)
             if (chatId.isBlank() || cleanTitle.isBlank()) return "Error: chatId and title required"
             if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
@@ -18,7 +19,7 @@ internal object AgentTaskWriteTools {
                 chatId = chatId,
                 sourceQuery = "agent",
                 title = cleanTitle,
-                dueText = dueText?.trim()?.take(120)?.takeIf { it.isNotBlank() },
+                dueText = AgentToolInputPolicy.cleanTaskDueText(dueText),
                 createdAt = now,
                 updatedAt = now
             )

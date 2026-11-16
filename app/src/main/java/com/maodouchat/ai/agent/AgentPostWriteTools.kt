@@ -2,13 +2,14 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.VISIBILITY_VALUES
+import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：动态写操作（发布/点赞/评论/删除）。
 // 从 AgentMessagingWriteTools 按簇搬出，函数体逐字一致；token/fail 由 AgentToolHost 提供。
 internal object AgentPostWriteTools {
         internal suspend fun createPost(app: MaodouchatApp, text: String, visibility: String?): String {
-            val body = text.trim().take(2_000)
+            val body = AgentToolInputPolicy.cleanPostBody(text)
             if (body.isBlank()) return "Error: text required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             // G154c：可见性白名单与隐私设置页共用一份
@@ -30,7 +31,7 @@ internal object AgentPostWriteTools {
         }
 
         internal suspend fun commentPost(app: MaodouchatApp, postId: String, text: String): String {
-            val body = text.trim().take(800)
+            val body = AgentToolInputPolicy.cleanCommentBody(text)
             if (postId.isBlank() || body.isBlank()) return "Error: postId and text required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val comment = ApiService.createPostComment(token, postId, body).getOrElse { return AgentToolHost.fail(it) }
