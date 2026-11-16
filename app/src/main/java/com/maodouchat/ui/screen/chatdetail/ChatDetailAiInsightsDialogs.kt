@@ -32,6 +32,9 @@ import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.domain.messaging.AiClassifyCategoryKind
 import com.maodouchat.domain.messaging.aiClassifyCategoryKind
+import com.maodouchat.domain.messaging.classifyProgressFraction
+import com.maodouchat.domain.messaging.classifyResultText
+import com.maodouchat.domain.messaging.conversationProfileText
 
 /** AI 画像与洞察对话框：会话画像、周报、消息分类。所需输入全经参数传入。 */
 // B4：会话画像对话框（本地统计 + 可选叙事摘要）
@@ -114,37 +117,30 @@ internal fun ConversationProfileDialog(
     )
 }
 
-/** 1.317：将会话画像序列化为纯文本（复制用）。 */
-internal fun profileText(context: android.content.Context, profile: ConversationProfile): String = buildString {
-    val ctx = context
-    append(
-        ctx.getString(
-            R.string.chat_ai_conversation_profile_stats,
-            profile.local.messageCount,
-            profile.local.activeDays
-        )
-    )
-    append("\n")
-    append(
-        ctx.getString(
-            R.string.chat_ai_profile_time_distribution,
-            profile.local.morning, profile.local.afternoon,
-            profile.local.evening, profile.local.night
-        )
-    )
-    if (profile.local.topTerms.isNotEmpty()) {
-        append("\n")
-        append(
-            ctx.getString(
-                R.string.chat_ai_profile_top_terms,
-                profile.local.topTerms.take(8).joinToString(" · ")
+/** 1.317：将会话画像序列化为纯文本（复制用）。文案模板经 Context 解析，顺序与分隔符收在 domain 的 conversationProfileText。 */
+internal fun profileText(context: android.content.Context, profile: ConversationProfile): String =
+    conversationProfileText(
+        profile,
+        statsText = { messageCount, activeDays ->
+            context.getString(
+                R.string.chat_ai_conversation_profile_stats,
+                messageCount,
+                activeDays
             )
-        )
-    }
-    profile.narrative?.takeIf { it.isNotBlank() }?.let {
-        append("\n\n").append(it)
-    }
-}
+        },
+        timeDistributionText = { morning, afternoon, evening, night ->
+            context.getString(
+                R.string.chat_ai_profile_time_distribution,
+                morning,
+                afternoon,
+                evening,
+                night
+            )
+        },
+        topTermsText = { terms ->
+            context.getString(R.string.chat_ai_profile_top_terms, terms)
+        },
+    )
 
 // B4：本周周报对话框（生成并缓存到本地）
 @Composable
@@ -254,7 +250,7 @@ internal fun MessageClassifyDialog(
                             )
                         }
                         androidx.compose.material3.LinearProgressIndicator(
-                            progress = { (row.count.toFloat() / (categories.maxOfOrNull { it.count }?.takeIf { it > 0 } ?: 1).toFloat()).coerceIn(0f, 1f) },
+                            progress = { classifyProgressFraction(row.count, categories.maxOfOrNull { it.count } ?: 0) },
                             modifier = Modifier.fillMaxWidth().height(6.dp),
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -282,21 +278,21 @@ internal fun MessageClassifyDialog(
     )
 }
 
-/** 1.349：将消息分类结果序列化为纯文本（复制用）。 */
-@Composable
-internal fun classifyText(context: android.content.Context, categories: List<CategoryCount>): String = buildString {
-    val ctx = context
-    categories.forEach { row ->
-        val label = when (aiClassifyCategoryKind(row.category)) {
-            AiClassifyCategoryKind.NOTICE -> ctx.getString(R.string.ai_enhance_classify_notice)
-            AiClassifyCategoryKind.TODO -> ctx.getString(R.string.ai_enhance_classify_todo)
-            AiClassifyCategoryKind.FINANCE -> ctx.getString(R.string.ai_enhance_classify_finance)
-            AiClassifyCategoryKind.STUDY -> ctx.getString(R.string.ai_enhance_classify_study)
-            AiClassifyCategoryKind.TECH -> ctx.getString(R.string.ai_enhance_classify_tech)
-            AiClassifyCategoryKind.SOCIAL -> ctx.getString(R.string.ai_enhance_classify_social)
-            AiClassifyCategoryKind.OTHER -> ctx.getString(R.string.ai_enhance_classify_other)
-        }
-        append(label).append(": ").append(ctx.getString(R.string.ai_enhance_classify_count, row.count)).append('\n')
-    }
-    append(ctx.getString(R.string.ai_enhance_classify_disclaimer))
-}
+/** 1.349：消息分类复制文本。文案模板经 Context 解析，逐行格式收在 domain 的 classifyResultText。 */
+internal fun classifyText(context: android.content.Context, categories: List<CategoryCount>): String =
+    classifyResultText(
+        categories,
+        labelText = { kind ->
+            when (kind) {
+                AiClassifyCategoryKind.NOTICE -> context.getString(R.string.ai_enhance_classify_notice)
+                AiClassifyCategoryKind.TODO -> context.getString(R.string.ai_enhance_classify_todo)
+                AiClassifyCategoryKind.FINANCE -> context.getString(R.string.ai_enhance_classify_finance)
+                AiClassifyCategoryKind.STUDY -> context.getString(R.string.ai_enhance_classify_study)
+                AiClassifyCategoryKind.TECH -> context.getString(R.string.ai_enhance_classify_tech)
+                AiClassifyCategoryKind.SOCIAL -> context.getString(R.string.ai_enhance_classify_social)
+                AiClassifyCategoryKind.OTHER -> context.getString(R.string.ai_enhance_classify_other)
+            }
+        },
+        countText = { count -> context.getString(R.string.ai_enhance_classify_count, count) },
+        disclaimer = context.getString(R.string.ai_enhance_classify_disclaimer),
+    )
