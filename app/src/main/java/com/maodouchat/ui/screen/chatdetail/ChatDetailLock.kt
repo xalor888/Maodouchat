@@ -7,6 +7,7 @@ import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalCleanupStep
 import com.maodouchat.conversation.conversationLocalCleanupSession
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,7 @@ import kotlinx.coroutines.withContext
 // 涵盖 PIN 校验/设置/移除/遗忘、锁定态刷新与本地明文清理，集中复用 chatLockRepo 与 conversationLocalStateCoordinator。
 
 internal fun ChatDetailViewModel.refreshChatLockState() {
-    val lockChatId = activeChatId.ifBlank { chatId }
+    val lockChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (lockChatId.isBlank()) {
         _uiState.update { it.copy(isChatLocked = false, isChatUnlocked = true) }
         return
@@ -39,32 +40,18 @@ internal fun ChatDetailViewModel.refreshChatLockState() {
     }
 }
 
-/**
- * 校验 PIN。成功返回 true 并标记本进程已解锁；结果经 [onResult] 回调，**不阻塞调用方**。
- *
- * G328c 更正：这段 KDoc 此前写着「在主线程调用并使用 `runBlocking(Dispatchers.IO)`
- * 同步等待 Room 查询」——**与代码不符**：实现早已改成 `viewModelScope.launch` +
- * `withContext(Dispatchers.IO)`，文件里也没有任何 `runBlocking`。
- * 审计正是靠这条过期注释把本函数记成了「主线程阻塞、有 ANR 风险」，
- * 所以这里改成描述真实行为，而不是保留一个更吓人的说法。
- */
 internal fun ChatDetailViewModel.unlockChatWithPin(pin: String, onResult: (Boolean) -> Unit) {
-    val lockChatId = activeChatId.ifBlank { chatId }
+    val lockChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (lockChatId.isBlank()) {
         onResult(true)
         return
     }
     viewModelScope.launch {
-        val ok = try {
-            withContext(Dispatchers.IO) {
-                chatLockRepo.verify(lockChatId, pin)
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (_: Exception) {
-            false
-        }
-        if (ok) {
+        val ok = ChatPinUnlockPolicy.unlock(
+            chatId = lockChatId,
+            pin = pin,
+            verify = { id, p -> withContext(Dispatchers.IO) { chatLockRepo.verify(id, p) } },
+        ) {
             com.maodouchat.security.ChatLockSession.markUnlocked(lockChatId)
             _uiState.update { it.copy(isChatUnlocked = true) }
         }
@@ -73,13 +60,13 @@ internal fun ChatDetailViewModel.unlockChatWithPin(pin: String, onResult: (Boole
 }
 
 internal fun ChatDetailViewModel.setChatLockPin(pin: String) {
-    val lockChatId = activeChatId.ifBlank { chatId }
+    val lockChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (lockChatId.isBlank()) return
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.CHAT_LOCK)) {
         _uiState.update { it.copy(chatLockInfoMessage = text(R.string.feature_disabled_by_admin)) }
         return
     }
-    if (pin.length !in 4..8 || !pin.all { it.isDigit() }) {
+    if (!ChatPinUnlockPolicy.isValidPin(pin)) {
         _uiState.update { it.copy(chatLockInfoMessage = text(R.string.chat_lock_pin_length)) }
         return
     }
@@ -101,7 +88,7 @@ internal fun ChatDetailViewModel.setChatLockPin(pin: String) {
 }
 
 internal fun ChatDetailViewModel.removeChatLock(pin: String) {
-    val lockChatId = activeChatId.ifBlank { chatId }
+    val lockChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (lockChatId.isBlank()) return
     viewModelScope.launch(Dispatchers.IO) {
         val ok = chatLockRepo.verify(lockChatId, pin)
@@ -126,7 +113,7 @@ internal fun ChatDetailViewModel.removeChatLock(pin: String) {
  * 同步游标必须保留，否则会整段重拉密文变成「无法解密」。
  */
 internal fun ChatDetailViewModel.forgotChatLockAndClearLocal() {
-    val lockChatId = activeChatId.ifBlank { chatId }
+    val lockChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (lockChatId.isBlank()) return
     val ownerUserId = currentUserId
     val cleanupSession = conversationLocalCleanupSession(ownerUserId)
@@ -180,7 +167,7 @@ internal fun ChatDetailViewModel.forgotChatLockAndClearLocal() {
  * 服务端仍是密文。清空游标再同步会 Duplicate，气泡变成「无法解密」。
  */
 internal fun ChatDetailViewModel.clearLocalChatHistory() {
-    val targetChatId = activeChatId.ifBlank { chatId }
+    val targetChatId = ChatPinUnlockPolicy.resolveLockChatId(activeChatId, chatId)
     if (targetChatId.isBlank()) return
     val ownerUserId = currentUserId
     val cleanupSession = conversationLocalCleanupSession(ownerUserId)

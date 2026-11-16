@@ -42,6 +42,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.conversation.MediaExportUseCase
 import com.maodouchat.domain.messaging.ChatNameResolvePolicy
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -111,16 +112,15 @@ class MediaCenterViewModel(application: Application, savedStateHandle: SavedStat
             return
         }
         viewModelScope.launch {
-            val ok = try {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    chatLockRepo.verify(chatId, pin)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
-            if (ok) {
+            val ok = ChatPinUnlockPolicy.unlock(
+                chatId = chatId,
+                pin = pin,
+                verify = { id, p ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        chatLockRepo.verify(id, p)
+                    }
+                },
+            ) {
                 com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
                 val displayName = _uiState.value.chatName.ifBlank { resolveChatName() }
                 _uiState.update { it.copy(isChatLocked = false, isLoading = true, chatName = displayName) }
