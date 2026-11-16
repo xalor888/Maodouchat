@@ -3,15 +3,17 @@ package com.maodouchat.ui.screen.settings
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.LanguageModeKind
+import com.maodouchat.domain.messaging.languageModeKind
 import com.maodouchat.util.AppLocaleManager
 import kotlinx.coroutines.flow.update
 
 internal fun GeneralSettingsViewModel.setLanguageMode(mode: String) {
     val context = getApplication<Application>()
-    val normalized = when (mode.lowercase()) {
-        AppLocaleManager.MODE_CHINESE -> AppLocaleManager.MODE_CHINESE
-        AppLocaleManager.MODE_ENGLISH -> AppLocaleManager.MODE_ENGLISH
-        else -> AppLocaleManager.MODE_SYSTEM
+    val normalized = when (languageModeKind(mode)) {
+        LanguageModeKind.CHINESE -> AppLocaleManager.MODE_CHINESE
+        LanguageModeKind.ENGLISH -> AppLocaleManager.MODE_ENGLISH
+        LanguageModeKind.SYSTEM -> AppLocaleManager.MODE_SYSTEM
     }
     if (_uiState.value.languageMode == normalized) return
     prefsRevision++

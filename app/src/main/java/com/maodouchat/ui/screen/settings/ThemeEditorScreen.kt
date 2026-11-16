@@ -55,6 +55,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.ThemeFamily
+import com.maodouchat.domain.messaging.ThemeSlotKind
+import com.maodouchat.domain.messaging.themeSlotKind
 import com.maodouchat.util.CustomThemeStore
 
 /**
@@ -243,18 +245,18 @@ fun ThemeEditorScreen(onBack: () -> Unit = {}) {
 
 @Composable
 private fun slotDisplayName(slot: String): String = stringResource(
-    when (slot) {
-        "accent" -> R.string.theme_slot_accent
-        "chat_background" -> R.string.theme_slot_chat_background
-        "chat_inBubble" -> R.string.theme_slot_in_bubble
-        "chat_inText" -> R.string.theme_slot_in_text
-        "chat_outBubble" -> R.string.theme_slot_out_bubble
-        "chat_outText" -> R.string.theme_slot_out_text
-        "text_primary" -> R.string.theme_slot_text_primary
-        "input_background" -> R.string.theme_slot_input_background
-        "unread_badge" -> R.string.theme_slot_unread_badge
-        "system_message" -> R.string.theme_slot_system_message
-        else -> R.string.theme_slot_window_background
+    when (themeSlotKind(slot)) {
+        ThemeSlotKind.ACCENT -> R.string.theme_slot_accent
+        ThemeSlotKind.CHAT_BACKGROUND -> R.string.theme_slot_chat_background
+        ThemeSlotKind.CHAT_IN_BUBBLE -> R.string.theme_slot_in_bubble
+        ThemeSlotKind.CHAT_IN_TEXT -> R.string.theme_slot_in_text
+        ThemeSlotKind.CHAT_OUT_BUBBLE -> R.string.theme_slot_out_bubble
+        ThemeSlotKind.CHAT_OUT_TEXT -> R.string.theme_slot_out_text
+        ThemeSlotKind.TEXT_PRIMARY -> R.string.theme_slot_text_primary
+        ThemeSlotKind.INPUT_BACKGROUND -> R.string.theme_slot_input_background
+        ThemeSlotKind.UNREAD_BADGE -> R.string.theme_slot_unread_badge
+        ThemeSlotKind.SYSTEM_MESSAGE -> R.string.theme_slot_system_message
+        ThemeSlotKind.WINDOW_BACKGROUND -> R.string.theme_slot_window_background
     }
 )
 

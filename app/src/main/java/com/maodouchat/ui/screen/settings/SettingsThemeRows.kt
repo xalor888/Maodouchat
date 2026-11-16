@@ -40,6 +40,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.AccentColorKind
+import com.maodouchat.domain.messaging.accentColorKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -85,7 +87,17 @@ internal fun AccentColorRow(
             com.maodouchat.ui.theme.ACCENT_OPTIONS.forEach { option ->
                 val selected = current == option.id
                 val color = if (isDark) option.dark else option.light
-                val accentLabel = stringResource(accentLabelRes(option.id))
+                val accentLabel = stringResource(
+                    when (accentColorKind(option.id)) {
+                        AccentColorKind.BLUE -> R.string.general_accent_blue
+                        AccentColorKind.GREEN -> R.string.general_accent_green
+                        AccentColorKind.PURPLE -> R.string.general_accent_purple
+                        AccentColorKind.ORANGE -> R.string.general_accent_orange
+                        AccentColorKind.PINK -> R.string.general_accent_pink
+                        AccentColorKind.RED -> R.string.general_accent_red
+                        AccentColorKind.TEAL -> R.string.general_accent_teal
+                    }
+                )
                 Box(
                     modifier = Modifier
                         .size(34.dp)
