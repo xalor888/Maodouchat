@@ -17,7 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.domain.messaging.FileTransferPrimaryAction
+import com.maodouchat.domain.messaging.fileTransferPrimaryAction
 
 @Composable
 internal fun FileTransferActions(
@@ -28,8 +29,9 @@ internal fun FileTransferActions(
     onResume: ((String) -> Unit)?,
     onCancel: ((String) -> Unit)?,
 ) {
-    when (state) {
-        AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING -> {
+    val action = fileTransferPrimaryAction(state)
+    when (action) {
+        FileTransferPrimaryAction.PAUSE -> {
             Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onPause?.invoke(messageId) }, modifier = Modifier.size(32.dp), enabled = onPause != null) {
                     Icon(Icons.Default.Pause, stringResource(R.string.chat_file_transfer_pause), tint = tint, modifier = Modifier.size(18.dp))
@@ -37,12 +39,12 @@ internal fun FileTransferActions(
                 CancelTransferButton(messageId, tint, onCancel)
             }
         }
-        AttachmentTransferState.PAUSED, AttachmentTransferState.FAILED -> {
+        FileTransferPrimaryAction.RESUME, FileTransferPrimaryAction.RETRY -> {
             Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onResume?.invoke(messageId) }, modifier = Modifier.size(32.dp), enabled = onResume != null) {
                     Icon(
-                        if (state == AttachmentTransferState.FAILED) Icons.Default.Refresh else Icons.Default.PlayArrow,
-                        stringResource(if (state == AttachmentTransferState.FAILED) R.string.chat_file_transfer_retry else R.string.chat_file_transfer_resume),
+                        if (action == FileTransferPrimaryAction.RETRY) Icons.Default.Refresh else Icons.Default.PlayArrow,
+                        stringResource(if (action == FileTransferPrimaryAction.RETRY) R.string.chat_file_transfer_retry else R.string.chat_file_transfer_resume),
                         tint = tint,
                         modifier = Modifier.size(18.dp),
                     )
@@ -50,6 +52,7 @@ internal fun FileTransferActions(
                 CancelTransferButton(messageId, tint, onCancel)
             }
         }
+        FileTransferPrimaryAction.PROGRESS -> {}
     }
 }
 

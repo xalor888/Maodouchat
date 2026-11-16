@@ -9,7 +9,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.domain.messaging.AttachmentIntent
 import com.maodouchat.domain.messaging.AttachmentIntentController
-import com.maodouchat.domain.messaging.AttachmentKind
+import com.maodouchat.domain.messaging.attachmentKindForMessageType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -66,14 +66,7 @@ internal class ChatAttachmentSender(
             return
         }
         val messageId = fixedMessageId ?: "m_${UUID.randomUUID()}"
-        val kind = when (type) {
-            MessageType.IMAGE -> AttachmentKind.IMAGE
-            MessageType.VIDEO -> AttachmentKind.VIDEO
-            MessageType.VOICE -> AttachmentKind.VOICE
-            MessageType.FILE -> AttachmentKind.FILE
-            MessageType.GIF -> AttachmentKind.GIF
-            else -> AttachmentKind.FILE
-        }
+        val kind = attachmentKindForMessageType(type)
         val isGroup = currentState().chat?.isGroup == true
         val intent = AttachmentIntent(
             conversationId = activeChatId(),

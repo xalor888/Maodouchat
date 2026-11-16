@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import com.maodouchat.core.model.SecurityPreferencesPatch
+import com.maodouchat.domain.messaging.normalizeAppLockTimeout
 import com.maodouchat.settings.repository.SettingsRepository
 
 /**
@@ -53,10 +54,7 @@ internal class SettingsSecurityPrefsController(
             val session = securityCoordinator.currentSession() ?: return@launch
             securityCoordinator.pull(session).onSuccess { remote ->
                 if (!settingsRepository.isCurrent(session)) return@onSuccess
-                val lockTimeout = when (remote.appLockTimeoutMinutes) {
-                    1L, 2L, 5L, 10L, 15L, 30L, 60L, 120L, 240L, 360L -> remote.appLockTimeoutMinutes
-                    else -> 5L
-                }
+                val lockTimeout = normalizeAppLockTimeout(remote.appLockTimeoutMinutes)
                 onApplied(lockTimeout, remote.screenSecureEnabled, remote.sensitiveGateEnabled)
             }
         }

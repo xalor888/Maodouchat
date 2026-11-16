@@ -5,6 +5,7 @@ import com.maodouchat.core.model.LoadedPrivacy
 import com.maodouchat.core.model.PrivacyField
 import com.maodouchat.core.model.SettingsUiState
 import com.maodouchat.core.model.SettingsPrivacyPatch
+import com.maodouchat.domain.messaging.normalizeOnlineVisibility
 import com.maodouchat.settings.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -133,10 +134,7 @@ internal class SettingsPrivacyController(
     }
 
     fun onOnlineVisibilityChange(v: String) {
-        val normalized = when (v) {
-            "contacts", "nobody" -> v
-            else -> "everyone"
-        }
+        val normalized = normalizeOnlineVisibility(v)
         trackPrivacyField(
             PrivacyField.ONLINE_VISIBILITY, PrivacyField.SHOW_ONLINE,
             isClean = { currentLoadedPrivacy()?.onlineVisibility == normalized },

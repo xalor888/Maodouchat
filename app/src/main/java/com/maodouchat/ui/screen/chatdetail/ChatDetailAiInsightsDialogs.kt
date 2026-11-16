@@ -30,6 +30,8 @@ import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.AiClassifyCategoryKind
+import com.maodouchat.domain.messaging.aiClassifyCategoryKind
 
 /** AI 画像与洞察对话框：会话画像、周报、消息分类。所需输入全经参数传入。 */
 // B4：会话画像对话框（本地统计 + 可选叙事摘要）
@@ -230,14 +232,14 @@ internal fun MessageClassifyDialog(
                         color = LocalChatPalette.current.textHint
                     )
                     categories.forEach { row ->
-                        val label = when (row.category) {
-                            "notice" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_notice)
-                            "todo" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_todo)
-                            "finance" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_finance)
-                            "study" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_study)
-                            "tech" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_tech)
-                            "social" -> stringResource(com.maodouchat.R.string.ai_enhance_classify_social)
-                            else -> stringResource(com.maodouchat.R.string.ai_enhance_classify_other)
+                        val label = when (aiClassifyCategoryKind(row.category)) {
+                            AiClassifyCategoryKind.NOTICE -> stringResource(com.maodouchat.R.string.ai_enhance_classify_notice)
+                            AiClassifyCategoryKind.TODO -> stringResource(com.maodouchat.R.string.ai_enhance_classify_todo)
+                            AiClassifyCategoryKind.FINANCE -> stringResource(com.maodouchat.R.string.ai_enhance_classify_finance)
+                            AiClassifyCategoryKind.STUDY -> stringResource(com.maodouchat.R.string.ai_enhance_classify_study)
+                            AiClassifyCategoryKind.TECH -> stringResource(com.maodouchat.R.string.ai_enhance_classify_tech)
+                            AiClassifyCategoryKind.SOCIAL -> stringResource(com.maodouchat.R.string.ai_enhance_classify_social)
+                            AiClassifyCategoryKind.OTHER -> stringResource(com.maodouchat.R.string.ai_enhance_classify_other)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -285,14 +287,14 @@ internal fun MessageClassifyDialog(
 internal fun classifyText(context: android.content.Context, categories: List<CategoryCount>): String = buildString {
     val ctx = context
     categories.forEach { row ->
-        val label = when (row.category) {
-            "notice" -> ctx.getString(R.string.ai_enhance_classify_notice)
-            "todo" -> ctx.getString(R.string.ai_enhance_classify_todo)
-            "finance" -> ctx.getString(R.string.ai_enhance_classify_finance)
-            "study" -> ctx.getString(R.string.ai_enhance_classify_study)
-            "tech" -> ctx.getString(R.string.ai_enhance_classify_tech)
-            "social" -> ctx.getString(R.string.ai_enhance_classify_social)
-            else -> ctx.getString(R.string.ai_enhance_classify_other)
+        val label = when (aiClassifyCategoryKind(row.category)) {
+            AiClassifyCategoryKind.NOTICE -> ctx.getString(R.string.ai_enhance_classify_notice)
+            AiClassifyCategoryKind.TODO -> ctx.getString(R.string.ai_enhance_classify_todo)
+            AiClassifyCategoryKind.FINANCE -> ctx.getString(R.string.ai_enhance_classify_finance)
+            AiClassifyCategoryKind.STUDY -> ctx.getString(R.string.ai_enhance_classify_study)
+            AiClassifyCategoryKind.TECH -> ctx.getString(R.string.ai_enhance_classify_tech)
+            AiClassifyCategoryKind.SOCIAL -> ctx.getString(R.string.ai_enhance_classify_social)
+            AiClassifyCategoryKind.OTHER -> ctx.getString(R.string.ai_enhance_classify_other)
         }
         append(label).append(": ").append(ctx.getString(R.string.ai_enhance_classify_count, row.count)).append('\n')
     }
