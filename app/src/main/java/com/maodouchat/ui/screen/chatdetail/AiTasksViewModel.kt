@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.domain.messaging.ChatNameResolvePolicy
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -122,16 +123,15 @@ class AiTasksViewModel(
             return
         }
         viewModelScope.launch {
-            val ok = try {
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    chatLockRepo.verify(chatId, pin)
-                }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
-            if (ok) {
+            val ok = ChatPinUnlockPolicy.unlock(
+                chatId = chatId,
+                pin = pin,
+                verify = { id, p ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        chatLockRepo.verify(id, p)
+                    }
+                },
+            ) {
                 com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
                 _uiState.update { it.copy(isChatLocked = false, isLoading = true) }
                 observeTasks()

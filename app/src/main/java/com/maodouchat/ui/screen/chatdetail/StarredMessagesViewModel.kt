@@ -11,6 +11,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.StarredMessagesUiState
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.data.repository.PinStarNetworkRepository
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 import com.maodouchat.domain.messaging.DistinctMergePolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import kotlinx.coroutines.Dispatchers
@@ -168,14 +169,11 @@ class StarredMessagesViewModel(
             return
         }
         viewModelScope.launch {
-            val ok = try {
-                withContext(Dispatchers.IO) { chatLockRepo.verify(chatId, pin) }
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                false
-            }
-            if (ok) {
+            val ok = ChatPinUnlockPolicy.unlock(
+                chatId = chatId,
+                pin = pin,
+                verify = { id, p -> withContext(Dispatchers.IO) { chatLockRepo.verify(id, p) } },
+            ) {
                 com.maodouchat.security.ChatLockSession.markUnlocked(chatId)
                 _uiState.update { it.copy(isChatUnlocked = true) }
                 load()
