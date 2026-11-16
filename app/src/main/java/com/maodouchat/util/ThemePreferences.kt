@@ -3,6 +3,10 @@ package com.maodouchat.util
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.NightWindowPolicy
+import com.maodouchat.domain.messaging.ThemeAccentPolicy
+import com.maodouchat.domain.messaging.ThemeModePolicy
+import com.maodouchat.domain.messaging.ThemeStylePolicy
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,13 +49,13 @@ object ThemePreferences {
 
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
         if (key == null || key == KEY_THEME) {
-            _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
+            _mode.value = ThemeModePolicy.normalizeThemeMode(prefs.getString(KEY_THEME, "system"))
         }
         if (key == null || key == KEY_THEME_STYLE) {
-            _family.value = normalizeStyle(prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE))
+            _family.value = ThemeStylePolicy.normalizeThemeStyle(prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE))
         }
         if (key == null || key == KEY_ACCENT) {
-            _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
+            _accent.value = ThemeAccentPolicy.normalizeThemeAccent(prefs.getString(KEY_ACCENT, "none"))
         }
         if (key == null || key == KEY_NIGHT_START) {
             _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
@@ -69,14 +73,14 @@ object ThemePreferences {
         synchronized(this) {
             if (seeded) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            _mode.value = normalize(prefs.getString(KEY_THEME, "system"))
+            _mode.value = ThemeModePolicy.normalizeThemeMode(prefs.getString(KEY_THEME, "system"))
             val storedStyle = prefs.getString(KEY_THEME_STYLE, DEFAULT_THEME_STYLE)
-            val normalizedStyle = normalizeStyle(storedStyle)
+            val normalizedStyle = ThemeStylePolicy.normalizeThemeStyle(storedStyle)
             if (storedStyle != normalizedStyle) {
                 prefs.edit { putString(KEY_THEME_STYLE, normalizedStyle) }
             }
             _family.value = normalizedStyle
-            _accent.value = normalizeAccent(prefs.getString(KEY_ACCENT, "none"))
+            _accent.value = ThemeAccentPolicy.normalizeThemeAccent(prefs.getString(KEY_ACCENT, "none"))
             _nightStart.value = prefs.getInt(KEY_NIGHT_START, NIGHT_START_DEFAULT).coerceIn(0, 23 * 60 + 59)
             _nightEnd.value = prefs.getInt(KEY_NIGHT_END, NIGHT_END_DEFAULT).coerceIn(0, 23 * 60 + 59)
             _oledBlack.value = prefs.getBoolean(KEY_OLED_BLACK, false)
@@ -91,7 +95,7 @@ object ThemePreferences {
     }
 
     fun setMode(context: Context, mode: String) {
-        val normalized = normalize(mode)
+        val normalized = ThemeModePolicy.normalizeThemeMode(mode)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit {
@@ -101,20 +105,13 @@ object ThemePreferences {
         _mode.value = normalized
     }
 
-    fun normalize(raw: String?): String = when (raw?.trim()?.lowercase()) {
-        "light" -> "light"
-        "dark" -> "dark"
-        "scheduled" -> "scheduled"
-        else -> "system"
-    }
-
     fun getStyle(context: Context): String {
         ensureSeeded(context)
         return _family.value
     }
 
     fun setStyle(context: Context, style: String) {
-        val normalized = normalizeStyle(style)
+        val normalized = ThemeStylePolicy.normalizeThemeStyle(style)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit {
@@ -123,33 +120,19 @@ object ThemePreferences {
         _family.value = normalized
     }
 
-    /** 主题风格归一：maodou 默认，tg_* 保留对应 Telegram 扁平主题，未知回落 maodou。 */
-    fun normalizeStyle(raw: String?): String = when (raw?.trim()?.lowercase()) {
-        "tg_classic", "tg", "telegram", "telegram_classic" -> "tg_classic"
-        "tg_midnight", "midnight" -> "tg_midnight"
-        "tg_graphite", "graphite" -> "tg_graphite"
-        else -> "maodou"
-    }
-
     fun getAccent(context: Context): String {
         ensureSeeded(context)
         return _accent.value
     }
 
     fun setAccent(context: Context, accentId: String) {
-        val normalized = normalizeAccent(accentId)
+        val normalized = ThemeAccentPolicy.normalizeThemeAccent(accentId)
         ensureSeeded(context)
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit {
             putString(KEY_ACCENT, normalized)
         }
         _accent.value = normalized
-    }
-
-    /** 强调色 id（none 或 ACCENT_OPTIONS 中的颜色）。 */
-    fun normalizeAccent(raw: String?): String {
-        val id = raw?.trim()?.lowercase().orEmpty()
-        return if (id == "none" || id == "blue" || id == "green" || id == "purple" || id == "orange" || id == "pink" || id == "red" || id == "teal") id else "none"
     }
 
     fun setNightWindow(context: Context, startMinutes: Int, endMinutes: Int) {
@@ -164,11 +147,6 @@ object ThemePreferences {
         _nightStart.value = s
         _nightEnd.value = e
     }
-
-    /** 当前分钟数是否落在夜间窗口内（支持跨午夜窗口，如 21:00→07:00）。 */
-    fun isWithinNightWindow(currentMinute: Int, start: Int, end: Int): Boolean =
-        if (start <= end) currentMinute in start until end
-        else currentMinute >= start || currentMinute < end
 
     /** 9.258：OLED 纯黑开关（深色模式下生效）。 */
     fun setOledBlack(context: Context, enabled: Boolean) {

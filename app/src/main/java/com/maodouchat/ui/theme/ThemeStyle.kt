@@ -22,11 +22,6 @@ val ACCENT_OPTIONS = listOf(
     AccentOption("teal", Color(0xFF06B6D4), Color(0xFF22D3EE))
 )
 
-fun normalizeAccentId(raw: String?): String {
-    val id = raw?.trim()?.lowercase().orEmpty()
-    return if (ACCENT_OPTIONS.any { it.id == id }) id else "none"
-}
-
 fun accentFor(id: String, dark: Boolean): Color? =
     ACCENT_OPTIONS.firstOrNull { it.id == id }?.let { if (dark) it.dark else it.light }
 
