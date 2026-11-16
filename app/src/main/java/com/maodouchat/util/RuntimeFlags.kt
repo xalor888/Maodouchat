@@ -3,6 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.Flag
+import com.maodouchat.domain.messaging.RuntimeFlagPolicy
 
 /**
  * 运行时功能开关集中表。
@@ -105,16 +106,13 @@ object RuntimeFlags {
     val VOICE_MESSAGES: Flag = Flag("voice_messages_enabled", true)
 
     fun isEnabled(context: Context, flag: Flag): Boolean {
-        if (flag == NEARBY || flag == CHAT_EXPORT) return false
+        if (RuntimeFlagPolicy.isForcedOff(flag)) return false
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(flag.key, flag.default)
     }
 
     fun setEnabled(context: Context, flag: Flag, enabled: Boolean) {
-        val value = when (flag) {
-            NEARBY, CHAT_EXPORT -> false
-            else -> enabled
-        }
+        val value = if (RuntimeFlagPolicy.isForcedOff(flag)) false else enabled
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit {
             putBoolean(flag.key, value)

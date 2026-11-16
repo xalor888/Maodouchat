@@ -7,12 +7,12 @@ import androidx.core.graphics.set
 import com.maodouchat.core.model.QrParsedPayload
 import com.maodouchat.core.model.QrPayloadParser
 import com.maodouchat.core.model.QrTarget
+import com.maodouchat.domain.contacts.QrPayloadCodec
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import android.util.Base64
-import java.nio.charset.StandardCharsets
 
 /**
  * 简易二维码生成：把"maodouchat:user:<userId>" 编码成 300x300 PNG bitmap
@@ -20,27 +20,16 @@ import java.nio.charset.StandardCharsets
  */
 object QrCodeGenerator {
 
-    private const val PREFIX_USER = "maodouchat:user:"
-    private const val PREFIX_CHAT = "maodouchat:chat:"
-    private const val PREFIX_CHAT_INVITE = "maodouchat:chat-invite:v1:"
-    private const val PREFIX_SAFETY = "maodouchat:safety:"
-
-    fun encodeUserQrPayload(userId: String): String = PREFIX_USER + userId
-    fun encodeChatQrPayload(chatId: String): String = PREFIX_CHAT + chatId
-    fun encodeChatInviteQrPayload(token: String): String = PREFIX_CHAT_INVITE + token.trim()
+    fun encodeUserQrPayload(userId: String): String = QrPayloadCodec.encodeUserQrPayload(userId)
+    fun encodeChatQrPayload(chatId: String): String = QrPayloadCodec.encodeChatQrPayload(chatId)
+    fun encodeChatInviteQrPayload(token: String): String = QrPayloadCodec.encodeChatInviteQrPayload(token)
     fun encodeSafetyQrPayload(
         ownerUserId: String,
         ownerDeviceId: Int,
         peerUserId: String,
         peerDeviceId: Int,
         safetyCode: String
-    ): String = PREFIX_SAFETY + listOf(
-        encodePart(ownerUserId),
-        ownerDeviceId.toString(),
-        encodePart(peerUserId),
-        peerDeviceId.toString(),
-        encodePart(safetyCode)
-    ).joinToString(":")
+    ): String = QrPayloadCodec.encodeSafetyQrPayload(ownerUserId, ownerDeviceId, peerUserId, peerDeviceId, safetyCode)
 
     fun encodeSafetyQrPayload(
         ownerUserId: String,
@@ -49,15 +38,9 @@ object QrCodeGenerator {
         peerDeviceId: Int,
         ownerIdentityFingerprint: String,
         peerIdentityFingerprint: String
-    ): String = PREFIX_SAFETY + listOf(
-        "v2",
-        encodePart(ownerUserId),
-        ownerDeviceId.toString(),
-        encodePart(peerUserId),
-        peerDeviceId.toString(),
-        encodePart(ownerIdentityFingerprint),
-        encodePart(peerIdentityFingerprint)
-    ).joinToString(":")
+    ): String = QrPayloadCodec.encodeSafetyQrPayload(
+        ownerUserId, ownerDeviceId, peerUserId, peerDeviceId, ownerIdentityFingerprint, peerIdentityFingerprint
+    )
 
     fun parsePayload(text: String): QrTarget? {
         return when (val parsed = QrPayloadParser.parse(text)) {
@@ -96,7 +79,4 @@ object QrCodeGenerator {
 
     @Suppress("unused")
     private fun encode(b: ByteArray): String = Base64.encodeToString(b, Base64.NO_WRAP)
-
-    private fun encodePart(value: String): String =
-        java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(value.toByteArray(StandardCharsets.UTF_8))
 }
