@@ -32,6 +32,10 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.RiskEventResponse
 import com.maodouchat.core.model.ModerationRuleResponse
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ModerationReportTargetKind
+import com.maodouchat.domain.conversation.ModerationRiskActionKind
+import com.maodouchat.domain.conversation.moderationReportTargetKind
+import com.maodouchat.domain.conversation.moderationRiskActionKind
 import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -144,22 +148,22 @@ internal fun ModerationRuleDialog(
 }
 
 @Composable
-internal fun riskActionLabel(action: String): String = when (action) {
-    "WARN_MOD" -> stringResource(R.string.moderation_action_review)
-    "AUTO_HOLD" -> stringResource(R.string.moderation_action_hold)
-    "AUTO_DELETE" -> stringResource(R.string.moderation_action_delete)
-    "AUTO_RATE_LIMIT" -> stringResource(R.string.moderation_action_rate_limit)
-    "OBSERVED" -> stringResource(R.string.moderation_action_observed)
-    else -> action
+internal fun riskActionLabel(action: String): String = when (moderationRiskActionKind(action)) {
+    ModerationRiskActionKind.WarnMod -> stringResource(R.string.moderation_action_review)
+    ModerationRiskActionKind.AutoHold -> stringResource(R.string.moderation_action_hold)
+    ModerationRiskActionKind.AutoDelete -> stringResource(R.string.moderation_action_delete)
+    ModerationRiskActionKind.AutoRateLimit -> stringResource(R.string.moderation_action_rate_limit)
+    ModerationRiskActionKind.Observed -> stringResource(R.string.moderation_action_observed)
+    ModerationRiskActionKind.Raw -> action
 }
 
 @Composable
-internal fun reportTargetLabel(type: String): String = when (type) {
-    "USER" -> stringResource(R.string.moderation_target_user)
-    "MESSAGE" -> stringResource(R.string.moderation_target_message)
-    "MESSAGE_META" -> stringResource(R.string.moderation_target_message_meta)
-    "POST" -> stringResource(R.string.moderation_target_post)
-    "COMMENT" -> stringResource(R.string.moderation_target_comment)
-    "ALL" -> stringResource(R.string.moderation_target_all_public)
-    else -> type
+internal fun reportTargetLabel(type: String): String = when (moderationReportTargetKind(type)) {
+    ModerationReportTargetKind.User -> stringResource(R.string.moderation_target_user)
+    ModerationReportTargetKind.Message -> stringResource(R.string.moderation_target_message)
+    ModerationReportTargetKind.MessageMeta -> stringResource(R.string.moderation_target_message_meta)
+    ModerationReportTargetKind.Post -> stringResource(R.string.moderation_target_post)
+    ModerationReportTargetKind.Comment -> stringResource(R.string.moderation_target_comment)
+    ModerationReportTargetKind.All -> stringResource(R.string.moderation_target_all_public)
+    ModerationReportTargetKind.Raw -> type
 }
