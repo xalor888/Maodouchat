@@ -19,6 +19,7 @@ import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.core.model.Candidate
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MentionPolicy
+import com.maodouchat.domain.contacts.ContactCardTargetPolicy
 
 /**
  * 输入框上方的「覆盖层编排」（G96 从 `ChatDetailComponents.kt` 的 `ComposerPane` 拆出，原 126 行）。
@@ -185,13 +186,7 @@ if (showQuickPhrases) {
 // 1.11：发送名片——联系人选择对话框（单聊会话对端用户）
 if (showContactCardPicker) {
     val pickerContacts = remember(contactCardTargets, currentUserId) {
-        contactCardTargets
-            .filter { !it.isGroup }
-            .mapNotNull { chat ->
-                val other = chat.participants.firstOrNull { it.id != currentUserId }
-                if (other == null) null else chat to other
-            }
-            .sortedBy { it.second.displayName.lowercase() }
+        ContactCardTargetPolicy.pickTargets(contactCardTargets, currentUserId)
     }
     ContactCardPickerDialog(
         contacts = pickerContacts,

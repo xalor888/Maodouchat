@@ -4,6 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.core.model.OfflineSuggestionPhrases
+import com.maodouchat.domain.messaging.AiReplyTonePolicy
 import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
@@ -29,10 +30,7 @@ internal fun ChatDetailViewModel.generateAiSuggestions(tone: String = "friendly"
     }
     aiReplyStreamJob?.cancel()
     val generation = aiReplyGate.next()
-    val safeTone = when (tone.trim().lowercase()) {
-        "natural", "friendly", "formal", "concise", "warm", "humorous", "direct", "empathetic", "encouraging" -> tone.trim().lowercase()
-        else -> "friendly"
-    }
+    val safeTone = AiReplyTonePolicy.normalizeTone(tone)
     _uiState.update {
         it.copy(
             isAiWorking = true,
