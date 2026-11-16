@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.core.model.LoginUiState
 import com.maodouchat.data.repository.AuthNetworkRepository
+import com.maodouchat.domain.messaging.LoginSubmitValidationPolicy
+import com.maodouchat.domain.messaging.LoginValidationFailure
 import com.maodouchat.R
 import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.login.LoginAccess
@@ -27,6 +29,21 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
 
     internal val tokenManager = TokenManager.getInstance(application)
     internal fun text(id: Int): String = getApplication<Application>().getString(id)
+
+    // 8.61：Patterns 校验（此前 contains("@") 让 "a@" 之类通过，错误信息不明确）
+    private fun isValidEmail(email: String): Boolean =
+        android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+
+    private fun failureMessage(failure: LoginValidationFailure): Int = when (failure) {
+        LoginValidationFailure.EmailBlank -> R.string.error_enter_email
+        LoginValidationFailure.EmailInvalid -> R.string.error_invalid_email
+        LoginValidationFailure.PasswordBlank -> R.string.error_enter_password
+        LoginValidationFailure.PasswordTooShort -> R.string.error_password_min_length
+        LoginValidationFailure.CodeNotSent -> R.string.login_require_code_first
+        LoginValidationFailure.NameBlank -> R.string.error_enter_username
+        LoginValidationFailure.PasswordConfirmMismatch -> R.string.login_password_confirm_mismatch
+        LoginValidationFailure.CodeBlank -> R.string.error_enter_verification_code
+    }
 
     internal val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -55,7 +72,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
     fun sendVerificationCode() {
         val email = _uiState.value.email
         // 8.61：改用 Patterns 校验（此前 contains("@") 让 "a@" 之类通过，错误信息不明确）
-        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        if (LoginSubmitValidationPolicy.validateEmail(email, ::isValidEmail) != null) {
             _uiState.update { it.copy(errorMessage = text(R.string.error_invalid_email)) }
             return
         }
@@ -112,26 +129,10 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
         if (state.isLoading) return
 
-        if (state.email.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_email)) }; return }
-        // 8.61：Patterns 校验（此前 contains("@") 让 "a@" 之类提交后由服务端拒绝、错误不明确）
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(state.email).matches()) { _uiState.update { it.copy(errorMessage = text(R.string.error_invalid_email)) }; return }
-        if (state.password.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_password)) }; return }
-        if (state.password.length < 6) { _uiState.update { it.copy(errorMessage = text(R.string.error_password_min_length)) }; return }
-
-        when (state.selectedTab) {
-            1 -> {
-                if (!state.codeSent) { _uiState.update { it.copy(errorMessage = text(R.string.login_require_code_first)) }; return }
-                if (state.name.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_username)) }; return }
-                if (state.passwordConfirm.isBlank() || state.passwordConfirm != state.password) {
-                    _uiState.update { it.copy(errorMessage = text(R.string.login_password_confirm_mismatch)) }
-                    return
-                }
-                if (state.code.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_verification_code)) }; return }
-            }
-            2 -> {
-                if (!state.codeSent) { _uiState.update { it.copy(errorMessage = text(R.string.login_require_code_first)) }; return }
-                if (state.code.isBlank()) { _uiState.update { it.copy(errorMessage = text(R.string.error_enter_verification_code)) }; return }
-            }
+        // 校验链在 LoginSubmitValidationPolicy（按序短路）；文案映射见 failureMessage。
+        LoginSubmitValidationPolicy.validate(state, ::isValidEmail)?.let { failure ->
+            _uiState.update { it.copy(errorMessage = text(failureMessage(failure))) }
+            return
         }
 
         // 同步置位 isLoading，确保入口守卫 `if (state.isLoading) return` 在同帧连点下也生效

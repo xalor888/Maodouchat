@@ -1,6 +1,8 @@
 package com.maodouchat.login
 
 import com.maodouchat.core.model.LoginUiState
+import com.maodouchat.domain.messaging.LoginSubmitValidationPolicy
+import com.maodouchat.domain.messaging.LoginValidationFailure
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -52,15 +54,22 @@ class LoginViewModelTest {
     }
 
     /**
-     * 与 LoginViewModel.submit 内的校验逻辑保持一致的纯函数镜像。
+     * 校验逻辑在 LoginSubmitValidationPolicy；这里只把失败原因映射回文案断言。
      * 邮箱规则对齐 Patterns.EMAIL_ADDRESS 的最低要求：local@host.tld。
      */
     private fun runValidation(email: String, password: String): String? {
-        if (email.isBlank()) return "请输入邮箱地址"
-        if (!isPlausibleEmail(email)) return "请输入有效的邮箱地址"
-        if (password.isBlank()) return "请输入密码"
-        if (password.length < 6) return "密码至少需要 6 位"
-        return null
+        val state = LoginUiState(email = email, password = password)
+        return when (LoginSubmitValidationPolicy.validate(state, ::isPlausibleEmail)) {
+            null -> null
+            LoginValidationFailure.EmailBlank -> "请输入邮箱地址"
+            LoginValidationFailure.EmailInvalid -> "请输入有效的邮箱地址"
+            LoginValidationFailure.PasswordBlank -> "请输入密码"
+            LoginValidationFailure.PasswordTooShort -> "密码至少需要 6 位"
+            LoginValidationFailure.CodeNotSent -> "请先获取并填写验证码"
+            LoginValidationFailure.NameBlank -> "请输入用户名"
+            LoginValidationFailure.PasswordConfirmMismatch -> "两次输入的密码不一致"
+            LoginValidationFailure.CodeBlank -> "请输入验证码"
+        }
     }
 
     private fun isPlausibleEmail(email: String): Boolean {
