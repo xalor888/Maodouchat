@@ -16,6 +16,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.AiAuditLogResponse
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.AiFeatureLabelKind
+import com.maodouchat.domain.messaging.AiStatusLabelKind
+import com.maodouchat.domain.messaging.aiFeatureLabelKind
+import com.maodouchat.domain.messaging.aiStatusLabelKind
 import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import androidx.compose.ui.graphics.Color
@@ -56,32 +60,34 @@ internal fun AiAuditLogRow(log: AiAuditLogResponse) {
 }
 
 @Composable
-internal fun aiFeatureLabel(feature: String): String = when (feature.lowercase()) {
-    "rewrite" -> stringResource(R.string.ai_feature_rewrite)
-    "suggest_replies" -> stringResource(R.string.ai_feature_suggest_replies)
-    "summarize" -> stringResource(R.string.ai_feature_summarize)
-    "transcribe_voice" -> stringResource(R.string.ai_feature_transcribe_voice)
-    "translate_message" -> stringResource(R.string.ai_feature_translate_message)
-    "semantic_search" -> stringResource(R.string.ai_feature_semantic_search)
-    "global_semantic_search" -> stringResource(R.string.ai_feature_global_semantic_search)
-    "group_assistant" -> stringResource(R.string.ai_feature_group_assistant)
-    "image_analyze" -> stringResource(R.string.ai_feature_image_analyze)
-    "file_analyze" -> stringResource(R.string.ai_feature_file_analyze)
-    else -> if (feature.isBlank()) stringResource(R.string.ai_feature_generic) else feature
+internal fun aiFeatureLabel(feature: String): String = when (aiFeatureLabelKind(feature)) {
+    AiFeatureLabelKind.Rewrite -> stringResource(R.string.ai_feature_rewrite)
+    AiFeatureLabelKind.SuggestReplies -> stringResource(R.string.ai_feature_suggest_replies)
+    AiFeatureLabelKind.Summarize -> stringResource(R.string.ai_feature_summarize)
+    AiFeatureLabelKind.TranscribeVoice -> stringResource(R.string.ai_feature_transcribe_voice)
+    AiFeatureLabelKind.TranslateMessage -> stringResource(R.string.ai_feature_translate_message)
+    AiFeatureLabelKind.SemanticSearch -> stringResource(R.string.ai_feature_semantic_search)
+    AiFeatureLabelKind.GlobalSemanticSearch -> stringResource(R.string.ai_feature_global_semantic_search)
+    AiFeatureLabelKind.GroupAssistant -> stringResource(R.string.ai_feature_group_assistant)
+    AiFeatureLabelKind.ImageAnalyze -> stringResource(R.string.ai_feature_image_analyze)
+    AiFeatureLabelKind.FileAnalyze -> stringResource(R.string.ai_feature_file_analyze)
+    AiFeatureLabelKind.Generic -> stringResource(R.string.ai_feature_generic)
+    AiFeatureLabelKind.Raw -> feature
 }
 
 @Composable
-internal fun aiStatusLabel(status: String): String = when (status.lowercase()) {
-    "success" -> stringResource(R.string.ai_status_success)
-    "failed", "error" -> stringResource(R.string.ai_status_failed)
-    "disabled" -> stringResource(R.string.ai_status_disabled)
-    "rate_limited" -> stringResource(R.string.ai_status_rate_limited)
-    else -> if (status.isBlank()) stringResource(R.string.ai_status_unknown) else status
+internal fun aiStatusLabel(status: String): String = when (aiStatusLabelKind(status)) {
+    AiStatusLabelKind.Success -> stringResource(R.string.ai_status_success)
+    AiStatusLabelKind.Failed -> stringResource(R.string.ai_status_failed)
+    AiStatusLabelKind.Disabled -> stringResource(R.string.ai_status_disabled)
+    AiStatusLabelKind.RateLimited -> stringResource(R.string.ai_status_rate_limited)
+    AiStatusLabelKind.Unknown -> stringResource(R.string.ai_status_unknown)
+    AiStatusLabelKind.Raw -> status
 }
 
 @Composable
-internal fun aiStatusColor(status: String): Color = when (status.lowercase()) {
-    "success" -> MaterialTheme.colorScheme.primary
-    "failed", "error", "rate_limited" -> Error
+internal fun aiStatusColor(status: String): Color = when (aiStatusLabelKind(status)) {
+    AiStatusLabelKind.Success -> MaterialTheme.colorScheme.primary
+    AiStatusLabelKind.Failed, AiStatusLabelKind.RateLimited -> Error
     else -> LocalChatPalette.current.textHint
 }

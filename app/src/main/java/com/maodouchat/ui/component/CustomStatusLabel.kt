@@ -3,6 +3,8 @@ package com.maodouchat.ui.component
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
+import com.maodouchat.domain.contacts.CustomStatusLabelKind
+import com.maodouchat.domain.contacts.customStatusLabelKind
 
 /**
  * 自定义状态预设（[com.maodouchat.core.model.CustomStatusPolicy.PRESETS]）的本地化展示。
@@ -10,30 +12,30 @@ import com.maodouchat.R
  * 输出 wire 值——此前联系人搜索结果直接显示「在线」，英文界面里混出中文就是这个原因。
  */
 @Composable
-fun localizedCustomStatusLabel(wire: String): String = when (wire) {
-    "在线" -> stringResource(R.string.status_preset_online)
-    "忙碌" -> stringResource(R.string.status_preset_busy)
-    "开会中" -> stringResource(R.string.status_preset_meeting)
-    "请勿打扰" -> stringResource(R.string.status_preset_dnd)
-    "马上回来" -> stringResource(R.string.status_preset_brb)
-    "休假中" -> stringResource(R.string.status_preset_vacation)
-    "学习中" -> stringResource(R.string.status_preset_studying)
-    "通勤中" -> stringResource(R.string.status_preset_commuting)
-    "专注中" -> stringResource(R.string.status_preset_focusing)
-    "吃饭中" -> stringResource(R.string.status_preset_eating)
-    "旅游中" -> stringResource(R.string.status_preset_traveling)
-    "运动中" -> stringResource(R.string.status_preset_exercising)
-    "工作中" -> stringResource(R.string.status_preset_working)
-    "通话中" -> stringResource(R.string.status_preset_on_call)
-    "开车中" -> stringResource(R.string.status_preset_driving)
-    "游戏中" -> stringResource(R.string.status_preset_gaming)
-    "睡觉中" -> stringResource(R.string.status_preset_sleeping)
-    "写作中" -> stringResource(R.string.status_preset_writing)
-    "出差中" -> stringResource(R.string.status_preset_business_trip)
-    "充电中" -> stringResource(R.string.status_preset_charging)
-    "听歌中" -> stringResource(R.string.status_preset_listening)
-    "阅读中" -> stringResource(R.string.status_preset_reading)
-    "观影中" -> stringResource(R.string.status_preset_watching)
-    "做饭中" -> stringResource(R.string.status_preset_cooking)
-    else -> wire
+fun localizedCustomStatusLabel(wire: String): String = when (customStatusLabelKind(wire)) {
+    CustomStatusLabelKind.Online -> stringResource(R.string.status_preset_online)
+    CustomStatusLabelKind.Busy -> stringResource(R.string.status_preset_busy)
+    CustomStatusLabelKind.Meeting -> stringResource(R.string.status_preset_meeting)
+    CustomStatusLabelKind.Dnd -> stringResource(R.string.status_preset_dnd)
+    CustomStatusLabelKind.Brb -> stringResource(R.string.status_preset_brb)
+    CustomStatusLabelKind.Vacation -> stringResource(R.string.status_preset_vacation)
+    CustomStatusLabelKind.Studying -> stringResource(R.string.status_preset_studying)
+    CustomStatusLabelKind.Commuting -> stringResource(R.string.status_preset_commuting)
+    CustomStatusLabelKind.Focusing -> stringResource(R.string.status_preset_focusing)
+    CustomStatusLabelKind.Eating -> stringResource(R.string.status_preset_eating)
+    CustomStatusLabelKind.Traveling -> stringResource(R.string.status_preset_traveling)
+    CustomStatusLabelKind.Exercising -> stringResource(R.string.status_preset_exercising)
+    CustomStatusLabelKind.Working -> stringResource(R.string.status_preset_working)
+    CustomStatusLabelKind.OnCall -> stringResource(R.string.status_preset_on_call)
+    CustomStatusLabelKind.Driving -> stringResource(R.string.status_preset_driving)
+    CustomStatusLabelKind.Gaming -> stringResource(R.string.status_preset_gaming)
+    CustomStatusLabelKind.Sleeping -> stringResource(R.string.status_preset_sleeping)
+    CustomStatusLabelKind.Writing -> stringResource(R.string.status_preset_writing)
+    CustomStatusLabelKind.BusinessTrip -> stringResource(R.string.status_preset_business_trip)
+    CustomStatusLabelKind.Charging -> stringResource(R.string.status_preset_charging)
+    CustomStatusLabelKind.Listening -> stringResource(R.string.status_preset_listening)
+    CustomStatusLabelKind.Reading -> stringResource(R.string.status_preset_reading)
+    CustomStatusLabelKind.Watching -> stringResource(R.string.status_preset_watching)
+    CustomStatusLabelKind.Cooking -> stringResource(R.string.status_preset_cooking)
+    CustomStatusLabelKind.Raw -> wire
 }
