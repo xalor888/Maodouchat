@@ -5,6 +5,7 @@ import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ViewOncePolicy
+import com.maodouchat.domain.messaging.MessageFileNamePolicy
 
 /** Converts domain messages to stable Compose presentation data at the UI boundary. */
 object MessagePresentationMapper {
@@ -59,7 +60,7 @@ object MessagePresentationMapper {
             file = if (message.type == MessageType.FILE) {
                 FilePresentation(
                     uri = body,
-                    name = meta.fileName?.takeIf(String::isNotBlank) ?: fileNameFromUri(body),
+                    name = meta.fileName?.takeIf(String::isNotBlank) ?: MessageFileNamePolicy.fileNameFromUri(body),
                     mimeType = meta.fileMimeType?.takeIf(String::isNotBlank),
                     sizeBytes = meta.fileSizeBytes?.takeIf { it >= 0L },
                 )
@@ -81,12 +82,6 @@ object MessagePresentationMapper {
         liveUntil = liveUntil,
         sessionId = sessionId,
     )
-
-    private fun fileNameFromUri(uri: String): String? = runCatching {
-        java.net.URI(uri).path
-            ?.substringAfterLast('/')
-            ?.takeIf(String::isNotBlank)
-    }.getOrNull()
 
     private val TEXT_TYPES = setOf(MessageType.TEXT, MessageType.MARKDOWN, MessageType.STICKER)
     private val ATTACHMENT_TYPES = setOf(

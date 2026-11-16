@@ -26,6 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.RelativeTimePolicy
+import com.maodouchat.domain.conversation.ExploreVisibilityOption
+import com.maodouchat.domain.conversation.exploreVisibilityOption
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue
@@ -73,10 +75,10 @@ internal fun LoadingMoreBlock() {
 }
 
 @Composable
-internal fun visibilityLabel(value: String): String = when (value) {
-    "CONTACTS" -> stringResource(R.string.explore_visibility_contacts_label)
-    "PRIVATE" -> stringResource(R.string.explore_visibility_private_label)
-    else -> stringResource(R.string.explore_visibility_public)
+internal fun visibilityLabel(value: String): String = when (exploreVisibilityOption(value)) {
+    ExploreVisibilityOption.Contacts -> stringResource(R.string.explore_visibility_contacts_label)
+    ExploreVisibilityOption.Private -> stringResource(R.string.explore_visibility_private_label)
+    ExploreVisibilityOption.Public -> stringResource(R.string.explore_visibility_public)
 }
 @Composable
 internal fun relativeTimeLocalized(timestamp: Long): String {

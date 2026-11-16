@@ -27,6 +27,8 @@ import com.maodouchat.core.model.MessageSafetyScanner
 import com.maodouchat.core.model.Chat
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.ChatDateLabel
+import com.maodouchat.domain.messaging.ForwardTargetName
+import com.maodouchat.domain.messaging.ForwardTargetNamePolicy
 import java.util.Date
 
 /**
@@ -37,13 +39,13 @@ import java.util.Date
 // ── 纯函数 ────────────────────────────
 
 
-internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: String): String {
-    return if (chat.isGroup) {
-        chat.groupName ?: context.resources.getQuantityString(R.plurals.chat_group_summary, chat.participants.size, chat.participants.size)
-    } else {
-        chat.participants.firstOrNull { it.id != currentUserId }?.displayName ?: context.getString(R.string.chat_private)
+internal fun forwardTargetName(context: Context, chat: Chat, currentUserId: String): String =
+    when (val target = ForwardTargetNamePolicy.resolve(chat, currentUserId)) {
+        is ForwardTargetName.GroupNamed -> target.name
+        is ForwardTargetName.GroupCount -> context.resources.getQuantityString(R.plurals.chat_group_summary, target.count, target.count)
+        is ForwardTargetName.Private -> target.name
+        ForwardTargetName.PrivateFallback -> context.getString(R.string.chat_private)
     }
-}
 
 internal fun formatDateLabel(context: Context, timestamp: Long): String =
     when (ChatDateDisplay.dateLabelBucket(timestamp)) {
