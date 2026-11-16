@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.domain.messaging.ReadReceiptFilterPolicy
+import com.maodouchat.domain.messaging.ReadReceiptQueryPolicy
 import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -160,7 +161,7 @@ internal fun ChatDetailReadReceiptsSheet(
                 if (receipts.size >= 5 && !isLoading) {
                     OutlinedTextField(
                         value = readReceiptSearch,
-                        onValueChange = { readReceiptSearch = it.take(100) },
+                        onValueChange = { readReceiptSearch = ReadReceiptQueryPolicy.filterQuery(it) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         placeholder = { Text(stringResource(R.string.chat_read_details_search_hint)) },

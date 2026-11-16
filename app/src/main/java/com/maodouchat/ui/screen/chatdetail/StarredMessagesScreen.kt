@@ -61,6 +61,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.StarredMessageSearchPolicy
+import com.maodouchat.domain.messaging.StarredSearchQueryPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -181,7 +182,7 @@ fun StarredMessagesScreen(
             else -> Column(modifier = Modifier.fillMaxSize().padding(padding)) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it.take(160) },
+                    onValueChange = { searchQuery = StarredSearchQueryPolicy.filterQuery(it) },
                     singleLine = true,
                     placeholder = { Text(stringResource(R.string.starred_search_hint)) },
                     modifier = Modifier

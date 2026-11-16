@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.domain.calls.CallHistoryFilterPolicy
+import com.maodouchat.domain.calls.CallHistoryQueryPolicy
 import com.maodouchat.domain.calls.CallHistoryTime
 import com.maodouchat.domain.calls.CallRelativeTime
 import com.maodouchat.ui.theme.UnreadRed
@@ -156,7 +157,7 @@ fun CallHistoryScreen(
             if (showSearch) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it.take(100) },
+                    onValueChange = { searchQuery = CallHistoryQueryPolicy.filterQuery(it) },
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
                     placeholder = { Text(stringResource(R.string.missed_calls_search_hint)) },
