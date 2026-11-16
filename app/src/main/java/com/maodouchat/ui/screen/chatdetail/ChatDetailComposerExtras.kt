@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.RecordingWaveformPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
@@ -84,20 +85,7 @@ internal fun RecordingWaveformRow(
     barCount: Int = 32,
 ) {
     val bars = remember(waveform, liveAmplitude, barCount) {
-        val base = if (waveform.isEmpty()) {
-            List(barCount) { 0.08f }
-        } else {
-            val src = waveform
-            List(barCount) { i ->
-                val idx = ((i.toFloat() / (barCount - 1).coerceAtLeast(1)) * (src.size - 1).coerceAtLeast(0)).toInt()
-                    .coerceIn(0, src.lastIndex.coerceAtLeast(0))
-                src.getOrElse(idx) { 0f }.coerceIn(0f, 1f)
-            }
-        }
-        // 末尾条跟瞬时振幅，增强“正在说话”感
-        base.mapIndexed { i, v ->
-            if (i >= barCount - 3) maxOf(v, liveAmplitude * (0.7f + 0.1f * (i - (barCount - 3)))) else v
-        }
+        RecordingWaveformPolicy.resample(waveform, liveAmplitude, barCount)
     }
     Row(
         modifier = Modifier
@@ -107,7 +95,7 @@ internal fun RecordingWaveformRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         bars.forEach { h ->
-            val heightFrac = (0.12f + h * 0.88f).coerceIn(0.12f, 1f)
+            val heightFrac = RecordingWaveformPolicy.barHeightFraction(h)
             Box(
                 modifier = Modifier
                     .weight(1f)

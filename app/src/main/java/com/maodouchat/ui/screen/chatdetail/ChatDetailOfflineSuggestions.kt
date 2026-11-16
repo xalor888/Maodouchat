@@ -4,6 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.core.model.OfflineSuggestionPhrases
+import com.maodouchat.domain.messaging.AiOfflineSuggestionPolicy
 import com.maodouchat.domain.messaging.AiReplyTonePolicy
 import com.maodouchat.util.RuntimeFlags
 import androidx.lifecycle.viewModelScope
@@ -47,13 +48,13 @@ internal fun ChatDetailViewModel.generateAiSuggestions(tone: String = "friendly"
                 getApplication(),
                 contextMessages,
                 safeTone,
-                4
+                AiOfflineSuggestionPolicy.MAX_SUGGESTIONS
             ).fold(
                 onSuccess = { replies ->
                     if (!aiReplyGate.isCurrent(generation) || !isAiRequestCurrent(request)) return@fold
                     _uiState.update {
                         it.copy(
-                            aiSuggestions = replies.map { reply -> reply.take(500) }.filter { it.isNotBlank() }.take(4),
+                            aiSuggestions = AiOfflineSuggestionPolicy.prepareReplies(replies),
                             isAiReplyStreaming = false,
                             isAiWorking = false,
                             aiReplyStreamErrorCode = if (replies.isEmpty()) AiOperationError.EMPTY_RESULT else null
@@ -112,8 +113,8 @@ private fun ChatDetailViewModel.buildOfflineAiSuggestions(
     if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.AI_MASTER)) return emptyList()
     val texts = contextMessages.map { it.text.trim() }.filter { it.isNotBlank() }
     if (texts.isEmpty()) return emptyList()
-    val seed = texts.last().take(120)
-    val recent = texts.takeLast(3).joinToString(" ").take(240)
+    val seed = AiOfflineSuggestionPolicy.buildSeed(texts.last())
+    val recent = AiOfflineSuggestionPolicy.buildRecent(texts)
     val lower = (seed + " " + recent).lowercase()
     return OfflineSuggestionPhrases.suggest(lower, seed, tone)
 }

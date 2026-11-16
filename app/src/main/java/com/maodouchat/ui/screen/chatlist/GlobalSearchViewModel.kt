@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.conversation.GlobalSearchQueryPolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
         if (!RuntimeFlags.isEnabled(getApplication(), RuntimeFlags.GLOBAL_SEARCH)) {
             _uiState.update {
                 it.copy(
-                    query = value.take(400),
+                    query = GlobalSearchQueryPolicy.filterQuery(value),
                     results = emptyList(),
                     isSearching = false,
                     error = text(R.string.global_search_disabled)
@@ -43,7 +44,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
             }
             return
         }
-        val query = value.take(400)
+        val query = GlobalSearchQueryPolicy.filterQuery(value)
         generation++
         localSearchJob?.cancel()
         _uiState.update {
@@ -96,7 +97,7 @@ class GlobalSearchViewModel(application: Application) : AndroidViewModel(applica
     }
 
     internal fun recordRecentSearch(query: String) {
-        val trimmed = query.trim().take(100)
+        val trimmed = GlobalSearchQueryPolicy.normalizeRecentQuery(query)
         if (trimmed.isBlank()) return
         val updated = RecentSearches.push(getApplication(), trimmed)
         _uiState.update { it.copy(recentSearches = updated) }

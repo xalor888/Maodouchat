@@ -27,6 +27,7 @@ import com.maodouchat.domain.messaging.silentUntilLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.UnreadRed
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 
 /** 静音至对话框。 */
 @Composable
@@ -105,7 +106,7 @@ internal fun ChatDisableChatLockDialog(
             OutlinedTextField(
                 value = pinDraft,
                 onValueChange = { raw ->
-                    onPinDraftChange(raw.filter { it.isDigit() }.take(8))
+                    onPinDraftChange(ChatPinUnlockPolicy.filterPinDraft(raw))
                 },
                 label = { Text(stringResource(R.string.chat_lock_enter_pin, contactDisplayName)) },
                 singleLine = true,

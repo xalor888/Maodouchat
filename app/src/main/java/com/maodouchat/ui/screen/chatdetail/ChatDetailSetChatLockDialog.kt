@@ -18,6 +18,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 
 /**
  * 设置聊天锁对话框（G81 从 `ChatDetailRoute.kt` 拆出，原 71 行）。
@@ -63,7 +64,7 @@ internal fun ChatDetailSetChatLockDialog(
                 OutlinedTextField(
                     value = pinDraft,
                     onValueChange = { raw ->
-                        onPinDraftChange(raw.filter { it.isDigit() }.take(8))
+                        onPinDraftChange(ChatPinUnlockPolicy.filterPinDraft(raw))
                         onErrorMessageChange(null)
                     },
                     label = { Text(stringResource(R.string.chat_lock_enter_pin, contactDisplayName)) },
@@ -77,7 +78,7 @@ internal fun ChatDetailSetChatLockDialog(
                 OutlinedTextField(
                     value = pinConfirmDraft,
                     onValueChange = { raw ->
-                        onPinConfirmDraftChange(raw.filter { it.isDigit() }.take(8))
+                        onPinConfirmDraftChange(ChatPinUnlockPolicy.filterPinDraft(raw))
                         onErrorMessageChange(null)
                     },
                     label = { Text(stringResource(R.string.chat_lock_confirm_pin)) },

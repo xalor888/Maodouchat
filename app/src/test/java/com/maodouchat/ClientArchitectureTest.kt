@@ -613,7 +613,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
         // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
         // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 183,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-08：输入栏对话框簇按专题拆分（计时/日程/消息动作 → 同包
@@ -897,7 +897,7 @@ class ClientArchitectureTest {
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
         // 输入栏杂项瘦身第二批：AI 条（AiOperationStatusBar/AiDraftStreamBar）→
         // ChatDetailAiComposerBars（录音/语音留守 ComposerExtras，425 → 195），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 195,
+        "com/maodouchat/ui/screen/chatdetail/ChatDetailComposerExtras.kt" to 183,
         // 2026-10-08：贴纸簇（stickerPackLabel/PressScaleGlyphItem/StickerPackChip）搬出同包
         // ChatDetailStickerChips（545 → 466，纯搬移），上限同步收紧（两份 map 一起改）。
         // 2026-10-08：输入栏对话框簇按专题拆分（计时/日程/消息动作 → 同包

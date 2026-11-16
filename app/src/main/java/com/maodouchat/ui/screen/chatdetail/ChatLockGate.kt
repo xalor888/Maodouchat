@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
+import com.maodouchat.domain.messaging.ChatPinUnlockPolicy
 
 /**
  * 会话 PIN 锁屏：4-8 位数字 PIN，解锁后才能进入 ChatDetail
@@ -69,7 +70,7 @@ fun ChatLockGate(
             Spacer(modifier = Modifier.height(28.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(8) { i ->
+                repeat(ChatPinUnlockPolicy.MAX_PIN_LENGTH) { i ->
                     val filled = i < pin.length
                     Box(
                         modifier = Modifier

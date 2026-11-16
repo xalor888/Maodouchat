@@ -169,4 +169,19 @@ class ChatPinUnlockPolicyTest {
         }
         assertNotNull(caught, "取消异常应原样抛出而不是判失败")
     }
+
+    @Test
+    fun `pin draft keeps only digits`() {
+        assertEquals("123", ChatPinUnlockPolicy.filterPinDraft("a1b2c3"))
+    }
+
+    @Test
+    fun `pin draft truncates at 8 digits`() {
+        assertEquals("12345678", ChatPinUnlockPolicy.filterPinDraft("1234567890"))
+    }
+
+    @Test
+    fun `empty pin draft stays empty`() {
+        assertEquals("", ChatPinUnlockPolicy.filterPinDraft(""))
+    }
 }
