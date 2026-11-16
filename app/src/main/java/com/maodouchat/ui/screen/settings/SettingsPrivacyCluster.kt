@@ -31,6 +31,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.UserDto
+import com.maodouchat.domain.conversation.ExploreVisibilityOption
+import com.maodouchat.domain.conversation.exploreVisibilityOption
 import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -205,8 +207,8 @@ internal fun BlockedUsersDialog(
 }
 
 @Composable
-private fun privacyVisibilityLabel(value: String): String = when (value) {
-    "CONTACTS" -> stringResource(R.string.explore_visibility_contacts)
-    "PRIVATE" -> stringResource(R.string.explore_visibility_private)
-    else -> stringResource(R.string.explore_visibility_public)
+private fun privacyVisibilityLabel(value: String): String = when (exploreVisibilityOption(value)) {
+    ExploreVisibilityOption.Contacts -> stringResource(R.string.explore_visibility_contacts)
+    ExploreVisibilityOption.Private -> stringResource(R.string.explore_visibility_private)
+    ExploreVisibilityOption.Public -> stringResource(R.string.explore_visibility_public)
 }
