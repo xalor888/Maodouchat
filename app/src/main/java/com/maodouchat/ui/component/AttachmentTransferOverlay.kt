@@ -30,8 +30,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.data.local.entity.AttachmentTransferState
+import com.maodouchat.domain.messaging.FileTransferPrimaryAction
 import com.maodouchat.domain.messaging.FileTransferStatusKind
+import com.maodouchat.domain.messaging.fileTransferCanCancel
+import com.maodouchat.domain.messaging.fileTransferPrimaryAction
 import com.maodouchat.domain.messaging.fileTransferStatusKind
 
 @Composable
@@ -68,32 +70,26 @@ internal fun AttachmentTransferOverlay(
             trackColor = Color.White.copy(alpha = 0.24f)
         )
         Row(modifier = Modifier.height(32.dp), verticalAlignment = Alignment.CenterVertically) {
-            when (state) {
-                AttachmentTransferState.QUEUED, AttachmentTransferState.UPLOADING -> {
+            val action = fileTransferPrimaryAction(state)
+            when (action) {
+                FileTransferPrimaryAction.PAUSE -> {
                     IconButton(onClick = { onPause?.invoke(messageId) }, enabled = onPause != null, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Pause, stringResource(R.string.chat_file_transfer_pause), tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
-                AttachmentTransferState.PAUSED, AttachmentTransferState.FAILED -> {
+                FileTransferPrimaryAction.RESUME, FileTransferPrimaryAction.RETRY -> {
                     IconButton(onClick = { onResume?.invoke(messageId) }, enabled = onResume != null, modifier = Modifier.size(32.dp)) {
                         Icon(
-                            if (state == AttachmentTransferState.FAILED) Icons.Default.Refresh else Icons.Default.PlayArrow,
-                            stringResource(if (state == AttachmentTransferState.FAILED) R.string.chat_file_transfer_retry else R.string.chat_file_transfer_resume),
+                            if (action == FileTransferPrimaryAction.RETRY) Icons.Default.Refresh else Icons.Default.PlayArrow,
+                            stringResource(if (action == FileTransferPrimaryAction.RETRY) R.string.chat_file_transfer_retry else R.string.chat_file_transfer_resume),
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-                else -> CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                FileTransferPrimaryAction.PROGRESS -> CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
             }
-            if (state in setOf(
-                    AttachmentTransferState.PREPARING,
-                    AttachmentTransferState.QUEUED,
-                    AttachmentTransferState.UPLOADING,
-                    AttachmentTransferState.PAUSED,
-                    AttachmentTransferState.FAILED
-                )
-            ) {
+            if (fileTransferCanCancel(state)) {
                 IconButton(onClick = { onCancel?.invoke(messageId) }, enabled = onCancel != null, modifier = Modifier.size(32.dp)) {
                     Icon(Icons.Default.Close, stringResource(R.string.chat_file_transfer_cancel), tint = Color.White, modifier = Modifier.size(18.dp))
                 }
