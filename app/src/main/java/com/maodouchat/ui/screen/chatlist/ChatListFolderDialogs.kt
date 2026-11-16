@@ -2,6 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.domain.calls.MissedCallRowsPolicy
+import com.maodouchat.domain.conversation.ChatFolderDragPreviewPolicy
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,7 +37,6 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
-import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -138,10 +138,9 @@ internal fun ChatListFolderDialogs(
         var rowPitchPx by remember { mutableFloatStateOf(0f) }
         val localDensity = LocalDensity.current
         val dragIndex = dragFolder?.let { st -> sortedFolders.indexOfFirst { it.id == st.first } } ?: -1
-        val previewTarget = if (dragIndex >= 0 && rowPitchPx > 0f) {
-            val shift = ((dragFolder?.second ?: 0f) / rowPitchPx).roundToInt()
-            (dragIndex + shift).coerceIn(0, sortedFolders.size - 1)
-        } else -1
+        val previewTarget = ChatFolderDragPreviewPolicy.dragPreviewTarget(
+            dragIndex, dragFolder?.second ?: 0f, rowPitchPx, sortedFolders.size
+        )
         AlertDialog(
             onDismissRequest = { onShowFolderManagerChange(false); dragFolder = null },
             title = { Text(stringResource(R.string.chat_folder_manage)) },

@@ -11,6 +11,7 @@ import com.maodouchat.core.model.RegisterWithCodeRequest
 import com.maodouchat.core.model.ResetPasswordRequest
 import com.maodouchat.core.model.SendCodeRequest
 import com.maodouchat.core.network.AuthApi
+import com.maodouchat.domain.messaging.TotpResponsePolicy
 import com.maodouchat.network.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.builtins.serializer
@@ -56,7 +57,7 @@ override suspend fun totpStatus(token: String): Result<Boolean> = try {
             .build(),
         "totp_status"
     ).getOrThrow()
-    Result.success(runCatching { org.json.JSONObject(body).optBoolean("enabled", false) }.getOrDefault(false))
+    Result.success(TotpResponsePolicy.parseTotpEnabled(body))
 } catch (error: CancellationException) {
     throw error
 } catch (error: Exception) {
@@ -74,14 +75,7 @@ override suspend fun regenerateTotpCodes(token: String, code: String): Result<Li
             .build(),
         "totp_recover"
     ).getOrThrow()
-    val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
-    val codes = obj?.optJSONArray("backupCodes")
-    val result = if (codes != null) {
-        (0 until codes.length()).map { codes.optString(it) }.filter { it.isNotBlank() }
-    } else {
-        emptyList()
-    }
-    Result.success(result)
+    Result.success(TotpResponsePolicy.parseBackupCodes(body))
 } catch (error: CancellationException) {
     throw error
 } catch (error: Exception) {
@@ -98,14 +92,7 @@ override suspend fun confirmTotp(token: String, code: String): Result<List<Strin
         "totp_confirm"
     ).getOrThrow()
     // 0.75：解析恢复码（启用成功后一次性返回）
-    val obj = runCatching { org.json.JSONObject(body) }.getOrNull()
-    val codes = obj?.optJSONArray("backupCodes")
-    val result = if (codes != null) {
-        (0 until codes.length()).map { codes.optString(it) }.filter { it.isNotBlank() }
-    } else {
-        emptyList()
-    }
-    Result.success(result)
+    Result.success(TotpResponsePolicy.parseBackupCodes(body))
 } catch (error: CancellationException) {
     throw error
 } catch (error: Exception) {
