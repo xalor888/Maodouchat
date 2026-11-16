@@ -2,6 +2,7 @@ package com.maodouchat.theme
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.maodouchat.domain.messaging.ChatBubbleColorPolicy
 
 // ─── 聊天气泡颜色（自定义主题色 · 仅影响聊天页发送气泡）────────
 //
@@ -9,12 +10,12 @@ import androidx.compose.ui.graphics.toArgb
 //（`util/ChatAppearancePreferences` 的气泡色读写依赖它，非 ui 包不再需要 FQ 引用 ui）。
 // 类体逐行未动。
 object ChatBubbleColorPalette {
-    const val BLUE = "blue"
-    const val GREEN = "green"
-    const val PURPLE = "purple"
-    const val ORANGE = "orange"
-    const val PINK = "pink"
-    const val TEAL = "teal"
+    const val BLUE = ChatBubbleColorPolicy.BLUE
+    const val GREEN = ChatBubbleColorPolicy.GREEN
+    const val PURPLE = ChatBubbleColorPolicy.PURPLE
+    const val ORANGE = ChatBubbleColorPolicy.ORANGE
+    const val PINK = ChatBubbleColorPolicy.PINK
+    const val TEAL = ChatBubbleColorPolicy.TEAL
 
     fun light(id: String): Color = when (id) {
         GREEN -> Color(0xFF34C759)
@@ -34,10 +35,7 @@ object ChatBubbleColorPalette {
         else -> Color(0xFF0A84FF)
     }
 
-    fun normalize(raw: String?): String {
-        val id = raw?.trim()?.lowercase().orEmpty()
-        return if (id in setOf(BLUE, GREEN, PURPLE, ORANGE, PINK, TEAL)) id else GREEN
-    }
+    fun normalize(raw: String?): String = ChatBubbleColorPolicy.normalize(raw)
 
     /** 发送气泡渐变（浅色端略亮，保留原蓝色梯度观感）。 */
     fun gradient(base: Color): List<Color> {

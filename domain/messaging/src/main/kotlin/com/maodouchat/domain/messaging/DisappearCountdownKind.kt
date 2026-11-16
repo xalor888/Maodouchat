@@ -25,3 +25,7 @@ fun disappearCountdownKind(expiresAt: Long?, nowMs: Long): DisappearCountdownKin
         )
     }
 }
+
+// 阅后即焚倒计时刷新间隔：剩余 1 小时以上每 15 秒刷新，否则每秒刷新。
+fun disappearCountdownRefreshDelayMs(remainingMs: Long): Long =
+    if (remainingMs > 3_600_000L) 15_000L else 1_000L

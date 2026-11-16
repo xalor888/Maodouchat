@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.DisappearCountdownKind
 import com.maodouchat.domain.messaging.disappearCountdownKind
+import com.maodouchat.domain.messaging.disappearCountdownRefreshDelayMs
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.Primary
 
@@ -43,8 +44,7 @@ internal fun DisappearCountdownLabel(
             nowMs = System.currentTimeMillis()
             val remaining = com.maodouchat.core.model.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
             if (remaining <= 0L) break
-            // 1 小时内每秒刷新；更长时每 15 秒刷新以省电
-            val delayMs = if (remaining > 3_600_000L) 15_000L else 1_000L
+            val delayMs = disappearCountdownRefreshDelayMs(remaining)
             kotlinx.coroutines.delay(delayMs)
         }
     }

@@ -2,8 +2,9 @@ package com.maodouchat.ui.component
 
 import android.content.Context
 import coil.request.ImageRequest
-import com.maodouchat.session.CurrentSession
 import com.maodouchat.core.model.FrequencyWatermark
+import com.maodouchat.domain.messaging.OwnerScopedImageKeyPolicy
+import com.maodouchat.session.CurrentSession
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.watermark.SecretWatermarkTransformation
 
@@ -14,10 +15,8 @@ import com.maodouchat.watermark.SecretWatermarkTransformation
  */
 object OwnerScopedImageKeys {
     /** Pure key format used by [cacheKey]; unit-tested without Android. */
-    fun formatKey(ownerUserId: String, data: String): String? {
-        if (data.isBlank()) return null
-        return "${ownerUserId}:${data}"
-    }
+    fun formatKey(ownerUserId: String, data: String): String? =
+        OwnerScopedImageKeyPolicy.formatKey(ownerUserId, data)
 
     /**
      * @param secretPayload 非空时表示当前为密聊图片，需注入频域盲水印；
