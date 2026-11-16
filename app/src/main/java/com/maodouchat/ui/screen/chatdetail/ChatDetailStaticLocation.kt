@@ -3,10 +3,11 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.LocationException
-import com.maodouchat.core.model.LocationFailure
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.LocationFailureKind
 import com.maodouchat.domain.messaging.LocationPayloadPolicy
+import com.maodouchat.domain.messaging.locationFailureKind
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.LocationProvider
 import com.maodouchat.util.RuntimeFlags
@@ -64,10 +65,10 @@ fun ChatDetailViewModel.sendCurrentLocation() {
                     sendInlineContent(content, MessageType.LOCATION, text(R.string.message_preview_location))
                 },
                 onFailure = { error ->
-                    val message = when ((error as? LocationException)?.failure) {
-                        LocationFailure.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
-                        LocationFailure.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
-                        LocationFailure.UNAVAILABLE, null -> text(R.string.location_error_unavailable)
+                    val message = when (locationFailureKind((error as? LocationException)?.failure)) {
+                        LocationFailureKind.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
+                        LocationFailureKind.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
+                        LocationFailureKind.UNAVAILABLE, LocationFailureKind.UNKNOWN -> text(R.string.location_error_unavailable)
                     }
                     _uiState.update { it.copy(isSending = false, groupEncryptionWarning = message) }
                 }
