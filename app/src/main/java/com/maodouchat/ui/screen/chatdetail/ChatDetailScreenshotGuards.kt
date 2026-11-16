@@ -11,6 +11,8 @@ import com.maodouchat.R
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.conversation.CapturePathPolicy
+import com.maodouchat.domain.conversation.ScreenshotAlertKind
+import com.maodouchat.domain.conversation.screenshotAlertKind
 
 // 从 ChatDetailRoute.kt 纯搬移：副作用簇抽出，块字节级一致。
 @Composable
@@ -34,11 +36,10 @@ internal fun ChatDetailScreenshotGuards(
         )
         if (!detectEnabled) return@LaunchedEffect
         val detector = com.maodouchat.security.ScreenshotDetector(context) {
-            val msg = when {
-                secretActive && disappearingActive ->
-                    screenshotMsgSecret + " · " + screenshotMsgDisappear
-                secretActive -> screenshotMsgSecret
-                else -> screenshotMsgDisappear
+            val msg = when (screenshotAlertKind(secretActive, disappearingActive)) {
+                ScreenshotAlertKind.BOTH -> screenshotMsgSecret + " · " + screenshotMsgDisappear
+                ScreenshotAlertKind.SECRET_ONLY -> screenshotMsgSecret
+                ScreenshotAlertKind.DISAPPEARING_ONLY -> screenshotMsgDisappear
             }
             Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
             viewModel.notifyLocalCaptureDetected(msg)
