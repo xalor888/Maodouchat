@@ -47,7 +47,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.groups.GroupAnnouncementPolicy
 import com.maodouchat.domain.groups.GroupNamePolicy
+import com.maodouchat.domain.groups.GroupNicknamePolicy
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
@@ -168,7 +170,7 @@ fun GroupEditScreen(
                         item(key = "edit_announcement", contentType = "setting") {
                             AnnouncementRow(
                                 value = announcementDraft,
-                                onValueChange = { announcementDraft = it.take(1200) },
+                                onValueChange = { announcementDraft = GroupAnnouncementPolicy.filterInput(it) },
                                 enabled = !state.isUpdating,
                                 onSave = { viewModel.updateAnnouncement(announcementDraft) },
                                 saveEnabled = announcementDraft.trim() != state.groupAnnouncement,
@@ -184,7 +186,7 @@ fun GroupEditScreen(
                         SettingTextFieldRow(
                             label = stringResource(R.string.group_detail_my_nickname),
                             value = nicknameDraft,
-                            onValueChange = { nicknameDraft = it.take(100) },
+                            onValueChange = { nicknameDraft = GroupNicknamePolicy.filterInput(it) },
                             enabled = !state.isUpdating,
                             onSave = { viewModel.setMyNickname(nicknameDraft) },
                             saveEnabled = nicknameDraft.trim() != state.myNickname

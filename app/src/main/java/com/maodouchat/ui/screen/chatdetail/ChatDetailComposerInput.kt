@@ -21,6 +21,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.ComposerLengthPolicy
+import com.maodouchat.domain.messaging.ComposerLengthWarning
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.UnreadRed
@@ -66,6 +68,7 @@ Box(
 ) {
     // 1.175：回车发送偏好（开 → 单行 + IME Send；关 → 多行回车换行）
     val enterToSend = com.maodouchat.util.ComposerPreferences.enterToSend(context)
+    val lengthWarning = ComposerLengthPolicy.warningLevel(value.length)
     TextField(
         value = value, onValueChange = onValueChange,
         placeholder = { Text(stringResource(R.string.chat_message_placeholder), style = MaterialTheme.typography.bodyLarge, color = LocalChatPalette.current.textHint) },
@@ -76,12 +79,12 @@ Box(
         keyboardActions = androidx.compose.foundation.text.KeyboardActions(
             onSend = { if (enterToSend && !isSending) onSend() }
         ),
-        trailingIcon = if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 8 / 10) {
+        trailingIcon = if (lengthWarning != ComposerLengthWarning.NONE) {
             {
                 Text(
-                    text = "${value.length}/${com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH}",
+                    text = "${value.length}/${ComposerLengthPolicy.MAX_LENGTH}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (value.length >= com.maodouchat.ui.screen.chatdetail.ChatDetailViewModel.MAX_COMPOSER_TEXT_LENGTH * 9 / 10) UnreadRed else TextHint
+                    color = if (lengthWarning == ComposerLengthWarning.NEAR_LIMIT) UnreadRed else TextHint
                 )
             }
         } else null,

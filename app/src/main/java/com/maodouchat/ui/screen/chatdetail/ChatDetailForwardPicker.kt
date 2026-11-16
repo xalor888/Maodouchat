@@ -40,6 +40,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.ForwardMergePolicy
+import com.maodouchat.domain.messaging.ForwardPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import android.widget.Toast
 import com.maodouchat.core.model.ChatDetailUiState
@@ -94,11 +95,10 @@ internal fun ChatDetailForwardPicker(
             forwardTargetName(context, chat, state.currentUserId).contains(q, ignoreCase = true)
         }
     }
-    val forwardPageSize = 64
     val visibleForwardTargets = if (forwardExpanded) {
         filteredForwardTargets
     } else {
-        filteredForwardTargets.take(forwardPageSize)
+        filteredForwardTargets.take(ForwardPreviewPolicy.PAGE_SIZE)
     }
     AlertDialog(
         onDismissRequest = { onCancel() },
@@ -112,12 +112,14 @@ internal fun ChatDetailForwardPicker(
                     modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())
                 ) {
                     // 1.164：转发内容预览（最多显示 3 条，其余折叠为数量提示）
-                    forwardMessages.take(3).forEach { fm ->
+                    forwardMessages.take(ForwardPreviewPolicy.PREVIEW_COUNT).forEach { fm ->
                         val previewText = forwardPreviewText(fm.type)?.let { stringResource(chatMessagePreviewTextResId(it)) }
-                            ?: com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
-                                fm.parsedContent(),
-                                stringResource(R.string.chat_decrypt_failed)
-                            ).replace('\n', ' ').take(40)
+                            ?: ForwardPreviewPolicy.previewText(
+                                com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                                    fm.parsedContent(),
+                                    stringResource(R.string.chat_decrypt_failed)
+                                )
+                            )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()
@@ -134,9 +136,9 @@ internal fun ChatDetailForwardPicker(
                             )
                         }
                     }
-                    if (forwardMessages.size > 3) {
+                    if (forwardMessages.size > ForwardPreviewPolicy.PREVIEW_COUNT) {
                         Text(
-                            pluralStringResource(R.plurals.chat_forward_more_previews, forwardMessages.size - 3, forwardMessages.size - 3),
+                            pluralStringResource(R.plurals.chat_forward_more_previews, ForwardPreviewPolicy.previewOverflowCount(forwardMessages.size), ForwardPreviewPolicy.previewOverflowCount(forwardMessages.size)),
                             style = MaterialTheme.typography.labelSmall,
                             color = LocalChatPalette.current.textHint
                         )
@@ -153,7 +155,7 @@ internal fun ChatDetailForwardPicker(
                     )
                     OutlinedTextField(
                         value = forwardNote,
-                        onValueChange = { forwardNote = it.take(500) },
+                        onValueChange = { forwardNote = ForwardPreviewPolicy.filterNote(it) },
                         singleLine = true,
                         placeholder = { Text(stringResource(R.string.chat_forward_note_hint)) },
                         modifier = Modifier.fillMaxWidth()
@@ -234,17 +236,17 @@ internal fun ChatDetailForwardPicker(
                                 }
                             }
                         }
-                        if (!forwardExpanded && filteredForwardTargets.size > forwardPageSize) {
+                        if (!forwardExpanded && filteredForwardTargets.size > ForwardPreviewPolicy.PAGE_SIZE) {
                             TextButton(onClick = { forwardExpanded = true }, modifier = Modifier.fillMaxWidth()) {
                                 Text(
                                     stringResource(
                                         R.string.chat_forward_targets_more,
-                                        filteredForwardTargets.size - forwardPageSize
+                                        ForwardPreviewPolicy.hiddenTargetCount(filteredForwardTargets.size)
                                     ),
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
-                        } else if (forwardExpanded && filteredForwardTargets.size > forwardPageSize) {
+                        } else if (forwardExpanded && filteredForwardTargets.size > ForwardPreviewPolicy.PAGE_SIZE) {
                             Text(
                                 stringResource(R.string.chat_forward_targets_showing_all, filteredForwardTargets.size),
                                 style = MaterialTheme.typography.labelSmall,

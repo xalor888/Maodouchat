@@ -41,6 +41,7 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.domain.groups.GroupMemberActionPolicy
+import com.maodouchat.domain.groups.GroupMemberMuteBadgePolicy
 import com.maodouchat.domain.groups.GroupMemberRoleKind
 import com.maodouchat.domain.groups.groupMemberRoleKind
 import com.maodouchat.domain.messaging.ChatDateDisplay
@@ -129,10 +130,10 @@ fun MemberRow(
                 listOfNotNull(
                     roleLabel(member.role),
                     member.title?.takeIf { it.isNotBlank() } ?: stringResource(R.string.group_detail_no_title),
-                    if (member.isMuted && member.role != "OWNER") stringResource(R.string.group_detail_muted_until, formatMuteTime(member.mutedUntil)) else null
+                    if (GroupMemberMuteBadgePolicy.shouldShowMute(member.isMuted, member.role)) stringResource(R.string.group_detail_muted_until, formatMuteTime(member.mutedUntil)) else null
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (member.isMuted && member.role != "OWNER") UnreadRed else LocalChatPalette.current.textSecondary,
+                color = if (GroupMemberMuteBadgePolicy.shouldShowMute(member.isMuted, member.role)) UnreadRed else LocalChatPalette.current.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
