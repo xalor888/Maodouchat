@@ -41,11 +41,11 @@ import com.maodouchat.core.model.AuthResponse
 import com.maodouchat.core.model.RefreshOutcome
 import com.maodouchat.core.model.RefreshTokenRequest
 import com.maodouchat.core.model.apiExceptionForIOException
+import com.maodouchat.domain.messaging.ApiErrorBodyPolicy
 
 /**
  * REST API client compatibility facade.
- * Typed domain clients own endpoint construction; this object retains the shared authenticated
- * transport and preserves the existing static surface during call-site migration.
+ * Typed domain clients own endpoint construction; this object retains the shared authenticated transport.
  */
 object ApiService :
     ApiSurface by ApiEndpointClients,
@@ -118,7 +118,7 @@ object ApiService :
         return use { it.body?.string() ?: "" }
     }
 
-    internal fun parseError(body: String): String? = ApiHttpErrors.parseError(body)
+    internal fun parseError(body: String): String? = ApiErrorBodyPolicy.parseError(body)
 
     private fun accessTokenSubject(token: String?): String? = runCatching {
         val payload = token?.split('.')?.getOrNull(1)?.takeIf { it.isNotBlank() } ?: return@runCatching null

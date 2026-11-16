@@ -17,13 +17,13 @@ import com.maodouchat.core.model.AttachmentUploadSessionRequest
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
 import com.maodouchat.core.model.sha256Hex
 import com.maodouchat.core.network.MediaUploadApi
+import com.maodouchat.domain.messaging.AttachmentUploadStatusPolicy
 
 internal object MediaUploadApiClient : MediaUploadApi {
 private val json get() = ApiService.json
 private val JSON_MEDIA get() = ApiService.JSON_MEDIA
 private val ATTACHMENT_CHUNK_BYTES get() = ApiService.ATTACHMENT_CHUNK_BYTES
 private val ATTACHMENT_CHUNK_MAX_ATTEMPTS get() = ApiService.ATTACHMENT_CHUNK_MAX_ATTEMPTS
-private val ATTACHMENT_ID_REGEX get() = ApiService.ATTACHMENT_ID_REGEX
 private fun jsonBody(value: String) = value.toRequestBody(ApiService.JSON_MEDIA)
 private suspend fun <T> send(request: Request, serializer: kotlinx.serialization.KSerializer<T>): Result<T> = ApiService.send(request, serializer)
 private suspend fun sendUnit(request: Request): Result<Unit> = ApiService.sendUnit(request)
@@ -41,7 +41,7 @@ override suspend fun uploadEncryptedAttachment(
         require(total in 17L..(100L * 1024L * 1024L + 64L)) { "attachment_size_invalid" }
         require(encryptedFile.sha256Hex() == cipherSha256.lowercase()) { "attachment_source_hash_mismatch" }
         var status = createAttachmentUploadSessionWithRetry(token, chatId, messageId, cipherSha256, total)
-        validateAttachmentUploadStatus(status, cipherSha256, total)
+        AttachmentUploadStatusPolicy.validate(status, cipherSha256, total)
         var attachmentId = status.id
         onCheckpoint(attachmentId, status.uploadedBytes, total)
         onProgress(status.uploadedBytes, total)
@@ -58,7 +58,7 @@ override suspend fun uploadEncryptedAttachment(
                         kotlinx.coroutines.delay(500L)
                         continue
                     }
-                    validateAttachmentUploadStatus(attempt, cipherSha256, total)
+                    AttachmentUploadStatusPolicy.validate(attempt, cipherSha256, total)
                     if (attempt.id != attachmentId) attachmentId = attempt.id
                     status = attempt
                     if (status.complete || status.uploadedBytes < total) {
@@ -90,7 +90,7 @@ override suspend fun uploadEncryptedAttachment(
                 )
                 if (chunkResult.isSuccess) {
                     status = chunkResult.getOrThrow()
-                    validateAttachmentUploadStatus(status, cipherSha256, total)
+                    AttachmentUploadStatusPolicy.validate(status, cipherSha256, total)
                     // 服务端可能按 messageId 幂等替换上传会话：重新锚定新会话 id 继续传
                     if (status.id != attachmentId) attachmentId = status.id
                     advanced = status.uploadedBytes > offset || status.complete
@@ -100,7 +100,7 @@ override suspend fun uploadEncryptedAttachment(
                     lastError = chunkResult.exceptionOrNull()
                     val recovered = getAttachmentUploadStatus(token, attachmentId).getOrNull()
                     if (recovered != null) {
-                        validateAttachmentUploadStatus(recovered, cipherSha256, total)
+                        AttachmentUploadStatusPolicy.validate(recovered, cipherSha256, total)
                         if (recovered.id != attachmentId) attachmentId = recovered.id
                         status = recovered
                         if (status.uploadedBytes > offset || status.complete) {
@@ -190,7 +190,7 @@ override suspend fun verifyEncryptedAttachmentReady(
     if (current.isFailure) return Result.failure(current.exceptionOrNull()!!)
     return try {
         val status = current.getOrThrow()
-        validateAttachmentUploadStatus(status, expectedSha256, expectedSize)
+        AttachmentUploadStatusPolicy.validate(status, expectedSha256, expectedSize)
         require(status.complete && status.status in setOf("UPLOADED", "COMMITTED")) { "attachment_upload_incomplete" }
         if (status.status == "COMMITTED") return Result.success(status)
 
@@ -201,7 +201,7 @@ override suspend fun verifyEncryptedAttachmentReady(
             cipherSha256 = expectedSha256,
             cipherSize = expectedSize
         ).getOrThrow()
-        validateAttachmentUploadStatus(refreshed, expectedSha256, expectedSize)
+        AttachmentUploadStatusPolicy.validate(refreshed, expectedSha256, expectedSize)
         if (refreshed.id != attachmentId || !refreshed.complete || refreshed.status != "UPLOADED") {
             throw ApiException(ApiFailureKind.HTTP, 410, "attachment_session_replaced")
         }
@@ -230,19 +230,6 @@ private suspend fun uploadAttachmentChunk(
         .build(),
     AttachmentUploadStatusResponse.serializer()
 )
-
-private fun validateAttachmentUploadStatus(
-    status: AttachmentUploadStatusResponse,
-    expectedSha256: String,
-    expectedSize: Long
-) {
-    require(status.id.matches(ATTACHMENT_ID_REGEX)) { "attachment_id_invalid" }
-    require(status.cipherSha256 == expectedSha256.lowercase()) { "attachment_hash_mismatch" }
-    require(status.cipherSize == expectedSize) { "attachment_size_mismatch" }
-    require(status.uploadedBytes in 0L..expectedSize) { "attachment_offset_invalid" }
-    require(status.status in setOf("UPLOADING", "UPLOADED", "COMMITTED")) { "attachment_status_invalid" }
-    require(!status.complete || status.uploadedBytes == expectedSize) { "attachment_completion_invalid" }
-}
 
 override suspend fun deleteUncommittedAttachment(token: String, attachmentId: String): Result<Unit> =
     sendUnit(
