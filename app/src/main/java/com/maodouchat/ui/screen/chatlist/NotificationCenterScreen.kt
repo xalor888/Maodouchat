@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.NotifFilter
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.conversation.NotificationCenterFilterPolicy
 import com.maodouchat.domain.messaging.groupByDay
 import com.maodouchat.domain.messaging.resolvedNotificationChatId
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -70,18 +71,7 @@ fun NotificationCenterScreen(
 
     val filteredItems = remember(items, filter, searchQuery) {
         val typeFiltered = items.filter { item -> filter.matches(item) }
-        val query = searchQuery.trim()
-        if (query.isBlank()) {
-            typeFiltered
-        } else {
-            typeFiltered.filter { item ->
-                item.title.contains(query, ignoreCase = true) ||
-                    item.subtitle.orEmpty().contains(query, ignoreCase = true) ||
-                    item.preview.orEmpty().contains(query, ignoreCase = true) ||
-                    item.type.contains(query, ignoreCase = true) ||
-                    item.extra.values.any { it.contains(query, ignoreCase = true) }
-            }
-        }
+        NotificationCenterFilterPolicy.filter(typeFiltered, searchQuery)
     }
     val groups = remember(filteredItems) { filteredItems.groupByDay() }
     val unreadCount = items.count { !it.read }

@@ -46,6 +46,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.SafetyCodePolicy
+import com.maodouchat.domain.messaging.DeviceSafetyFilterPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -113,17 +114,7 @@ internal fun SafetyCodeDialog(
                 val devices = deviceSafetyStates
                 var deviceSearch by remember { mutableStateOf("") }
                 val filteredDevices = remember(devices, deviceSearch) {
-                    val q = deviceSearch.trim()
-                    if (q.isEmpty()) {
-                        devices
-                    } else {
-                        devices.filter { device ->
-                            device.deviceId.toString().contains(q, ignoreCase = true) ||
-                                device.trustState.name.contains(q, ignoreCase = true) ||
-                                device.safetyCode.orEmpty().contains(q, ignoreCase = true) ||
-                                device.identityKey.orEmpty().contains(q, ignoreCase = true)
-                        }
-                    }
+                    DeviceSafetyFilterPolicy.filter(devices, deviceSearch)
                 }
                 if (devices.isEmpty()) {
                     Text(stringResource(R.string.chat_safety_status, if (isGroup) stringResource(R.string.chat_group_sender_key_enabled) else trustState.toLabel()), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
