@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.contacts.AccountDeviceFilterPolicy
 import com.maodouchat.security.AppLockManager
 import com.maodouchat.ui.screen.settings.SettingsViewModel
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -206,16 +207,7 @@ fun AccountSecurityScreen(
                 else -> {
                     var deviceSearch by rememberSaveable(state.userId) { mutableStateOf("") }
                     val filteredDevices = remember(state.devices, deviceSearch) {
-                        val query = deviceSearch.trim()
-                        if (query.isBlank()) {
-                            state.devices
-                        } else {
-                            state.devices.filter {
-                                it.deviceName.contains(query, ignoreCase = true) ||
-                                    it.deviceId.toString().contains(query, ignoreCase = true) ||
-                                    it.status.contains(query, ignoreCase = true)
-                            }
-                        }
+                        AccountDeviceFilterPolicy.filter(state.devices, deviceSearch)
                     }
                     if (state.devices.size >= 4) {
                         OutlinedTextField(

@@ -561,7 +561,7 @@ class ClientArchitectureTest {
         // 2026-10-17：通知中心对话框簇（清空确认/清会话通知/长按操作菜单）抽出
         // NotificationCenterDialogs.kt（283 → 201，纯搬移；AlertDialog/TextButton/Toast/
         // LocalContext/SuppressLint 随迁后在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 202,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 192,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
                 // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
@@ -645,7 +645,7 @@ class ClientArchitectureTest {
         // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
         // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 336,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -663,7 +663,7 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         // 2026-10-17：删闲置 import（665 → 663 纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 663,
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 653,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，
@@ -852,7 +852,7 @@ class ClientArchitectureTest {
         // 2026-10-17：通知中心对话框簇（清空确认/清会话通知/长按操作菜单）抽出
         // NotificationCenterDialogs.kt（283 → 201，纯搬移；AlertDialog/TextButton/Toast/
         // LocalContext/SuppressLint 随迁后在母文件变闲置一并删除），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 202,
+        "com/maodouchat/ui/screen/chatlist/NotificationCenterScreen.kt" to 192,
         // G164b：随 #454/#456 两轮合并后实测 671 行（740→671），上限同步收紧。
                 // 2026-10-19：尾部两对话框抽出同包 ExplorePostDetailDialogs（671 → 621，状态走参数+回调），上限同步收紧（两份 map 一起改）。
                 // 2026-10-19：评论行抽出同包 PostDetailCommentRow（621 → 488，状态走参数+回调），上限同步收紧（两份 map 一起改）。
@@ -922,7 +922,7 @@ class ClientArchitectureTest {
         // 新文件 234/252 行未进前 20，不纳管），上限同步收紧（两份 map 一起改）。
         // 2026-10-19：修 lint（LocalContextGetResourceValueCall 注解随分区代码迁入新文件；
         // 母文件残留的注解+import 删掉），346 → 344，上限同步收紧。
-        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 344,
+        "com/maodouchat/ui/screen/settings/SettingsAccountSecurityScreen.kt" to 336,
         // TextMessageBubble 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
@@ -940,7 +940,7 @@ class ClientArchitectureTest {
         // 2026-10-08：SettingsScreen 拆小（936→398）后 SettingsAiPrivacy 挤进前 20——按实测值纳入监管
         // （先纳管，后续再拆；新条目无历史基线，G165 自动跳过）。
         // 2026-10-17：删闲置 import（665 → 663 纯删行），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 663,
+        "com/maodouchat/ui/screen/settings/SettingsAiPrivacy.kt" to 653,
         // 2026-10-10：ApiEndpointClients（692→139）与 DatabaseMigrations（719→80）拆小后
         // MaodouAgentScreen（618）挤进前 20 纳管；本轮按主题拆出 5 个簇文件
         // （TopBar/引导页/消息气泡簇/审批卡/输入条，618 → 124 纯搬移；新文件均未进前 20，

@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.domain.messaging.AiAuditLogFilterPolicy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -571,18 +572,7 @@ fun AiPrivacySettingsScreen(
                     else -> {
                         var auditSearch by rememberSaveable { mutableStateOf("") }
                         val filteredAuditLogs = remember(state.auditLogs, auditSearch) {
-                            val query = auditSearch.trim()
-                            if (query.isBlank()) {
-                                state.auditLogs
-                            } else {
-                                state.auditLogs.filter { log ->
-                                    log.feature.contains(query, ignoreCase = true) ||
-                                        log.status.contains(query, ignoreCase = true) ||
-                                        log.model.orEmpty().contains(query, ignoreCase = true) ||
-                                        log.error.orEmpty().contains(query, ignoreCase = true) ||
-                                        log.chatId.orEmpty().contains(query, ignoreCase = true)
-                                }
-                            }
+                            AiAuditLogFilterPolicy.filter(state.auditLogs, auditSearch)
                         }
                         if (state.auditLogs.size >= 5) {
                             OutlinedTextField(
