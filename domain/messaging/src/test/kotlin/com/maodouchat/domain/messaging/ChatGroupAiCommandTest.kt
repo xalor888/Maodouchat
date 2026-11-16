@@ -117,6 +117,30 @@ class ChatGroupAiCommandTest {
     }
 
     @Test
+    fun parseTasksSplitsLinesAndStripsBullets() {
+        val tasks = parseGroupAiTasks("- 买牛奶\n* 开会\n• 写报告\n\n纯文本行", "tasks")
+        // 行首符号剥掉后留一个空格，这是 app 侧旧行为，逐字保留。
+        assertEquals(listOf(" 买牛奶", " 开会", " 写报告", "纯文本行"), tasks.map { it.title })
+    }
+
+    @Test
+    fun parseTasksOnlyInTasksMode() {
+        assertEquals(emptyList(), parseGroupAiTasks("- 买牛奶", "summary"))
+        assertEquals(emptyList(), parseGroupAiTasks("", "tasks"))
+    }
+
+    @Test
+    fun parseTasksCapsAtThirtyAndTruncatesTitle() {
+        val answer = (1..35).joinToString("\n") { "任务$it" }
+        val tasks = parseGroupAiTasks(answer, "tasks")
+        assertEquals(30, tasks.size)
+        assertEquals("任务1", tasks.first().title)
+        assertEquals("任务30", tasks.last().title)
+        val long = parseGroupAiTasks("x".repeat(400), "tasks")
+        assertEquals(300, long.single().title.length)
+    }
+
+    @Test
     fun stripLeavesTimelineRisksAndPlainUntouched() {
         // 时间线/风险/无模式分支原样返回，这是 app 侧旧行为，逐字保留。
         assertEquals("时间线梳理", stripGroupAiModeKeyword("时间线梳理"))

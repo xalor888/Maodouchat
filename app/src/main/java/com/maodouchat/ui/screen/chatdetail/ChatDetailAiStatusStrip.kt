@@ -33,20 +33,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.AiStatusStripMode
+import com.maodouchat.domain.messaging.aiStatusStripMode
+import com.maodouchat.domain.messaging.aiStatusStripVisible
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
  * 输入框上方的 AI 状态条（G92 从 `ChatDetailComponents.kt` 的 `ComposerPane` 拆出，原 88 行）。
  *
- * 内含一条**优先级分派**，顺序错了 UI 就会串味（四条分支互斥，`when` 自上而下取第一个命中）：
- * 1. `isAiReplyStreaming`——回复流式中：进度圈 + 建议胶囊（流式中且有建议时**不显示** working 文案）+ 取消；
- * 2. `isAiWorking`——普通工作中（如摘要生成）：进度圈 + working 文案；
- * 3. `aiSuggestions.isNotEmpty()`——有建议列表：建议胶囊 + 可选重试 + 清除；
- * 4. `else`——纯错误态：红字错误原因 + 重试 + 清除。
- *
- * **可见性条件也容易写错**：`(isAiWorking && !isAiDraftStreaming) || aiSuggestions.isNotEmpty() || aiReplyStreamErrorCode != null`。
- * 草稿流式输出（`isAiDraftStreaming`）由 `AiDraftStreamBar` 单独渲染，这里必须排除，
- * 否则两条进度条同时出现。
+ * **优先级分派**与**可见性条件**在 :domain:messaging 的 `AiStatusStripPolicy`，此处只留分支 UI：
+ * 1. `STREAMING`——回复流式中：进度圈 + 建议胶囊（流式中且有建议时**不显示** working 文案）+ 取消；
+ * 2. `WORKING`——普通工作中（如摘要生成）：进度圈 + working 文案；
+ * 3. `SUGGESTIONS`——有建议列表：建议胶囊 + 可选重试 + 清除；
+ * 4. `ERROR`——纯错误态：红字错误原因 + 重试 + 清除。
  *
  * **拆解约束**：不抓任何全局单例、不读数据库、不 import `MaodouchatApp`；
  * 所需输入全部经参数显式传入。纯搬移，不改判断。
@@ -71,7 +70,7 @@ internal fun ChatDetailAiStatusStrip(
     modifier: Modifier = Modifier,
 ) {
 AnimatedVisibility(
-    visible = (isAiWorking && !isAiDraftStreaming) || aiSuggestions.isNotEmpty() || aiReplyStreamErrorCode != null,
+    visible = aiStatusStripVisible(isAiWorking, isAiDraftStreaming, aiSuggestions, aiReplyStreamErrorCode),
     enter = expandVertically() + fadeIn(),
     exit = shrinkVertically() + fadeOut()
 ) {
@@ -79,8 +78,8 @@ AnimatedVisibility(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
-        when {
-            isAiReplyStreaming -> {
+        when (aiStatusStripMode(isAiReplyStreaming, isAiWorking, aiSuggestions)) {
+            AiStatusStripMode.STREAMING -> {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.width(8.dp))
                 if (aiSuggestions.isEmpty()) {
@@ -109,12 +108,12 @@ AnimatedVisibility(
                     Icon(Icons.Outlined.Close, stringResource(R.string.chat_ai_stream_cancel), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
                 }
             }
-            isAiWorking -> {
+            AiStatusStripMode.WORKING -> {
             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
             Spacer(modifier = Modifier.width(8.dp))
             Text(stringResource(R.string.chat_ai_working), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
             }
-            aiSuggestions.isNotEmpty() -> {
+            AiStatusStripMode.SUGGESTIONS -> {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Row(
@@ -139,7 +138,7 @@ AnimatedVisibility(
                     Icon(Icons.Outlined.Close, contentDescription = stringResource(R.string.chat_clear_ai_suggestions), tint = LocalChatPalette.current.textHint, modifier = Modifier.size(18.dp))
                 }
             }
-            else -> {
+            AiStatusStripMode.ERROR -> {
                 Icon(Icons.Outlined.AutoAwesome, contentDescription = null, tint = LocalChatPalette.current.unreadRed, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(

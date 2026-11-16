@@ -3,12 +3,12 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.R
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiContextMessage
-import com.maodouchat.core.model.AiGroupTask
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.AiSemanticSearchCandidate
 import com.maodouchat.core.model.semanticSearchText
 import com.maodouchat.core.model.buildPlainAiContextMessages
 import com.maodouchat.domain.messaging.parseGroupAiCommand
+import com.maodouchat.domain.messaging.parseGroupAiTasks
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -76,16 +76,7 @@ internal fun ChatDetailViewModel.groupAssistant(query: String, mode: String) {
                 onSuccess = { answer ->
                     if (!groupAiGate.isCurrent(generation)) return@fold
                     requireAiRequestCurrent(request)
-                    val tasks = if (mode == "tasks") {
-                        answer.lineSequence()
-                            .map { it.trim().trimStart('-', '*', '•') }
-                            .filter { it.isNotBlank() }
-                            .take(30)
-                            .map { line ->
-                                AiGroupTask(title = line.take(300))
-                            }
-                            .toList()
-                    } else emptyList()
+                    val tasks = parseGroupAiTasks(answer, mode)
                     _uiState.update {
                         it.copy(
                             groupAiAnswer = AiPromptSafetyPolicy
