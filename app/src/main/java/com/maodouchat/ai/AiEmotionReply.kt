@@ -3,8 +3,8 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.core.model.AiEmotionLexicon
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.Emotion
 import com.maodouchat.core.model.EmotionResult
+import com.maodouchat.domain.messaging.AiEmotionTonePolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.AiContextMessage
@@ -57,13 +57,7 @@ object AiEmotionReply {
             )?.let { AiContextMessage(it.sender, it.text) }
         }
         if (contextMessages.isEmpty()) return Result.success(AiEmotionFallback.localFallback(context, emotion.emotion))
-        val tone = when (emotion.emotion) {
-            Emotion.HAPPY -> "warm"
-            Emotion.SAD -> "empathetic"
-            Emotion.ANGRY -> "gentle"
-            Emotion.ANXIOUS -> "encouraging"
-            Emotion.NEUTRAL -> "friendly"
-        }
+        val tone = AiEmotionTonePolicy.toneFor(emotion.emotion)
         return try {
             val replies = com.maodouchat.ai.agent.LocalAiGateway.suggestReplies(
                 context,

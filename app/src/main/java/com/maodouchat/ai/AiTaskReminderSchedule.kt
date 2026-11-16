@@ -8,6 +8,8 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.maodouchat.core.model.AiTaskReminderWorkNaming
 import com.maodouchat.data.local.entity.AiTaskEntity
+import com.maodouchat.domain.messaging.AiTaskReminderSchedulePolicy
+import com.maodouchat.domain.messaging.WorkDelayPolicy
 import com.maodouchat.network.TokenManager
 import java.util.concurrent.TimeUnit
 
@@ -21,8 +23,10 @@ internal object AiTaskReminderSchedule {
             return
         }
         val dueAt = task.dueAt
-        if (task.isCompleted || task.remindedAt != null || dueAt == null ||
-            !AiTaskReminderPreferences.remindersAllowed(context)
+        if (!AiTaskReminderSchedulePolicy.shouldSchedule(
+                task.isCompleted, task.remindedAt, dueAt,
+                AiTaskReminderPreferences.remindersAllowed(context)
+            )
         ) {
             AiTaskReminderCancellation.cancelTask(context, task.id)
             return
@@ -31,7 +35,8 @@ internal object AiTaskReminderSchedule {
             context = context,
             taskId = task.id,
             ownerUserId = ownerUserId,
-            triggerAt = dueAt,
+            // 上方 shouldSchedule 已保证 dueAt 非空，空值会提前 return。
+            triggerAt = dueAt!!,
             policy = if (replace) ExistingWorkPolicy.REPLACE else ExistingWorkPolicy.KEEP
         )
     }
@@ -63,8 +68,7 @@ internal object AiTaskReminderSchedule {
         notifyRetryCount: Int = 0
     ) {
         val appContext = context.applicationContext
-        // 时钟回拨几毫秒会产生 0 延迟重排、Worker 醒来立即再 defer 成忙循环，所以延迟下限 1s。
-        val delay = (triggerAt - System.currentTimeMillis()).coerceAtLeast(1_000L)
+        val delay = WorkDelayPolicy.initialDelayUntil(triggerAt, System.currentTimeMillis())
         val request = OneTimeWorkRequestBuilder<AiTaskReminderWorker>()
             .setInputData(
                 workDataOf(
