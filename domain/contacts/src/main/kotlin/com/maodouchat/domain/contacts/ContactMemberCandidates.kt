@@ -16,4 +16,7 @@ object ContactMemberCandidates {
         }
         return base.sortedWith(compareByDescending<User> { it.isOnline }.thenBy { it.displayName.lowercase() })
     }
+
+    fun selectedMembers(contacts: List<User>, selectedIds: Set<String>): List<User> =
+        contacts.filter { it.id in selectedIds }
 }

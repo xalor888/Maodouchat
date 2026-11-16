@@ -76,7 +76,7 @@ internal fun NewGroupDialog(
     var groupName by remember { mutableStateOf("") }
     var memberQuery by remember { mutableStateOf("") }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
-    val selectedMembers = remember(selectedIds, contacts) { contacts.filter { it.id in selectedIds } }
+    val selectedMembers = remember(selectedIds, contacts) { ContactMemberCandidates.selectedMembers(contacts, selectedIds) }
     val filteredContacts = remember(contacts, memberQuery) {
         ContactMemberCandidates.filterAndSort(contacts, memberQuery)
     }
@@ -179,7 +179,7 @@ internal fun NewChannelDialog(
     var channelName by remember { mutableStateOf("") }
     var memberQuery by remember { mutableStateOf("") }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
-    val selectedMembers = remember(selectedIds, contacts) { contacts.filter { it.id in selectedIds } }
+    val selectedMembers = remember(selectedIds, contacts) { ContactMemberCandidates.selectedMembers(contacts, selectedIds) }
     val filteredContacts = remember(contacts, memberQuery) {
         ContactMemberCandidates.filterAndSort(contacts, memberQuery)
     }

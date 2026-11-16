@@ -104,6 +104,33 @@ class ContactMemberCandidatesTest {
     }
 
     @Test
+    fun selectedMembersKeepsContactOrder() {
+        val contacts = listOf(user("u1", "Alice"), user("u2", "Bob"), user("u3", "Carol"))
+        val ids = ContactMemberCandidates.selectedMembers(contacts, setOf("u3", "u1")).map { it.id }
+        assertEquals(listOf("u1", "u3"), ids)
+    }
+
+    @Test
+    fun selectedMembersWithEmptySelectionReturnsEmpty() {
+        val contacts = listOf(user("u1", "Alice"), user("u2", "Bob"))
+        assertEquals(emptyList<User>(), ContactMemberCandidates.selectedMembers(contacts, emptySet()))
+    }
+
+    @Test
+    fun selectedMembersDropsUnknownIds() {
+        val contacts = listOf(user("u1", "Alice"), user("u2", "Bob"))
+        val ids = ContactMemberCandidates.selectedMembers(contacts, setOf("u2", "u9")).map { it.id }
+        assertEquals(listOf("u2"), ids)
+    }
+
+    @Test
+    fun selectedMembersExcludesUnselected() {
+        val contacts = listOf(user("u1", "Alice"), user("u2", "Bob"))
+        val ids = ContactMemberCandidates.selectedMembers(contacts, setOf("u1")).map { it.id }
+        assertEquals(listOf("u1"), ids)
+    }
+
+    @Test
     fun sameStatusSortedByLowercasedDisplayName() {
         val contacts = listOf(user("u1", "banana"), user("u2", "Apple"))
         val ids = ContactMemberCandidates.filterAndSort(contacts, "").map { it.id }
