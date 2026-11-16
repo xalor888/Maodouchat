@@ -51,6 +51,7 @@ import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.core.model.AiTaskFilter
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
+import com.maodouchat.domain.messaging.AiTaskSearchPolicy
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -188,10 +189,9 @@ fun AiTasksScreen(
                         statusFiltered
                     } else {
                         statusFiltered.filter { task ->
-                            task.title.contains(query, ignoreCase = true) ||
-                                task.owner.orEmpty().contains(query, ignoreCase = true) ||
-                                task.dueText.orEmpty().contains(query, ignoreCase = true) ||
-                                task.sourceQuery.contains(query, ignoreCase = true)
+                            AiTaskSearchPolicy.matches(
+                                task.title, task.owner, task.dueText, task.sourceQuery, query
+                            )
                         }
                     }
                 }

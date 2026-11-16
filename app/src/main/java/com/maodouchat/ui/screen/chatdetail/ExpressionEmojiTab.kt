@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.maodouchat.R
 import com.maodouchat.core.model.BUILT_IN_EMOJIS
 import com.maodouchat.core.model.EMOJI_SEARCH_ALIASES
+import com.maodouchat.domain.messaging.EmojiSearchPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Outline
 import com.maodouchat.ui.theme.Primary
@@ -53,17 +54,7 @@ internal fun ColumnScope.ExpressionEmojiTab(
     var recentEmojis by stickerState.recentEmojis
     var emojiSearch by rememberSaveable { mutableStateOf("") }
     val filteredEmojis = remember(emojiSearch) {
-        val q = emojiSearch.trim()
-        if (q.isEmpty()) {
-            BUILT_IN_EMOJIS
-        } else {
-            // emoji itself or common keyword aliases
-            val aliases = EMOJI_SEARCH_ALIASES
-            BUILT_IN_EMOJIS.filter { emoji ->
-                emoji.contains(q) ||
-                    aliases[emoji].orEmpty().any { it.contains(q, ignoreCase = true) }
-            }
-        }
+        EmojiSearchPolicy.filter(BUILT_IN_EMOJIS, EMOJI_SEARCH_ALIASES, emojiSearch)
     }
     OutlinedTextField(
         value = emojiSearch,
