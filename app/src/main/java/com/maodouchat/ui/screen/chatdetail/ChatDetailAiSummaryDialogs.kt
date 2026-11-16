@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.domain.messaging.AiSummaryHistoryFilterPolicy
+import com.maodouchat.domain.messaging.AiSummaryScopeDescriptionKind
+import com.maodouchat.domain.messaging.AiSummaryScopeOptionPolicy
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.AiSummaryHistoryUi
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -112,7 +114,7 @@ internal fun AiSummaryScopeDialog(
                     }
                 }
                 scopes.forEach { scope ->
-                    val enabled = scope != AiSummaryScope.SEARCH_RESULTS || searchResultCount > 0
+                    val enabled = AiSummaryScopeOptionPolicy.isEnabled(scope, searchResultCount)
                     val icon = when (scope) {
                         AiSummaryScope.RECENT -> Icons.Outlined.History
                         AiSummaryScope.TODAY -> Icons.Outlined.Today
@@ -121,17 +123,14 @@ internal fun AiSummaryScopeDialog(
                         AiSummaryScope.SEARCH_RESULTS -> Icons.Outlined.Search
                         AiSummaryScope.UNREAD -> Icons.Outlined.History
                     }
-                    val description = when (scope) {
-                        AiSummaryScope.RECENT -> stringResource(R.string.chat_ai_summary_scope_recent_description)
-                        AiSummaryScope.TODAY -> stringResource(R.string.chat_ai_summary_scope_today_description)
-                        AiSummaryScope.SEVEN_DAYS -> stringResource(R.string.chat_ai_summary_scope_week_description)
-                        AiSummaryScope.THIRTY_DAYS -> stringResource(R.string.chat_ai_summary_scope_month_description)
-                        AiSummaryScope.SEARCH_RESULTS -> if (searchResultCount > 0) {
-                            stringResource(R.string.chat_ai_summary_scope_search_count, searchResultCount)
-                        } else {
-                            stringResource(R.string.chat_ai_summary_scope_search_empty)
-                        }
-                        AiSummaryScope.UNREAD -> ""
+                    val description = when (AiSummaryScopeOptionPolicy.descriptionKind(scope, searchResultCount)) {
+                        AiSummaryScopeDescriptionKind.RECENT -> stringResource(R.string.chat_ai_summary_scope_recent_description)
+                        AiSummaryScopeDescriptionKind.TODAY -> stringResource(R.string.chat_ai_summary_scope_today_description)
+                        AiSummaryScopeDescriptionKind.WEEK -> stringResource(R.string.chat_ai_summary_scope_week_description)
+                        AiSummaryScopeDescriptionKind.MONTH -> stringResource(R.string.chat_ai_summary_scope_month_description)
+                        AiSummaryScopeDescriptionKind.SEARCH_COUNT -> stringResource(R.string.chat_ai_summary_scope_search_count, searchResultCount)
+                        AiSummaryScopeDescriptionKind.SEARCH_EMPTY -> stringResource(R.string.chat_ai_summary_scope_search_empty)
+                        AiSummaryScopeDescriptionKind.UNREAD_EMPTY -> ""
                     }
                     TextButton(
                         enabled = enabled,

@@ -5,15 +5,12 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.AiDraftTextPolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-/**
- * 从 ChatDetailViewModel.kt 拆分的 AI 生成函数，作为 ChatDetailViewModel 的扩展函数，访问 internal 成员。
- */
 
 internal fun ChatDetailViewModel.captureAiRequestSnapshot(): AiRequestSnapshot? {
     val userId = com.maodouchat.session.CurrentSession.ownerUserId()
@@ -82,8 +79,8 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
                     if (!isAiRequestCurrent(request)) {
                         throw kotlinx.coroutines.CancellationException("ai_rewrite_session_changed")
                     }
-                    if (delta.isEmpty() || buffer.length >= 4_000) return@rewrite
-                    buffer.append(delta.take(4_000 - buffer.length))
+                    if (delta.isEmpty() || AiDraftTextPolicy.isFull(buffer.length)) return@rewrite
+                    buffer.append(delta.take(AiDraftTextPolicy.appendBudget(buffer.length)))
                     val now = System.currentTimeMillis()
                     if (now - lastUiUpdateAt >= 32L || '\n' in delta) {
                         lastUiUpdateAt = now
@@ -95,7 +92,7 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
                 }.fold(
                     onSuccess = { rewritten ->
                         if (!aiRewriteGate.isCurrent(generation) || !isAiRequestCurrent(request)) return@fold
-                        val preview = buffer.toString().ifBlank { rewritten }.trim().take(4_000)
+                        val preview = AiDraftTextPolicy.truncate(buffer.toString().ifBlank { rewritten }.trim())
                         _uiState.update {
                             it.copy(
                                 aiDraftPreview = preview,
@@ -109,7 +106,7 @@ internal fun ChatDetailViewModel.requireAiRequestCurrent(snapshot: AiRequestSnap
                         if (!aiRewriteGate.isCurrent(generation) || !isAiRequestCurrent(request)) return@fold
                         _uiState.update {
                             it.copy(
-                                aiDraftPreview = buffer.toString().trim().take(4_000),
+                                aiDraftPreview = AiDraftTextPolicy.truncate(buffer.toString().trim()),
                                 isAiDraftStreaming = false,
                                 isAiWorking = false,
                                 aiDraftStreamErrorCode = aiOperationErrorCode(error)
@@ -168,7 +165,7 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
     }
 
     fun ChatDetailViewModel.applyAiDraftPreview() {
-        val preview = _uiState.value.aiDraftPreview.trim().take(4_000)
+        val preview = AiDraftTextPolicy.truncate(_uiState.value.aiDraftPreview.trim())
         if (preview.isBlank()) return
         if (_uiState.value.isAiReplyStreaming) cancelAiReplyStream(clearSuggestions = true)
         val wasStreaming = _uiState.value.isAiDraftStreaming
@@ -265,12 +262,12 @@ fun ChatDetailViewModel.cancelAiDraftStream() {
             requireAiRequestCurrent(request)
             com.maodouchat.ai.agent.LocalAiGateway.translate(
                 getApplication(),
-                sourceText.take(4_000),
+                AiDraftTextPolicy.truncate(sourceText),
                 targetLanguage
             ).fold(
                 onSuccess = { translatedRaw ->
                     requireAiRequestCurrent(request)
-                    val translated = translatedRaw.trim().take(4_000)
+                    val translated = AiDraftTextPolicy.truncate(translatedRaw.trim())
                     if (translated.isBlank()) {
                         failAiOperation(operationId, AiOperationError.EMPTY_RESULT)
                         _uiState.update {

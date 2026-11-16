@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ArchiveSuggestionDisplayPolicy
 import com.maodouchat.ui.component.FloatingBottomBarContentPadding
 import com.maodouchat.ui.component.PullToRefreshLayout
 import com.maodouchat.ui.component.SearchBar
@@ -157,7 +158,7 @@ internal fun ChatListContent(
         // 8.47：智能归档建议卡片（纯本地启发式；采纳走现有归档流程）
         if (state.archiveSuggestions.isNotEmpty()) {
             ArchiveSuggestionsCard(
-                suggestions = state.archiveSuggestions.take(3),
+                suggestions = ArchiveSuggestionDisplayPolicy.preview(state.archiveSuggestions),
                 chatsById = state.chats.associateBy { it.id },
                 onArchive = { chatId ->
                     state.chats.firstOrNull { it.id == chatId }?.let { viewModel.archiveChatFromSuggestion(it) }
