@@ -13,6 +13,7 @@ import com.maodouchat.core.session.MutableSessionContextProvider
 import com.maodouchat.core.session.Prefs
 import com.maodouchat.core.session.SessionContext
 import com.maodouchat.core.session.SessionPresencePolicy
+import com.maodouchat.domain.messaging.SyncCursorPolicy
 import kotlinx.coroutines.flow.StateFlow
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -368,11 +369,8 @@ class TokenManager private constructor(private val context: Context) {
         "mutation_sync_id:$chatId"
 
     /** Legacy cursor retained only for non-message migrations; v2 Inbox owns message ordering. */
-    private fun isCursorStrictlyAfter(a: SyncCursor, b: SyncCursor): Boolean {
-        if (a.timestampMs > b.timestampMs) return true
-        if (a.timestampMs < b.timestampMs) return false
-        return a.messageId > b.messageId
-    }
+    private fun isCursorStrictlyAfter(a: SyncCursor, b: SyncCursor): Boolean =
+        SyncCursorPolicy.isStrictlyAfter(a, b)
 
     /** @return true if the preferences were successfully cleared */
     fun clear(): Boolean = synchronized(sessionLock) {

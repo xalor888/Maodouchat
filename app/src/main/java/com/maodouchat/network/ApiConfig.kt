@@ -7,6 +7,7 @@ import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Problem
 import com.maodouchat.core.session.Reason
 import com.maodouchat.core.session.ServerUrlPolicy
+import com.maodouchat.domain.messaging.ServerUrlNormalizationPolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
@@ -146,23 +147,10 @@ object ApiConfig {
     }
 
     /** 由 HTTP(S) 服务器地址推导 WebSocket 地址（http→ws，https→wss，路径 /ws）。 */
-    fun wsUrlFor(baseUrl: String): String {
-        val normalized = baseUrl.trim().trimEnd('/')
-        val schemeEnd = normalized.indexOf("://")
-        val lowerScheme = if (schemeEnd > 0) normalized.substring(0, schemeEnd).lowercase() else ""
-        return when {
-            lowerScheme == "https" -> "wss://${normalized.substring(schemeEnd + 3)}/ws"
-            lowerScheme == "http" -> "ws://${normalized.substring(schemeEnd + 3)}/ws"
-            else -> "$normalized/ws"
-        }
-    }
+    fun wsUrlFor(baseUrl: String): String = ServerUrlNormalizationPolicy.wsUrlFor(baseUrl)
 
-    private fun normalizeBaseUrl(value: String): String {
-        val normalized = value.trim().trimEnd('/')
-        val schemeEnd = normalized.indexOf("://")
-        if (schemeEnd <= 0) return normalized
-        return normalized.substring(0, schemeEnd).lowercase() + normalized.substring(schemeEnd)
-    }
+    private fun normalizeBaseUrl(value: String): String =
+        ServerUrlNormalizationPolicy.normalizeBaseUrl(value)
 
     // 8.48：校验错误资源化（此前硬编码中文，服务器设置页英文用户看到中文）
     private fun validateBaseUrl(value: String, context: Context): String? {

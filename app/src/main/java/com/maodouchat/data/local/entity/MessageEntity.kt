@@ -6,10 +6,8 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
-import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.json.Json
+import com.maodouchat.domain.messaging.MessageReactionJsonPolicy
 
 @Entity(
     tableName = "messages",
@@ -63,7 +61,7 @@ fun MessageEntity.toDomain(): Message {
         status = MessageStatus.fromWire(status),
         editedAt = editedAt,
         starred = starred,
-        reactions = decodeReactions(reactionsJson),
+        reactions = MessageReactionJsonPolicy.decodeReactions(reactionsJson),
         expiresAt = expiresAt?.takeIf { it > 0L },
         sealedSender = sealedSender
     )
@@ -80,15 +78,7 @@ fun Message.toEntity(): MessageEntity = MessageEntity(
     status = status.name,
     editedAt = editedAt,
     starred = starred,
-    reactionsJson = encodeReactions(reactions),
+    reactionsJson = MessageReactionJsonPolicy.encodeReactions(reactions),
     expiresAt = expiresAt?.takeIf { it > 0L },
     sealedSender = sealedSender
 )
-
-private val messageEntityJson = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-
-private fun encodeReactions(reactions: List<MessageReaction>): String =
-    runCatching { messageEntityJson.encodeToString(ListSerializer(MessageReaction.serializer()), reactions) }.getOrDefault("[]")
-
-private fun decodeReactions(text: String): List<MessageReaction> =
-    runCatching { messageEntityJson.decodeFromString(ListSerializer(MessageReaction.serializer()), text) }.getOrDefault(emptyList())
