@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.Data
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AiTaskReminderWorkNaming
+import com.maodouchat.domain.messaging.AiTaskReminderRetryPolicy
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.security.BackgroundSessionGate
@@ -83,7 +84,7 @@ internal object AiTaskReminderExecution {
             throw error
         } catch (error: Exception) {
             Log.w(TAG, "AI task reminder failed", error)
-            if (runAttemptCount < 3) ListenableWorker.Result.retry() else ListenableWorker.Result.failure()
+            if (AiTaskReminderRetryPolicy.shouldRetry(runAttemptCount)) ListenableWorker.Result.retry() else ListenableWorker.Result.failure()
         }
     }
 
