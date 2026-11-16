@@ -65,17 +65,3 @@ internal fun ChatBubbleColorRow(
         }
     }
 }
-
-
-
-
-/** 强调色 id → 本地化颜色名（无障碍朗读用）。 */
-internal fun accentLabelRes(id: String): Int = when (id) {
-    "blue" -> R.string.general_accent_blue
-    "green" -> R.string.general_accent_green
-    "purple" -> R.string.general_accent_purple
-    "orange" -> R.string.general_accent_orange
-    "pink" -> R.string.general_accent_pink
-    "red" -> R.string.general_accent_red
-    else -> R.string.general_accent_teal
-}

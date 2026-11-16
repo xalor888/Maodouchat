@@ -58,7 +58,7 @@ import androidx.compose.runtime.setValue
  * 「通用」页（G102 从 `SettingsSubScreens.kt` 拆出，原 748 行）。
  *
  * 深色模式 + 缓存清理 + 关于 + 主题/外观/语言/壁纸/字号等一页聚合。
- * 行组件簇（`AccentColorRow` 等 13 个行组件 + `accentLabelRes` + `ThemeChoiceChip`
+ * 行组件簇（`AccentColorRow` 等 13 个行组件 + `AccentColorKind` + `ThemeChoiceChip`
  * + `Context.findActivity()` 扩展）已于 2026-10-08 按簇拆至同包 `GeneralSettingsRows.kt`。
  *
  * **拆解约束**：不直接抓应用级数据库单例（`ui/` 红线，读库只能经 ViewModel/repository）。

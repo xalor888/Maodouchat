@@ -46,22 +46,6 @@ import kotlin.math.roundToInt
  * 工作台微件预览簇（拖拽包装 + 气泡/名片/快捷操作/统计微件），从 ThemeWorkbenchScreen.kt 按簇搬出。
  */
 
-internal fun widgetTitle(id: String): String = when (id) {
-    "bubble" -> "聊天消息气泡微件"
-    "profile" -> "联系人卡片微件"
-    "actions" -> "快捷操作控制微件"
-    "stats" -> "核心指标概览微件"
-    else -> "自定义微件"
-}
-
-internal fun widgetSubtitle(id: String): String = when (id) {
-    "bubble" -> "展示消息时间线气泡排版与圆角"
-    "profile" -> "展示头像徽章与在线状态"
-    "actions" -> "展示线性弹性微动效常用按钮"
-    "stats" -> "展示安全状态与加密消息统计"
-    else -> ""
-}
-
 /** 包装拖拽手柄与卡片容器 */
 @Composable
 internal fun DraggableWidgetWrapper(

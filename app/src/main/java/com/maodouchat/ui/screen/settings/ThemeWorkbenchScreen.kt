@@ -50,6 +50,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.ThemeWorkbenchWidgetKind
+import com.maodouchat.domain.messaging.themeWorkbenchWidgetKind
 import com.maodouchat.ui.component.LinearActionButton
 import com.maodouchat.core.model.ThemeFamily
 import com.maodouchat.ui.theme.bubbleShapesFor
@@ -190,8 +192,20 @@ fun ThemeWorkbenchScreen(onBack: () -> Unit = {}) {
                 )
 
                 DraggableWidgetWrapper(
-                    title = widgetTitle(componentId),
-                    subtitle = widgetSubtitle(componentId),
+                    title = when (themeWorkbenchWidgetKind(componentId)) {
+                        ThemeWorkbenchWidgetKind.BUBBLE -> "聊天消息气泡微件"
+                        ThemeWorkbenchWidgetKind.PROFILE -> "联系人卡片微件"
+                        ThemeWorkbenchWidgetKind.ACTIONS -> "快捷操作控制微件"
+                        ThemeWorkbenchWidgetKind.STATS -> "核心指标概览微件"
+                        ThemeWorkbenchWidgetKind.CUSTOM -> "自定义微件"
+                    },
+                    subtitle = when (themeWorkbenchWidgetKind(componentId)) {
+                        ThemeWorkbenchWidgetKind.BUBBLE -> "展示消息时间线气泡排版与圆角"
+                        ThemeWorkbenchWidgetKind.PROFILE -> "展示头像徽章与在线状态"
+                        ThemeWorkbenchWidgetKind.ACTIONS -> "展示线性弹性微动效常用按钮"
+                        ThemeWorkbenchWidgetKind.STATS -> "展示安全状态与加密消息统计"
+                        ThemeWorkbenchWidgetKind.CUSTOM -> ""
+                    },
                     paint = activePaint,
                     cardShape = cardShape,
                     elevation = elevation,
@@ -226,11 +240,12 @@ fun ThemeWorkbenchScreen(onBack: () -> Unit = {}) {
                         dragOffsetY = 0f
                     }
                 ) {
-                    when (componentId) {
-                        "bubble" -> ChatBubblePreviewWidget(activePaint, bubbleShape)
-                        "profile" -> ContactProfileWidget(activePaint, cardShape)
-                        "actions" -> QuickActionsWidget(activePaint, cardShape)
-                        "stats" -> StatsTileWidget(activePaint, cardShape)
+                    when (themeWorkbenchWidgetKind(componentId)) {
+                        ThemeWorkbenchWidgetKind.BUBBLE -> ChatBubblePreviewWidget(activePaint, bubbleShape)
+                        ThemeWorkbenchWidgetKind.PROFILE -> ContactProfileWidget(activePaint, cardShape)
+                        ThemeWorkbenchWidgetKind.ACTIONS -> QuickActionsWidget(activePaint, cardShape)
+                        ThemeWorkbenchWidgetKind.STATS -> StatsTileWidget(activePaint, cardShape)
+                        ThemeWorkbenchWidgetKind.CUSTOM -> {}
                     }
                 }
             }

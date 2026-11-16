@@ -3,6 +3,7 @@ package com.maodouchat.ui.screen.settings
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.CacheSizeDisplay
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +30,7 @@ internal fun GeneralSettingsViewModel.clearCache() {
                 (before - MediaCache.currentCacheBytes(context)).coerceAtLeast(0L)
             }
             if (cacheRefreshGeneration != generation) return@launch
-            val text = formatSize(removedBytes)
+            val text = CacheSizeDisplay.formatSize(removedBytes)
             _uiState.update {
                 it.copy(
                     cacheSizeText = text,
@@ -69,7 +70,7 @@ internal fun GeneralSettingsViewModel.refreshCacheSize() {
         try {
             val bytes = withContext(Dispatchers.IO) { MediaCache.currentCacheBytes(context) }
             if (cacheRefreshGeneration == generation) {
-                _uiState.update { it.copy(cacheSizeText = formatSize(bytes)) }
+                _uiState.update { it.copy(cacheSizeText = CacheSizeDisplay.formatSize(bytes)) }
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -87,9 +88,3 @@ internal fun GeneralSettingsViewModel.refreshCacheSize() {
     }
 }
 
-internal fun GeneralSettingsViewModel.formatSize(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    if (bytes < 1024L * 1024) return "${bytes / 1024} KB"
-    if (bytes < 1024L * 1024 * 1024) return "${bytes / (1024L * 1024)} MB"
-    return "${bytes / (1024L * 1024 * 1024)} GB"
-}

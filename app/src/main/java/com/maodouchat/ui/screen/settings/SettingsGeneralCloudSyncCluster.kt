@@ -3,6 +3,8 @@ package com.maodouchat.ui.screen.settings
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.LanguageModeKind
+import com.maodouchat.domain.messaging.languageModeKind
 import com.maodouchat.data.repository.ClientPrefsNetworkRepository
 import com.maodouchat.core.model.ClientPrefsDto
 import com.maodouchat.core.model.ClientPrefsUpdateRequest
@@ -54,10 +56,10 @@ internal fun GeneralSettingsViewModel.applyRemotePrefs(remote: ClientPrefsDto) {
     com.maodouchat.util.ThemePreferences.setStyle(context, themeStyle)
     val accentColor = com.maodouchat.util.ThemePreferences.normalizeAccent(remote.accentColor)
     com.maodouchat.util.ThemePreferences.setAccent(context, accentColor)
-    val language = when (remote.languageMode.lowercase()) {
-        AppLocaleManager.MODE_CHINESE, "zh-cn", "chinese" -> AppLocaleManager.MODE_CHINESE
-        AppLocaleManager.MODE_ENGLISH, "english" -> AppLocaleManager.MODE_ENGLISH
-        else -> AppLocaleManager.MODE_SYSTEM
+    val language = when (languageModeKind(remote.languageMode, allowAliases = true)) {
+        LanguageModeKind.CHINESE -> AppLocaleManager.MODE_CHINESE
+        LanguageModeKind.ENGLISH -> AppLocaleManager.MODE_ENGLISH
+        LanguageModeKind.SYSTEM -> AppLocaleManager.MODE_SYSTEM
     }
     val wallpaper = com.maodouchat.util.ChatAppearancePolicy.normalizeWallpaper(remote.chatWallpaper)
     val font = com.maodouchat.util.ChatAppearancePolicy.normalizeFontScale(remote.chatFontScale)
