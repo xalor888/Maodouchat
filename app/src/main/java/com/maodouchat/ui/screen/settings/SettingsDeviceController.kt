@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.R
-import com.maodouchat.core.model.DeviceInfoDto
+import com.maodouchat.domain.contacts.AccountDeviceSortPolicy
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.core.model.SettingsUiState
 import kotlinx.coroutines.CoroutineScope
@@ -60,7 +60,7 @@ internal class SettingsDeviceController(
                         }
                         updateState {
                             it.copy(
-                                devices = devices.sortedWith(compareByDescending<DeviceInfoDto> { d -> d.isCurrent }.thenBy { d -> d.deviceId }),
+                                devices = AccountDeviceSortPolicy.sort(devices),
                                 isLoadingDevices = false
                             )
                         }

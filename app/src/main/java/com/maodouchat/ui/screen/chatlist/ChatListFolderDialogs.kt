@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.core.model.CallLogRow
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.calls.MissedCallRowsPolicy
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,8 +40,6 @@ import kotlin.math.roundToInt
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
 
 /**
  * 会话列表的「未拨来电 + 文件夹管理」弹层（G137 从 `ChatListScreen.kt` 拆出，原 222 行）。
@@ -89,42 +87,7 @@ internal fun ChatListFolderDialogs(
         // 8.52：升级为全量通话记录——Room 未接（历史）+ CallLogStore（呼出/已接/未接）合并去重
         val callLogRows = remember(state.missedCalls) {
             val storeLog = runCatching { com.maodouchat.call.CallLogStore.list(context) }.getOrDefault(emptyList())
-            val seen = HashSet<String>()
-            buildList {
-                // 8.53：CallLogStore 优先——同 id 竞态下（接听瞬间对端挂断）已接记录不被 Room 的 MISSED 覆盖
-                storeLog.forEach { e ->
-                    if (seen.add(e.id)) {
-                        add(
-                            CallLogRow(
-                                id = e.id,
-                                peerId = e.peerId,
-                                peerName = e.peerName,
-                                video = e.isVideo,
-                                direction = e.direction,
-                                state = e.state,
-                                at = e.startedAt,
-                                durationMs = e.durationMs
-                            )
-                        )
-                    }
-                }
-                state.missedCalls.forEach { mc ->
-                    if (seen.add(mc.id)) {
-                        add(
-                            CallLogRow(
-                                id = mc.id,
-                                peerId = mc.callerId,
-                                peerName = mc.callerName,
-                                video = mc.callType.equals("VIDEO", ignoreCase = true),
-                                direction = Direction.INCOMING,
-                                state = State.MISSED,
-                                at = mc.receivedAt,
-                                durationMs = 0L
-                            )
-                        )
-                    }
-                }
-            }.sortedByDescending { it.at }
+            MissedCallRowsPolicy.mergeRows(storeLog, state.missedCalls)
         }
         MissedCallsSheet(
             rows = callLogRows,
