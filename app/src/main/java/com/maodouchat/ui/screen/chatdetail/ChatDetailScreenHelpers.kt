@@ -29,6 +29,8 @@ import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.ChatDateLabel
 import com.maodouchat.domain.messaging.ForwardTargetName
 import com.maodouchat.domain.messaging.ForwardTargetNamePolicy
+import com.maodouchat.domain.messaging.MessageSafetyDetailKind
+import com.maodouchat.domain.messaging.messageSafetyDetailKind
 import java.util.Date
 
 /**
@@ -116,20 +118,19 @@ internal fun messageSafetyWarning(text: String, enabled: Boolean): String? {
  * `CODE_SUSPICIOUS_LINK` 按 `matched` 是否空白二选一：有主机时文案带上主机名，
  * 用户才知道是哪个链接可疑——漏了 host 会变成一句泛泛的「请谨慎点击」。
  */
-internal fun safetyDetailText(code: String, matched: String?): Pair<Int, String?> =
-    when (code) {
-        MessageSafetyScanner.CODE_SUSPICIOUS_LINK ->
-            if (matched.isNullOrBlank()) {
-                R.string.chat_safety_suspicious_link to null
-            } else {
-                R.string.chat_safety_suspicious_link_host to matched
-            }
-        MessageSafetyScanner.CODE_PAYMENT_INDUCEMENT -> R.string.chat_safety_payment to null
-        MessageSafetyScanner.CODE_IMPERSONATION -> R.string.chat_safety_impersonation to null
-        MessageSafetyScanner.CODE_CREDENTIAL_REQUEST -> R.string.chat_safety_credential to null
-        MessageSafetyScanner.CODE_SENSITIVE_DATA -> R.string.chat_safety_sensitive_data to null
-        else -> R.string.chat_safety_generic to null
+internal fun safetyDetailText(code: String, matched: String?): Pair<Int, String?> {
+    val (kind, host) = messageSafetyDetailKind(code, matched)
+    val res = when (kind) {
+        MessageSafetyDetailKind.SuspiciousLink -> R.string.chat_safety_suspicious_link
+        MessageSafetyDetailKind.SuspiciousLinkHost -> R.string.chat_safety_suspicious_link_host
+        MessageSafetyDetailKind.PaymentInducement -> R.string.chat_safety_payment
+        MessageSafetyDetailKind.Impersonation -> R.string.chat_safety_impersonation
+        MessageSafetyDetailKind.CredentialRequest -> R.string.chat_safety_credential
+        MessageSafetyDetailKind.SensitiveData -> R.string.chat_safety_sensitive_data
+        MessageSafetyDetailKind.Generic -> R.string.chat_safety_generic
     }
+    return res to host
+}
 
 /**
  * G363：标题语义小助手——给屏级标题挂 `heading()`（TalkBack 标题导航）。

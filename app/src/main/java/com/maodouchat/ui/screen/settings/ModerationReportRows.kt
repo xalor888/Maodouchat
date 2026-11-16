@@ -27,6 +27,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.core.model.ReportResponse
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ModerationReportActionKind
+import com.maodouchat.domain.conversation.ModerationReportStatusKind
+import com.maodouchat.domain.conversation.moderationReportActionKind
+import com.maodouchat.domain.conversation.moderationReportStatusKind
 import com.maodouchat.domain.messaging.formatAuditTime
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
@@ -137,23 +141,23 @@ internal fun ReportReviewDialog(
 }
 
 @Composable
-internal fun reportStatusLabel(status: String): String = when (status) {
-    "OPEN" -> stringResource(R.string.moderation_status_open)
-    "IN_REVIEW" -> stringResource(R.string.moderation_status_in_review)
-    "RESOLVED" -> stringResource(R.string.moderation_status_resolved)
-    "REJECTED" -> stringResource(R.string.moderation_status_rejected)
-    "ALL" -> stringResource(R.string.moderation_status_all)
-    else -> status
+internal fun reportStatusLabel(status: String): String = when (moderationReportStatusKind(status)) {
+    ModerationReportStatusKind.Open -> stringResource(R.string.moderation_status_open)
+    ModerationReportStatusKind.InReview -> stringResource(R.string.moderation_status_in_review)
+    ModerationReportStatusKind.Resolved -> stringResource(R.string.moderation_status_resolved)
+    ModerationReportStatusKind.Rejected -> stringResource(R.string.moderation_status_rejected)
+    ModerationReportStatusKind.All -> stringResource(R.string.moderation_status_all)
+    ModerationReportStatusKind.Raw -> status
 }
 
 @Composable
-internal fun reportActionLabel(action: String): String = when (action) {
-    "DELETE_CONTENT" -> stringResource(R.string.moderation_result_deleted)
-    "NO_ACTION" -> stringResource(R.string.moderation_no_action)
-    "RESTRICT_MESSAGES_24H" -> stringResource(R.string.moderation_result_messages_restricted)
-    "RESTRICT_POSTS_7D" -> stringResource(R.string.moderation_result_posts_restricted)
-    "SUSPEND_24H" -> stringResource(R.string.moderation_result_suspended)
-    else -> action
+internal fun reportActionLabel(action: String): String = when (moderationReportActionKind(action)) {
+    ModerationReportActionKind.DeleteContent -> stringResource(R.string.moderation_result_deleted)
+    ModerationReportActionKind.NoAction -> stringResource(R.string.moderation_no_action)
+    ModerationReportActionKind.RestrictMessages24h -> stringResource(R.string.moderation_result_messages_restricted)
+    ModerationReportActionKind.RestrictPosts7d -> stringResource(R.string.moderation_result_posts_restricted)
+    ModerationReportActionKind.Suspend24h -> stringResource(R.string.moderation_result_suspended)
+    ModerationReportActionKind.Raw -> action
 }
 
 @Composable
