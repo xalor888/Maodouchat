@@ -24,6 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.MediaSendModeKind
+import com.maodouchat.domain.messaging.mediaSendMode
 import com.maodouchat.ui.theme.LocalChatPalette
 
 /**
@@ -74,10 +76,10 @@ internal fun ImageSendPreviewDialog(
         confirmButton = {
             TextButton(onClick = {
                 onDismiss()
-                when {
-                    pending.viewOnce -> onSendViewOnceImage(pending)
-                    pending.spoiler -> onSendSpoilerImage(pending)
-                    else -> onSendImage(pending)
+                when (mediaSendMode(pending.viewOnce, pending.spoiler)) {
+                    MediaSendModeKind.VIEW_ONCE -> onSendViewOnceImage(pending)
+                    MediaSendModeKind.SPOILER -> onSendSpoilerImage(pending)
+                    MediaSendModeKind.NORMAL -> onSendImage(pending)
                 }
             }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
         },
@@ -124,10 +126,10 @@ internal fun VideoSendPreviewDialog(
         confirmButton = {
             TextButton(onClick = {
                 onDismiss()
-                when {
-                    pending.viewOnce -> onSendViewOnceVideo(pending)
-                    pending.spoiler -> onSendSpoilerVideo(pending)
-                    else -> onSendVideo(pending)
+                when (mediaSendMode(pending.viewOnce, pending.spoiler)) {
+                    MediaSendModeKind.VIEW_ONCE -> onSendViewOnceVideo(pending)
+                    MediaSendModeKind.SPOILER -> onSendSpoilerVideo(pending)
+                    MediaSendModeKind.NORMAL -> onSendVideo(pending)
                 }
             }) { Text(stringResource(R.string.chat_send), color = MaterialTheme.colorScheme.primary) }
         },

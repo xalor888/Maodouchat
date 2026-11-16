@@ -279,11 +279,13 @@ fun GroupInviteContent(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf(
-                24L * 60L * 60L to stringResource(R.string.group_detail_invite_one_day),
-                3L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_three_days),
-                7L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_seven_days),
-                30L * 24L * 60L * 60L to stringResource(R.string.group_detail_invite_thirty_days)
+            GroupInvitePolicy.EXPIRY_OPTIONS.zip(
+                listOf(
+                    stringResource(R.string.group_detail_invite_one_day),
+                    stringResource(R.string.group_detail_invite_three_days),
+                    stringResource(R.string.group_detail_invite_seven_days),
+                    stringResource(R.string.group_detail_invite_thirty_days),
+                )
             ).forEach { (seconds, label) ->
                 InviteChoice(selected = expiresInSeconds == seconds, label = label) { onExpiryChange(seconds) }
             }
@@ -300,7 +302,7 @@ fun GroupInviteContent(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf(1, 5, 10, 50, 100, 200, 500, 1000).forEach { uses ->
+            GroupInvitePolicy.MAX_USES_OPTIONS.forEach { uses ->
                 InviteChoice(selected = selectedMaxUses == uses, label = uses.toString()) { onMaxUsesChange(uses) }
             }
         }

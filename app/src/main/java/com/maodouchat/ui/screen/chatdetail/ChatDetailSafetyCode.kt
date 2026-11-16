@@ -47,6 +47,8 @@ import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.SafetyCodePolicy
 import com.maodouchat.domain.messaging.DeviceSafetyFilterPolicy
+import com.maodouchat.domain.messaging.IdentityTrustLabelKind
+import com.maodouchat.domain.messaging.identityTrustLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline
@@ -320,9 +322,9 @@ internal fun SafetyQrCard(
 }
 
 @Composable
-internal fun IdentityTrustState.toLabel(): String = stringResource(when (this) {
-    IdentityTrustState.UNKNOWN -> R.string.chat_trust_unknown
-    IdentityTrustState.TRUSTED -> R.string.chat_trust_first
-    IdentityTrustState.VERIFIED -> R.string.chat_verified
-    IdentityTrustState.CHANGED -> R.string.chat_trust_changed
+internal fun IdentityTrustState.toLabel(): String = stringResource(when (identityTrustLabelKind(this)) {
+    IdentityTrustLabelKind.UNKNOWN -> R.string.chat_trust_unknown
+    IdentityTrustLabelKind.TRUSTED -> R.string.chat_trust_first
+    IdentityTrustLabelKind.VERIFIED -> R.string.chat_verified
+    IdentityTrustLabelKind.CHANGED -> R.string.chat_trust_changed
 })
