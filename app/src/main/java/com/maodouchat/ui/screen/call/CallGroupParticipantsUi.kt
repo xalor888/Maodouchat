@@ -32,6 +32,8 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.domain.calls.GroupParticipantStatusKind
+import com.maodouchat.domain.calls.groupParticipantStatusKind
 import com.maodouchat.core.model.GroupCallParticipantUi
 
 @Composable
@@ -123,13 +125,13 @@ private fun GroupParticipantTile(
     }
 }
 
-internal fun groupParticipantStatusLabel(state: GroupPeerConnectionState): Int = when (state) {
-    GroupPeerConnectionState.CONNECTING -> R.string.call_group_member_connecting
-    GroupPeerConnectionState.CONNECTED -> R.string.call_group_member_connected
-    GroupPeerConnectionState.RECONNECTING -> R.string.call_group_member_reconnecting
-    GroupPeerConnectionState.DISCONNECTED -> R.string.call_group_member_left
-    GroupPeerConnectionState.FAILED -> R.string.call_group_member_failed
-    GroupPeerConnectionState.REJECTED -> R.string.call_group_member_rejected
-    GroupPeerConnectionState.BUSY -> R.string.call_group_member_busy
-    GroupPeerConnectionState.NO_ANSWER -> R.string.call_group_member_no_answer
+internal fun groupParticipantStatusLabel(state: GroupPeerConnectionState): Int = when (groupParticipantStatusKind(state)) {
+    GroupParticipantStatusKind.CONNECTING -> R.string.call_group_member_connecting
+    GroupParticipantStatusKind.CONNECTED -> R.string.call_group_member_connected
+    GroupParticipantStatusKind.RECONNECTING -> R.string.call_group_member_reconnecting
+    GroupParticipantStatusKind.DISCONNECTED -> R.string.call_group_member_left
+    GroupParticipantStatusKind.FAILED -> R.string.call_group_member_failed
+    GroupParticipantStatusKind.REJECTED -> R.string.call_group_member_rejected
+    GroupParticipantStatusKind.BUSY -> R.string.call_group_member_busy
+    GroupParticipantStatusKind.NO_ANSWER -> R.string.call_group_member_no_answer
 }
