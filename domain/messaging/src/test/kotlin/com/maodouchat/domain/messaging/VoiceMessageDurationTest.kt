@@ -33,4 +33,24 @@ class VoiceMessageDurationTest {
         assertEquals("1:01", VoiceMessageDuration.formatDuration(61_500))
         assertEquals("10:00", VoiceMessageDuration.formatDuration(600_000))
     }
+
+    @Test
+    fun ceilSeconds_roundsUpOrNull() {
+        assertEquals(null, VoiceMessageDuration.ceilSeconds(0L))
+        assertEquals(null, VoiceMessageDuration.ceilSeconds(-500L))
+        assertEquals(1L, VoiceMessageDuration.ceilSeconds(1L))
+        assertEquals(1L, VoiceMessageDuration.ceilSeconds(1_000L))
+        assertEquals(2L, VoiceMessageDuration.ceilSeconds(1_001L))
+        assertEquals(60L, VoiceMessageDuration.ceilSeconds(60_000L))
+    }
+
+    @Test
+    fun floorSecondsAtLeastOne_truncatesDownWithMinimum() {
+        assertEquals(1L, VoiceMessageDuration.floorSecondsAtLeastOne(0L))
+        assertEquals(1L, VoiceMessageDuration.floorSecondsAtLeastOne(999L))
+        assertEquals(1L, VoiceMessageDuration.floorSecondsAtLeastOne(1_000L))
+        assertEquals(1L, VoiceMessageDuration.floorSecondsAtLeastOne(1_500L))
+        assertEquals(2L, VoiceMessageDuration.floorSecondsAtLeastOne(2_500L))
+        assertEquals(1L, VoiceMessageDuration.floorSecondsAtLeastOne(-1_000L))
+    }
 }

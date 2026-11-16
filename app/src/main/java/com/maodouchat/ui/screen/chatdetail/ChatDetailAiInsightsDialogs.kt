@@ -31,6 +31,7 @@ import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.core.model.ConversationProfile
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.domain.messaging.AiClassifyCategoryKind
+import com.maodouchat.domain.messaging.AiProfileTopTermsPolicy
 import com.maodouchat.domain.messaging.aiClassifyCategoryKind
 import com.maodouchat.domain.messaging.classifyProgressFraction
 import com.maodouchat.domain.messaging.classifyResultText
@@ -88,7 +89,7 @@ internal fun ConversationProfileDialog(
                         Text(
                             stringResource(
                                 R.string.chat_ai_profile_top_terms,
-                                profile.local.topTerms.take(8).joinToString(" · ")
+                                AiProfileTopTermsPolicy.displayTerms(profile.local.topTerms, " · ")
                             ),
                             style = MaterialTheme.typography.labelMedium,
                             color = LocalChatPalette.current.textSecondary

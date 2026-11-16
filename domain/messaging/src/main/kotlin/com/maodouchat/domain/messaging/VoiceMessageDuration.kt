@@ -10,4 +10,11 @@ object VoiceMessageDuration {
         val secs = seconds % 60
         return "%d:%02d".format(minutes, secs)
     }
+
+    // 媒体中心语音行：毫秒向上取整为秒，<=0 毫秒无时长。
+    fun ceilSeconds(millis: Long): Long? =
+        if (millis <= 0L) null else (millis + 999L) / 1000L
+
+    // 语音气泡：毫秒向下取整为秒，不足 1 秒按 1 秒计。
+    fun floorSecondsAtLeastOne(millis: Long): Long = (millis / 1000L).coerceAtLeast(1L)
 }

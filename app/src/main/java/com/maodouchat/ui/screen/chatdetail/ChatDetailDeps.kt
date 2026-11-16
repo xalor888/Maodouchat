@@ -472,7 +472,7 @@ internal class ChatDetailDeps(
         getLastPeerNotifyAt = { lastCapturePeerNotifyAt },
         setLastPeerNotifyAt = { lastCapturePeerNotifyAt = it },
         captureAlertEnabled = { RuntimeFlags.isEnabled(host.getApplication(), RuntimeFlags.CAPTURE_ALERT) },
-        currentUserLabel = { com.maodouchat.session.CurrentSession.snapshot().userId?.take(8) ?: "me" },
+        currentUserLabel = { com.maodouchat.session.CurrentSession.snapshot().userId?.let { com.maodouchat.core.model.truncatedSenderId(it) } ?: "me" },
     )
     internal val composerSendController = ChatComposerSendController(
         scope = host.viewModelScope,

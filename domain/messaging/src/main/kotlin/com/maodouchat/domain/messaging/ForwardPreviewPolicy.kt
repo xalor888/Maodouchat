@@ -7,6 +7,8 @@ object ForwardPreviewPolicy {
 
     const val PREVIEW_COUNT: Int = 3
 
+    const val RECENT_CHIPS_MAX: Int = 6
+
     const val PREVIEW_TEXT_LENGTH: Int = 40
 
     const val NOTE_MAX_LENGTH: Int = 500

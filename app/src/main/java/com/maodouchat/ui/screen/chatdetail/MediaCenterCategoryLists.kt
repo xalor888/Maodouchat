@@ -45,6 +45,7 @@ import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MediaCenterDisplay
+import com.maodouchat.domain.messaging.VoiceMessageDuration
 import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache
@@ -129,7 +130,7 @@ internal fun VoiceList(
             val localAvailable = remember(message.id, message.content) {
                 MediaCache.isReadableLocalUri(context, message.parsedContent())
             }
-            val durationSec = meta.voiceDurationMs?.takeIf { it > 0 }?.let { (it + 999) / 1000 }
+            val durationSec = meta.voiceDurationMs?.let { VoiceMessageDuration.ceilSeconds(it) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
