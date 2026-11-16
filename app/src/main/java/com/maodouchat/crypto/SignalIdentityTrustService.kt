@@ -6,6 +6,7 @@ import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState
 import com.maodouchat.core.crypto.IdentityTrustStateMachine
 import com.maodouchat.core.crypto.SignalProtocolConstants
+import com.maodouchat.domain.messaging.IdentityTrustStatePolicy
 import org.signal.libsignal.protocol.IdentityKey
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.ecc.Curve
@@ -63,11 +64,7 @@ internal class SignalIdentityTrustService(
     fun getIdentityTrustState(remoteUserId: String, deviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID): IdentityTrustState {
         val trust = (context.protocolStore as? PersistentSignalProtocolStore)?.getIdentityTrust(remoteUserId, deviceId)
             ?: return IdentityTrustState.UNKNOWN
-        return when (trust.trustState) {
-            SignalProtocolConstants.TRUST_VERIFIED -> IdentityTrustState.VERIFIED
-            SignalProtocolConstants.TRUST_CHANGED -> IdentityTrustState.CHANGED
-            else -> IdentityTrustState.TRUSTED
-        }
+        return IdentityTrustStatePolicy.stateFor(trust.trustState)
     }
 
     fun markIdentityVerified(remoteUserId: String, deviceId: Int = SignalProtocolConstants.DEFAULT_DEVICE_ID): Boolean {

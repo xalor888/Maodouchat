@@ -208,7 +208,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             token = { token },
             text = { message, args -> errorMessages.text(callOutgoingCallMessageResId(message), *args) },
             callsEnabled = { RuntimeFlags.isEnabled(app, RuntimeFlags.CALLS) },
-            callTypeEnabled = { type -> when (type) { CallType.VIDEO -> RuntimeFlags.isEnabled(app, RuntimeFlags.VIDEO_CALL); CallType.AUDIO, CallType.GROUP -> RuntimeFlags.isEnabled(app, RuntimeFlags.VOICE_CALL) } },
+            callTypeEnabled = { type -> RuntimeFlags.isEnabled(app, com.maodouchat.domain.calls.CallTypeFlagPolicy.flagFor(type)) },
             resetForNewOutgoingCall = sessionResetController::resetForNewOutgoingCall,
             resetForNewGroupCall = sessionResetController::resetForNewGroupCall,
             groupMemberIds = { activeGroupMemberIds },

@@ -17,6 +17,7 @@ import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.domain.messaging.ConversationScheduledMessageDispatcher
+import com.maodouchat.domain.messaging.ScheduledMessageRetryPolicy
 import com.maodouchat.core.model.ScheduledTimeCalculation
 import com.maodouchat.security.BackgroundSessionGate
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +51,7 @@ class ScheduledMessageWorker(
         // 账号不匹配/无 token 通常是登出清理进行中的瞬态（purge 会取消本任务）；
         // 若 purge 部分失败导致任务残留，封顶重试次数避免无限 retry 耗电。
         if (ownerUserId != expectedOwnerUserId || token.isBlank()) {
-            return@withContext if (runAttemptCount >= MAX_TRANSIENT_RETRIES) {
+            return@withContext if (ScheduledMessageRetryPolicy.shouldAbandon(runAttemptCount)) {
                 abandonScheduledMessage(scheduledDao, item, scheduleId, expectedOwnerUserId)
             } else {
                 Result.retry()
@@ -60,7 +61,7 @@ class ScheduledMessageWorker(
             expectedUserId = ownerUserId,
         )
         ) {
-            return@withContext if (runAttemptCount >= MAX_TRANSIENT_RETRIES) {
+            return@withContext if (ScheduledMessageRetryPolicy.shouldAbandon(runAttemptCount)) {
                 abandonScheduledMessage(scheduledDao, item, scheduleId, expectedOwnerUserId)
             } else {
                 Result.retry()
@@ -136,8 +137,6 @@ class ScheduledMessageWorker(
         private const val TAG = "ScheduledMessageWorker"
         const val KEY_SCHEDULE_ID = "schedule_id"
         const val KEY_OWNER_USER_ID = "owner_user_id"
-        /** 默认指数退避 30s 起，5 次约覆盖 7~8 分钟瞬态窗口。 */
-        private const val MAX_TRANSIENT_RETRIES = 5
 
         /** 计算下一次重复发送时间（工作日重复时跳过周末，保持当天时刻，支持时区/夏令时）。 */
         fun nextRepeatSendAt(item: ScheduledMessage): Long =
