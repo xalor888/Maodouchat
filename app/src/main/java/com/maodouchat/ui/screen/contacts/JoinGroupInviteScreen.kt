@@ -28,7 +28,8 @@ import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.Feedback
-import com.maodouchat.core.model.Kind
+import com.maodouchat.domain.contacts.QrScanFeedbackLabelKind
+import com.maodouchat.domain.contacts.qrScanFeedbackLabelKind
 
 /**
  * P08：群邀请落地页（深链 / QR / 系统入口统一）。
@@ -157,21 +158,21 @@ fun JoinGroupInviteScreen(
 private fun joinInviteMessage(
     context: android.content.Context,
     feedback: Feedback,
-): String = when (feedback.kind) {
-    Kind.INVALID_PAYLOAD ->
+): String = when (qrScanFeedbackLabelKind(feedback.kind)) {
+    QrScanFeedbackLabelKind.INVALID_PAYLOAD ->
         context.getString(R.string.contacts_invalid_qr_message)
-    Kind.SESSION_EXPIRED ->
+    QrScanFeedbackLabelKind.SESSION_EXPIRED ->
         context.getString(R.string.error_session_expired)
-    Kind.USER_NOT_FOUND ->
+    QrScanFeedbackLabelKind.USER_NOT_FOUND ->
         context.getString(R.string.contacts_user_not_found_hint)
-    Kind.INVITE_INVALID_OR_EXPIRED ->
+    QrScanFeedbackLabelKind.INVITE_INVALID_OR_EXPIRED ->
         context.getString(R.string.contacts_invite_invalid_or_expired)
-    Kind.INVITE_BLOCKED ->
+    QrScanFeedbackLabelKind.INVITE_BLOCKED ->
         context.getString(R.string.contacts_invite_blocked)
-    Kind.GROUP_FULL ->
+    QrScanFeedbackLabelKind.GROUP_FULL ->
         context.getString(R.string.contacts_invite_group_full)
-    Kind.NETWORK ->
+    QrScanFeedbackLabelKind.NETWORK ->
         context.getString(R.string.contacts_invite_network)
-    Kind.UNKNOWN ->
+    QrScanFeedbackLabelKind.UNKNOWN ->
         context.getString(R.string.contacts_join_group_failed)
 }

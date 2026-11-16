@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.AnnouncementLevelKind
+import com.maodouchat.domain.messaging.announcementLevelKind
 import androidx.compose.runtime.Composable
 
 /**
@@ -30,18 +32,19 @@ internal fun ChatListAnnouncementBanner(
     onAck: (String) -> Unit,
 ) {
     if (priorityAnnouncement != null) {
+        val levelKind = announcementLevelKind(priorityAnnouncement.level)
         AlertDialog(
             onDismissRequest = { /* 高优先级公告不可跳过，必须确认 */ },
             title = { Text(priorityAnnouncement.title.ifBlank { stringResource(R.string.announcement_title_default) }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        when (priorityAnnouncement.level) {
-                            "EMERGENCY" -> stringResource(R.string.announcement_level_emergency)
+                        when (levelKind) {
+                            AnnouncementLevelKind.EMERGENCY -> stringResource(R.string.announcement_level_emergency)
                             else -> stringResource(R.string.announcement_level_maintenance)
                         },
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (priorityAnnouncement.level == "EMERGENCY") MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        color = if (levelKind == AnnouncementLevelKind.EMERGENCY) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                     Text(
                         priorityAnnouncement.content,

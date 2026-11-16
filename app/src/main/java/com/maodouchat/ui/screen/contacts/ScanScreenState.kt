@@ -17,6 +17,8 @@ import com.maodouchat.core.model.QrTarget
 import com.maodouchat.core.session.SafetyScanResult
 import com.maodouchat.domain.messaging.SafetyScanStatusKind
 import com.maodouchat.domain.messaging.safetyScanStatusKind
+import com.maodouchat.domain.contacts.QrScanFeedbackLabelKind
+import com.maodouchat.domain.contacts.qrScanFeedbackLabelKind
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
@@ -26,7 +28,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.Feedback
-import com.maodouchat.core.model.Kind
 
 /**
  * 扫一扫页的可变状态与结果处理：从 ScanScreen 拆出的非 UI 簇。
@@ -197,15 +198,15 @@ internal class ScanScreenUiState(
 
     /** 扫码反馈策略 → 用户可读文案。 */
     fun qrScanMessage(context: Context, feedback: Feedback): String =
-        when (feedback.kind) {
-            Kind.INVALID_PAYLOAD -> context.getString(R.string.contacts_invalid_qr_message)
-            Kind.SESSION_EXPIRED -> context.getString(R.string.error_session_expired)
-            Kind.USER_NOT_FOUND -> context.getString(R.string.contacts_user_not_found_hint)
-            Kind.INVITE_INVALID_OR_EXPIRED -> context.getString(R.string.contacts_invite_invalid_or_expired)
-            Kind.INVITE_BLOCKED -> context.getString(R.string.contacts_invite_blocked)
-            Kind.GROUP_FULL -> context.getString(R.string.contacts_invite_group_full)
-            Kind.NETWORK -> context.getString(R.string.contacts_invite_network)
-            Kind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
+        when (qrScanFeedbackLabelKind(feedback.kind)) {
+            QrScanFeedbackLabelKind.INVALID_PAYLOAD -> context.getString(R.string.contacts_invalid_qr_message)
+            QrScanFeedbackLabelKind.SESSION_EXPIRED -> context.getString(R.string.error_session_expired)
+            QrScanFeedbackLabelKind.USER_NOT_FOUND -> context.getString(R.string.contacts_user_not_found_hint)
+            QrScanFeedbackLabelKind.INVITE_INVALID_OR_EXPIRED -> context.getString(R.string.contacts_invite_invalid_or_expired)
+            QrScanFeedbackLabelKind.INVITE_BLOCKED -> context.getString(R.string.contacts_invite_blocked)
+            QrScanFeedbackLabelKind.GROUP_FULL -> context.getString(R.string.contacts_invite_group_full)
+            QrScanFeedbackLabelKind.NETWORK -> context.getString(R.string.contacts_invite_network)
+            QrScanFeedbackLabelKind.UNKNOWN -> context.getString(R.string.contacts_join_group_failed)
         }
 
     /**

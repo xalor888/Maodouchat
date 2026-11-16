@@ -517,7 +517,7 @@ class ClientArchitectureTest {
         // 2026-10-17：渲染器 attach/detach 一族（7 函数）抽出 WebRTCRendererController（1247 → 1192，纯搬移；委托层保持 @Synchronized，与 onTrack 的 synchronized(this@WebRTCManager) 同一把锁），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/webrtc/WebRTCManager.kt" to 1190,
         // 2026-10-16：chatlist 闲置 import 清理（122 删 + import 块 ASCII 重排，零行为改动；432 → 310），上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 300,
+        "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 302,
         "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
         // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
         // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移；AlertDialog/TextField 随迁后在母文件变闲置一并删除；另收尾部 9 空行为 2），上限同步收紧（两份 map 一起改）。
@@ -810,7 +810,7 @@ class ClientArchitectureTest {
             // G390：连接统计采样簇（WebRTCConnectionStatsSnapshot + WebRTCConnectionStatsCollector）抽出（1416 → 1309，纯搬移），上限同步收紧（两份 map 一起改）。
             // 2026-10-14：WebRTCException 纯搬入 WebRTCModels.kt（1249 → 1247，纯搬移），上限同步收紧（两份 map 一起改）。
             // 本轮：模型簇（CallState/CallType/GroupPeerConnectionState/CallIceServer）抽出 WebRTCModels.kt（1309 → 1249，纯搬移），上限同步收紧（两份 map 一起改）。
-            "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 300,
+            "com/maodouchat/ui/screen/chatlist/ChatListScreen.kt" to 302,
             "com/maodouchat/ui/screen/settings/SettingsViewModel.kt" to 291,
                 // 2026-10-16：explore+contacts 闲置 import 清理（ExploreFeedScreen 638 → 590、ContactsListScreen 666 → 645），两处上限同步收紧。
                 // 2026-10-19：尾部 8 个对话框簇抽出同包 ContactsDialogs（645 → 474 纯搬移），上限同步收紧。

@@ -29,6 +29,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.core.model.Chat
 import com.maodouchat.ui.theme.LocalLiquidGlassEnabled
 import com.maodouchat.ui.theme.LocalMotionSettings
+import com.maodouchat.domain.messaging.AnnouncementLevelKind
+import com.maodouchat.domain.messaging.announcementLevelKind
 
 /** Chat list (recovered): NavGraph API + folders + secret gates + public/status runtime sync. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -139,7 +141,7 @@ fun ChatListScreen(
     // G139：置顶公告条（35 行）抽到 ChatListAnnouncementBanner.kt，纯搬移不改判断。
     ChatListAnnouncementBanner(
         priorityAnnouncement = state.activeAnnouncements.firstOrNull { a ->
-            a.level == "EMERGENCY" || a.level == "MAINTENANCE"
+            announcementLevelKind(a.level) != AnnouncementLevelKind.INFO
         },
         onAck = { viewModel.ackAnnouncement(it) },
     )
