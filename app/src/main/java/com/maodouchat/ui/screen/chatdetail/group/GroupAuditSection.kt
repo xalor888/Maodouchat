@@ -21,6 +21,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupAuditLogDto
+import com.maodouchat.domain.groups.GroupAuditActionLabelKind
+import com.maodouchat.domain.groups.groupAuditActionLabelKind
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -63,22 +65,22 @@ fun GroupAuditRow(audit: GroupAuditLogDto) {
 
 @Composable
 fun groupAuditActionLabel(action: String): String = stringResource(
-    when (action) {
-        "MEMBER_ADDED" -> R.string.group_audit_member_added
-        "MEMBER_JOINED" -> R.string.group_audit_member_joined
-        "MEMBER_REMOVED" -> R.string.group_audit_member_removed
-        "MEMBER_PROMOTED" -> R.string.group_audit_member_promoted
-        "MEMBER_DEMOTED" -> R.string.group_audit_member_demoted
-        "MEMBER_MUTED" -> R.string.group_audit_member_muted
-        "MEMBER_UNMUTED" -> R.string.group_audit_member_unmuted
-        "GROUP_RENAMED" -> R.string.group_audit_group_renamed
-        "ANNOUNCEMENT_UPDATED" -> R.string.group_audit_announcement
-        "AVATAR_UPDATED" -> R.string.group_audit_avatar
-        "INVITE_ROTATED", "INVITE_CONFIGURED" -> R.string.group_audit_invite
-        "TITLE_UPDATED" -> R.string.group_audit_title
-        "NICKNAME_UPDATED" -> R.string.group_audit_nickname
-        "MEMBER_LEFT" -> R.string.group_audit_member_left
-        "OWNERSHIP_TRANSFERRED" -> R.string.group_audit_ownership_transferred
-        else -> R.string.group_audit_other
+    when (groupAuditActionLabelKind(action)) {
+        GroupAuditActionLabelKind.MemberAdded -> R.string.group_audit_member_added
+        GroupAuditActionLabelKind.MemberJoined -> R.string.group_audit_member_joined
+        GroupAuditActionLabelKind.MemberRemoved -> R.string.group_audit_member_removed
+        GroupAuditActionLabelKind.MemberPromoted -> R.string.group_audit_member_promoted
+        GroupAuditActionLabelKind.MemberDemoted -> R.string.group_audit_member_demoted
+        GroupAuditActionLabelKind.MemberMuted -> R.string.group_audit_member_muted
+        GroupAuditActionLabelKind.MemberUnmuted -> R.string.group_audit_member_unmuted
+        GroupAuditActionLabelKind.GroupRenamed -> R.string.group_audit_group_renamed
+        GroupAuditActionLabelKind.AnnouncementUpdated -> R.string.group_audit_announcement
+        GroupAuditActionLabelKind.AvatarUpdated -> R.string.group_audit_avatar
+        GroupAuditActionLabelKind.Invite -> R.string.group_audit_invite
+        GroupAuditActionLabelKind.TitleUpdated -> R.string.group_audit_title
+        GroupAuditActionLabelKind.NicknameUpdated -> R.string.group_audit_nickname
+        GroupAuditActionLabelKind.MemberLeft -> R.string.group_audit_member_left
+        GroupAuditActionLabelKind.OwnershipTransferred -> R.string.group_audit_ownership_transferred
+        GroupAuditActionLabelKind.Other -> R.string.group_audit_other
     }
 )
