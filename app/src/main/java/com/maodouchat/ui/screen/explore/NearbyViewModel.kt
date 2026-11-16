@@ -1,7 +1,6 @@
 package com.maodouchat.ui.screen.explore
 
 import com.maodouchat.core.model.LocationException
-import com.maodouchat.core.model.LocationFailure
 import com.maodouchat.core.model.NearbyPerson
 import com.maodouchat.core.model.NearbyUiState
 import com.maodouchat.data.repository.NearbyNetworkRepository
@@ -16,6 +15,8 @@ import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.domain.messaging.LocationFailureKind
+import com.maodouchat.domain.messaging.locationFailureKind
 import kotlinx.coroutines.launch
 
 class NearbyViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,11 +35,11 @@ class NearbyViewModel(application: Application) : AndroidViewModel(application) 
     private fun text(id: Int): String = getApplication<Application>().getString(id)
 
     private fun locationErrorText(error: Throwable): String = when (
-        (error as? LocationException)?.failure
+        locationFailureKind((error as? LocationException)?.failure)
     ) {
-        LocationFailure.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
-        LocationFailure.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
-        LocationFailure.UNAVAILABLE, null -> text(R.string.location_error_unavailable)
+        LocationFailureKind.PERMISSION_REQUIRED -> text(R.string.location_error_permission)
+        LocationFailureKind.SERVICES_DISABLED -> text(R.string.location_error_services_disabled)
+        LocationFailureKind.UNAVAILABLE, LocationFailureKind.UNKNOWN -> text(R.string.location_error_unavailable)
     }
 
     init { loadStatus() }

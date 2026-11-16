@@ -10,15 +10,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.GroupDetailTab
+import com.maodouchat.domain.groups.GroupDetailTabKind
+import com.maodouchat.domain.groups.groupDetailTabKind
 
-internal fun GroupDetailTab.labelResource(): Int = when (this) {
-    GroupDetailTab.MEMBERS -> R.string.chat_group_member
-    GroupDetailTab.AUDIT -> R.string.group_detail_audit_title
-    GroupDetailTab.MEDIA -> R.string.media_center_media
-    GroupDetailTab.FILES -> R.string.media_center_files
-    GroupDetailTab.VOICE -> R.string.media_center_voice
-    GroupDetailTab.LOCATION -> R.string.media_center_location
-    GroupDetailTab.LINKS -> R.string.media_center_links
+internal fun GroupDetailTab.labelResource(): Int = when (groupDetailTabKind(this)) {
+    GroupDetailTabKind.MEMBERS -> R.string.chat_group_member
+    GroupDetailTabKind.AUDIT -> R.string.group_detail_audit_title
+    GroupDetailTabKind.MEDIA -> R.string.media_center_media
+    GroupDetailTabKind.FILES -> R.string.media_center_files
+    GroupDetailTabKind.VOICE -> R.string.media_center_voice
+    GroupDetailTabKind.LOCATION -> R.string.media_center_location
+    GroupDetailTabKind.LINKS -> R.string.media_center_links
 }
 
 // 群详情页签行：原 GroupDetailScreen 内联 lambda，纯搬移。

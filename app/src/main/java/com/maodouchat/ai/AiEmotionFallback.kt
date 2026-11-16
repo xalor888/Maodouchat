@@ -3,16 +3,18 @@ package com.maodouchat.ai
 import android.content.Context
 import com.maodouchat.R
 import com.maodouchat.core.model.Emotion
+import com.maodouchat.domain.messaging.AiEmotionFallbackKind
+import com.maodouchat.domain.messaging.aiEmotionFallbackKind
 
 /** 情绪感知回复的本地回退模板簇：服务端不可用/未同意时回退，不消费 AI 预算。 */
 internal object AiEmotionFallback {
 
     // 8.48：本地回退模板国际化（此前硬编码中文，英文用户看到中文回复）。不声称执行任何动作，仅表达理解。
-    fun localFallback(context: Context, emotion: Emotion): String = when (emotion) {
-        Emotion.HAPPY -> context.getString(R.string.ai_emotion_fallback_happy)
-        Emotion.SAD -> context.getString(R.string.ai_emotion_fallback_sad)
-        Emotion.ANGRY -> context.getString(R.string.ai_emotion_fallback_angry)
-        Emotion.ANXIOUS -> context.getString(R.string.ai_emotion_fallback_anxious)
-        Emotion.NEUTRAL -> context.getString(R.string.ai_emotion_fallback_neutral)
+    fun localFallback(context: Context, emotion: Emotion): String = when (aiEmotionFallbackKind(emotion)) {
+        AiEmotionFallbackKind.HAPPY -> context.getString(R.string.ai_emotion_fallback_happy)
+        AiEmotionFallbackKind.SAD -> context.getString(R.string.ai_emotion_fallback_sad)
+        AiEmotionFallbackKind.ANGRY -> context.getString(R.string.ai_emotion_fallback_angry)
+        AiEmotionFallbackKind.ANXIOUS -> context.getString(R.string.ai_emotion_fallback_anxious)
+        AiEmotionFallbackKind.NEUTRAL -> context.getString(R.string.ai_emotion_fallback_neutral)
     }
 }

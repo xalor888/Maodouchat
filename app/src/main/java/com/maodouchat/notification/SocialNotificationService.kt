@@ -13,6 +13,12 @@ import com.maodouchat.R
 import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.model.NotificationSlotPolicy
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.messaging.AnnouncementLevelKind
+import com.maodouchat.domain.messaging.PostInteractionKind
+import com.maodouchat.domain.messaging.announcementLevelKind
+import com.maodouchat.domain.messaging.postInteractionCenterKind
+import com.maodouchat.domain.messaging.postInteractionCenterSuffix
+import com.maodouchat.domain.messaging.postInteractionKind
 
 
 /**
@@ -44,10 +50,10 @@ object SocialNotificationService {
             context, NotificationSlotPolicy.announcementRequestCode(announcementId), tapIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val levelLabel = when (level) {
-            "EMERGENCY" -> context.getString(R.string.announcement_level_emergency)
-            "MAINTENANCE" -> context.getString(R.string.announcement_level_maintenance)
-            else -> context.getString(R.string.announcement_level_info)
+        val levelLabel = when (announcementLevelKind(level)) {
+            AnnouncementLevelKind.EMERGENCY -> context.getString(R.string.announcement_level_emergency)
+            AnnouncementLevelKind.MAINTENANCE -> context.getString(R.string.announcement_level_maintenance)
+            AnnouncementLevelKind.INFO -> context.getString(R.string.announcement_level_info)
         }
         val body = "$levelLabel · $title"
         val notification = NotificationCompat.Builder(context, NotificationInfrastructure.CHANNEL_MESSAGES)
@@ -211,11 +217,12 @@ object SocialNotificationService {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         // 1.113：评论被赞 → 独立文案；1.122：回复 → 独立文案
-        val textRes = when (interaction) {
-            "COMMENT_LIKE" -> R.string.notification_post_comment_like
-            "REPLY" -> R.string.notification_post_reply
-            "COMMENT" -> R.string.notification_post_comment
-            else -> R.string.notification_post_like
+        val interactionKind = postInteractionKind(interaction)
+        val textRes = when (interactionKind) {
+            PostInteractionKind.COMMENT_LIKE -> R.string.notification_post_comment_like
+            PostInteractionKind.REPLY -> R.string.notification_post_reply
+            PostInteractionKind.COMMENT -> R.string.notification_post_comment
+            PostInteractionKind.LIKE -> R.string.notification_post_like
         }
         val baseText = context.getString(textRes)
         // 9.137：互动通知预览与 showMessage 同口径脱敏——App 锁/隐藏通知内容开启时，
@@ -242,7 +249,7 @@ object SocialNotificationService {
         runCatching {
             com.maodouchat.MaodouchatApp.emitNotificationCenterItem(
                 NotificationCenterItem(
-                    id = "post_${postId}_${if (interaction == "COMMENT_LIKE") "cl" else if (isComment) "c" else "l"}",
+                    id = "post_${postId}_${postInteractionCenterSuffix(interactionKind, isComment)}",
                     type = NotificationCenterType.POST_INTERACTION,
                     mergeKey = "post_$postId",
                     title = context.getString(R.string.notification_post_interaction),
@@ -253,7 +260,7 @@ object SocialNotificationService {
                     deeplink = if (commentId.isNullOrBlank()) "maodouchat:post:$postId" else "maodouchat:post:$postId?comment=${java.net.URLEncoder.encode(commentId, Charsets.UTF_8.name())}",
                     extra = mapOf(
                         "postId" to postId,
-                        "kind" to if (interaction == "COMMENT_LIKE") "comment_like" else if (isComment) "comment" else "like",
+                        "kind" to postInteractionCenterKind(interactionKind, isComment),
                         "commentId" to (commentId ?: "")
                     )
                 ),
