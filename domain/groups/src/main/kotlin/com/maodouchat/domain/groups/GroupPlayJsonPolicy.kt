@@ -1,6 +1,11 @@
 package com.maodouchat.domain.groups
 
+import com.maodouchat.core.model.ChainEntryItem
+import com.maodouchat.core.model.ChainListItem
+import com.maodouchat.core.model.CheckinRankItem
 import com.maodouchat.core.model.GroupPlayJson
+import com.maodouchat.core.model.PkListItem
+import com.maodouchat.core.model.PollListItem
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -29,4 +34,66 @@ object GroupPlayJsonPolicy {
         if (arr == null) return emptyList()
         return (0 until arr.length()).map { arr.optInt(it) }
     }
+
+    // 四屏列表的行映射：字段提取逐字平移，骨架与缺省值语义不变。
+    fun parseChainList(text: String): List<ChainListItem> =
+        parseObjectList(text) { o ->
+            ChainListItem(
+                id = o.optString("id"),
+                title = o.optString("title"),
+                topic = o.optString("topic"),
+                active = o.optBoolean("active"),
+                entryCount = o.optInt("entryCount"),
+                maxEntries = o.optInt("maxEntries"),
+                myJoined = o.optBoolean("myJoined")
+            )
+        }
+
+    fun parseChainEntries(arr: JSONArray?): List<ChainEntryItem> =
+        parseObjectList(arr) { o ->
+            ChainEntryItem(
+                id = o.optString("id"),
+                userId = o.optString("userId"),
+                sequence = o.optInt("sequence"),
+                content = o.optString("content")
+            )
+        }
+
+    fun parseCheckinRanking(text: String): List<CheckinRankItem> =
+        parseObjectList(text) { o ->
+            CheckinRankItem(
+                userId = o.optString("userId"),
+                streak = o.optInt("streak"),
+                totalCount = o.optInt("totalCount")
+            )
+        }
+
+    fun parsePkList(text: String): List<PkListItem> =
+        parseObjectList(text) { o ->
+            PkListItem(
+                id = o.optString("id"),
+                leftTitle = o.optString("leftTitle"),
+                rightTitle = o.optString("rightTitle"),
+                active = o.optBoolean("active"),
+                leftCount = o.optInt("leftCount"),
+                rightCount = o.optInt("rightCount"),
+                totalVoters = o.optInt("totalVoters"),
+                myChoice = o.optString("myChoice").takeIf { it.isNotBlank() }
+            )
+        }
+
+    fun parsePolls(text: String): List<PollListItem> =
+        parseObjectList(text) { o ->
+            PollListItem(
+                id = o.optString("id"),
+                question = o.optString("question"),
+                options = stringList(o.optJSONArray("options")),
+                multi = o.optBoolean("multi"),
+                anonymous = o.optBoolean("anonymous"),
+                closed = o.optBoolean("closed"),
+                counts = intList(o.optJSONArray("counts")),
+                totalVoters = o.optInt("totalVoters"),
+                myVotes = intList(o.optJSONArray("myVotes"))
+            )
+        }
 }

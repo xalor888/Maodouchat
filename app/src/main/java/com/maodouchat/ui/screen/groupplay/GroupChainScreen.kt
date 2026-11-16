@@ -40,8 +40,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.ChainEntryItem
-import com.maodouchat.core.model.ChainListItem
 import com.maodouchat.core.model.GroupChainDetailState
 import com.maodouchat.core.model.GroupChainUiState
 import com.maodouchat.domain.groups.GroupChainValidationPolicy
@@ -50,7 +48,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 
 class GroupChainViewModel(application: Application, savedStateHandle: SavedStateHandle) :
@@ -90,7 +87,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 )
                 return@launch
             }
-            val chains = runCatching { parseList(resp.body) }.getOrNull()
+            val chains = runCatching { GroupPlayJsonPolicy.parseChainList(resp.body) }.getOrNull()
             if (chains == null) {
                 _uiState.value = _uiState.value.copy(loading = false, error = text(R.string.group_play_load_failed))
                 return@launch
@@ -157,7 +154,7 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                     entryCount = o.optInt("entryCount"),
                     maxEntries = o.optInt("maxEntries"),
                     myJoined = o.optBoolean("myJoined"),
-                    entries = parseEntries(o.optJSONArray("entries"))
+                    entries = GroupPlayJsonPolicy.parseChainEntries(o.optJSONArray("entries"))
                 )
             )
         }
@@ -203,28 +200,6 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
         }
     }
 
-    private fun parseList(text: String): List<ChainListItem> =
-        GroupPlayJsonPolicy.parseObjectList(text) { o ->
-            ChainListItem(
-                id = o.optString("id"),
-                title = o.optString("title"),
-                topic = o.optString("topic"),
-                active = o.optBoolean("active"),
-                entryCount = o.optInt("entryCount"),
-                maxEntries = o.optInt("maxEntries"),
-                myJoined = o.optBoolean("myJoined")
-            )
-        }
-
-    private fun parseEntries(arr: JSONArray?): List<ChainEntryItem> =
-        GroupPlayJsonPolicy.parseObjectList(arr) { o ->
-            ChainEntryItem(
-                id = o.optString("id"),
-                userId = o.optString("userId"),
-                sequence = o.optInt("sequence"),
-                content = o.optString("content")
-            )
-        }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
