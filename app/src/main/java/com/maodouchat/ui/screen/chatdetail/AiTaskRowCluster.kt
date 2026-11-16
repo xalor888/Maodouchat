@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.core.model.AiTaskFilter
+import com.maodouchat.domain.messaging.aiTaskDueLabel
+import com.maodouchat.domain.messaging.isAiTaskOverdue
 import com.maodouchat.ui.theme.LocalChatPalette
 import java.text.DateFormat
 import java.util.Date
@@ -100,12 +102,9 @@ internal fun AiTaskRow(
         }
     }
     val dueLabel = remember(task.dueText, formattedDueAt) {
-        listOfNotNull(task.dueText?.takeIf(String::isNotBlank), formattedDueAt)
-            .distinct()
-            .joinToString(" · ")
-            .takeIf(String::isNotBlank)
+        aiTaskDueLabel(task.dueText, formattedDueAt)
     }
-    val dueColor = if (!task.isCompleted && task.dueAt != null && task.dueAt < System.currentTimeMillis()) {
+    val dueColor = if (isAiTaskOverdue(task.isCompleted, task.dueAt, System.currentTimeMillis())) {
         MaterialTheme.colorScheme.error
     } else {
         LocalChatPalette.current.textSecondary
