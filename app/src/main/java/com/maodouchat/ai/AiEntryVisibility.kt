@@ -2,9 +2,10 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.core.model.ComposerSection
+import com.maodouchat.domain.messaging.AiEntryVisibilityPolicy
 import com.maodouchat.util.RuntimeFlags
 
-/** AI 入口可见性簇：入口位置常量与「该不该画入口」的纯决策。 */
+/** AI 入口可见性簇：入口位置常量与 Context 读取；纯判定在 :domain:messaging。 */
 object AiEntryVisibility {
 
     /** 主入口位置：附件菜单里的 AutoAwesome */
@@ -31,7 +32,12 @@ object AiEntryVisibility {
         consentAccepted: Boolean,
         userEnabled: Boolean = false,
         masterEnabled: Boolean = true
-    ): Boolean = masterEnabled && userEnabled && consentAccepted && chatAiEnabled
+    ): Boolean = AiEntryVisibilityPolicy.shouldShowAiSurfaces(
+        chatAiEnabled = chatAiEnabled,
+        consentAccepted = consentAccepted,
+        userEnabled = userEnabled,
+        masterEnabled = masterEnabled
+    )
 
     /** 设置助手入口、全局搜索 AI 模式：未在设置打开则不画。 */
     fun shouldShowGlobalAiEntry(context: Context): Boolean =
@@ -40,7 +46,8 @@ object AiEntryVisibility {
             AiPrivacyPreferences.consentAccepted(context)
 
     /** 附件菜单 AI 项：只有已开启时才出现。 */
-    fun isComposerEntryActive(chatAiEnabled: Boolean): Boolean = chatAiEnabled
+    fun isComposerEntryActive(chatAiEnabled: Boolean): Boolean =
+        AiEntryVisibilityPolicy.isComposerEntryActive(chatAiEnabled)
 
     fun isComposerEntryActive(context: Context, chatAiEnabled: Boolean): Boolean =
         shouldShowAiSurfaces(
