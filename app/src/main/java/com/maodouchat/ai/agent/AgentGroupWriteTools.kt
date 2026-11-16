@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.domain.groups.GroupNamePolicy
+import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：群组/会话写操作（创建单聊与群/改名/公告/成员管理/解散）。
@@ -38,7 +39,7 @@ internal object AgentGroupWriteTools {
         internal suspend fun updateAnnouncement(app: MaodouchatApp, chatId: String, announcement: String): String {
             if (chatId.isBlank()) return "Error: chatId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
-            ApiService.updateGroupAnnouncement(token, chatId, announcement.take(1_200)).getOrElse { return AgentToolHost.fail(it) }
+            ApiService.updateGroupAnnouncement(token, chatId, AgentToolInputPolicy.cleanAnnouncement(announcement)).getOrElse { return AgentToolHost.fail(it) }
             return "Updated announcement for $chatId"
         }
 

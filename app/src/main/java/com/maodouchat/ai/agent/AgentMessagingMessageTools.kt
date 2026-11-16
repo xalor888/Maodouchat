@@ -9,6 +9,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 
@@ -80,7 +81,7 @@ internal object AgentMessagingMessageTools {
                 ?: return "Error: message not found"
             AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
-            val normalizedEmoji = emoji.trim().take(16)
+            val normalizedEmoji = AgentToolInputPolicy.normalizeReactionEmoji(emoji)
             val current = local.toDomain()
             val nextEmoji = normalizedEmoji.takeUnless {
                 current.reactions.any { reaction ->
