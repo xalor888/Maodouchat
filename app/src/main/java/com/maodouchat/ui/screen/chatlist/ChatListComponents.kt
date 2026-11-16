@@ -41,13 +41,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.ChatListReceiptPolicy
-import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity
+import com.maodouchat.domain.conversation.ChatListAvatarPolicy
+import com.maodouchat.domain.conversation.ChatListDisplayNamePolicy
+import com.maodouchat.domain.conversation.ChatListItemPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.MessageType
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.component.MessageStatusIcon
@@ -77,14 +78,12 @@ internal fun ChatListItem(
     onLongClick: () -> Unit = {},
     onBadgeClick: (() -> Unit)? = null
 ) {
-    val otherUser = chat.participants.firstOrNull()
-    val rawDisplayName = when {
-        chat.isChannel -> chat.groupName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_channel_default_name)
-        chat.isGroup -> chat.groupName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_group)
-        else -> otherUser?.displayName?.takeIf(String::isNotBlank) ?: stringResource(R.string.chat_unknown)
-    }
-    val displayName = if (isSecret || chat.isSecret)
-        com.maodouchat.core.session.SecretChatPolicy.mosaicDisplayName(rawDisplayName) else rawDisplayName
+    val displayName = ChatListDisplayNamePolicy.resolve(
+        chat, isSecret,
+        channelDefault = stringResource(R.string.chat_channel_default_name),
+        groupDefault = stringResource(R.string.chat_group),
+        unknownLabel = stringResource(R.string.chat_unknown)
+    )
     val haptic = LocalHapticFeedback.current
     val hapticContext = LocalContext.current
     val motion = LocalMotionSettings.current
@@ -100,30 +99,28 @@ internal fun ChatListItem(
     val listCtx = LocalContext.current
     val secretListBlock = isSecret && RuntimeFlags.isEnabled(listCtx, RuntimeFlags.SECRET_LIST_PREVIEW_BLOCK)
     val draftText = if (isLocked || secretListBlock) null else draft?.text?.takeIf(String::isNotBlank)
-    val lockedPreview = stringResource(R.string.chat_lock_list_preview)
-    val secretPreview = stringResource(R.string.secret_chat_notification_preview)
-    val messagePreview = if (isLocked) lockedPreview
-    else if (secretListBlock) secretPreview
-    else when (chat.lastMessageType) {
-        MessageType.NUDGE -> stringResource(R.string.message_preview_nudge)
-        else -> forwardPreviewText(chat.lastMessageType)?.let { stringResource(chatMessagePreviewTextResId(it)) } ?: run {
-            val placeholder = stringResource(R.string.message_preview_encrypted)
-            val stripped = com.maodouchat.core.model.ChatListPreviewPolicy
-                .listVisibleText(
-                    chat.lastMessage, placeholder)
-            if (stripped == placeholder) placeholder
-            else ChatMarkdown.stripContactCardMarker(stripped)
-        }
-    }
+    val messagePreview = ChatListItemPreviewPolicy.resolveMessagePreview(
+        isLocked = isLocked,
+        lockedPreview = stringResource(R.string.chat_lock_list_preview),
+        secretBlocked = secretListBlock,
+        secretPreview = stringResource(R.string.secret_chat_notification_preview),
+        lastMessageType = chat.lastMessageType,
+        lastMessage = chat.lastMessage,
+        nudgeLabel = stringResource(R.string.message_preview_nudge),
+        mediaLabel = forwardPreviewText(chat.lastMessageType)?.let { stringResource(chatMessagePreviewTextResId(it)) },
+        encryptedPlaceholder = stringResource(R.string.message_preview_encrypted)
+    )
     // 1.103：对端正在输入 → 预览最优先（锁/密聊不泄露输入状态）
     val typingPreview = if (typingUserId != null && !isLocked && !secretListBlock) stringResource(R.string.chat_typing) else null
-    val preview = typingPreview
-        ?: if (!draftText.isNullOrBlank()) stringResource(R.string.chat_draft_prefix) + draftText
-        else messagePreview
     // 1.146：待发送定时消息提示（最优先于草稿/消息预览）
     val scheduledLabel = if (scheduledCount > 0 && !isLocked)
         stringResource(R.string.chat_scheduled_list_preview, scheduledCount) else null
-    val finalPreview = scheduledLabel ?: preview
+    val finalPreview = ChatListItemPreviewPolicy.resolveFinalPreview(
+        typingPreview = typingPreview,
+        draftPreview = if (!draftText.isNullOrBlank()) stringResource(R.string.chat_draft_prefix) + draftText else null,
+        messagePreview = messagePreview,
+        scheduledLabel = scheduledLabel
+    )
 
     Row(
         modifier = modifier
@@ -162,11 +159,11 @@ internal fun ChatListItem(
         }
         Avatar(
             name = displayName,
-            avatarUrl = if (isSecret || chat.isSecret) null else if (chat.isGroup) chat.groupAvatar else otherUser?.avatar,
+            avatarUrl = ChatListAvatarPolicy.avatarUrl(chat, isSecret),
             // 9.268：TG 式会话列表头像 54dp（原 48dp）
             size = AvatarSize.CHAT_LIST,
             // 1.128：单聊显示对方在线绿点（群聊不显示）；1.141：密聊不显示（隐私）
-            isOnline = !chat.isGroup && otherUser?.isOnline == true && !isSecret
+            isOnline = ChatListAvatarPolicy.showOnlineDot(chat, isSecret)
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {

@@ -650,7 +650,7 @@ class ClientArchitectureTest {
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 269,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 266,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
@@ -927,7 +927,7 @@ class ClientArchitectureTest {
         // 2026-10-17：chatlist 时间格式化簇/搜索建议助手抽出（纯搬移；ChatListComponents 472 → 421），
         // 2026-10-17：BottomNavBar/ArchiveSuggestionsCard 抽出两个同包新文件（纯搬移；421 → 274），
         // 上限同步收紧（两份 map 一起改）。
-        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 269,
+        "com/maodouchat/ui/screen/chatlist/ChatListComponents.kt" to 266,
         // #454/#456 合并后 ExplorePostDetailScreen（740→671）跌出前 20，
         // MaodouchatApp（700）首次进入窗口——按实测值纳入监管（先纳管，后续再拆）。
         // 2026-11-07：Message 迁入 :core:model，FQN 归一化为裸名 +1 行 import
