@@ -29,8 +29,9 @@ import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.core.model.GroupMutePolicy
-import com.maodouchat.core.model.GroupMutePreset
 import com.maodouchat.core.model.GroupMutationFeedbackKind
+import com.maodouchat.domain.groups.GroupMutePresetLabelKind
+import com.maodouchat.domain.groups.groupMutePresetLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.OwnedBotUi
@@ -96,31 +97,22 @@ fun MuteMemberDialog(
     onMuteUntil: (Long) -> Unit
 ) {
     val now = System.currentTimeMillis()
-    val label5 = stringResource(R.string.group_detail_mute_5_minutes)
-    val label10 = stringResource(R.string.group_detail_mute_10_minutes)
-    val label30 = stringResource(R.string.group_detail_mute_30_minutes)
-    val label1h = stringResource(R.string.group_detail_mute_1_hour)
-    val label2h = stringResource(R.string.group_detail_mute_2_hours)
-    val label3h = stringResource(R.string.group_detail_mute_3_hours)
-    val label6h = stringResource(R.string.group_detail_mute_6_hours)
-    val label8h = stringResource(R.string.group_detail_mute_8_hours)
-    val label1d = stringResource(R.string.group_detail_mute_1_day)
-    val label7d = stringResource(R.string.group_detail_mute_7_days)
-    val label30d = stringResource(R.string.group_detail_mute_30_days)
     val choices = GroupMutePolicy.presets.map { preset ->
-        val label = when (preset) {
-            GroupMutePreset.MINUTES_5 -> label5
-            GroupMutePreset.MINUTES_10 -> label10
-            GroupMutePreset.MINUTES_30 -> label30
-            GroupMutePreset.HOUR_1 -> label1h
-            GroupMutePreset.HOURS_2 -> label2h
-            GroupMutePreset.HOURS_3 -> label3h
-            GroupMutePreset.HOURS_6 -> label6h
-            GroupMutePreset.HOURS_8 -> label8h
-            GroupMutePreset.DAY_1 -> label1d
-            GroupMutePreset.DAYS_7 -> label7d
-            GroupMutePreset.DAYS_30 -> label30d
-        }
+        val label = stringResource(
+            when (groupMutePresetLabelKind(preset)) {
+                GroupMutePresetLabelKind.MINUTES_5 -> R.string.group_detail_mute_5_minutes
+                GroupMutePresetLabelKind.MINUTES_10 -> R.string.group_detail_mute_10_minutes
+                GroupMutePresetLabelKind.MINUTES_30 -> R.string.group_detail_mute_30_minutes
+                GroupMutePresetLabelKind.HOUR_1 -> R.string.group_detail_mute_1_hour
+                GroupMutePresetLabelKind.HOURS_2 -> R.string.group_detail_mute_2_hours
+                GroupMutePresetLabelKind.HOURS_3 -> R.string.group_detail_mute_3_hours
+                GroupMutePresetLabelKind.HOURS_6 -> R.string.group_detail_mute_6_hours
+                GroupMutePresetLabelKind.HOURS_8 -> R.string.group_detail_mute_8_hours
+                GroupMutePresetLabelKind.DAY_1 -> R.string.group_detail_mute_1_day
+                GroupMutePresetLabelKind.DAYS_7 -> R.string.group_detail_mute_7_days
+                GroupMutePresetLabelKind.DAYS_30 -> R.string.group_detail_mute_30_days
+            }
+        )
         label to preset
     }
     AlertDialog(

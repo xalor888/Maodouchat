@@ -37,6 +37,14 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatSearchMode
 import com.maodouchat.core.model.ChatSearchScope
 import com.maodouchat.core.model.ChatSearchWindow
+import com.maodouchat.domain.conversation.ChatSearchModeKind
+import com.maodouchat.domain.conversation.ChatSearchPlaceholderKind
+import com.maodouchat.domain.conversation.ChatSearchScopeKind
+import com.maodouchat.domain.conversation.ChatSearchWindowKind
+import com.maodouchat.domain.conversation.chatSearchModeKind
+import com.maodouchat.domain.conversation.chatSearchPlaceholderKind
+import com.maodouchat.domain.conversation.chatSearchScopeKind
+import com.maodouchat.domain.conversation.chatSearchWindowKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary
@@ -79,10 +87,10 @@ internal fun ChatSearchBar(
                 placeholder = {
                     Text(
                         stringResource(
-                            when {
-                                mode == ChatSearchMode.SEMANTIC -> R.string.chat_semantic_search_placeholder
-                                scope == ChatSearchScope.STARRED -> R.string.chat_search_starred
-                                else -> R.string.chat_search_content
+                            when (chatSearchPlaceholderKind(mode, scope)) {
+                                ChatSearchPlaceholderKind.SEMANTIC -> R.string.chat_semantic_search_placeholder
+                                ChatSearchPlaceholderKind.STARRED -> R.string.chat_search_starred
+                                ChatSearchPlaceholderKind.CONTENT -> R.string.chat_search_content
                             }
                         ),
                         color = LocalChatPalette.current.textHint
@@ -201,26 +209,26 @@ private fun SearchChoiceChip(label: String, selected: Boolean, onClick: () -> Un
 }
 
 @Composable
-private fun ChatSearchMode.localizedLabel(): String = stringResource(when (this) {
-    ChatSearchMode.KEYWORD -> R.string.chat_search_mode_keyword
-    ChatSearchMode.SEMANTIC -> R.string.chat_search_mode_semantic
+private fun ChatSearchMode.localizedLabel(): String = stringResource(when (chatSearchModeKind(this)) {
+    ChatSearchModeKind.KEYWORD -> R.string.chat_search_mode_keyword
+    ChatSearchModeKind.SEMANTIC -> R.string.chat_search_mode_semantic
 })
 
 @Composable
-private fun ChatSearchScope.localizedLabel(): String = stringResource(when (this) {
-    ChatSearchScope.ALL -> R.string.chat_search_scope_all
-    ChatSearchScope.TEXT -> R.string.chat_search_scope_text
-    ChatSearchScope.VOICE -> R.string.chat_search_scope_voice
-    ChatSearchScope.TRANSLATION -> R.string.chat_search_scope_translation
-    ChatSearchScope.STARRED -> R.string.chat_search_scope_starred
-    ChatSearchScope.MEDIA -> R.string.chat_search_scope_media
-    ChatSearchScope.MENTIONS -> R.string.chat_search_scope_mentions
+private fun ChatSearchScope.localizedLabel(): String = stringResource(when (chatSearchScopeKind(this)) {
+    ChatSearchScopeKind.ALL -> R.string.chat_search_scope_all
+    ChatSearchScopeKind.TEXT -> R.string.chat_search_scope_text
+    ChatSearchScopeKind.VOICE -> R.string.chat_search_scope_voice
+    ChatSearchScopeKind.TRANSLATION -> R.string.chat_search_scope_translation
+    ChatSearchScopeKind.STARRED -> R.string.chat_search_scope_starred
+    ChatSearchScopeKind.MEDIA -> R.string.chat_search_scope_media
+    ChatSearchScopeKind.MENTIONS -> R.string.chat_search_scope_mentions
 })
 
 @Composable
-private fun ChatSearchWindow.localizedLabel(): String = stringResource(when (this) {
-    ChatSearchWindow.ALL -> R.string.chat_search_window_all
-    ChatSearchWindow.TODAY -> R.string.chat_search_window_today
-    ChatSearchWindow.SEVEN_DAYS -> R.string.chat_search_window_week
-    ChatSearchWindow.THIRTY_DAYS -> R.string.chat_search_window_month
+private fun ChatSearchWindow.localizedLabel(): String = stringResource(when (chatSearchWindowKind(this)) {
+    ChatSearchWindowKind.ALL -> R.string.chat_search_window_all
+    ChatSearchWindowKind.TODAY -> R.string.chat_search_window_today
+    ChatSearchWindowKind.SEVEN_DAYS -> R.string.chat_search_window_week
+    ChatSearchWindowKind.THIRTY_DAYS -> R.string.chat_search_window_month
 })
