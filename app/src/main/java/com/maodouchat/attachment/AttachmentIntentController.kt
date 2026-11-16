@@ -12,6 +12,7 @@ import com.maodouchat.domain.messaging.AttachmentIntentController
 import com.maodouchat.domain.messaging.AttachmentIntentPolicy
 import com.maodouchat.domain.messaging.AttachmentKind
 import com.maodouchat.domain.messaging.AttachmentPreparationService
+import com.maodouchat.domain.messaging.AttachmentSendFlagPolicy
 import com.maodouchat.domain.messaging.AttachmentTransfer
 import com.maodouchat.domain.messaging.ContentPayload
 import com.maodouchat.domain.messaging.SendMessageCommand
@@ -253,14 +254,7 @@ class DefaultAttachmentIntentController(
 
     private fun validateMediaFlags(kind: AttachmentKind, viewOnce: Boolean, spoilerMedia: Boolean) {
         requireFlag(RuntimeFlags.MEDIA_UPLOAD, "media_upload_disabled")
-        when (kind) {
-            AttachmentKind.IMAGE -> requireFlag(RuntimeFlags.IMAGE_SEND, "image_send_disabled")
-            AttachmentKind.VIDEO -> requireFlag(RuntimeFlags.VIDEO_SEND, "video_send_disabled")
-            AttachmentKind.GIF -> requireFlag(RuntimeFlags.GIF_SEND, "gif_send_disabled")
-            AttachmentKind.FILE -> requireFlag(RuntimeFlags.FILE_SHARE, "file_share_disabled")
-            AttachmentKind.VOICE -> {}
-            else -> {}
-        }
+        AttachmentSendFlagPolicy.requiredFlag(kind)?.let { (flag, message) -> requireFlag(flag, message) }
         if (viewOnce) requireFlag(RuntimeFlags.VIEW_ONCE, "view_once_disabled")
         if (spoilerMedia) requireFlag(RuntimeFlags.SPOILER_MEDIA, "spoiler_media_disabled")
     }

@@ -2,6 +2,7 @@ package com.maodouchat.crypto
 
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
+import com.maodouchat.domain.messaging.SenderKeyRetryPolicy
 
 class SenderKeyRetryTaskQueue(
     private val retryDao: SenderKeyRetryDao,
@@ -45,9 +46,8 @@ class SenderKeyRetryTaskQueue(
         if (!sessionActive(task.ownerUserId)) return
         val attempts = task.attempts + 1
         // 弱网退避细化：区分网络错误与服务器/协议错误，网络错误用更短退避 + 更多重试
-        val isNetworkError = isTransientNetworkError(error)
-        val maxAttempts = if (isNetworkError) MAX_ATTEMPTS_NETWORK else MAX_ATTEMPTS
-        if (attempts >= maxAttempts) {
+        val isNetworkError = SenderKeyRetryPolicy.isTransientNetworkError(error)
+        if (SenderKeyRetryPolicy.shouldAbandon(attempts, isNetworkError)) {
             retryDao.upsert(
                 task.copy(
                     attempts = attempts,
@@ -60,11 +60,7 @@ class SenderKeyRetryTaskQueue(
             return
         }
         // 指数退避 + 抖动（±25%），避免弱网下多设备同时重试的惊群效应
-        val baseDelay = if (isNetworkError) NETWORK_INITIAL_DELAY_MS else INITIAL_DELAY_MS
-        val maxDelay = if (isNetworkError) NETWORK_MAX_DELAY_MS else MAX_DELAY_MS
-        val expDelay = (baseDelay * (1L shl (attempts - 1))).coerceAtMost(maxDelay)
-        val jitter = (expDelay * 0.25 * (Math.random() - 0.5) * 2).toLong()
-        val delayMs = (expDelay + jitter).coerceAtLeast(baseDelay / 2)
+        val delayMs = SenderKeyRetryPolicy.retryDelayMs(attempts, isNetworkError, Math.random())
         retryDao.upsert(
             task.copy(
                 attempts = attempts,
@@ -78,21 +74,16 @@ class SenderKeyRetryTaskQueue(
 
     /** 瞬态网络错误判定（弱网退避与 8.37 破坏性操作防护共用）。 */
     fun isTransientNetworkError(error: Throwable): Boolean =
-        error is java.io.IOException ||
-            error is java.net.SocketTimeoutException ||
-            (error.message?.contains("network", ignoreCase = true) == true) ||
-            (error.message?.contains("timeout", ignoreCase = true) == true) ||
-            (error.message?.contains("unreachable", ignoreCase = true) == true) ||
-            (error.message?.contains("canceled", ignoreCase = true) == true)
+        SenderKeyRetryPolicy.isTransientNetworkError(error)
 
     companion object {
         // 协议/服务器错误退避：30s -> 60s -> 120s -> 240s，最多 5 次
-        const val INITIAL_DELAY_MS = 30_000L
-        const val MAX_DELAY_MS = 30 * 60_000L
-        const val MAX_ATTEMPTS = 5
+        const val INITIAL_DELAY_MS = SenderKeyRetryPolicy.INITIAL_DELAY_MS
+        const val MAX_DELAY_MS = SenderKeyRetryPolicy.MAX_DELAY_MS
+        const val MAX_ATTEMPTS = SenderKeyRetryPolicy.MAX_ATTEMPTS
         // 网络错误退避：更短初始 + 更多重试（弱网场景），10s -> 20s -> 40s -> 80s -> 160s -> 320s，最多 8 次
-        const val NETWORK_INITIAL_DELAY_MS = 10_000L
-        const val NETWORK_MAX_DELAY_MS = 5 * 60_000L
-        const val MAX_ATTEMPTS_NETWORK = 8
+        const val NETWORK_INITIAL_DELAY_MS = SenderKeyRetryPolicy.NETWORK_INITIAL_DELAY_MS
+        const val NETWORK_MAX_DELAY_MS = SenderKeyRetryPolicy.NETWORK_MAX_DELAY_MS
+        const val MAX_ATTEMPTS_NETWORK = SenderKeyRetryPolicy.MAX_ATTEMPTS_NETWORK
     }
 }
