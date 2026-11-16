@@ -4,8 +4,9 @@ import com.maodouchat.core.model.MediaCenterCategory
 import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.MediaCenterUiState
 import com.maodouchat.core.model.MediaExportResult
+import com.maodouchat.domain.messaging.MediaCenterCategoryKind
+import com.maodouchat.domain.messaging.mediaCenterCategoryKind
 import com.maodouchat.domain.messaging.mediaCenterItemMatches
-
 import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -71,7 +72,6 @@ internal fun MediaCenterCategoryContent(
     var previewMessage by remember { mutableStateOf<Message?>(null) }
     var exportTarget by remember { mutableStateOf<Message?>(null) }
     val context = LocalContext.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val secretExportBlocked = stringResource(R.string.secret_chat_media_export_blocked)
     val exportSaved = stringResource(R.string.media_export_saved)
     val exportSavedFile = stringResource(R.string.media_export_saved_file)
@@ -291,10 +291,10 @@ private fun MediaCenterEmpty(category: MediaCenterCategory) {
     }
 }
 
-internal fun MediaCenterCategory.labelResource(): Int = when (this) {
-    MediaCenterCategory.MEDIA -> R.string.media_center_media
-    MediaCenterCategory.FILES -> R.string.media_center_files
-    MediaCenterCategory.VOICE -> R.string.media_center_voice
-    MediaCenterCategory.LINKS -> R.string.media_center_links
-    MediaCenterCategory.LOCATION -> R.string.media_center_location
+internal fun MediaCenterCategory.labelResource(): Int = when (mediaCenterCategoryKind(this)) {
+    MediaCenterCategoryKind.MEDIA -> R.string.media_center_media
+    MediaCenterCategoryKind.FILES -> R.string.media_center_files
+    MediaCenterCategoryKind.VOICE -> R.string.media_center_voice
+    MediaCenterCategoryKind.LINKS -> R.string.media_center_links
+    MediaCenterCategoryKind.LOCATION -> R.string.media_center_location
 }

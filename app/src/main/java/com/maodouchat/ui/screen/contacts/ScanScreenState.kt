@@ -14,8 +14,9 @@ import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
-import com.maodouchat.core.session.SafetyScanStatus
 import com.maodouchat.core.session.SafetyScanResult
+import com.maodouchat.domain.messaging.SafetyScanStatusKind
+import com.maodouchat.domain.messaging.safetyScanStatusKind
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
@@ -173,17 +174,25 @@ internal class ScanScreenUiState(
     @Composable
     // 资源字符串均在回调/协程内读取，非组合作用域
     @SuppressLint("LocalContextGetResourceValueCall")
-    fun safetyScanMessage(result: SafetyScanResult): String = when (result.status) {
-        SafetyScanStatus.SESSION_EXPIRED -> stringResource(R.string.error_session_expired)
-        SafetyScanStatus.WRONG_ACCOUNT -> stringResource(R.string.contacts_safety_wrong_account)
-        SafetyScanStatus.WRONG_DEVICE -> stringResource(R.string.contacts_safety_use_device, result.target.peerDeviceId)
-        SafetyScanStatus.NO_SESSION -> stringResource(R.string.contacts_safety_no_session)
-        SafetyScanStatus.WRONG_DEVICE_QR -> stringResource(R.string.contacts_safety_wrong_device_qr)
-        SafetyScanStatus.FINGERPRINT_MATCH -> stringResource(R.string.contacts_safety_fingerprint_match, result.target.ownerDeviceId)
-        SafetyScanStatus.FINGERPRINT_MISMATCH -> stringResource(R.string.contacts_safety_fingerprint_mismatch)
-        SafetyScanStatus.INVALID_CODE -> stringResource(R.string.contacts_safety_invalid_code)
-        SafetyScanStatus.CODE_MATCH -> stringResource(R.string.contacts_safety_code_match, result.target.ownerDeviceId)
-        SafetyScanStatus.CODE_MISMATCH -> stringResource(R.string.contacts_safety_code_mismatch)
+    fun safetyScanMessage(result: SafetyScanResult): String {
+        val (kind, deviceId) = safetyScanStatusKind(
+            result.status,
+            result.target.peerDeviceId,
+            result.target.ownerDeviceId
+        )
+        val res = when (kind) {
+            SafetyScanStatusKind.SESSION_EXPIRED -> R.string.error_session_expired
+            SafetyScanStatusKind.WRONG_ACCOUNT -> R.string.contacts_safety_wrong_account
+            SafetyScanStatusKind.WRONG_DEVICE -> R.string.contacts_safety_use_device
+            SafetyScanStatusKind.NO_SESSION -> R.string.contacts_safety_no_session
+            SafetyScanStatusKind.WRONG_DEVICE_QR -> R.string.contacts_safety_wrong_device_qr
+            SafetyScanStatusKind.FINGERPRINT_MATCH -> R.string.contacts_safety_fingerprint_match
+            SafetyScanStatusKind.FINGERPRINT_MISMATCH -> R.string.contacts_safety_fingerprint_mismatch
+            SafetyScanStatusKind.INVALID_CODE -> R.string.contacts_safety_invalid_code
+            SafetyScanStatusKind.CODE_MATCH -> R.string.contacts_safety_code_match
+            SafetyScanStatusKind.CODE_MISMATCH -> R.string.contacts_safety_code_mismatch
+        }
+        return if (deviceId == null) stringResource(res) else stringResource(res, deviceId)
     }
 
     /** 扫码反馈策略 → 用户可读文案。 */
