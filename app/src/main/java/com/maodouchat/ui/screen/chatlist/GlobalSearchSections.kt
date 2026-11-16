@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchHit
+import com.maodouchat.domain.conversation.GlobalSearchHitIconKind
+import com.maodouchat.domain.conversation.globalSearchHitIconKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import java.text.DateFormat
 import java.util.Date
@@ -52,13 +54,14 @@ internal fun GlobalSearchResultRow(hit: GlobalSearchHit, query: String, onClick:
         verticalAlignment = Alignment.Top
     ) {
         Icon(
-            when (hit.messageType) {
-                "IMAGE", "GIF", "STICKER" -> Icons.Outlined.Image
-                "VIDEO" -> Icons.Outlined.Videocam
-                "FILE" -> Icons.Outlined.Description
-                "VOICE" -> Icons.Outlined.Mic
-                "LOCATION" -> Icons.Outlined.LocationOn
-                else -> if (hit.semanticScore != null) Icons.Outlined.AutoAwesome else Icons.Outlined.Search
+            when (globalSearchHitIconKind(hit.messageType, hit.semanticScore)) {
+                GlobalSearchHitIconKind.IMAGE -> Icons.Outlined.Image
+                GlobalSearchHitIconKind.VIDEO -> Icons.Outlined.Videocam
+                GlobalSearchHitIconKind.FILE -> Icons.Outlined.Description
+                GlobalSearchHitIconKind.VOICE -> Icons.Outlined.Mic
+                GlobalSearchHitIconKind.LOCATION -> Icons.Outlined.LocationOn
+                GlobalSearchHitIconKind.AI_SEMANTIC -> Icons.Outlined.AutoAwesome
+                GlobalSearchHitIconKind.TEXT -> Icons.Outlined.Search
             },
             contentDescription = null,
             tint = if (hit.semanticScore != null) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textHint,
