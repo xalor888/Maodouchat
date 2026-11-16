@@ -36,6 +36,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
+import com.maodouchat.domain.conversation.ModerationReportTargetKind
+import com.maodouchat.domain.conversation.isModerationReportPending
+import com.maodouchat.domain.conversation.moderationReportTargetKind
 import com.maodouchat.domain.messaging.formatAiTaskDue
 import com.maodouchat.ui.component.EmptyState
 import com.maodouchat.core.model.EmptyStateType
@@ -105,12 +108,12 @@ fun MyReportsScreen(onBack: () -> Unit = {}) {
 
 @Composable
 private fun MyReportCard(report: ReportResponse) {
-    val targetLabel = when (report.targetType) {
-        "MESSAGE" -> stringResource(com.maodouchat.R.string.my_reports_target_message)
-        "POST" -> stringResource(com.maodouchat.R.string.my_reports_target_post)
+    val targetLabel = when (moderationReportTargetKind(report.targetType)) {
+        ModerationReportTargetKind.Message -> stringResource(com.maodouchat.R.string.my_reports_target_message)
+        ModerationReportTargetKind.Post -> stringResource(com.maodouchat.R.string.my_reports_target_post)
         else -> stringResource(com.maodouchat.R.string.my_reports_target_user)
     }
-    val statusLabel = if (report.status.equals("PENDING", ignoreCase = true)) {
+    val statusLabel = if (isModerationReportPending(report.status)) {
         stringResource(com.maodouchat.R.string.report_status_pending)
     } else {
         stringResource(com.maodouchat.R.string.report_status_resolved)
@@ -128,7 +131,7 @@ private fun MyReportCard(report: ReportResponse) {
             Text(
                 text = statusLabel,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (report.status.equals("PENDING", ignoreCase = true)) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
+                color = if (isModerationReportPending(report.status)) MaterialTheme.colorScheme.primary else LocalChatPalette.current.textSecondary
             )
         }
         Text(

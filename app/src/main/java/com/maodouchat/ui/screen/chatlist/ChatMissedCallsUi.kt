@@ -24,6 +24,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
 import com.maodouchat.core.model.CallLogRow
 import com.maodouchat.core.model.MissedCall
+import com.maodouchat.domain.calls.MissedCallSuffixKind
+import com.maodouchat.domain.calls.missedCallSuffixKind
 import com.maodouchat.ui.theme.LocalMotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.foundation.background
@@ -104,15 +106,14 @@ internal fun MissedCallsSheet(
                         Spacer(Modifier.width(10.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(call.peerName, fontWeight = FontWeight.Medium)
+                            val durationText = CallHistoryTime.formatDuration(call.durationMs)
                             Text(
                                 (if (call.video) stringResource(R.string.call_video) else stringResource(R.string.call_audio)) +
                                     " · " + relativeTime(call.at) +
-                                    when (call.state) {
-                                        State.MISSED -> " · " + stringResource(R.string.missed_calls_badge)
-                                        State.ANSWERED -> {
-                                            val d = CallHistoryTime.formatDuration(call.durationMs)
-                                            if (d.isNotEmpty()) " · " + d else ""
-                                        }
+                                    when (missedCallSuffixKind(call.state, durationText)) {
+                                        MissedCallSuffixKind.BADGE -> " · " + stringResource(R.string.missed_calls_badge)
+                                        MissedCallSuffixKind.DURATION -> " · " + durationText
+                                        MissedCallSuffixKind.NONE -> ""
                                     },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = LocalChatPalette.current.textSecondary
