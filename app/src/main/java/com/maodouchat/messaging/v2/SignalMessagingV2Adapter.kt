@@ -4,8 +4,8 @@ import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2ConversationSnapshot
 import com.maodouchat.core.model.MessagingV2DeviceTarget
-import com.maodouchat.core.model.MessagingV2GroupControlPolicy
-import com.maodouchat.core.model.MessagingV2StaleGroupControlException
+import com.maodouchat.domain.messaging.MessagingV2GroupControlPolicy
+import com.maodouchat.domain.messaging.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity

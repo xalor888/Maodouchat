@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.MessagingV2GroupControlPolicy
 
 /**
  * 发件箱发送/准备失败后的处置判定。纯逻辑：调用方按返回结果落库或改重试状态，

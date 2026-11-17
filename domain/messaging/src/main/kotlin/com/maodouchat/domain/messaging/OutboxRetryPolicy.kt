@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessagingV2RetryPolicy
-
 /**
  * 发件箱失败后的重试决策。纯逻辑：调用方按返回结果落库改状态，
  * 这里不碰 DAO、不碰时钟。状态字符串仍由 app 侧的实体常量承载，

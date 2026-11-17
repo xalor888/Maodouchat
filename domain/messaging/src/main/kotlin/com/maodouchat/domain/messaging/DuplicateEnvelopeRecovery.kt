@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.core.model.MessagingV2ContentPolicy
 import kotlinx.serialization.json.Json
 
 private val duplicateEnvelopeJson = Json { ignoreUnknownKeys = false }

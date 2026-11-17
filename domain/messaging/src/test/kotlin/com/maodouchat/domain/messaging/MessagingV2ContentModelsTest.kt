@@ -1,10 +1,15 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.DecodedContentPayload
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.core.model.MessagingV2Event
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class MessagingV2ContentModelsTest {
 

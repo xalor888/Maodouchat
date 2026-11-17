@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.core.model.MessagingV2GroupControlPolicy
+import com.maodouchat.domain.messaging.MessagingV2GroupControlPolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

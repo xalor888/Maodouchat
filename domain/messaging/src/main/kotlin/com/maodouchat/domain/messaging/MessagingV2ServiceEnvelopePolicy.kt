@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 object MessagingV2ServiceEnvelopePolicy {
     fun accepts(senderUserId: String, senderDeviceId: Int, ciphertextType: String): Boolean =

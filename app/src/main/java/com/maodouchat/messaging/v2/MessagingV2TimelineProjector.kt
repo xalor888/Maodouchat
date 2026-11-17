@@ -2,7 +2,7 @@ package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.MessagingV2ArrivalPolicy
+import com.maodouchat.domain.messaging.MessagingV2ArrivalPolicy
 import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
 import com.maodouchat.core.model.ContentPayloadCodec
 import com.maodouchat.core.model.MessagingV2Content
