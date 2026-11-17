@@ -15,6 +15,7 @@ import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.BallState
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
+import com.maodouchat.domain.messaging.AgentServiceMessagePolicy
 import com.maodouchat.domain.messaging.AgentSessionTitlePolicy
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -72,7 +73,7 @@ object MaodouAgentService {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
         if (!AiPrivacyPreferences.userEnabled(context) || !AiPrivacyPreferences.consentAccepted(context)) {
-            errorMessage.value = "请先在设置里打开 AI 并授权本机处理"
+            errorMessage.value = AgentServiceMessagePolicy.AI_NOT_ENABLED
             return
         }
         val provider = LocalAiProviderStore.activeProvider(context)
@@ -99,7 +100,7 @@ object MaodouAgentService {
         messages.add(
             AgentChatMessage(
                 role = "tool",
-                content = "用户拒绝了 ${pending.call.name}",
+                content = AgentServiceMessagePolicy.rejectTool(pending.call.name),
                 toolCallId = pending.call.id,
                 toolName = pending.call.name
             )
@@ -145,7 +146,7 @@ object MaodouAgentService {
                         messages.add(
                             AgentChatMessage(
                                 role = "tool",
-                                content = event.result.take(500),
+                                content = AgentServiceMessagePolicy.toolResultStored(event.result),
                                 toolName = event.name
                             )
                         )
