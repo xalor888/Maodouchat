@@ -4,6 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentTaskResultPolicy
+import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import java.util.UUID
@@ -20,7 +21,7 @@ internal object AgentTaskWriteTools {
             val entity = AiTaskEntity(
                 id = AgentEntityIdPolicy.taskId(UUID.randomUUID().toString()),
                 chatId = chatId,
-                sourceQuery = "agent",
+                sourceQuery = AgentToolHostPolicy.AGENT_SOURCE,
                 title = cleanTitle,
                 dueText = AgentToolInputPolicy.cleanTaskDueText(dueText),
                 createdAt = now,

@@ -4,6 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentSendResultPolicy
+import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
@@ -22,7 +23,7 @@ internal object AgentMessagingSendTools {
             if (chatId.isBlank() || body.isBlank()) return AgentWriteErrorPolicy.required("chatId", "text")
             val chat = app.database.chatDao().getChatById(chatId) ?: return AgentWriteErrorPolicy.chatNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
-            val meta = MessageMeta(aiAssisted = true, aiAssistantMode = "agent")
+            val meta = MessageMeta(aiAssisted = true, aiAssistantMode = AgentToolHostPolicy.AGENT_SOURCE)
             val content = JsonFormat.composeContentWithMeta(body, meta)
             val message = Message(
                 id = AgentEntityIdPolicy.messageId(UUID.randomUUID().toString()),

@@ -40,4 +40,10 @@ class AgentToolHostPolicyTest {
             AgentToolHostPolicy.REWRITE_HANDLED_BY_ENGINE
         )
     }
+
+    @Test
+    fun `rewrite tool name and agent source marker`() {
+        assertEquals("rewrite_text", AgentToolHostPolicy.REWRITE_TOOL_NAME)
+        assertEquals("agent", AgentToolHostPolicy.AGENT_SOURCE)
+    }
 }

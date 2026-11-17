@@ -1,10 +1,18 @@
 package com.maodouchat.domain.messaging
 
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class AgentSecretPeerPolicyTest {
+
+    @Test
+    fun `isSecretChat matches only the SECRET chat type`() {
+        assertTrue(AgentSecretPeerPolicy.isSecretChat("SECRET"))
+        assertFalse(AgentSecretPeerPolicy.isSecretChat("GROUP"))
+        assertFalse(AgentSecretPeerPolicy.isSecretChat(""))
+    }
 
     @Test
     fun `secretPeerIds splits trims drops blanks and dedupes`() {

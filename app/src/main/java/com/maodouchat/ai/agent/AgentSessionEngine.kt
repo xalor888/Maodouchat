@@ -10,6 +10,7 @@ import com.maodouchat.core.model.Approval
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
+import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -98,7 +99,7 @@ class AgentSessionEngine(
                                 return@flow
                             }
                             Approval.ALLOW -> {
-                                if (call.name == "rewrite_text") {
+                                if (call.name == AgentToolHostPolicy.REWRITE_TOOL_NAME) {
                                     val rewritten = AgentTextCompletion.rewriteViaModel(provider, args, complete)
                                     working += AgentChatMessage(
                                         role = "tool",
