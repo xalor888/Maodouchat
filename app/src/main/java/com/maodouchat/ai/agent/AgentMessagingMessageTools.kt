@@ -8,6 +8,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.AgentMessageErrorPolicy
 import com.maodouchat.domain.messaging.AgentMessageResultPolicy
 import com.maodouchat.domain.messaging.AgentReactionTogglePolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
@@ -18,16 +19,16 @@ import com.maodouchat.network.TokenManager
 internal object AgentMessagingMessageTools {
         internal suspend fun starMessage(app: MaodouchatApp, messageId: String, starred: Boolean?): String {
             if (messageId.isBlank() || starred == null) return "Error: messageId and starred required"
-            val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
+            val message = app.database.messageDao().getMessageById(messageId) ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             if (message.starred == starred) return AgentMessageResultPolicy.alreadyStarred(starred)
             val token = TokenManager.getInstance(app).getToken().orEmpty()
             if (token.isNotBlank()) {
                 var result = ApiService.toggleStarMessage(token, messageId)
-                    .getOrElse { return "Error: ${it.message ?: "star sync failed"}" }
+                    .getOrElse { return AgentMessageErrorPolicy.starSyncFailed(it.message) }
                 if (result.starred != starred) {
                     result = ApiService.toggleStarMessage(token, messageId)
-                        .getOrElse { return "Error: ${it.message ?: "star sync failed"}" }
+                        .getOrElse { return AgentMessageErrorPolicy.starSyncFailed(it.message) }
                 }
                 if (result.starred != starred) return AgentMessageResultPolicy.serverStarMismatch(result.starred)
                 app.database.messageDao().setStarred(messageId, result.starred)
@@ -39,7 +40,7 @@ internal object AgentMessagingMessageTools {
 
         internal suspend fun deleteLocalMessage(app: MaodouchatApp, messageId: String): String {
             if (messageId.isBlank()) return "Error: messageId required"
-            val message = app.database.messageDao().getMessageById(messageId) ?: return "Error: message not found"
+            val message = app.database.messageDao().getMessageById(messageId) ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             LocalMessageStore(app.database.messageDao(), app.database).deleteMessage(messageId)
             return AgentMessageResultPolicy.deletedLocal(messageId)
@@ -49,10 +50,10 @@ internal object AgentMessagingMessageTools {
             if (messageId.isBlank()) return "Error: messageId required"
             AgentToolHost.token(app) ?: return "Error: not signed in"
             val local = app.database.messageDao().getMessageById(messageId)
-                ?: return "Error: message not found"
+                ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
-            if (local.senderId != ownerUserId) return "Error: only the sender can revoke this message"
+            if (local.senderId != ownerUserId) return AgentMessageErrorPolicy.onlySenderCanRevoke()
             val chat = app.database.chatDao().getChatById(local.chatId)
             val placeholder = app.getString(R.string.chat_message_revoked_placeholder)
             app.messagingV2Outbox.enqueueEvent(
@@ -79,7 +80,7 @@ internal object AgentMessagingMessageTools {
             if (messageId.isBlank() || emoji.isBlank()) return "Error: messageId and emoji required"
             AgentToolHost.token(app) ?: return "Error: not signed in"
             val local = app.database.messageDao().getMessageById(messageId)
-                ?: return "Error: message not found"
+                ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
             val normalizedEmoji = AgentToolInputPolicy.normalizeReactionEmoji(emoji)

@@ -4,6 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.domain.messaging.AgentDraftLinePolicy
+import com.maodouchat.domain.messaging.AgentReadEmptyPolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
 import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.first
 internal object AgentTaskDraftReads {
     internal suspend fun listDrafts(app: MaodouchatApp, userId: String): String {
         val drafts = app.database.chatDraftDao().observeForOwner(userId).first()
-        if (drafts.isEmpty()) return "No drafts."
+        if (drafts.isEmpty()) return AgentReadEmptyPolicy.noDrafts()
         val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
         val secret = app.database.chatDao().listSecretChatIds().toHashSet()
         val visible = drafts.filter { draft ->
@@ -22,7 +23,7 @@ internal object AgentTaskDraftReads {
                 unlocked = ChatLockSession.isUnlocked(draft.chatId)
             )
         }
-        if (visible.isEmpty()) return "No drafts."
+        if (visible.isEmpty()) return AgentReadEmptyPolicy.noDrafts()
         return visible.take(AgentTaskReadLimitPolicy.MAX_DRAFT_LIST_ITEMS)
             .joinToString("\n") { AgentDraftLinePolicy.draftLine(it.chatId, it.text) }
     }
@@ -31,6 +32,6 @@ internal object AgentTaskDraftReads {
         AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
         if (chatId.isBlank()) return "Error: chatId required"
         val draft = app.database.chatDraftDao().get(userId, chatId)
-        return if (draft == null || draft.text.isBlank()) "No draft." else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
+        return if (draft == null || draft.text.isBlank()) AgentReadEmptyPolicy.noDraft() else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
     }
 }

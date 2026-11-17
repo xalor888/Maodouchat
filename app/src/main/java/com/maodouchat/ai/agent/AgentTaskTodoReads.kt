@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentReadEmptyPolicy
 import com.maodouchat.domain.messaging.AgentTaskLinePolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
 
@@ -11,7 +12,7 @@ internal object AgentTaskTodoReads {
         val tasks = app.database.aiTaskDao().listRecent(AgentTaskReadLimitPolicy.taskQueryLimit(limit))
             .filter { it.chatId.isBlank() || it.chatId !in blocked }
             .take(AgentTaskReadLimitPolicy.taskResultLimit(limit))
-        if (tasks.isEmpty()) return "No tasks."
+        if (tasks.isEmpty()) return AgentReadEmptyPolicy.noTasks()
         return tasks.joinToString("\n") { task ->
             AgentTaskLinePolicy.taskLine(task.id, task.chatId, task.title, task.isCompleted, task.dueText)
         }
