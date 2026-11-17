@@ -6,6 +6,7 @@ import androidx.work.ListenableWorker
 import androidx.work.Data
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AiTaskReminderWorkNaming
+import com.maodouchat.domain.messaging.AiTaskReminderNotifyRetryPolicy
 import com.maodouchat.domain.messaging.AiTaskReminderRetryPolicy
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.ReminderNotificationService
@@ -69,12 +70,12 @@ internal object AiTaskReminderExecution {
             } else if (!posted) {
                 // 通知没展示（权限被撤/失败）就 15 分钟后重排、限次数；否则任务会 pending 到 6 小时周期对账才动。
                 val retries = inputData.getInt(AiTaskReminderWorkNaming.KEY_NOTIFY_RETRY_COUNT, 0)
-                if (retries < MAX_NOTIFY_RETRIES) {
+                if (AiTaskReminderNotifyRetryPolicy.shouldRetryNotify(retries)) {
                     AiTaskReminderTaskScheduling.deferTask(
                         applicationContext,
                         task.id,
                         expectedUserId,
-                        System.currentTimeMillis() + 15L * 60L * 1000L,
+                        AiTaskReminderNotifyRetryPolicy.nextRetryAt(System.currentTimeMillis()),
                         notifyRetryCount = retries + 1
                     )
                 }
@@ -89,6 +90,4 @@ internal object AiTaskReminderExecution {
     }
 
     private const val TAG = "AiTaskReminderWorker"
-    /** 通知没展示时最多重排次数（15 分钟一次），到上限后交给 6 小时周期对账。 */
-    private const val MAX_NOTIFY_RETRIES = 3
 }
