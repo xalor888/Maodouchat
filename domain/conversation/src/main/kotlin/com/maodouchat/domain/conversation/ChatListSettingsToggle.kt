@@ -1,4 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.ChatSettingsResponse
+import com.maodouchat.core.model.UpdateChatSettingsRequest
 
 fun bumpOptimisticSettingsClock(chat: Chat, nowMs: Long): Chat =
     chat.copy(settingsUpdatedAt = maxOf(nowMs, chat.settingsUpdatedAt + 1L))

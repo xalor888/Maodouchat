@@ -1,11 +1,12 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatSettingsResponse
-import com.maodouchat.core.model.ChatSettingsToggle
-import com.maodouchat.core.model.applyConfirmedSettings
-import com.maodouchat.core.model.buildSettingsToggle
-import com.maodouchat.core.model.bumpOptimisticSettingsClock
+import com.maodouchat.core.model.UpdateChatSettingsRequest
+import com.maodouchat.domain.conversation.ChatSettingsToggle
+import com.maodouchat.domain.conversation.applyConfirmedSettings
+import com.maodouchat.domain.conversation.buildSettingsToggle
+import com.maodouchat.domain.conversation.bumpOptimisticSettingsClock
 import com.maodouchat.core.model.selectUnreadBatchTargets
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -165,5 +166,14 @@ class ChatListSettingsToggleTest {
     fun clockTieGoesOnePast() {
         val chat = Chat(id = "a", settingsUpdatedAt = 1000)
         assertEquals(1001, bumpOptimisticSettingsClock(chat, nowMs = 1000).settingsUpdatedAt)
+    }
+
+    @Test
+    fun `settings toggle mutation holds optimistic chat and request`() {
+        val chat = Chat(id = "c1")
+        val request = UpdateChatSettingsRequest(notificationsMuted = true)
+        val mutation = SettingsToggleMutation(optimistic = chat, request = request)
+        assertEquals("c1", mutation.optimistic.id)
+        assertEquals(true, mutation.request.notificationsMuted)
     }
 }

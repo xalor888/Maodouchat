@@ -60,14 +60,6 @@ class MovedSmallModelsTest {
         )
     }
 
-    @Test
-    fun `settings toggle mutation holds optimistic chat and request`() {
-        val chat = Chat(id = "c1")
-        val request = UpdateChatSettingsRequest(notificationsMuted = true)
-        val mutation = SettingsToggleMutation(optimistic = chat, request = request)
-        assertEquals("c1", mutation.optimistic.id)
-        assertEquals(true, mutation.request.notificationsMuted)
-    }
 
     @Test
     fun `outgoing conversation models hold request and resolution`() {

@@ -5,7 +5,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.messaging.senderDisplayName
-import com.maodouchat.core.model.listSenderLabel
+import com.maodouchat.domain.conversation.listSenderLabel
 import com.maodouchat.core.model.Chat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

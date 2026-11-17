@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.core.model.requiresGroupOwnershipTransfer
+import com.maodouchat.domain.conversation.requiresGroupOwnershipTransfer
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import kotlin.test.Test

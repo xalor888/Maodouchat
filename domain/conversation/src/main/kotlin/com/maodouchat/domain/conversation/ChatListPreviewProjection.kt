@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.MessageType
 
 /**
  * 会话列表预览投影纯函数（ChatList 瘦身第 4 切片）。

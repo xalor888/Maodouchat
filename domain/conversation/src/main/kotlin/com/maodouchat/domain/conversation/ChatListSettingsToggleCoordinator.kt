@@ -1,9 +1,7 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatSettingsToggle
 import com.maodouchat.core.model.UpdateChatSettingsRequest
-import com.maodouchat.core.model.buildSettingsToggle
 
 /** 置顶/静音/归档/标未读编排（ChatList 瘦身：自 ChatListViewModel 抽出）。 */
 class ChatListSettingsToggleCoordinator(
