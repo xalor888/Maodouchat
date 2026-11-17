@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.AnnouncementData
-import com.maodouchat.core.model.AnnouncementPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

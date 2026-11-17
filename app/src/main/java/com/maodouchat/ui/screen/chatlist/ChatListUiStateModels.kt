@@ -1,10 +1,10 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.Receipt
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.conversation.ArchiveSuggestion
 import com.maodouchat.domain.conversation.ChatDraft
 import com.maodouchat.domain.conversation.ChatListVisibleChats
 

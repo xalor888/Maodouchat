@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.QuietWindow
 
 /**
  * 会话级免打扰时段判定（纯函数）。窗口语义与全局 DND 一致：

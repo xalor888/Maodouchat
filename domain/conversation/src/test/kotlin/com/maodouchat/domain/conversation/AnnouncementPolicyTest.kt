@@ -1,54 +1,12 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.AnnouncementData
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
-/**
- * 免打扰时段与公告展示策略契约测试（9.232）。
- */
-class QuietHoursAndAnnouncementTest {
-
-    private fun window(enabled: Boolean = true, start: Int = 0, end: Int = 0) =
-        QuietWindow(enabled = enabled, startMinute = start, endMinute = end)
-
-    @Test
-    fun `quiet hours suppress inside same day window`() {
-        val w = window(start = 22 * 60, end = 23 * 60)
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 22 * 60))
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 22 * 60 + 30))
-        // 半开区间：end 分钟本身不抑制
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 23 * 60))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 12 * 60))
-    }
-
-    @Test
-    fun `quiet hours wrap across midnight`() {
-        val w = window(start = 23 * 60, end = 7 * 60)
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 23 * 60 + 30))
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 0))
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 6 * 60 + 59))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 7 * 60))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 12 * 60))
-    }
-
-    @Test
-    fun `quiet hours disabled or zero length never suppress`() {
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(enabled = false, start = 0, end = 1439), 12 * 60))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = 9 * 60, end = 9 * 60), 9 * 60))
-    }
-
-    @Test
-    fun `quiet hours clamps out of range input`() {
-        val w = window(start = -100, end = 2000)
-        // start 钳到 0，end 钳到 1439：同日窗口 [0,1439)
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 0))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 1439))
-        // 负分钟钳到 0：窗口 [10,20) 不含 0，窗口 [0,20) 含 0
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = 10, end = 20), -5))
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(window(start = 0, end = 20), -5))
-    }
+class AnnouncementPolicyTest {
 
     private fun announcement(
         id: String,
@@ -136,20 +94,6 @@ class QuietHoursAndAnnouncementTest {
     }
 
     @Test
-    fun `full day window suppresses every minute except end`() {
-        val w = window(start = 0, end = 1439)
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 0))
-        assertTrue(ChatQuietHoursPolicy.shouldSuppress(w, 1438))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(w, 1439))
-    }
-
-    @Test
-    fun `clamped equal minutes never suppress`() {
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = 1500, end = 1500), 1439))
-        assertFalse(ChatQuietHoursPolicy.shouldSuppress(window(start = -5, end = -5), 0))
-    }
-
-    @Test
     fun `parse payload filters and sorts`() {
         val raw = """{"announcements":[
             {"id":"info","title":"t","content":"c","level":"INFO","startsAt":5,"expiresAt":9999,"status":"ACTIVE","acked":false},
@@ -172,8 +116,8 @@ class QuietHoursAndAnnouncementTest {
     fun `acked emergency never notifies`() {
         // 已读的高优先级公告不触发前台提示。
         assertFalse(
+            AnnouncementPolicy.shouldNotifyNow(listOf(announcement("e", level = "EMERGENCY", acked = true)), 10),
             "已读紧急公告不应触发通知",
-            AnnouncementPolicy.shouldNotifyNow(listOf(announcement("e", level = "EMERGENCY", acked = true)), 10)
         )
     }
 }

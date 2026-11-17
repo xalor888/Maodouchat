@@ -1,7 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ArchiveSuggestion
-
 // 归档建议卡片只展示前 3 条。
 object ArchiveSuggestionDisplayPolicy {
 
