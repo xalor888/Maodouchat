@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** Decides when a poison envelope must stop blocking mailbox convergence. */
 object MessagingV2InboxFailurePolicy {

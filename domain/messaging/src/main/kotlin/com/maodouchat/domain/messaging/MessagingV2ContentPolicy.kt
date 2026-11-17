@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.core.model.MessagingV2EventAction
 
 /** Binds untrusted transport metadata to the authenticated encrypted application payload. */
 object MessagingV2ContentPolicy {
@@ -36,9 +39,11 @@ object MessagingV2ContentPolicy {
                 event.content != null && event.editedAt != null && event.reactionEmoji == null && event.reactions.isEmpty()
             MessagingV2EventAction.DELETE ->
                 event.content == null && event.editedAt == null && event.reactionEmoji == null && event.reactions.isEmpty()
-            MessagingV2EventAction.REACTION_SET ->
+            MessagingV2EventAction.REACTION_SET -> {
+                val emoji = event.reactionEmoji
                 event.content == null && event.editedAt == null &&
-                    !event.reactionEmoji.isNullOrBlank() && event.reactionEmoji.length <= 32 && event.reactions.isEmpty()
+                    !emoji.isNullOrBlank() && emoji.length <= 32 && event.reactions.isEmpty()
+            }
             else -> false
         }
     }

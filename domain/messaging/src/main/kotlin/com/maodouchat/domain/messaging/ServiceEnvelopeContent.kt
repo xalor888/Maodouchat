@@ -1,8 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.core.model.MessagingV2ContentPolicy
-import com.maodouchat.core.model.MessagingV2ServiceEnvelopePolicy
 import kotlinx.serialization.json.Json
 
 private val serviceEnvelopeJson = Json { ignoreUnknownKeys = false }

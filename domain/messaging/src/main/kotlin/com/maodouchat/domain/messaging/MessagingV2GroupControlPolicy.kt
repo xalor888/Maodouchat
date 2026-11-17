@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 object MessagingV2GroupControlPolicy {
     fun isGroupControl(kind: String): Boolean = kind in GROUP_CONTROL_KINDS

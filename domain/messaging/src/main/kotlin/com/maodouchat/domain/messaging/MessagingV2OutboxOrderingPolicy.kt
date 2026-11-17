@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** Mirrors the causal kinds enforced by the Room outbox selection query. */
 object MessagingV2OutboxOrderingPolicy {

@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.core.model.MessagingV2StaleGroupControlException
+import com.maodouchat.domain.messaging.MessagingV2StaleGroupControlException
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity

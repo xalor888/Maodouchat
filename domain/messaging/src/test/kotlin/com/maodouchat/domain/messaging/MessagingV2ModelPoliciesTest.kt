@@ -1,9 +1,12 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.MessageMutationKind
+import com.maodouchat.core.model.MessageMutationTicket
+import com.maodouchat.core.model.MessagingV2ArrivalDecision
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class MessagingV2ModelPoliciesTest {
 
