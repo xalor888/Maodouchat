@@ -3,6 +3,7 @@ package com.maodouchat.ai
 import android.content.Context
 import androidx.core.net.toUri
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.ImageOcrPolicy
 import com.maodouchat.util.ImagePicker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,10 +26,9 @@ internal object ImageOcrRecognitionDownload {
             }.getOrNull()
         }
         if (base64.isNullOrBlank()) return ""
-        return com.maodouchat.ai.agent.LocalAiGateway.analyzeImage(context, base64, ImageOcrAutoIndexer.OCR_MODE)
+        return com.maodouchat.ai.agent.LocalAiGateway.analyzeImage(context, base64, ImageOcrPolicy.OCR_MODE)
             .getOrNull()
-            ?.trim()
-            ?.take(ImageOcrAutoIndexer.OCR_RESULT_MAX_CHARS)
+            ?.let { ImageOcrPolicy.truncateOcrResult(it) }
             .orEmpty()
     }
 }

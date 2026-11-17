@@ -24,7 +24,7 @@ import kotlinx.coroutines.sync.withLock
  * - 密聊（secret chat）图片一律跳过：结果不应落到可搜索的本地索引；
  * - 已有 ocr 结果（parsedMeta().aiImageAnalyses["ocr"]）的消息跳过；
  * - 走用户本机模型，结果只写本机消息 meta；
- * - 单个运行轮次上限 OCR_IMAGES_PER_RUN 张。
+ * - 单个运行轮次上限 ImageOcrPolicy.OCR_IMAGES_PER_RUN 张。
  */
 class ImageOcrAutoIndexer(
     private val context: Context,
@@ -41,12 +41,5 @@ class ImageOcrAutoIndexer(
         // 入口过门禁——与其它后台 worker 一致
         if (!ImageOcrGates.sessionGate(ownerUserId)) return 0
         return mutex.withLock { ImageOcrScan.scanOnce(context, database, token, ownerUserId) }
-    }
-
-    internal companion object {
-        const val OCR_MODE = "ocr"
-        const val OCR_RESULT_MAX_CHARS = 6_000
-        const val OCR_IMAGES_PER_RUN = 10
-        const val OCR_SCAN_WINDOW = 200
     }
 }

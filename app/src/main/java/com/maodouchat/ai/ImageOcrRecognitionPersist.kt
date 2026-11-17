@@ -3,6 +3,7 @@ package com.maodouchat.ai
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.AiMessageResultStore
+import com.maodouchat.domain.messaging.ImageOcrPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,16 +21,7 @@ internal object ImageOcrRecognitionPersist {
         if (!ImageOcrGates.sessionGate(ownerUserId)) return false
         // 与手动 AI 分析一致：结果写入 meta.aiImageAnalyses["ocr"]（本地缓存 + 可同步），
         // 且立即重算搜索索引（AiMessageResultStore.commit 内部完成）。
-        val plainText = message.parsedContent()
-        val currentMeta = message.parsedMeta()
-        val updatedMeta = currentMeta.copy(
-            aiImageAnalyses = currentMeta.aiImageAnalyses + (ImageOcrAutoIndexer.OCR_MODE to ocrText),
-            preferredImageAnalysisMode = ImageOcrAutoIndexer.OCR_MODE
-        )
-        val updated = message.copy(
-            content = ImageOcrLocalImage.composeContentWithMeta(plainText, updatedMeta),
-            meta = updatedMeta
-        )
+        val updated = ImageOcrPolicy.withOcrResult(message, ocrText)
         return withContext(Dispatchers.IO) {
             if (!ImageOcrGates.sessionGate(ownerUserId)) return@withContext false
             try {
