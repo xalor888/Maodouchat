@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentPostResultPolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 import com.maodouchat.network.ApiService
@@ -15,7 +16,7 @@ internal object AgentPostWriteTools {
             // G154c：可见性白名单与隐私设置页共用一份
             val vis = AgentWriteInputPolicy.resolvePostVisibility(visibility)
             val post = ApiService.createPost(token, body, emptyList(), vis).getOrElse { return AgentToolHost.fail(it) }
-            return "Created post ${post.id}"
+            return AgentPostResultPolicy.created(post.id)
         }
 
         internal suspend fun likePost(app: MaodouchatApp, postId: String, liked: Boolean?): String {
@@ -26,7 +27,7 @@ internal object AgentPostWriteTools {
             } else {
                 ApiService.unlikePost(token, postId).getOrElse { return AgentToolHost.fail(it) }
             }
-            return "Post ${post.id} likedByMe=${post.likedByMe} likes=${post.likeCount}"
+            return AgentPostResultPolicy.liked(post.id, post.likedByMe, post.likeCount)
         }
 
         internal suspend fun commentPost(app: MaodouchatApp, postId: String, text: String): String {
@@ -34,13 +35,13 @@ internal object AgentPostWriteTools {
             if (postId.isBlank() || body.isBlank()) return "Error: postId and text required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val comment = ApiService.createPostComment(token, postId, body).getOrElse { return AgentToolHost.fail(it) }
-            return "Commented ${comment.id} on $postId"
+            return AgentPostResultPolicy.commented(comment.id, postId)
         }
 
         internal suspend fun deletePost(app: MaodouchatApp, postId: String): String {
             if (postId.isBlank()) return "Error: postId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.deletePost(token, postId).getOrElse { return AgentToolHost.fail(it) }
-            return "Deleted post $postId"
+            return AgentPostResultPolicy.deleted(postId)
         }
 }

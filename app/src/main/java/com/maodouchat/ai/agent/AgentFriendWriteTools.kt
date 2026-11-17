@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentFriendResultPolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 
@@ -11,48 +12,48 @@ internal object AgentFriendWriteTools {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.sendFriendRequest(token, userId, AgentToolInputPolicy.cleanFriendRequestMessage(message)).getOrElse { return AgentToolHost.fail(it) }
-            return "Friend request ${result.id} status=${result.status}"
+            return AgentFriendResultPolicy.friendRequest(result.id, result.status)
         }
 
         internal suspend fun acceptFriend(app: MaodouchatApp, requestId: String): String {
             if (requestId.isBlank()) return "Error: requestId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.acceptFriendRequest(token, requestId).getOrElse { return AgentToolHost.fail(it) }
-            return "Accepted ${result.id} status=${result.status}"
+            return AgentFriendResultPolicy.accepted(result.id, result.status)
         }
 
         internal suspend fun rejectFriend(app: MaodouchatApp, requestId: String): String {
             if (requestId.isBlank()) return "Error: requestId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.rejectFriendRequest(token, requestId).getOrElse { return AgentToolHost.fail(it) }
-            return "Rejected ${result.id} status=${result.status}"
+            return AgentFriendResultPolicy.rejected(result.id, result.status)
         }
 
         internal suspend fun cancelFriend(app: MaodouchatApp, requestId: String): String {
             if (requestId.isBlank()) return "Error: requestId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.cancelFriendRequest(token, requestId).getOrElse { return AgentToolHost.fail(it) }
-            return "Cancelled ${result.id} status=${result.status}"
+            return AgentFriendResultPolicy.cancelled(result.id, result.status)
         }
 
         internal suspend fun removeFriend(app: MaodouchatApp, userId: String): String {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.removeFriend(token, userId).getOrElse { return AgentToolHost.fail(it) }
-            return "Removed friend $userId"
+            return AgentFriendResultPolicy.removed(userId)
         }
 
         internal suspend fun blockUser(app: MaodouchatApp, userId: String): String {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.blockUser(token, userId).getOrElse { return AgentToolHost.fail(it) }
-            return "Blocked $userId"
+            return AgentFriendResultPolicy.blocked(userId)
         }
 
         internal suspend fun unblockUser(app: MaodouchatApp, userId: String): String {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.unblockUser(token, userId).getOrElse { return AgentToolHost.fail(it) }
-            return "Unblocked $userId"
+            return AgentFriendResultPolicy.unblocked(userId)
         }
 }
