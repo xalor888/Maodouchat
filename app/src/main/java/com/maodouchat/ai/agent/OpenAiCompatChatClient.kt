@@ -5,6 +5,7 @@ import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProtocolCodec
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentChatStreamPolicy
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -22,7 +23,7 @@ object OpenAiCompatChatClient {
         tools: List<Map<String, Any?>>?,
         onDelta: ((String) -> Unit)? = null
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
-        val stream = provider.stream && onDelta != null && tools.isNullOrEmpty()
+        val stream = AgentChatStreamPolicy.shouldStream(provider.stream, onDelta != null, tools)
         val (url, body) = when (provider.protocol) {
             LocalAiProtocol.OPENAI_CHAT_COMPLETIONS ->
                 provider.resolvedChatCompletionsUrl() to LocalAiProtocolCodec.chatCompletionsBody(provider, messages, tools, stream)

@@ -2,8 +2,10 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AiTaskEntity
+import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentTaskResultPolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
+import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import java.util.UUID
 
 // Agent 工具执行簇：任务写操作（创建/完成/删除）。
@@ -11,12 +13,12 @@ import java.util.UUID
 internal object AgentTaskWriteTools {
         internal suspend fun createTask(app: MaodouchatApp, chatId: String, title: String, dueText: String?): String {
             val cleanTitle = AgentToolInputPolicy.cleanTaskTitle(title)
-            if (chatId.isBlank() || cleanTitle.isBlank()) return "Error: chatId and title required"
-            if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+            if (chatId.isBlank() || cleanTitle.isBlank()) return AgentWriteErrorPolicy.required("chatId", "title")
+            if (app.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val now = System.currentTimeMillis()
             val entity = AiTaskEntity(
-                id = "task_${UUID.randomUUID()}",
+                id = AgentEntityIdPolicy.taskId(UUID.randomUUID().toString()),
                 chatId = chatId,
                 sourceQuery = "agent",
                 title = cleanTitle,
@@ -29,8 +31,8 @@ internal object AgentTaskWriteTools {
         }
 
         internal suspend fun completeTask(app: MaodouchatApp, taskId: String, completed: Boolean): String {
-            if (taskId.isBlank()) return "Error: taskId required"
-            if (app.database.aiTaskDao().getById(taskId) == null) return "Error: task not found"
+            if (taskId.isBlank()) return AgentWriteErrorPolicy.required("taskId")
+            if (app.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
             val now = System.currentTimeMillis()
             app.database.aiTaskDao().setCompleted(
                 taskId = taskId,
@@ -42,8 +44,8 @@ internal object AgentTaskWriteTools {
         }
 
         internal suspend fun deleteTask(app: MaodouchatApp, taskId: String): String {
-            if (taskId.isBlank()) return "Error: taskId required"
-            if (app.database.aiTaskDao().getById(taskId) == null) return "Error: task not found"
+            if (taskId.isBlank()) return AgentWriteErrorPolicy.required("taskId")
+            if (app.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
             app.database.aiTaskDao().delete(taskId)
             return AgentTaskResultPolicy.deleted(taskId)
         }

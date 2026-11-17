@@ -41,6 +41,18 @@ class AgentVisionRequestPolicyTest {
     }
 
     @Test
+    fun `defaultMime keeps a given mime and falls back to jpeg`() {
+        assertEquals("image/png", AgentVisionRequestPolicy.defaultMime("image/png"))
+        assertEquals("image/jpeg", AgentVisionRequestPolicy.defaultMime(""))
+        assertEquals("image/jpeg", AgentVisionRequestPolicy.defaultMime("   "))
+    }
+
+    @Test
+    fun `empty images error matches the client`() {
+        assertEquals("没有可分析的图片", AgentVisionRequestPolicy.EMPTY_IMAGES_ERROR)
+    }
+
+    @Test
     fun `buildVisionBody keeps all images within limit`() {
         val images = listOf("image/png" to "bbb")
         val body = AgentVisionRequestPolicy.buildVisionBody("m1", "look", images, 4)

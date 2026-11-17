@@ -7,7 +7,11 @@ import org.json.JSONObject
 // 网络请求仍留在 app 侧。
 object AgentVisionRequestPolicy {
 
+    const val EMPTY_IMAGES_ERROR: String = "没有可分析的图片"
+
     fun visionUrl(baseUrl: String): String = baseUrl.trimEnd('/') + "/chat/completions"
+
+    fun defaultMime(mimeType: String): String = mimeType.ifBlank { "image/jpeg" }
 
     fun buildVisionBody(
         model: String,
@@ -17,7 +21,7 @@ object AgentVisionRequestPolicy {
     ): JSONObject {
         val parts = JSONArray().put(JSONObject().put("type", "text").put("text", instruction.take(2_000)))
         images.take(maxImages).forEach { (mimeType, imageBase64) ->
-            val mime = mimeType.ifBlank { "image/jpeg" }
+            val mime = defaultMime(mimeType)
             parts.put(
                 JSONObject()
                     .put("type", "image_url")
