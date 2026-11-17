@@ -3,6 +3,8 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.PreparedDocumentKind
+import com.maodouchat.domain.messaging.AgentCompletionTextPolicy
+import com.maodouchat.domain.messaging.LocalAiFilePrepPolicy
 import com.maodouchat.domain.messaging.aiFileTaskInstruction
 import com.maodouchat.domain.messaging.aiImageAnalysisInstruction
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +21,8 @@ internal object LocalAiFileTasks {
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = aiImageAnalysisInstruction(mode)
         return when (val result = OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg")) {
-            is LocalAiCompletion.Text -> Result.success(result.content.trim())
-            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
+            is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
             is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }
@@ -36,7 +38,7 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = aiFileTaskInstruction(fileName, mimeType, mode, question)
-        return AgentTextCompletion.completeText(provider, instruction, decodedText.take(LocalAiFileAnalyzer.MAX_TEXT_CHARS))
+        return AgentTextCompletion.completeText(provider, instruction, LocalAiFilePrepPolicy.truncateText(decodedText))
     }
 
     suspend fun analyzeFile(
@@ -64,8 +66,8 @@ internal object LocalAiFileTasks {
                 }
                 val pages = prepared.pageJpegsBase64.map { "image/jpeg" to it }
                 when (val result = OpenAiCompatClient.completeVision(provider, instruction, pages)) {
-                    is LocalAiCompletion.Text -> Result.success(result.content.trim())
-                    is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+                    is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
+                    is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
                     is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
                 }
             }
@@ -80,8 +82,8 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         return when (val result = OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType)) {
-            is LocalAiCompletion.Text -> Result.success(result.content.trim())
-            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
+            is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
             is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }

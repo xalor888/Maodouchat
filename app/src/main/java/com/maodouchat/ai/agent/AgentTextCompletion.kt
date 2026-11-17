@@ -6,6 +6,7 @@ import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.Snapshot
 import com.maodouchat.core.model.agentRewriteInstruction
+import com.maodouchat.domain.messaging.AgentCompletionTextPolicy
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
 object AgentTextCompletion {
@@ -25,11 +26,11 @@ object AgentTextCompletion {
     ): Result<String> {
         val messages = listOf(
             AgentChatMessage(role = "system", content = instruction),
-            AgentChatMessage(role = "user", content = userContent.take(8_000))
+            AgentChatMessage(role = "user", content = AgentCompletionTextPolicy.capUserContent(userContent))
         )
         return when (val result = complete(provider, messages, null, onDelta)) {
-            is LocalAiCompletion.Text -> Result.success(result.content.trim())
-            is LocalAiCompletion.Tools -> Result.success(result.content.trim())
+            is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
+            is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
             is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
         }
     }
