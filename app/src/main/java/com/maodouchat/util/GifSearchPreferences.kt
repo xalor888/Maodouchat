@@ -2,8 +2,8 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.GifSearchPolicy
 import com.maodouchat.core.model.PrefsJsonLists
+import com.maodouchat.domain.messaging.GifSearchPolicy
 
 /**
  * 本机 GIF 最近发送记录（按账号隔离）。

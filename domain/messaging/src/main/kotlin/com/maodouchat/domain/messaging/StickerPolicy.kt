@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.StickerPack
 
 /**
  * 贴纸包选择 / 最近使用 / 搜索（纯函数，可单测）。

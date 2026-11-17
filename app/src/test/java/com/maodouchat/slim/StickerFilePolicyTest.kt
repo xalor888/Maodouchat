@@ -1,6 +1,6 @@
 package com.maodouchat.slim
 
-import com.maodouchat.core.model.StickerFilePolicy
+import com.maodouchat.domain.messaging.StickerFilePolicy
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

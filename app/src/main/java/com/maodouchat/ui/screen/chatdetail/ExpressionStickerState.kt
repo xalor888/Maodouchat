@@ -6,9 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
-import com.maodouchat.core.model.StickerCatalog
 import com.maodouchat.core.model.StickerPack
-import com.maodouchat.core.model.StickerPolicy
+import com.maodouchat.domain.messaging.StickerCatalog
+import com.maodouchat.domain.messaging.StickerPolicy
 import com.maodouchat.domain.messaging.StickerTabDisplayPolicy
 import com.maodouchat.util.EmojiRecentPreferences
 import com.maodouchat.util.StickerPreferences

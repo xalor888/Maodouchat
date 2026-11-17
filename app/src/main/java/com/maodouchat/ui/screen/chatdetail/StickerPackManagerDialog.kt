@@ -29,8 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.StickerCatalog
-import com.maodouchat.core.model.StickerPolicy
+import com.maodouchat.domain.messaging.StickerCatalog
+import com.maodouchat.domain.messaging.StickerPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.Primary
 import com.maodouchat.ui.theme.TextSecondary
