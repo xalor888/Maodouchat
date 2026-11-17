@@ -8,6 +8,7 @@ import com.maodouchat.core.model.agentSuggestInstruction
 import com.maodouchat.core.model.agentSummarizeInstruction
 import com.maodouchat.core.model.agentTranslateInstruction
 import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiSuggestionCleanupPolicy
 
 // 本机模型文本任务簇：改写、翻译、回复建议、摘要、群助手。函数体从 LocalAiGateway 逐字搬出。
 internal object LocalAiTextTasks {
@@ -53,13 +54,7 @@ internal object LocalAiTextTasks {
             agentSuggestInstruction(tone, count),
             transcript,
             onDelta
-        ).map { raw ->
-            raw.lineSequence()
-                .map { it.trim().trimStart('-', '*', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.', ')', ' ') }
-                .filter { it.isNotBlank() }
-                .take(count.coerceIn(1, 4))
-                .toList()
-        }
+        ).map { raw -> AiSuggestionCleanupPolicy.cleanSuggestions(raw, count) }
     }
 
     suspend fun summarize(
