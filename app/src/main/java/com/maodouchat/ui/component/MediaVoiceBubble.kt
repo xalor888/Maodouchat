@@ -59,7 +59,7 @@ import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
 import com.maodouchat.util.MediaCache
-import com.maodouchat.core.model.VoiceTranscriptPolicy
+import com.maodouchat.domain.messaging.VoiceTranscriptPolicy
 
 /**
  * 语音消息气泡（G129 从 `MediaMessageBubbles.kt` 拆出，原 400 行）。
