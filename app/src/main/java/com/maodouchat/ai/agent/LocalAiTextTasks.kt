@@ -2,10 +2,6 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import com.maodouchat.ai.AiWritingStylePreferences
-import com.maodouchat.core.model.agentGroupAssistantInstruction
-import com.maodouchat.core.model.agentSuggestInstruction
-import com.maodouchat.core.model.agentSummarizeInstruction
-import com.maodouchat.core.model.agentTranslateInstruction
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.domain.messaging.AgentTextTaskPolicy
 import com.maodouchat.domain.messaging.AiSuggestionCleanupPolicy
@@ -31,7 +27,7 @@ internal object LocalAiTextTasks {
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         return AgentTextCompletion.completeText(
             provider,
-            agentTranslateInstruction(targetLanguage),
+            AgentTextTaskPolicy.translateInstruction(targetLanguage),
             text
         )
     }
@@ -48,7 +44,7 @@ internal object LocalAiTextTasks {
         val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
-            agentSuggestInstruction(tone, count),
+            AgentTextTaskPolicy.suggestInstruction(tone, count),
             transcript,
             onDelta
         ).map { raw -> AiSuggestionCleanupPolicy.cleanSuggestions(raw, count) }
@@ -64,7 +60,7 @@ internal object LocalAiTextTasks {
         val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
-            agentSummarizeInstruction(style),
+            AgentTextTaskPolicy.summarizeInstruction(style),
             transcript
         )
     }
@@ -80,7 +76,7 @@ internal object LocalAiTextTasks {
         val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
-            agentGroupAssistantInstruction(mode, query),
+            AgentTextTaskPolicy.groupAssistantInstruction(mode, query),
             transcript
         )
     }
