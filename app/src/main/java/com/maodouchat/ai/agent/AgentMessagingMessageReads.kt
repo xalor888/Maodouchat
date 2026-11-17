@@ -6,6 +6,9 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentPinnedLinePolicy
+import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
+import com.maodouchat.domain.messaging.AgentReadGatePolicy
+import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession
 
@@ -13,10 +16,10 @@ import com.maodouchat.security.ChatLockSession
 internal object AgentMessagingMessageReads {
         internal suspend fun searchMessages(app: MaodouchatApp, query: String, limit: Int): String {
             val q = AiPromptSafetyPolicy.sanitizeQuery(query)
-            if (q.isBlank()) return "Error: query required"
+            if (q.isBlank()) return AgentReadGatePolicy.blankQueryError()
             val hits = MessageSearchRepository(app.database)
                 .search(q, AgentMessageLinePolicy.searchLimit(limit))
-            if (hits.isEmpty()) return "No matches."
+            if (hits.isEmpty()) return AgentReadEmptyLinePolicy.NO_MATCHES
             val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
             val secret = app.database.chatDao().listSecretChatIds().toHashSet()
             return hits
@@ -30,12 +33,12 @@ internal object AgentMessagingMessageReads {
                 .joinToString("\n") { hit ->
                     AgentMessageLinePolicy.searchHitLine(hit.chatId, hit.messageId, hit.searchableText)
                 }
-                .ifBlank { "No matches." }
+                .ifBlank { AgentReadEmptyLinePolicy.NO_MATCHES }
         }
 
         internal suspend fun listStarred(app: MaodouchatApp, limit: Int): String {
             val rows = app.database.messageDao().getStarredMessages(AgentMessageLinePolicy.starredLimit(limit))
-            if (rows.isEmpty()) return "No starred messages."
+            if (rows.isEmpty()) return AgentReadEmptyLinePolicy.NO_STARRED_MESSAGES
             val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
             val secret = app.database.chatDao().listSecretChatIds().toHashSet()
             return rows
@@ -49,15 +52,15 @@ internal object AgentMessagingMessageReads {
                 .joinToString("\n") { msg ->
                     AgentMessageLinePolicy.starredLine(msg.chatId, msg.id, msg.content)
                 }
-                .ifBlank { "No starred messages." }
+                .ifBlank { AgentReadEmptyLinePolicy.NO_STARRED_MESSAGES }
         }
 
         internal suspend fun listPinned(app: MaodouchatApp, chatId: String): String {
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
-            if (chatId.isBlank()) return "Error: chatId required"
-            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            if (chatId.isBlank()) return AgentReadGatePolicy.blankChatIdError()
+            val token = AgentToolHost.token(app) ?: return AgentToolHostPolicy.NOT_SIGNED_IN
             val result = ApiService.getPinnedMessages(token, chatId).getOrElse { return AgentToolHost.fail(it) }
-            if (result.pins.isEmpty()) return "No pinned messages."
+            if (result.pins.isEmpty()) return AgentReadEmptyLinePolicy.NO_PINNED_MESSAGES
             return result.pins.joinToString("\n") { AgentPinnedLinePolicy.pinnedLine(it.messageId, it.pinnedBy, it.pinnedAt) }
         }
 }
