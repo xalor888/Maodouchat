@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AttachmentFinalizeOutcome
 
 /** 附件传输 finalize 结果处置（纯逻辑）：收尾 outcome → worker 下一步。 */
 object AttachmentFinalizeDispositionPolicy {

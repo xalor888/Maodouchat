@@ -3,7 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.ConversationLocalCleanupMode
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.ConversationLocalStateCoordinator
-import com.maodouchat.core.model.AiRequestGenerationGate
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.CoroutineDispatcher

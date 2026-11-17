@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import java.util.concurrent.atomic.AtomicLong
 

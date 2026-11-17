@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.PendingAiAction
-import com.maodouchat.core.model.AiRequestGenerationGate
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.Json

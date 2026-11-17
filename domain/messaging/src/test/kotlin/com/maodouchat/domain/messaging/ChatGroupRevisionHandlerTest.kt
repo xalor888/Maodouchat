@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiRequestGenerationGate
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ConversationLocalCleanupSession
