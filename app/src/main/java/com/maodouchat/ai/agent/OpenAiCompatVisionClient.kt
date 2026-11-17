@@ -22,7 +22,7 @@ object OpenAiCompatVisionClient {
     ): LocalAiCompletion = completeVision(
         provider,
         instruction,
-        listOf((mimeType.ifBlank { "image/jpeg" }) to imageBase64)
+        listOf((AgentVisionRequestPolicy.defaultMime(mimeType)) to imageBase64)
     )
 
     suspend fun completeVision(
@@ -30,7 +30,7 @@ object OpenAiCompatVisionClient {
         instruction: String,
         images: List<Pair<String, String>>
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
-        if (images.isEmpty()) return@withContext LocalAiCompletion.Error("没有可分析的图片")
+        if (images.isEmpty()) return@withContext LocalAiCompletion.Error(AgentVisionRequestPolicy.EMPTY_IMAGES_ERROR)
         val url = AgentVisionRequestPolicy.visionUrl(provider.baseUrl)
         val body = AgentVisionRequestPolicy.buildVisionBody(
             provider.model, instruction, images, LocalAiFileAnalyzer.MAX_PDF_PAGES

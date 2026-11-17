@@ -2,8 +2,10 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentSendResultPolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
+import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
@@ -17,13 +19,13 @@ import java.util.UUID
 internal object AgentMessagingSendTools {
         internal suspend fun sendText(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
             val body = AgentWriteInputPolicy.cleanSendText(text)
-            if (chatId.isBlank() || body.isBlank()) return "Error: chatId and text required"
-            val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
+            if (chatId.isBlank() || body.isBlank()) return AgentWriteErrorPolicy.required("chatId", "text")
+            val chat = app.database.chatDao().getChatById(chatId) ?: return AgentWriteErrorPolicy.chatNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val meta = MessageMeta(aiAssisted = true, aiAssistantMode = "agent")
             val content = JsonFormat.composeContentWithMeta(body, meta)
             val message = Message(
-                id = "m_${UUID.randomUUID()}",
+                id = AgentEntityIdPolicy.messageId(UUID.randomUUID().toString()),
                 chatId = chatId,
                 senderId = userId,
                 content = content,
@@ -47,8 +49,8 @@ internal object AgentMessagingSendTools {
         }
 
         internal suspend fun setDraft(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
-            if (chatId.isBlank()) return "Error: chatId required"
-            if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
+            if (chatId.isBlank()) return AgentWriteErrorPolicy.required("chatId")
+            if (app.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val body = AgentWriteInputPolicy.cleanDraftText(text)
             if (body.isBlank()) {

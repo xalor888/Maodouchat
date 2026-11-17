@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentProviderConfiguredPolicy
 import com.maodouchat.domain.messaging.LocalAiProviderDraftPolicy
 import java.util.UUID
@@ -13,7 +14,7 @@ internal object LocalAiProviderDrafts {
     fun newProviderDraft(protocol: LocalAiProtocol = LocalAiProtocol.OPENAI_CHAT_COMPLETIONS): LocalAiProvider {
         val (name, base, model) = LocalAiProviderDraftPolicy.draftDefaults(protocol)
         return LocalAiProvider(
-            id = "p_${UUID.randomUUID()}",
+            id = AgentEntityIdPolicy.providerId(UUID.randomUUID().toString()),
             name = name,
             baseUrl = base,
             apiKey = "",

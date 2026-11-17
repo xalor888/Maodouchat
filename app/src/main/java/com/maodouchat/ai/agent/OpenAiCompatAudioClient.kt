@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentAudioRequestPolicy
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
 import com.maodouchat.domain.messaging.AgentTranscriptionPolicy
 import kotlinx.coroutines.Dispatchers
@@ -22,15 +23,15 @@ object OpenAiCompatAudioClient {
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
         val bytes = runCatching { android.util.Base64.decode(audioBase64, android.util.Base64.NO_WRAP) }
             .getOrNull()
-            ?: return@withContext LocalAiCompletion.Error("无法解码语音")
-        val url = provider.baseUrl.trimEnd('/') + "/audio/transcriptions"
+            ?: return@withContext LocalAiCompletion.Error(AgentAudioRequestPolicy.DECODE_ERROR)
+        val url = AgentAudioRequestPolicy.transcriptionUrl(provider.baseUrl)
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart("model", provider.model)
             .addFormDataPart(
                 "file",
-                "voice.m4a",
-                bytes.toRequestBody((mimeType.ifBlank { "audio/mp4" }).toMediaType())
+                AgentAudioRequestPolicy.FILE_NAME,
+                bytes.toRequestBody(AgentAudioRequestPolicy.defaultMime(mimeType).toMediaType())
             )
             .build()
         val requestBuilder = Request.Builder()
@@ -47,7 +48,7 @@ object OpenAiCompatAudioClient {
                     )
                 }
                 val text = AgentTranscriptionPolicy.extractText(payload)
-                if (text.isBlank()) LocalAiCompletion.Error("语音接口没有 text") else LocalAiCompletion.Text(text)
+                if (text.isBlank()) LocalAiCompletion.Error(AgentAudioRequestPolicy.EMPTY_TEXT_ERROR) else LocalAiCompletion.Text(text)
             }
         } catch (cancel: kotlinx.coroutines.CancellationException) {
             throw cancel
