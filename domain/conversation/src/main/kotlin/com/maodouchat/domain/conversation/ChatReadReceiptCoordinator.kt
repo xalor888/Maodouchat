@@ -12,7 +12,6 @@ import com.maodouchat.core.model.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.PrefetchMessage
 import com.maodouchat.core.model.ReadCountUi
-import com.maodouchat.core.model.ReadReceiptPolicy
 import com.maodouchat.core.model.ReadReceiptUi
 import com.maodouchat.core.model.ChatDetailUiState
 

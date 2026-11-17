@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * Merge server unread with local state so getChats cannot resurrect a badge the user

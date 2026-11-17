@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.SettingsSnapshot
 
 /**
  * Prefer local optimistic chat settings when getChats races with an in-flight

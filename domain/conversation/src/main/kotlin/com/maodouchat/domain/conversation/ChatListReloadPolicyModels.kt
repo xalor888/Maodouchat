@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 enum class Trigger {
     /** User pull-to-refresh or explicit refresh(). */

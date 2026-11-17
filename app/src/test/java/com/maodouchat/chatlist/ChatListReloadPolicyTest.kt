@@ -1,8 +1,8 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.core.model.ChatListReloadPolicy
-import com.maodouchat.core.model.Mode
-import com.maodouchat.core.model.Trigger
+import com.maodouchat.domain.conversation.ChatListReloadPolicy
+import com.maodouchat.domain.conversation.Mode
+import com.maodouchat.domain.conversation.Trigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
