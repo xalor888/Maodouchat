@@ -32,23 +32,5 @@ class ChatDetailSendLoadModelsTest {
         assertTrue(copied.fromCache)
     }
 
-    @Test
-    fun sendDecisionAllowCarriesFields() {
-        val decision = SendDecision.Allow(
-            text = "hi",
-            meta = MessageMeta(),
-            messageType = MessageType.TEXT,
-            clearDraft = true,
-            consumeSilent = false,
-        )
-        assertEquals("hi", decision.text)
-        assertTrue(decision.clearDraft)
-        assertFalse(decision.consumeSilent)
-    }
 
-    @Test
-    fun sendDecisionRejectCarriesReason() {
-        val decision = SendDecision.Reject(SendRejectReason.BLANK)
-        assertEquals(SendRejectReason.BLANK, decision.reason)
-    }
 }

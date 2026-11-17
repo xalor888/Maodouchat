@@ -1,7 +1,11 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ChatSendGuardModelsTest {
 
@@ -41,5 +45,25 @@ class ChatSendGuardModelsTest {
         for (reason in RetryRejectReason.entries) {
             assertEquals(reason, RetryRejectReason.valueOf(reason.name))
         }
+    }
+
+    @Test
+    fun sendDecisionAllowCarriesFields() {
+        val decision = SendDecision.Allow(
+            text = "hi",
+            meta = MessageMeta(),
+            messageType = MessageType.TEXT,
+            clearDraft = true,
+            consumeSilent = false,
+        )
+        assertEquals("hi", decision.text)
+        assertTrue(decision.clearDraft)
+        assertFalse(decision.consumeSilent)
+    }
+
+    @Test
+    fun sendDecisionRejectCarriesReason() {
+        val decision = SendDecision.Reject(SendRejectReason.BLANK)
+        assertEquals(SendRejectReason.BLANK, decision.reason)
     }
 }

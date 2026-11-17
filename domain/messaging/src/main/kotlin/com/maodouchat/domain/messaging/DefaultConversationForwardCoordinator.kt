@@ -2,9 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCommandOutcome
-import com.maodouchat.core.model.ConversationForwardSessionException
-import com.maodouchat.core.model.ConversationForwardUnsupportedException
-import com.maodouchat.core.model.ForwardBatchResult
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message

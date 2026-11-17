@@ -3,7 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
-import com.maodouchat.core.model.ConversationReactionCoordinator
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType

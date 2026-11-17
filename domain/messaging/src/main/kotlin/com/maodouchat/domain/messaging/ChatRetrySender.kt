@@ -1,8 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatRetryDecision
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.RetryRejectReason
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.OutgoingMessageCommand

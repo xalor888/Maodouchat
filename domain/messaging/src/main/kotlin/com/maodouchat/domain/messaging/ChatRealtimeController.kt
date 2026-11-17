@@ -3,9 +3,7 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.WebSocketErrorKind
 import com.maodouchat.core.model.WebSocketEvent
-import com.maodouchat.core.model.isActiveChatEvent
 import com.maodouchat.core.model.resolveUserVisibility
-import com.maodouchat.core.model.shouldApplyContactPresence
 import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
