@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.messaging.AgentChatResultPolicy
 import com.maodouchat.domain.messaging.AgentChatUpdatePolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 
@@ -31,7 +32,7 @@ internal object AgentMessagingChatTools {
             if (userId.isBlank()) return "Error: userId required"
             if (app.database.userDao().getUserById(userId) == null) return "Error: contact not found"
             UserRepository(app.database.userDao()).setNickname(userId, AgentWriteInputPolicy.cleanNickname(nickname))
-            return if (nickname.isBlank()) "Cleared nickname for $userId" else "Set nickname for $userId"
+            return AgentChatResultPolicy.nicknameResult(userId, nickname)
         }
 
         internal fun markNotificationRead(app: MaodouchatApp, itemId: String): String {
@@ -39,6 +40,6 @@ internal object AgentMessagingChatTools {
             val exists = app.notificationCenter.items.value.any { it.id == itemId }
             if (!exists) return "Error: notification not found"
             app.notificationCenter.markRead(itemId)
-            return "Marked read $itemId"
+            return AgentChatResultPolicy.markedRead(itemId)
         }
 }

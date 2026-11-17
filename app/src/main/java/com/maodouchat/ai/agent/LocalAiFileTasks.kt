@@ -1,9 +1,9 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
-import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.PreparedDocumentKind
-import com.maodouchat.domain.messaging.AgentCompletionTextPolicy
+import com.maodouchat.domain.messaging.AgentCompletionResultPolicy
+import com.maodouchat.domain.messaging.AgentFileTaskMessagePolicy
 import com.maodouchat.domain.messaging.LocalAiFilePrepPolicy
 import com.maodouchat.domain.messaging.aiFileTaskInstruction
 import com.maodouchat.domain.messaging.aiImageAnalysisInstruction
@@ -20,11 +20,7 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = aiImageAnalysisInstruction(mode)
-        return when (val result = OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg")) {
-            is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-            is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-            is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
-        }
+        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg"))
     }
 
     suspend fun analyzeFileText(
@@ -53,7 +49,7 @@ internal object LocalAiFileTasks {
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val prepared = withContext(Dispatchers.Default) {
             LocalAiFileAnalyzer.prepare(fileName, mimeType, fileBase64)
-        } ?: return Result.failure(IllegalStateException("不支持该文件类型"))
+        } ?: return Result.failure(IllegalStateException(AgentFileTaskMessagePolicy.unsupportedFileType()))
         val instruction = aiFileTaskInstruction(prepared.fileName, prepared.mimeType, mode, question)
         return when (prepared.kind) {
             PreparedDocumentKind.TEXT ->
@@ -61,15 +57,11 @@ internal object LocalAiFileTasks {
             PreparedDocumentKind.PDF_PAGES -> {
                 if (!provider.hasVisionCapability()) {
                     return Result.failure(
-                        IllegalStateException("当前模型 (${provider.model}) 不支持视觉多模态输入，请在「AI 与隐私」设置中开启多模态支持或配置视觉模型（如 GPT-4o / Claude-3 / Qwen-VL 等）")
+                        IllegalStateException(AgentFileTaskMessagePolicy.visionUnsupported(provider.model))
                     )
                 }
                 val pages = prepared.pageJpegsBase64.map { "image/jpeg" to it }
-                when (val result = OpenAiCompatClient.completeVision(provider, instruction, pages)) {
-                    is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-                    is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-                    is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
-                }
+                AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, pages))
             }
         }
     }
@@ -81,10 +73,6 @@ internal object LocalAiFileTasks {
     ): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        return when (val result = OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType)) {
-            is LocalAiCompletion.Text -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-            is LocalAiCompletion.Tools -> Result.success(AgentCompletionTextPolicy.trimResult(result.content))
-            is LocalAiCompletion.Error -> Result.failure(IllegalStateException(result.message))
-        }
+        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType))
     }
 }
