@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.AiTaskDndPolicy
+import com.maodouchat.domain.messaging.AiTaskDndPolicy
 import com.maodouchat.domain.messaging.AiTaskReminderNextAllowedPolicy
 import com.maodouchat.notification.NotificationPreferences
 

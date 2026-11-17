@@ -1,9 +1,9 @@
 package com.maodouchat.attachment
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AttachmentFinalizeOutcome
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.messaging.AttachmentFinalizeFailure
+import com.maodouchat.domain.messaging.AttachmentFinalizeOutcome
 import com.maodouchat.domain.messaging.composeFinalizeContent
 import com.maodouchat.domain.messaging.decideFinalizeFailure
 import com.maodouchat.domain.messaging.encodeEncryptedAttachmentReference

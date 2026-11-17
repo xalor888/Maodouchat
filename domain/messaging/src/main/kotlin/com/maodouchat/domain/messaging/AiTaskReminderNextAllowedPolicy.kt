@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiTaskDndPolicy
 import java.util.Calendar
 
 // 任务提醒勿扰“下一允许时刻”：把当前时刻换算成当日分钟与窗口结束时刻，再走 AiTaskDndPolicy 判定。

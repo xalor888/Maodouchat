@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AttachmentFinalizeOutcome
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import kotlin.test.Test
