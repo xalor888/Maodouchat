@@ -4,7 +4,6 @@ import com.maodouchat.core.model.ChatLoadEffect
 import com.maodouchat.core.model.ChatLoadInput
 import com.maodouchat.core.model.OwnSentMediaRestorePolicy
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatHistoryLoadPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.GroupLifecycleService

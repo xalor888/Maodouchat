@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.ViewOncePolicy
+import com.maodouchat.domain.messaging.ViewOncePolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import kotlinx.coroutines.Dispatchers

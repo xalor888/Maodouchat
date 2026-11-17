@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.MessageType
 
 /** 剧透媒体的类型策略：能设剧透与能阅后即焚是两个独立的产品决策。 */
 object SpoilerMediaPolicy {

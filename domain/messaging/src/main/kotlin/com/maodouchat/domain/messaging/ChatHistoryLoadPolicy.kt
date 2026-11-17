@@ -1,4 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.HistoryLoadPlan
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
 
 /**
  * 历史页装载后的收尾判定：未读分隔线、密聊不发回执、回执带不带 groupRevision。

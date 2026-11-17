@@ -4,7 +4,7 @@ import com.maodouchat.core.model.ChatListPreviewPolicy
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.ViewOncePolicy
+import com.maodouchat.domain.messaging.ViewOncePolicy
 import com.maodouchat.domain.messaging.MessageFileNamePolicy
 
 /** Converts domain messages to stable Compose presentation data at the UI boundary. */

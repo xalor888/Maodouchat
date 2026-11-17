@@ -1,11 +1,10 @@
-package com.maodouchat.util
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.JsonFormat
-import com.maodouchat.core.model.ViewOncePolicy
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
