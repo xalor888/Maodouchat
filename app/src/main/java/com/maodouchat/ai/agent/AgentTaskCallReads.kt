@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentMissedCallLinePolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
 import kotlinx.coroutines.flow.first
 
@@ -13,7 +14,9 @@ internal object AgentTaskCallReads {
             .take(AgentTaskReadLimitPolicy.missedCallLimit(limit))
         if (calls.isEmpty()) return "No missed calls."
         return calls.joinToString("\n") { call ->
-            "${call.id}\t${call.callerId}\t${call.callerName}\t${call.callType}\t${call.receivedAt}\tread=${call.isRead}"
+            AgentMissedCallLinePolicy.missedCallLine(
+                call.id, call.callerId, call.callerName, call.callType, call.receivedAt, call.isRead,
+            )
         }
     }
 }

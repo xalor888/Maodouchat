@@ -3,11 +3,11 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.core.model.agentGroupAssistantInstruction
-import com.maodouchat.core.model.agentRewriteInstruction
 import com.maodouchat.core.model.agentSuggestInstruction
 import com.maodouchat.core.model.agentSummarizeInstruction
 import com.maodouchat.core.model.agentTranslateInstruction
 import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AgentTextTaskPolicy
 import com.maodouchat.domain.messaging.AiSuggestionCleanupPolicy
 
 // 本机模型文本任务簇：改写、翻译、回复建议、摘要、群助手。函数体从 LocalAiGateway 逐字搬出。
@@ -22,10 +22,7 @@ internal object LocalAiTextTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val style = AgentTextCompletion.styleHintFrom(AiWritingStylePreferences.snapshot(context))
-        val instruction = buildString {
-            append(agentRewriteInstruction(mode, targetLanguage))
-            if (!style.isNullOrBlank()) append(" ").append(style)
-        }
+        val instruction = AgentTextTaskPolicy.rewriteInstruction(mode, targetLanguage, style)
         return AgentTextCompletion.completeText(provider, instruction, text, onDelta)
     }
 
@@ -48,7 +45,7 @@ internal object LocalAiTextTasks {
     ): Result<List<String>> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
+        val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
             agentSuggestInstruction(tone, count),
@@ -64,7 +61,7 @@ internal object LocalAiTextTasks {
     ): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
+        val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
             agentSummarizeInstruction(style),
@@ -80,7 +77,7 @@ internal object LocalAiTextTasks {
     ): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        val transcript = messages.joinToString("\n") { "${it.sender}: ${it.text}" }
+        val transcript = AgentTextTaskPolicy.transcript(messages)
         return AgentTextCompletion.completeText(
             provider,
             agentGroupAssistantInstruction(mode, query),

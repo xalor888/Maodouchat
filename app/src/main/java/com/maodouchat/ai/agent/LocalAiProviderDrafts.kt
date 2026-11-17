@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentProviderConfiguredPolicy
 import com.maodouchat.domain.messaging.LocalAiProviderDraftPolicy
 import java.util.UUID
 
@@ -23,6 +24,6 @@ internal object LocalAiProviderDrafts {
 
     fun isConfigured(context: Context): Boolean {
         val p = LocalAiProviderCrud.activeProvider(context) ?: return false
-        return p.baseUrl.isNotBlank() && p.model.isNotBlank() && p.apiKey.isNotBlank()
+        return AgentProviderConfiguredPolicy.isConfigured(p.baseUrl, p.model, p.apiKey)
     }
 }
