@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.core.model.GroupMutePolicy
-import com.maodouchat.core.model.GroupMutePreset
+import com.maodouchat.domain.groups.GroupMutePolicy
+import com.maodouchat.domain.groups.GroupMutePreset
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupMutePreset
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

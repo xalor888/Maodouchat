@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupDetailTab
+import com.maodouchat.domain.groups.GroupDetailTab
 import com.maodouchat.domain.groups.GroupDetailSearch
 import com.maodouchat.ui.component.rememberSecretPageWatermarkPayload
 import com.maodouchat.ui.component.secretPageBlindWatermark

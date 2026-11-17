@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupDetailTab
 
 // 群详情页签标签种类；R.string 映射留在 app 侧。
 enum class GroupDetailTabKind {

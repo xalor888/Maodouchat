@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 // 闭环可演示判定：确认分享路径 + 非系统身份 meta + 本地任务可保存（勿扰在提醒层单独门控）。原逻辑逐字搬入。
 internal object GroupAiClosedLoopReadiness {

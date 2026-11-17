@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 enum class GroupMutePreset(val durationMs: Long) {
     MINUTES_5(5L * 60L * 1_000L),
@@ -14,10 +14,6 @@ enum class GroupMutePreset(val durationMs: Long) {
     DAYS_30(30L * 24L * 60L * 60L * 1_000L)
 }
 
-/**
- * Group member mute duration presets (aligned with admin mute catalog spirit).
- * Pure; UI maps [GroupMutePreset] to localized labels.
- */
 object GroupMutePolicy {
     /** Server enforces max ~30 days; keep presets under that. */
     const val MAX_MUTE_MS = 30L * 24L * 60L * 60L * 1_000L

@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupDetailTab
+import com.maodouchat.domain.groups.GroupDetailTab
 import com.maodouchat.domain.groups.GroupDetailTabKind
 import com.maodouchat.domain.groups.groupDetailTabKind
 

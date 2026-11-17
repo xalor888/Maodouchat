@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 // 分享决策：答案私密直到用户点确认；已分享过的不重复发。原逻辑逐字搬入。
 internal object GroupAiShareDecision {
