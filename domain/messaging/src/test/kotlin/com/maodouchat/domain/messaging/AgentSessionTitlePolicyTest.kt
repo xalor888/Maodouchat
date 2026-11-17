@@ -7,6 +7,11 @@ import org.junit.jupiter.api.Test
 class AgentSessionTitlePolicyTest {
 
     @Test
+    fun `default title is the new conversation label`() {
+        assertEquals("新对话", AgentSessionTitlePolicy.DEFAULT_TITLE)
+    }
+
+    @Test
     fun `derives title from first user message truncated at 24`() {
         val messages = listOf(
             AgentChatMessage(role = "assistant", content = "welcome"),

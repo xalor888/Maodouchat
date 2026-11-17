@@ -30,7 +30,7 @@ class AgentSessionCodecTest {
         val decoded = AgentSessionCodec.parseSessions(raw)
         assertEquals(1, decoded.size)
         assertEquals("s1", decoded[0].id)
-        assertEquals("新对话", decoded[0].title)
+        assertEquals(AgentSessionTitlePolicy.DEFAULT_TITLE, decoded[0].title)
     }
 
     @Test

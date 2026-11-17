@@ -17,6 +17,7 @@ import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
 import com.maodouchat.domain.messaging.AgentServiceMessagePolicy
 import com.maodouchat.domain.messaging.AgentSessionTitlePolicy
+import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -51,7 +52,7 @@ object MaodouAgentService {
     fun newSession(context: Context) {
         val session = AgentSession(
             id = "s_${UUID.randomUUID()}",
-            title = "新对话",
+            title = AgentSessionTitlePolicy.DEFAULT_TITLE,
             createdAt = System.currentTimeMillis(),
             messages = emptyList()
         )
@@ -127,7 +128,7 @@ object MaodouAgentService {
         turnJob = app.applicationScope.launch {
             AgentSessionEngine().runTurn(
                 provider = provider,
-                history = history.dropLastWhile { it.role == "user" && it.content == lastUserText },
+                history = AgentTurnMessagePolicy.dropDuplicateLastUser(history, lastUserText),
                 userText = lastUserText,
                 styleHint = style,
                 approvedCall = approvedCall
