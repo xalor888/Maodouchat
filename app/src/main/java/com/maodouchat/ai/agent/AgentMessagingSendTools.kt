@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.domain.messaging.AgentSendResultPolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.core.model.Message
@@ -42,7 +43,7 @@ internal object AgentMessagingSendTools {
                 body = content,
                 type = MessageType.TEXT,
             )
-            return "Queued ${message.id} to ${if (chat.isGroup) "group" else "direct"} $chatId via E2EE outbox"
+            return AgentSendResultPolicy.queued(message.id, chat.isGroup, chatId)
         }
 
         internal suspend fun setDraft(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
@@ -52,11 +53,11 @@ internal object AgentMessagingSendTools {
             val body = AgentWriteInputPolicy.cleanDraftText(text)
             if (body.isBlank()) {
                 app.database.chatDraftDao().delete(userId, chatId)
-                return "Cleared draft for $chatId"
+                return AgentSendResultPolicy.draftCleared(chatId)
             }
             app.database.chatDraftDao().upsert(
                 ChatDraftEntity(ownerUserId = userId, chatId = chatId, text = body, updatedAt = System.currentTimeMillis())
             )
-            return "Saved draft for $chatId (${body.length} chars)"
+            return AgentSendResultPolicy.draftSaved(chatId, body.length)
         }
 }

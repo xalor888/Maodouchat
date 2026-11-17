@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AiTaskEntity
+import com.maodouchat.domain.messaging.AgentTaskResultPolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import java.util.UUID
 
@@ -24,7 +25,7 @@ internal object AgentTaskWriteTools {
                 updatedAt = now
             )
             app.database.aiTaskDao().upsertAll(listOf(entity))
-            return "Created task ${entity.id}"
+            return AgentTaskResultPolicy.created(entity.id)
         }
 
         internal suspend fun completeTask(app: MaodouchatApp, taskId: String, completed: Boolean): String {
@@ -37,13 +38,13 @@ internal object AgentTaskWriteTools {
                 completedAt = if (completed) now else null,
                 updatedAt = now
             )
-            return "Task $taskId completed=$completed"
+            return AgentTaskResultPolicy.completed(taskId, completed)
         }
 
         internal suspend fun deleteTask(app: MaodouchatApp, taskId: String): String {
             if (taskId.isBlank()) return "Error: taskId required"
             if (app.database.aiTaskDao().getById(taskId) == null) return "Error: task not found"
             app.database.aiTaskDao().delete(taskId)
-            return "Deleted task $taskId"
+            return AgentTaskResultPolicy.deleted(taskId)
         }
 }
