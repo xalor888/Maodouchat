@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.messaging.AgentChatUpdatePolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 
 // 会话与联系人设置：会话置顶/静音/归档/未读、联系人备注、通知已读。
@@ -13,25 +14,17 @@ internal object AgentMessagingChatTools {
             if (app.database.chatDao().getChatById(chatId) == null) return "Error: chat not found"
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val repo = ChatRepository(app.database.chatDao(), app.database.userDao())
-            val changed = mutableListOf<String>()
-            AgentToolHost.parseBool(args["pinned"])?.let {
-                if (it) repo.pinChat(chatId) else repo.unpinChat(chatId)
-                changed += "pinned=$it"
+            val entries = AgentChatUpdatePolicy.updateEntries(args)
+            for ((key, value) in entries) {
+                when (key) {
+                    "pinned" -> if (value) repo.pinChat(chatId) else repo.unpinChat(chatId)
+                    "muted" -> if (value) repo.muteChat(chatId) else repo.unmuteChat(chatId)
+                    "archived" -> if (value) repo.archiveChat(chatId) else repo.unarchiveChat(chatId)
+                    "markedUnread" -> if (value) repo.markChatUnread(chatId) else repo.markChatRead(chatId)
+                }
             }
-            AgentToolHost.parseBool(args["muted"])?.let {
-                if (it) repo.muteChat(chatId) else repo.unmuteChat(chatId)
-                changed += "muted=$it"
-            }
-            AgentToolHost.parseBool(args["archived"])?.let {
-                if (it) repo.archiveChat(chatId) else repo.unarchiveChat(chatId)
-                changed += "archived=$it"
-            }
-            AgentToolHost.parseBool(args["markedUnread"])?.let {
-                if (it) repo.markChatUnread(chatId) else repo.markChatRead(chatId)
-                changed += "markedUnread=$it"
-            }
-            if (changed.isEmpty()) return "Error: provide pinned, muted, archived, or markedUnread"
-            return "Updated $chatId ${changed.joinToString(" ")}"
+            if (entries.isEmpty()) return "Error: provide pinned, muted, archived, or markedUnread"
+            return AgentChatUpdatePolicy.formatUpdated(chatId, entries)
         }
 
         internal suspend fun setNickname(app: MaodouchatApp, userId: String, nickname: String): String {

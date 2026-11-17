@@ -5,6 +5,7 @@ import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProtocolCodec
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentModelErrorPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -41,7 +42,7 @@ object OpenAiCompatChatClient {
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     return@withContext LocalAiCompletion.Error(
-                        "模型接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
+                        AgentModelErrorPolicy.formatHttpError("模型接口", response.code, payload, response.message)
                     )
                 }
                 if (stream) {

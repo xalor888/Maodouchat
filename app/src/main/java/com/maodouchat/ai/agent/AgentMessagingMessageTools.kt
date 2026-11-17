@@ -4,11 +4,11 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
+import com.maodouchat.domain.messaging.AgentReactionTogglePolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
@@ -83,11 +83,7 @@ internal object AgentMessagingMessageTools {
             val ownerUserId = TokenManager.getInstance(app).getUserId().orEmpty()
             val normalizedEmoji = AgentToolInputPolicy.normalizeReactionEmoji(emoji)
             val current = local.toDomain()
-            val nextEmoji = normalizedEmoji.takeUnless {
-                current.reactions.any { reaction ->
-                    reaction.userId == ownerUserId && reaction.emoji == normalizedEmoji
-                }
-            }
+            val nextEmoji = AgentReactionTogglePolicy.nextEmoji(current.reactions, ownerUserId, normalizedEmoji)
             val chat = app.database.chatDao().getChatById(local.chatId)
             app.messagingV2Outbox.enqueueEvent(
                 conversationId = local.chatId,
@@ -98,8 +94,7 @@ internal object AgentMessagingMessageTools {
                 ),
                 groupRevision = chat?.memberRevision?.takeIf { chat.isGroup },
             )
-            val reactions = current.reactions.filterNot { it.userId == ownerUserId } +
-                listOfNotNull(nextEmoji?.let { MessageReaction(ownerUserId, it) })
+            val reactions = AgentReactionTogglePolicy.applyReaction(current.reactions, ownerUserId, nextEmoji)
             LocalMessageStore(app.database.messageDao(), app.database)
                 .updateMessageReactions(messageId, reactions)
             return "Reaction updated on $messageId count=${reactions.size}"
