@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
+import com.maodouchat.domain.messaging.AgentDraftLinePolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
 import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
@@ -23,7 +24,7 @@ internal object AgentTaskDraftReads {
         }
         if (visible.isEmpty()) return "No drafts."
         return visible.take(AgentTaskReadLimitPolicy.MAX_DRAFT_LIST_ITEMS)
-            .joinToString("\n") { "${it.chatId}\t${AgentTaskReadLimitPolicy.draftText(it.text)}" }
+            .joinToString("\n") { AgentDraftLinePolicy.draftLine(it.chatId, it.text) }
     }
 
     internal suspend fun getDraft(app: MaodouchatApp, userId: String, chatId: String): String {
