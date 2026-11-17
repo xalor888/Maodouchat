@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.messaging.AgentChatErrorPolicy
 import com.maodouchat.domain.messaging.AgentChatResultPolicy
 import com.maodouchat.domain.messaging.AgentChatUpdatePolicy
 import com.maodouchat.domain.messaging.AgentWriteInputPolicy
@@ -24,13 +25,13 @@ internal object AgentMessagingChatTools {
                     "markedUnread" -> if (value) repo.markChatUnread(chatId) else repo.markChatRead(chatId)
                 }
             }
-            if (entries.isEmpty()) return "Error: provide pinned, muted, archived, or markedUnread"
+            if (entries.isEmpty()) return AgentChatErrorPolicy.provideUpdateFields()
             return AgentChatUpdatePolicy.formatUpdated(chatId, entries)
         }
 
         internal suspend fun setNickname(app: MaodouchatApp, userId: String, nickname: String): String {
             if (userId.isBlank()) return "Error: userId required"
-            if (app.database.userDao().getUserById(userId) == null) return "Error: contact not found"
+            if (app.database.userDao().getUserById(userId) == null) return AgentChatErrorPolicy.contactNotFound()
             UserRepository(app.database.userDao()).setNickname(userId, AgentWriteInputPolicy.cleanNickname(nickname))
             return AgentChatResultPolicy.nicknameResult(userId, nickname)
         }
@@ -38,7 +39,7 @@ internal object AgentMessagingChatTools {
         internal fun markNotificationRead(app: MaodouchatApp, itemId: String): String {
             if (itemId.isBlank()) return "Error: itemId required"
             val exists = app.notificationCenter.items.value.any { it.id == itemId }
-            if (!exists) return "Error: notification not found"
+            if (!exists) return AgentChatErrorPolicy.notificationNotFound()
             app.notificationCenter.markRead(itemId)
             return AgentChatResultPolicy.markedRead(itemId)
         }
