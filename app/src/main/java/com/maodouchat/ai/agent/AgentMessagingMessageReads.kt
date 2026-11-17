@@ -2,11 +2,9 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
-import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.MessageSearchRepository
-import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
+import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession
 
@@ -16,7 +14,7 @@ internal object AgentMessagingMessageReads {
             val q = AiPromptSafetyPolicy.sanitizeQuery(query)
             if (q.isBlank()) return "Error: query required"
             val hits = MessageSearchRepository(app.database)
-                .search(q, limit.coerceIn(1, AgentToolPolicy.MAX_SEARCH_HITS))
+                .search(q, AgentMessageLinePolicy.searchLimit(limit))
             if (hits.isEmpty()) return "No matches."
             val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
             val secret = app.database.chatDao().listSecretChatIds().toHashSet()
@@ -29,18 +27,13 @@ internal object AgentMessagingMessageReads {
                     )
                 }
                 .joinToString("\n") { hit ->
-                    "${hit.chatId}\t${hit.messageId}\t${AgentReadPreviewPolicy.searchHitText(hit.searchableText)}"
+                    AgentMessageLinePolicy.searchHitLine(hit.chatId, hit.messageId, hit.searchableText)
                 }
                 .ifBlank { "No matches." }
         }
 
-        internal fun formatMessage(message: Message): String {
-            val text = AiPromptSafetyPolicy.sanitizeContextText(message.parsedContent(), 500)
-            return "${message.timestamp}\t${message.senderId}\t${message.type.name}\t$text"
-        }
-
         internal suspend fun listStarred(app: MaodouchatApp, limit: Int): String {
-            val rows = app.database.messageDao().getStarredMessages(limit.coerceIn(1, 40))
+            val rows = app.database.messageDao().getStarredMessages(AgentMessageLinePolicy.starredLimit(limit))
             if (rows.isEmpty()) return "No starred messages."
             val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
             val secret = app.database.chatDao().listSecretChatIds().toHashSet()
@@ -53,8 +46,7 @@ internal object AgentMessagingMessageReads {
                     )
                 }
                 .joinToString("\n") { msg ->
-                    val text = AiPromptSafetyPolicy.sanitizeContextText(msg.content, 160)
-                    "${msg.chatId}\t${msg.id}\t$text"
+                    AgentMessageLinePolicy.starredLine(msg.chatId, msg.id, msg.content)
                 }
                 .ifBlank { "No starred messages." }
         }
