@@ -3,7 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.SeenSet
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
