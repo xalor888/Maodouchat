@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.domain.messaging.AgentDraftLinePolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyPolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
+import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import com.maodouchat.security.ChatLockSession
 import kotlinx.coroutines.flow.first
 
@@ -30,7 +31,7 @@ internal object AgentTaskDraftReads {
 
     internal suspend fun getDraft(app: MaodouchatApp, userId: String, chatId: String): String {
         AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
-        if (chatId.isBlank()) return "Error: chatId required"
+        if (chatId.isBlank()) return AgentWriteErrorPolicy.required("chatId")
         val draft = app.database.chatDraftDao().get(userId, chatId)
         return if (draft == null || draft.text.isBlank()) AgentReadEmptyPolicy.noDraft() else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
     }
