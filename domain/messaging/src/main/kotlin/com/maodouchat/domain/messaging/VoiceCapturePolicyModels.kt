@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 data class PreviewSnapshot(
     val filePath: String,

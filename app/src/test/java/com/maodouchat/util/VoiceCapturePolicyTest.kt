@@ -1,8 +1,8 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.HoldHint
-import com.maodouchat.core.model.VoiceCapturePolicy
-import com.maodouchat.core.model.VoiceRecordingWaveform
+import com.maodouchat.domain.messaging.HoldHint
+import com.maodouchat.domain.messaging.VoiceCapturePolicy
+import com.maodouchat.domain.messaging.VoiceRecordingWaveform
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

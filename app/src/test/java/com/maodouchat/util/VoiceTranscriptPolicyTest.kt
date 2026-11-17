@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import com.maodouchat.core.model.VoiceTranscriptPolicy
+import com.maodouchat.domain.messaging.VoiceTranscriptPolicy
 
 class VoiceTranscriptPolicyTest {
     @Test

@@ -9,7 +9,7 @@ import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withContext
-import com.maodouchat.core.model.VoiceTranscriptPolicy
+import com.maodouchat.domain.messaging.VoiceTranscriptPolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 

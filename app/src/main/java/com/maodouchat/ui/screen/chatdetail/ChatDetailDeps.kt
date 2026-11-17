@@ -88,7 +88,7 @@ import com.maodouchat.core.crypto.ChatDetailDecryptStatus
 import com.maodouchat.core.model.DecryptTexts
 import com.maodouchat.core.model.MessageTerminalStore
 import com.maodouchat.core.model.ReactionMutationPolicy
-import com.maodouchat.core.model.VoiceRecordingWaveform
+import com.maodouchat.domain.messaging.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter

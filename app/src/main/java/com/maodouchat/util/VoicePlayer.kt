@@ -7,7 +7,7 @@ import android.media.MediaPlayer
 import android.os.Build
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import com.maodouchat.core.model.VoicePlayerState
+import com.maodouchat.domain.messaging.VoicePlayerState
 import com.maodouchat.domain.messaging.VoicePlaybackSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

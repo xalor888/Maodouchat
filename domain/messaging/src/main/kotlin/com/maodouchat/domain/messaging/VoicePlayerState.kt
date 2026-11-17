@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * VoicePlayer 播放状态：messageId + 进度 + 倍速 + 听筒/扬声器，供 UI 订阅。
