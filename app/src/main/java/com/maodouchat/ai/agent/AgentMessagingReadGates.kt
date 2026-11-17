@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
+import com.maodouchat.domain.messaging.AgentSecretPeerPolicy
 import com.maodouchat.security.ChatLockSession
 
 // 密聊/锁定门闩：读簇与写簇共用，先过门闩再碰数据。
@@ -31,11 +32,9 @@ internal object AgentMessagingReadGates {
         }
 
         internal suspend fun secretPeerIds(app: MaodouchatApp): Set<String> =
-            app.database.chatDao().getAllChatsDirect()
-                .asSequence()
-                .filter { it.chatType == "SECRET" }
-                .flatMap { it.participantIds.split(",") }
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-                .toSet()
+            AgentSecretPeerPolicy.secretPeerIds(
+                app.database.chatDao().getAllChatsDirect()
+                    .filter { it.chatType == "SECRET" }
+                    .map { it.participantIds }
+            )
 }
