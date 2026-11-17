@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretTtlPolicy
 
 /**
  * 密聊自动销毁开关（B2 surface · 自动销毁，health 名 ttlz）。
@@ -26,21 +27,22 @@ object SecretAutoDestroyPrefs {
     private const val KEY_TTL_SECONDS = "ttl_seconds"
 
     /** 默认会话 TTL：24 小时。 */
-    const val DEFAULT_TTL_SECONDS = 86_400L
+    const val DEFAULT_TTL_SECONDS = SecretTtlPolicy.DEFAULT_TTL_SECONDS
 
-    const val MIN_TTL_SECONDS = 300L
-    const val MAX_TTL_SECONDS = 30L * 24 * 60 * 60
+    const val MIN_TTL_SECONDS = SecretTtlPolicy.MIN_TTL_SECONDS
+    const val MAX_TTL_SECONDS = SecretTtlPolicy.MAX_TTL_SECONDS
 
     fun ttlSeconds(context: Context): Long {
         val userId = switch.userId(context) ?: return DEFAULT_TTL_SECONDS
-        return switch.prefs(context).getLong(switch.key(KEY_TTL_SECONDS, userId), DEFAULT_TTL_SECONDS)
-            .coerceIn(MIN_TTL_SECONDS, MAX_TTL_SECONDS)
+        return SecretTtlPolicy.clampTtlSeconds(
+            switch.prefs(context).getLong(switch.key(KEY_TTL_SECONDS, userId), DEFAULT_TTL_SECONDS)
+        )
     }
 
     fun setTtlSeconds(context: Context, seconds: Long) {
         val userId = switch.userId(context) ?: return
         switch.prefs(context).edit {
-            putLong(switch.key(KEY_TTL_SECONDS, userId), seconds.coerceIn(MIN_TTL_SECONDS, MAX_TTL_SECONDS))
+            putLong(switch.key(KEY_TTL_SECONDS, userId), SecretTtlPolicy.clampTtlSeconds(seconds))
         }
     }
 }

@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.MediaAutoDownloadPolicy
 import com.maodouchat.network.TokenManager
 
 /**
@@ -9,9 +10,9 @@ import com.maodouchat.network.TokenManager
  * WIFI_ONLY / ALWAYS / OFF 三档，见 [MODE_WIFI_ONLY] 等常量。
  */
 object MediaAutoDownloadPreferences {
-    const val MODE_WIFI_ONLY = "wifi_only"
-    const val MODE_ALWAYS = "always"
-    const val MODE_OFF = "off"
+    const val MODE_WIFI_ONLY = MediaAutoDownloadPolicy.MODE_WIFI_ONLY
+    const val MODE_ALWAYS = MediaAutoDownloadPolicy.MODE_ALWAYS
+    const val MODE_OFF = MediaAutoDownloadPolicy.MODE_OFF
 
     private const val PREFS_NAME = "chat_display_settings"
     private const val KEY_MODE = "media_auto_download_mode"
@@ -33,10 +34,7 @@ object MediaAutoDownloadPreferences {
         }
     }
 
-    fun normalizeForWrite(mode: String): String = when (mode) {
-        MODE_ALWAYS, MODE_OFF -> mode
-        else -> MODE_WIFI_ONLY
-    }
+    fun normalizeForWrite(mode: String): String = MediaAutoDownloadPolicy.normalizeMode(mode)
 
     private fun normalize(mode: String): String = normalizeForWrite(mode)
 

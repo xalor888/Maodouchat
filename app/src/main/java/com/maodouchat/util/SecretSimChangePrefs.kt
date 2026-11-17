@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretSimChangePolicy
 
 /**
  * 密聊 SIM 变更防护开关（B2 surface · SIM 变更防护，health 名 simz）。
@@ -28,8 +29,9 @@ object SecretSimChangePrefs {
 
     fun lastSimId(context: Context): String? {
         val userId = switch.userId(context) ?: return null
-        return switch.prefs(context).getString(switch.key(KEY_LAST_SIM_ID, userId), null)
-            ?.takeIf { it.isNotBlank() }
+        return SecretSimChangePolicy.normalizeStoredSimId(
+            switch.prefs(context).getString(switch.key(KEY_LAST_SIM_ID, userId), null)
+        )
     }
 
     fun setLastSimId(context: Context, simId: String) {
@@ -37,8 +39,8 @@ object SecretSimChangePrefs {
         if (simId.isBlank()) return
         val prev = lastSimId(context)
         switch.prefs(context).edit(commit = true) {
-            putString(switch.key(KEY_LAST_SIM_ID, userId), simId.trim())
-            if (prev != null && prev != simId.trim()) {
+            putString(switch.key(KEY_LAST_SIM_ID, userId), SecretSimChangePolicy.normalizeSimId(simId))
+            if (SecretSimChangePolicy.isSimChanged(prev, simId)) {
                 putLong(switch.key(KEY_LAST_CHANGE_AT, userId), System.currentTimeMillis())
             }
         }

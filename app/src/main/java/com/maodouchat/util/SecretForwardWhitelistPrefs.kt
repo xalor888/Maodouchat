@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretTrustPolicy
 
 /**
  * 密聊转发白名单开关（B2 surface · 转发白名单，health 名 fwlz）。
@@ -27,25 +28,18 @@ object SecretForwardWhitelistPrefs {
     /** 白名单目标 id 集合（会话/用户 id）。 */
     fun whitelist(context: Context): Set<String> {
         val userId = switch.userId(context) ?: return emptySet()
-        return switch.prefs(context).getStringSet(switch.key(KEY_WHITELIST, userId), emptySet())
-            .orEmpty()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .toSet()
+        return SecretTrustPolicy.normalizeIds(
+            switch.prefs(context).getStringSet(switch.key(KEY_WHITELIST, userId), emptySet()).orEmpty()
+        )
     }
 
     fun setWhitelist(context: Context, targets: Set<String>) {
         val userId = switch.userId(context) ?: return
         switch.prefs(context).edit {
-            putStringSet(switch.key(KEY_WHITELIST, userId), targets.map { it.trim() }.filter { it.isNotBlank() }.toSet())
+            putStringSet(switch.key(KEY_WHITELIST, userId), SecretTrustPolicy.normalizeIds(targets))
         }
     }
 
-    fun isForwardAllowed(context: Context, targetId: String): Boolean {
-        if (targetId.isBlank()) return false
-        if (!isEnabled(context)) return true
-        val allow = whitelist(context)
-        // 白名单为空 = 完全禁止；非空则必须命中
-        return allow.isNotEmpty() && targetId in allow
-    }
+    fun isForwardAllowed(context: Context, targetId: String): Boolean =
+        SecretTrustPolicy.isForwardAllowed(isEnabled(context), targetId, whitelist(context))
 }
