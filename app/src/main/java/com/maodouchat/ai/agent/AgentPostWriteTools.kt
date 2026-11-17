@@ -1,8 +1,8 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.VISIBILITY_VALUES
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
+import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：动态写操作（发布/点赞/评论/删除）。
@@ -13,8 +13,7 @@ internal object AgentPostWriteTools {
             if (body.isBlank()) return "Error: text required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             // G154c：可见性白名单与隐私设置页共用一份
-            val vis = visibility?.trim()?.uppercase()
-                ?.takeIf { VISIBILITY_VALUES.contains(it) }
+            val vis = AgentWriteInputPolicy.resolvePostVisibility(visibility)
             val post = ApiService.createPost(token, body, emptyList(), vis).getOrElse { return AgentToolHost.fail(it) }
             return "Created post ${post.id}"
         }

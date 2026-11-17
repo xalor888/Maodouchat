@@ -4,14 +4,12 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.domain.groups.GroupNamePolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
+import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 import com.maodouchat.network.ApiService
 
 // Agent 工具执行簇：群组/会话写操作（创建单聊与群/改名/公告/成员管理/解散）。
 // 从 AgentMessagingWriteTools 按簇搬出，函数体逐字一致；token/fail 由 AgentToolHost 提供。
 internal object AgentGroupWriteTools {
-        internal fun ids(raw: String): List<String> =
-            raw.split(',', ' ', ';', '\n').map { it.trim() }.filter { it.isNotBlank() }.distinct()
-
         internal suspend fun createDirect(app: MaodouchatApp, userId: String): String {
             if (userId.isBlank()) return "Error: userId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
@@ -21,7 +19,7 @@ internal object AgentGroupWriteTools {
 
         internal suspend fun createGroup(app: MaodouchatApp, name: String, memberIds: String): String {
             val groupName = GroupNamePolicy.normalize(name)
-            val members = ids(memberIds)
+            val members = AgentWriteInputPolicy.parseMemberIds(memberIds)
             if (groupName.isBlank() || members.isEmpty()) return "Error: name and memberIds required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val chat = ApiService.createChat(token, members, isGroup = true, groupName = groupName).getOrElse { return AgentToolHost.fail(it) }
@@ -44,7 +42,7 @@ internal object AgentGroupWriteTools {
         }
 
         internal suspend fun addMembers(app: MaodouchatApp, chatId: String, memberIds: String): String {
-            val members = ids(memberIds)
+            val members = AgentWriteInputPolicy.parseMemberIds(memberIds)
             if (chatId.isBlank() || members.isEmpty()) return "Error: chatId and memberIds required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             ApiService.addGroupMembers(token, chatId, members).getOrElse { return AgentToolHost.fail(it) }
@@ -61,7 +59,7 @@ internal object AgentGroupWriteTools {
         internal suspend fun muteMember(app: MaodouchatApp, chatId: String, memberId: String, mutedUntil: Long): String {
             if (chatId.isBlank() || memberId.isBlank()) return "Error: chatId and memberId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
-            ApiService.updateMemberMute(token, chatId, memberId, mutedUntil.coerceAtLeast(0L)).getOrElse { return AgentToolHost.fail(it) }
+            ApiService.updateMemberMute(token, chatId, memberId, AgentWriteInputPolicy.clampMuteUntil(mutedUntil)).getOrElse { return AgentToolHost.fail(it) }
             return "Muted $memberId until $mutedUntil"
         }
 

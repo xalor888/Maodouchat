@@ -1,9 +1,9 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
+import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 
 // 会话与联系人设置：会话置顶/静音/归档/未读、联系人备注、通知已读。
 internal object AgentMessagingChatTools {
@@ -37,7 +37,7 @@ internal object AgentMessagingChatTools {
         internal suspend fun setNickname(app: MaodouchatApp, userId: String, nickname: String): String {
             if (userId.isBlank()) return "Error: userId required"
             if (app.database.userDao().getUserById(userId) == null) return "Error: contact not found"
-            UserRepository(app.database.userDao()).setNickname(userId, nickname.trim().take(AgentToolPolicy.MAX_NICKNAME_CHARS))
+            UserRepository(app.database.userDao()).setNickname(userId, AgentWriteInputPolicy.cleanNickname(nickname))
             return if (nickname.isBlank()) "Cleared nickname for $userId" else "Set nickname for $userId"
         }
 
