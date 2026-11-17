@@ -6,7 +6,7 @@ import com.maodouchat.core.model.LocalStats
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.AiContextMessage
-import com.maodouchat.domain.messaging.AiProfileTopTermsPolicy
+import com.maodouchat.domain.messaging.AiProfileNarrativePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -24,7 +24,7 @@ internal object AiProfileNarrative {
             database.messageDao().getSearchableMessagesForChat(chatId, limit = 200)
                 .map { it.toDomain() }
                 .filter { it.senderId != selfSenderId() }
-                .takeLast(PROFILE_CONTEXT_MESSAGES)
+                .takeLast(AiProfileNarrativePolicy.MAX_CONTEXT_MESSAGES)
         }
         if (messages.isEmpty()) return ""
         val contextMessages = messages.mapNotNull { message ->
@@ -34,19 +34,16 @@ internal object AiProfileNarrative {
             )?.let { AiContextMessage(it.sender, it.text) }
         }
         if (contextMessages.isEmpty()) return ""
-        val statsHint = "消息 ${stats.messageCount} 条，活跃 ${stats.activeDays} 天，主题 ${AiProfileTopTermsPolicy.displayTerms(stats.topTerms, "、")}"
+        val statsHint = AiProfileNarrativePolicy.statsHint(stats)
         return com.maodouchat.ai.agent.LocalAiGateway.summarize(
             context,
             contextMessages,
             "brief"
-        ).getOrNull()?.let { "$statsHint。$it" }?.trim()?.take(MAX_NARRATIVE_CHARS).orEmpty()
+        ).getOrNull()?.let { AiProfileNarrativePolicy.combineNarrative(statsHint, it) }.orEmpty()
     }
 
     private fun selfSenderId(): String {
         val tokenManager = com.maodouchat.network.TokenManager.getInstanceOrNull() ?: return ""
         return tokenManager.getUserId().orEmpty()
     }
-
-    private const val PROFILE_CONTEXT_MESSAGES = 60
-    private const val MAX_NARRATIVE_CHARS = 6_000
 }

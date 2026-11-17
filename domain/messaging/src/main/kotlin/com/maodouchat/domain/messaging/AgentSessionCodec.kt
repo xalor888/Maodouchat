@@ -38,7 +38,7 @@ object AgentSessionCodec {
                 add(
                     AgentSession(
                         id = id,
-                        title = o.optString("title").ifBlank { "新对话" },
+                        title = o.optString("title").ifBlank { AgentSessionTitlePolicy.DEFAULT_TITLE },
                         createdAt = o.optLong("createdAt"),
                         messages = messages
                     )
