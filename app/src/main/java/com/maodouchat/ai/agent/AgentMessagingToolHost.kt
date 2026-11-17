@@ -1,16 +1,17 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentToolLimitPolicy
 import com.maodouchat.domain.messaging.AgentToolPreview
 
 // Agent 工具分发：消息簇（会话/消息/发送/群组）。从 AgentToolHost.execute/preview 按簇搬出，分支逐字一致。
 internal object AgentMessagingToolHost {
     internal suspend fun execute(name: String, app: MaodouchatApp, userId: String, args: Map<String, String>): String? = when (name) {
         "list_chats" -> AgentMessagingChatReads.listChats(app, args["query"])
-        "get_chat_history" -> AgentMessagingChatReads.getChatHistory(app, args["chatId"].orEmpty(), args["limit"]?.toIntOrNull() ?: 20)
-        "search_messages" -> AgentMessagingMessageReads.searchMessages(app, args["query"].orEmpty(), args["limit"]?.toIntOrNull() ?: 12)
+        "get_chat_history" -> AgentMessagingChatReads.getChatHistory(app, args["chatId"].orEmpty(), args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("get_chat_history"))
+        "search_messages" -> AgentMessagingMessageReads.searchMessages(app, args["query"].orEmpty(), args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("search_messages"))
         "get_chat" -> AgentMessagingChatReads.getChat(app, args["chatId"].orEmpty())
-        "list_starred_messages" -> AgentMessagingMessageReads.listStarred(app, args["limit"]?.toIntOrNull() ?: 20)
+        "list_starred_messages" -> AgentMessagingMessageReads.listStarred(app, args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("list_starred_messages"))
         "list_pinned_messages" -> AgentMessagingMessageReads.listPinned(app, args["chatId"].orEmpty())
         "send_text_message" -> AgentMessagingSendTools.sendText(app, userId, args["chatId"].orEmpty(), args["text"].orEmpty())
         "update_chat" -> AgentMessagingChatTools.updateChat(app, args)

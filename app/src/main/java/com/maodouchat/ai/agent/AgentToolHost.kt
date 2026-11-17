@@ -1,8 +1,8 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.domain.messaging.AgentToolArgs
+import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.network.TokenManager
 
 object AgentToolHost {
@@ -10,12 +10,12 @@ object AgentToolHost {
         val args = parseArgs(argumentsJson)
         val app = MaodouchatApp.instance
         val userId = TokenManager.getInstance(app).getUserId().orEmpty()
-        if (userId.isBlank()) return "Error: not signed in"
-        if (name == "rewrite_text") return "Error: rewrite_text is handled by the engine, not the host"
+        if (userId.isBlank()) return AgentToolHostPolicy.NOT_SIGNED_IN
+        if (name == "rewrite_text") return AgentToolHostPolicy.REWRITE_HANDLED_BY_ENGINE
         return (AgentMessagingToolHost.execute(name, app, userId, args)
             ?: AgentSocialToolHost.execute(name, app, userId, args)
             ?: AgentTaskToolHost.execute(name, app, userId, args)
-            ?: "Error: unknown tool $name").take(AgentToolPolicy.MAX_TOOL_RESULT_CHARS)
+            ?: AgentToolHostPolicy.unknownTool(name)).let { AgentToolHostPolicy.truncateResult(it) }
     }
 
     fun preview(name: String, argumentsJson: String): String {
@@ -23,7 +23,7 @@ object AgentToolHost {
         return AgentMessagingToolHost.preview(name, args)
             ?: AgentSocialToolHost.preview(name, args)
             ?: AgentTaskToolHost.preview(name, args)
-            ?: "$name ${argumentsJson.take(160)}"
+            ?: AgentToolHostPolicy.previewFallback(name, argumentsJson)
     }
 
     internal fun parseArgs(raw: String): Map<String, String> = AgentToolArgs.parseArgs(raw)

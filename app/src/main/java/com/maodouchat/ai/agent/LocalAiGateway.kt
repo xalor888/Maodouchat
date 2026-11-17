@@ -3,13 +3,13 @@ package com.maodouchat.ai.agent
 import android.content.Context
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.core.model.LocalAiLocalRanking
+import com.maodouchat.domain.messaging.AgentServiceMessagePolicy
 
 // 本机模型统一入口：薄门面，公开 API 不动，任务实现已按簇搬到 LocalAiTextTasks / LocalAiFileTasks / LocalAiLocalRanking。
 object LocalAiGateway {
     fun configured(context: Context): Boolean = LocalAiProviderStore.isConfigured(context)
 
-    fun missingProviderMessage(): String =
-        "请先在设置 → AI 与隐私中填写本机模型（OpenAI Completions / Responses 或 Anthropic）、Key 和上下文。聊天明文不会发到毛豆服务器。"
+    fun missingProviderMessage(): String = AgentServiceMessagePolicy.MISSING_PROVIDER
 
     suspend fun rewrite(
         context: Context,

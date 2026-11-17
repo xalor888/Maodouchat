@@ -10,6 +10,7 @@ import com.maodouchat.core.model.Approval
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
+import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -56,7 +57,7 @@ class AgentSessionEngine(
                 is LocalAiCompletion.Text -> {
                     val text = AiPromptSafetyPolicy.annotateIfPrivilegedHallucination(
                         result.content.trim(),
-                        "助手不能执行未审批的特权动作，请以本机实际结果为准。"
+                        AgentTurnMessagePolicy.PRIVILEGED_HALLUCINATION_NOTE
                     )
                     emit(AgentTurnEvent.AssistantFinal(text))
                     return@flow
@@ -72,7 +73,7 @@ class AgentSessionEngine(
                         if (spec == null) {
                             working += AgentChatMessage(
                                 role = "tool",
-                                content = "Error: unknown tool ${call.name}",
+                                content = AgentTurnMessagePolicy.unknownTool(call.name),
                                 toolCallId = call.id,
                                 toolName = call.name
                             )
@@ -83,7 +84,7 @@ class AgentSessionEngine(
                             Approval.DENY -> {
                                 working += AgentChatMessage(
                                     role = "tool",
-                                    content = "Error: tool denied",
+                                    content = AgentTurnMessagePolicy.TOOL_DENIED,
                                     toolCallId = call.id,
                                     toolName = call.name
                                 )
@@ -123,6 +124,6 @@ class AgentSessionEngine(
                 }
             }
         }
-        emit(AgentTurnEvent.Failed("工具轮次过多，已停止"))
+        emit(AgentTurnEvent.Failed(AgentTurnMessagePolicy.TOO_MANY_ROUNDS))
     }
 }

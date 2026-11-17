@@ -1,8 +1,7 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProtocolCodec
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentHttpAuthPolicy
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -17,21 +16,6 @@ internal object OpenAiCompatHttp {
     }
 
     internal fun applyAuth(builder: Request.Builder, provider: LocalAiProvider) {
-        when (provider.protocol) {
-            LocalAiProtocol.ANTHROPIC_MESSAGES -> {
-                builder.addHeader("x-api-key", provider.apiKey)
-                builder.addHeader("anthropic-version", provider.anthropicVersion.ifBlank { "2023-06-01" })
-                if (provider.apiKey.isNotBlank()) {
-                    builder.addHeader("Authorization", "Bearer ${provider.apiKey}")
-                }
-            }
-            else -> {
-                builder.addHeader("Authorization", "Bearer ${provider.apiKey}")
-                if (provider.organization.isNotBlank()) {
-                    builder.addHeader("OpenAI-Organization", provider.organization)
-                }
-            }
-        }
-        LocalAiProtocolCodec.extraHeaders(provider).forEach { (k, v) -> builder.addHeader(k, v) }
+        AgentHttpAuthPolicy.authHeaders(provider).forEach { (k, v) -> builder.addHeader(k, v) }
     }
 }

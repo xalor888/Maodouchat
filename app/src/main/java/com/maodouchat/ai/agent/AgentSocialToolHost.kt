@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentToolLimitPolicy
 import com.maodouchat.domain.messaging.AgentToolPreview
 
 // Agent 工具分发：社交簇（联系人/好友/动态/黑名单）。从 AgentToolHost.execute/preview 按簇搬出，分支逐字一致。
@@ -10,10 +11,10 @@ internal object AgentSocialToolHost {
         "get_me" -> AgentSocialContactReads.getMe(app, userId)
         "list_friend_requests" -> AgentSocialContactReads.listFriendRequests(app, args["direction"].orEmpty())
         "list_friends" -> AgentSocialContactReads.listFriends(app)
-        "search_users" -> AgentSocialContactReads.searchUsers(app, args["query"].orEmpty(), args["limit"]?.toIntOrNull() ?: 20)
-        "list_posts" -> AgentSocialPostReads.listPosts(app, args["limit"]?.toIntOrNull() ?: 20)
+        "search_users" -> AgentSocialContactReads.searchUsers(app, args["query"].orEmpty(), args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("search_users"))
+        "list_posts" -> AgentSocialPostReads.listPosts(app, args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("list_posts"))
         "get_post" -> AgentSocialPostReads.getPost(app, args["postId"].orEmpty())
-        "list_post_comments" -> AgentSocialPostReads.listPostComments(app, args["postId"].orEmpty(), args["limit"]?.toIntOrNull() ?: 30)
+        "list_post_comments" -> AgentSocialPostReads.listPostComments(app, args["postId"].orEmpty(), args["limit"]?.toIntOrNull() ?: AgentToolLimitPolicy.defaultLimit("list_post_comments"))
         "list_blocked_users" -> AgentSocialContactReads.listBlocked(app)
         "send_friend_request" -> AgentFriendWriteTools.sendFriend(app, args["userId"].orEmpty(), args["message"].orEmpty())
         "accept_friend_request" -> AgentFriendWriteTools.acceptFriend(app, args["requestId"].orEmpty())
