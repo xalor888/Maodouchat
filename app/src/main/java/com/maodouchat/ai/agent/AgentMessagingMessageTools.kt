@@ -12,13 +12,14 @@ import com.maodouchat.domain.messaging.AgentMessageErrorPolicy
 import com.maodouchat.domain.messaging.AgentMessageResultPolicy
 import com.maodouchat.domain.messaging.AgentReactionTogglePolicy
 import com.maodouchat.domain.messaging.AgentToolInputPolicy
+import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 
 // 消息级操作：星标、本地删除、撤回、回应、置顶。
 internal object AgentMessagingMessageTools {
         internal suspend fun starMessage(app: MaodouchatApp, messageId: String, starred: Boolean?): String {
-            if (messageId.isBlank() || starred == null) return "Error: messageId and starred required"
+            if (messageId.isBlank() || starred == null) return AgentWriteErrorPolicy.required("messageId", "starred")
             val message = app.database.messageDao().getMessageById(messageId) ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             if (message.starred == starred) return AgentMessageResultPolicy.alreadyStarred(starred)
@@ -39,7 +40,7 @@ internal object AgentMessagingMessageTools {
         }
 
         internal suspend fun deleteLocalMessage(app: MaodouchatApp, messageId: String): String {
-            if (messageId.isBlank()) return "Error: messageId required"
+            if (messageId.isBlank()) return AgentWriteErrorPolicy.required("messageId")
             val message = app.database.messageDao().getMessageById(messageId) ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, message.chatId)?.let { return it }
             LocalMessageStore(app.database.messageDao(), app.database).deleteMessage(messageId)
@@ -47,8 +48,8 @@ internal object AgentMessagingMessageTools {
         }
 
         internal suspend fun revokeMessage(app: MaodouchatApp, messageId: String): String {
-            if (messageId.isBlank()) return "Error: messageId required"
-            AgentToolHost.token(app) ?: return "Error: not signed in"
+            if (messageId.isBlank()) return AgentWriteErrorPolicy.required("messageId")
+            AgentToolHost.token(app) ?: return AgentWriteErrorPolicy.notSignedIn()
             val local = app.database.messageDao().getMessageById(messageId)
                 ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
@@ -77,8 +78,8 @@ internal object AgentMessagingMessageTools {
         }
 
         internal suspend fun react(app: MaodouchatApp, messageId: String, emoji: String): String {
-            if (messageId.isBlank() || emoji.isBlank()) return "Error: messageId and emoji required"
-            AgentToolHost.token(app) ?: return "Error: not signed in"
+            if (messageId.isBlank() || emoji.isBlank()) return AgentWriteErrorPolicy.required("messageId", "emoji")
+            AgentToolHost.token(app) ?: return AgentWriteErrorPolicy.notSignedIn()
             val local = app.database.messageDao().getMessageById(messageId)
                 ?: return AgentMessageErrorPolicy.messageNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, local.chatId)?.let { return it }
@@ -104,8 +105,8 @@ internal object AgentMessagingMessageTools {
 
         internal suspend fun pinMessage(app: MaodouchatApp, chatId: String, messageId: String): String {
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
-            if (chatId.isBlank() || messageId.isBlank()) return "Error: chatId and messageId required"
-            val token = AgentToolHost.token(app) ?: return "Error: not signed in"
+            if (chatId.isBlank() || messageId.isBlank()) return AgentWriteErrorPolicy.required("chatId", "messageId")
+            val token = AgentToolHost.token(app) ?: return AgentWriteErrorPolicy.notSignedIn()
             val result = ApiService.togglePinnedMessage(token, chatId, messageId).getOrElse { return AgentToolHost.fail(it) }
             return AgentMessageResultPolicy.pinned(result.pinned, messageId)
         }

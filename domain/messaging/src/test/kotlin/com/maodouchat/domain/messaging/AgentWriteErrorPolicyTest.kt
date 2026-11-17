@@ -27,6 +27,30 @@ class AgentWriteErrorPolicyTest {
     }
 
     @Test
+    fun `required joins messageId and starred`() {
+        assertEquals(
+            "Error: messageId and starred required",
+            AgentWriteErrorPolicy.required("messageId", "starred"),
+        )
+    }
+
+    @Test
+    fun `required joins messageId and emoji`() {
+        assertEquals(
+            "Error: messageId and emoji required",
+            AgentWriteErrorPolicy.required("messageId", "emoji"),
+        )
+    }
+
+    @Test
+    fun `required joins chatId and messageId`() {
+        assertEquals(
+            "Error: chatId and messageId required",
+            AgentWriteErrorPolicy.required("chatId", "messageId"),
+        )
+    }
+
+    @Test
     fun `notSignedIn matches the host error`() {
         assertEquals("Error: not signed in", AgentWriteErrorPolicy.notSignedIn())
     }
