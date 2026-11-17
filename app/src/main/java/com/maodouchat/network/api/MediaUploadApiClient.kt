@@ -15,7 +15,7 @@ import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.AttachmentUploadResponse
 import com.maodouchat.core.model.AttachmentUploadSessionRequest
 import com.maodouchat.core.model.AttachmentUploadStatusResponse
-import com.maodouchat.core.model.sha256Hex
+import com.maodouchat.domain.messaging.sha256Hex
 import com.maodouchat.core.network.MediaUploadApi
 import com.maodouchat.domain.messaging.AttachmentUploadStatusPolicy
 

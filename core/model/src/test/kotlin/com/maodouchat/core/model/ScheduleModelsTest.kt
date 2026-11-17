@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.IOException
 
 class ScheduleModelsTest {
 
@@ -117,24 +116,5 @@ class ScheduleModelsTest {
     fun noRecipientDevicesExceptionIsIllegalState() {
         val error = NoRecipientDevicesException()
         assertTrue(error is IllegalStateException)
-    }
-
-    @Test
-    fun attachmentSendAfterUploadRetryable() {
-        assertTrue(
-            AttachmentSendAfterUploadPolicy.isRetryable(
-                NoRecipientDevicesException(),
-            ),
-        )
-        assertTrue(AttachmentSendAfterUploadPolicy.isRetryable(IOException()))
-        assertFalse(
-            AttachmentSendAfterUploadPolicy.isRetryable(RuntimeException("boom")),
-        )
-        assertFalse(
-            AttachmentSendAfterUploadPolicy.isAttachmentNotReadyConflict(null),
-        )
-        assertFalse(
-            AttachmentSendAfterUploadPolicy.isAlreadyAcceptedDuplicate(null),
-        )
     }
 }

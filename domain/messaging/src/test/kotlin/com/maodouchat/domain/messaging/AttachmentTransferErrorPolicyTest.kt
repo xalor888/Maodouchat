@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.AttachmentTransferDisposition
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals

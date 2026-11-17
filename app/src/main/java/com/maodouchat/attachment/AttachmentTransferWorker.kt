@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AttachmentTransferDisposition
+import com.maodouchat.domain.messaging.AttachmentTransferDisposition
 import com.maodouchat.domain.messaging.AttachmentTransferWorkNaming
 
 /** M07：附件上传 Worker——只从 inputData 取参数并委托 [AttachmentTransferUseCase]，不直读全局 Application/API。 */

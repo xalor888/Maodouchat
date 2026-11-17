@@ -13,7 +13,7 @@ import java.io.File
 import java.io.FileOutputStream
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.sha256Hex
+import com.maodouchat.domain.messaging.sha256Hex
 import com.maodouchat.core.network.MediaDownloadApi
 
 internal object MediaDownloadApiClient : MediaDownloadApi {
