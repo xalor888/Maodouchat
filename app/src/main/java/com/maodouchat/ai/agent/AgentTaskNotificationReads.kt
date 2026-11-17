@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.domain.messaging.AgentNotificationFilterPolicy
+import com.maodouchat.domain.messaging.AgentNotificationRowPolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 
 // Agent 工具执行簇：通知中心只读查询。从 AgentTaskReadTools 按读子簇拆出，函数体逐字一致。
@@ -23,7 +24,13 @@ internal object AgentTaskNotificationReads {
             .take(AgentNotificationFilterPolicy.notificationsLimit(limit))
         if (items.isEmpty()) return "No notifications."
         return items.joinToString("\n") { item ->
-            "${item.id}\t${item.type}\t${item.title}\t${AgentReadPreviewPolicy.notificationPreview(item.preview.orEmpty())}\tread=${item.read}"
+            AgentNotificationRowPolicy.notificationRow(
+                item.id,
+                item.type,
+                item.title,
+                AgentReadPreviewPolicy.notificationPreview(item.preview.orEmpty()),
+                item.read,
+            )
         }
     }
 }
