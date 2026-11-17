@@ -1,4 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.ApiException
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.truncatedSenderId
 
 const val GROUP_OWNER_TRANSFER_REQUIRED = "GROUP_OWNER_TRANSFER_REQUIRED"
 

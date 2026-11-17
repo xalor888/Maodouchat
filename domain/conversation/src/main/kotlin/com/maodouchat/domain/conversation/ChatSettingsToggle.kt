@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /** 会话设置开关：置顶、静音、归档、标未读。 */
 enum class ChatSettingsToggle {
