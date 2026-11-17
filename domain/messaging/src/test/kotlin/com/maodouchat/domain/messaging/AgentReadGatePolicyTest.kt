@@ -16,6 +16,21 @@ class AgentReadGatePolicyTest {
     }
 
     @Test
+    fun `chat not found error`() {
+        assertEquals("Error: chat not found", AgentReadGatePolicy.chatNotFoundError())
+    }
+
+    @Test
+    fun `blank query error`() {
+        assertEquals("Error: query required", AgentReadGatePolicy.blankQueryError())
+    }
+
+    @Test
+    fun `blank post id error`() {
+        assertEquals("Error: postId required", AgentReadGatePolicy.blankPostIdError())
+    }
+
+    @Test
     fun `blocked ids union secret and locked without duplicates`() {
         assertEquals(
             setOf("c1", "c2", "c3"),

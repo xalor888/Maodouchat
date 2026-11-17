@@ -7,6 +7,8 @@ import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AgentChatListPolicy
 import com.maodouchat.domain.messaging.AgentChatRowPolicy
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
+import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
+import com.maodouchat.domain.messaging.AgentReadGatePolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.security.ChatLockSession
 
@@ -49,12 +51,12 @@ internal object AgentMessagingChatReads {
                     )
                 }
                 .toList()
-            return if (lines.isEmpty()) "No chats." else lines.joinToString("\n")
+            return if (lines.isEmpty()) AgentReadEmptyLinePolicy.NO_CHATS else lines.joinToString("\n")
         }
 
         internal suspend fun getChat(app: MaodouchatApp, chatId: String): String {
             AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
-            val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
+            val chat = app.database.chatDao().getChatById(chatId) ?: return AgentReadGatePolicy.chatNotFoundError()
             val title = AgentChatListPolicy.detailTitle(chat.groupName, chat.participantIds)
             return AgentChatRowPolicy.chatDetail(
                 chat.id,
@@ -73,7 +75,7 @@ internal object AgentMessagingChatReads {
             AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
             val messages = LocalMessageStore(app.database.messageDao(), app.database)
                 .getRecentMessages(chatId, AgentChatListPolicy.historyLimit(limit))
-            if (messages.isEmpty()) return "No messages."
+            if (messages.isEmpty()) return AgentReadEmptyLinePolicy.NO_MESSAGES
             return messages.asReversed().joinToString("\n") { AgentMessageLinePolicy.formatMessage(it) }
         }
 }
