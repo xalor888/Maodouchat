@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * 单聊阅后即焚策略（纯函数，可单测）。

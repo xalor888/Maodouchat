@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.domain.messaging.DisappearingMessagePolicy
 import com.maodouchat.core.model.QuietWindow
 import com.maodouchat.domain.messaging.DisappearDurationLabel
 import com.maodouchat.domain.messaging.DisappearingMessageLabel

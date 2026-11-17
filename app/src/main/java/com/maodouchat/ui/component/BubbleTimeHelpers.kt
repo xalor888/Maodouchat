@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.DisappearCountdownKind
+import com.maodouchat.domain.messaging.DisappearingMessagePolicy
 import com.maodouchat.domain.messaging.disappearCountdownKind
 import com.maodouchat.domain.messaging.disappearCountdownRefreshDelayMs
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
@@ -42,7 +43,7 @@ internal fun DisappearCountdownLabel(
     LaunchedEffect(expiresAt) {
         while (true) {
             nowMs = System.currentTimeMillis()
-            val remaining = com.maodouchat.core.model.DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
+            val remaining = DisappearingMessagePolicy.remainingMs(expiresAt, nowMs)
             if (remaining <= 0L) break
             val delayMs = disappearCountdownRefreshDelayMs(remaining)
             kotlinx.coroutines.delay(delayMs)

@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.model.DisappearingMessagePolicy
+import com.maodouchat.domain.messaging.DisappearingMessagePolicy
 import com.maodouchat.domain.messaging.filterUnexpiredMessages
 import com.maodouchat.domain.messaging.filterUnexpiredPins
 import com.maodouchat.util.RuntimeFlags
@@ -31,8 +31,8 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.secret_chat_timer_locked)) }
         return
     }
-    val normalized = com.maodouchat.core.model.DisappearingMessagePolicy.normalizeSeconds(seconds)
-    if (!com.maodouchat.core.model.DisappearingMessagePolicy.isAllowedSeconds(normalized)) {
+    val normalized = DisappearingMessagePolicy.normalizeSeconds(seconds)
+    if (!DisappearingMessagePolicy.isAllowedSeconds(normalized)) {
         _uiState.update { it.copy(groupEncryptionWarning = text(R.string.disappear_invalid_timer)) }
         return
     }
@@ -75,7 +75,7 @@ internal fun ChatDetailViewModel.setDisappearingMessages(seconds: Int) {
                     ) {
                         return@fold
                     }
-                    val applied = com.maodouchat.core.model.DisappearingMessagePolicy.normalizeSeconds(response.seconds)
+                    val applied = DisappearingMessagePolicy.normalizeSeconds(response.seconds)
                     _uiState.update {
                         it.copy(
                             isUpdatingDisappearing = false,
