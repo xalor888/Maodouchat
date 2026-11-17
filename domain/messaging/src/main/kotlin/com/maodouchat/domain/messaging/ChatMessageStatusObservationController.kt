@@ -2,8 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SeenSet
-import com.maodouchat.core.model.ChatReadWatermarkInput
-import com.maodouchat.core.model.ChatReadWatermarkPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
