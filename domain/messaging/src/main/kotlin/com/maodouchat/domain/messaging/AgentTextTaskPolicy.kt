@@ -1,11 +1,10 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiContextMessage
-import com.maodouchat.core.model.agentRewriteInstruction
 
 // 本机模型文本任务的纯文本装配，自 app 侧 LocalAiTextTasks 收敛；
 // 端点选择与模型调用仍在 app 侧，这里只定对话转录与任务指令。
-// 翻译/建议/摘要/群助手四项提示逐字自 :core:model 的 AgentTextTaskPrompts 迁入。
+// 翻译/建议/摘要/群助手四项提示与改写基础指令逐字自 :core:model 的 AgentTextTaskPrompts 迁入，该文件随之删除。
 object AgentTextTaskPolicy {
 
     fun transcriptLine(sender: String, text: String): String = "$sender: $text"
@@ -13,9 +12,25 @@ object AgentTextTaskPolicy {
     fun transcript(messages: List<AiContextMessage>): String =
         messages.joinToString("\n") { transcriptLine(it.sender, it.text) }
 
+    fun rewriteBaseInstruction(mode: String, targetLanguage: String?): String {
+        val safe = when (mode.trim().lowercase()) {
+            "shorten" -> "缩短，保留原意"
+            "formal" -> "更正式礼貌"
+            "gentle" -> "更温和"
+            "casual" -> "更口语"
+            "professional" -> "更专业商务"
+            "expand" -> "稍加展开，不编造事实"
+            "bullet" -> "改成简洁条目"
+            "clarify" -> "更清楚，不改变立场"
+            "translate" -> "翻译成 ${targetLanguage?.trim().orEmpty().ifBlank { "中文" }}，只输出译文"
+            else -> "润色，保持原意和语气"
+        }
+        return "改写下面的草稿：$safe。只输出改写结果，不要解释。"
+    }
+
     fun rewriteInstruction(mode: String, targetLanguage: String?, style: String?): String =
         buildString {
-            append(agentRewriteInstruction(mode, targetLanguage))
+            append(rewriteBaseInstruction(mode, targetLanguage))
             if (!style.isNullOrBlank()) append(" ").append(style)
         }
 

@@ -31,6 +31,38 @@ class AgentTextTaskPolicyTest {
     }
 
     @Test
+    fun `rewriteBaseInstruction maps known modes`() {
+        assertEquals(
+            "改写下面的草稿：缩短，保留原意。只输出改写结果，不要解释。",
+            AgentTextTaskPolicy.rewriteBaseInstruction(" shorten ", null),
+        )
+        assertEquals(
+            "改写下面的草稿：改成简洁条目。只输出改写结果，不要解释。",
+            AgentTextTaskPolicy.rewriteBaseInstruction("bullet", null),
+        )
+    }
+
+    @Test
+    fun `rewriteBaseInstruction translates with fallback language`() {
+        assertEquals(
+            "改写下面的草稿：翻译成 英语，只输出译文。只输出改写结果，不要解释。",
+            AgentTextTaskPolicy.rewriteBaseInstruction("translate", " 英语 "),
+        )
+        assertEquals(
+            "改写下面的草稿：翻译成 中文，只输出译文。只输出改写结果，不要解释。",
+            AgentTextTaskPolicy.rewriteBaseInstruction("translate", "  "),
+        )
+    }
+
+    @Test
+    fun `rewriteBaseInstruction falls back to polish for unknown modes`() {
+        assertEquals(
+            "改写下面的草稿：润色，保持原意和语气。只输出改写结果，不要解释。",
+            AgentTextTaskPolicy.rewriteBaseInstruction("robotic", null),
+        )
+    }
+
+    @Test
     fun `translateInstruction falls back to Chinese for blank language`() {
         assertEquals(
             "把下面文本翻译成 中文。只输出译文。",

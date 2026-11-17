@@ -5,9 +5,9 @@ import com.maodouchat.core.model.AiWritingStylePolicy
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.Snapshot
-import com.maodouchat.core.model.agentRewriteInstruction
 import com.maodouchat.domain.messaging.AgentCompletionResultPolicy
 import com.maodouchat.domain.messaging.AgentCompletionTextPolicy
+import com.maodouchat.domain.messaging.AgentTextTaskPolicy
 import com.maodouchat.domain.messaging.normalizeAiRewriteMode
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
@@ -58,7 +58,7 @@ object AgentTextCompletion {
         val mode = normalizeAiRewriteMode(args["mode"])
         return completeText(
             provider,
-            agentRewriteInstruction(mode, args["targetLanguage"]),
+            AgentTextTaskPolicy.rewriteBaseInstruction(mode, args["targetLanguage"]),
             text,
             null,
             complete
