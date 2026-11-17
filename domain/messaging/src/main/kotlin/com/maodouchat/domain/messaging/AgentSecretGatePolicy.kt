@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * Agent 不得读写密聊，也不得在 PIN 未解锁时碰加锁会话。

@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 会话轮次系统提示簇：引擎每轮的 system 消息从这里组装。
 fun agentSystemPrompt(nowLabel: String, styleHint: String?): String = buildString {

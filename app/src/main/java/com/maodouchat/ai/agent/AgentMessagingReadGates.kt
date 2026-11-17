@@ -1,8 +1,8 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.domain.messaging.AgentReadGatePolicy
+import com.maodouchat.domain.messaging.AgentSecretGatePolicy
 import com.maodouchat.domain.messaging.AgentSecretPeerPolicy
 import com.maodouchat.security.ChatLockSession
 

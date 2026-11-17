@@ -1,10 +1,10 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.domain.messaging.AgentDraftLinePolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyPolicy
+import com.maodouchat.domain.messaging.AgentSecretGatePolicy
 import com.maodouchat.domain.messaging.AgentTaskReadLimitPolicy
 import com.maodouchat.domain.messaging.AgentWriteErrorPolicy
 import com.maodouchat.security.ChatLockSession

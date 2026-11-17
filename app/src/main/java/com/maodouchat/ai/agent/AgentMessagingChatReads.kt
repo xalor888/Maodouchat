@@ -1,7 +1,6 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AgentChatListPolicy
@@ -10,6 +9,7 @@ import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
 import com.maodouchat.domain.messaging.AgentReadGatePolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
+import com.maodouchat.domain.messaging.AgentSecretGatePolicy
 import com.maodouchat.security.ChatLockSession
 
 // 会话只读查询：列表、详情、历史（门闩复用 AgentMessagingReadGates）。
