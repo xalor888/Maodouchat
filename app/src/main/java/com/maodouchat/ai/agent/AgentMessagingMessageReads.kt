@@ -5,6 +5,7 @@ import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
+import com.maodouchat.domain.messaging.AgentPinnedLinePolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession
 
@@ -57,6 +58,6 @@ internal object AgentMessagingMessageReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val result = ApiService.getPinnedMessages(token, chatId).getOrElse { return AgentToolHost.fail(it) }
             if (result.pins.isEmpty()) return "No pinned messages."
-            return result.pins.joinToString("\n") { "${it.messageId}\tby=${it.pinnedBy}\tat=${it.pinnedAt}" }
+            return result.pins.joinToString("\n") { AgentPinnedLinePolicy.pinnedLine(it.messageId, it.pinnedBy, it.pinnedAt) }
         }
 }

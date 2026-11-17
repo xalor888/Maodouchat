@@ -5,6 +5,7 @@ import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AgentChatListPolicy
+import com.maodouchat.domain.messaging.AgentChatRowPolicy
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.security.ChatLockSession
@@ -40,7 +41,12 @@ internal object AgentMessagingChatReads {
                         archived = chat.archived,
                         unreadCount = chat.unreadCount,
                     )
-                    "${chat.id}\t$title\t${AgentReadPreviewPolicy.chatLastMessageList(chat.lastMessage)}\t$flags"
+                    AgentChatRowPolicy.chatListRow(
+                        chat.id,
+                        title,
+                        AgentReadPreviewPolicy.chatLastMessageList(chat.lastMessage),
+                        flags,
+                    )
                 }
                 .toList()
             return if (lines.isEmpty()) "No chats." else lines.joinToString("\n")
@@ -50,17 +56,17 @@ internal object AgentMessagingChatReads {
             AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
             val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
             val title = AgentChatListPolicy.detailTitle(chat.groupName, chat.participantIds)
-            return buildString {
-                appendLine("id=${chat.id}")
-                appendLine("title=$title")
-                appendLine("type=${chat.chatType}")
-                appendLine("muted=${chat.notificationsMuted}")
-                appendLine("pinned=${chat.pinnedAt > 0}")
-                appendLine("archived=${chat.archived}")
-                appendLine("unread=${chat.unreadCount}")
-                appendLine("markedUnread=${chat.markedUnread}")
-                appendLine("last=${AgentReadPreviewPolicy.chatLastMessageDetail(chat.lastMessage)}")
-            }.trim()
+            return AgentChatRowPolicy.chatDetail(
+                chat.id,
+                title,
+                chat.chatType,
+                chat.notificationsMuted,
+                chat.pinnedAt > 0,
+                chat.archived,
+                chat.unreadCount,
+                chat.markedUnread,
+                AgentReadPreviewPolicy.chatLastMessageDetail(chat.lastMessage),
+            )
         }
 
         internal suspend fun getChatHistory(app: MaodouchatApp, chatId: String, limit: Int): String {

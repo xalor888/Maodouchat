@@ -3,6 +3,7 @@ package com.maodouchat.ai.agent
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.LikeQueryPolicy
 import com.maodouchat.domain.messaging.AgentContactQueryPolicy
+import com.maodouchat.domain.messaging.AgentContactRowPolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.flow.first
@@ -18,21 +19,14 @@ internal object AgentSocialContactReads {
             }
             val lines = all.take(AgentContactQueryPolicy.MAX_CONTACT_ROWS).map {
                 val display = AgentContactQueryPolicy.displayName(it.nickname, it.name)
-                "${it.id}\t$display\t${AgentReadPreviewPolicy.contactStatus(it.status)}"
+                AgentContactRowPolicy.contactRow(it.id, display, AgentReadPreviewPolicy.contactStatus(it.status))
             }
             return if (lines.isEmpty()) "No contacts." else lines.joinToString("\n")
         }
 
         internal suspend fun getMe(app: MaodouchatApp, userId: String): String {
             val me = app.database.userDao().getUserById(userId)
-            return buildString {
-                appendLine("userId=$userId")
-                if (me != null) {
-                    appendLine("name=${me.name}")
-                    appendLine("nickname=${me.nickname.orEmpty()}")
-                    appendLine("status=${me.status}")
-                }
-            }.trim()
+            return AgentContactRowPolicy.meDetail(userId, me?.name, me?.nickname, me?.status)
         }
 
         internal suspend fun listFriendRequests(app: MaodouchatApp, direction: String): String {
@@ -45,7 +39,15 @@ internal object AgentSocialContactReads {
             }
             if (rows.isEmpty()) return "No friend requests."
             return rows.take(AgentContactQueryPolicy.MAX_FRIEND_REQUEST_ROWS).joinToString("\n") { req ->
-                "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${AgentReadPreviewPolicy.friendRequestMessage(req.message)}"
+                AgentContactRowPolicy.friendRequestRow(
+                    req.id,
+                    req.status,
+                    req.fromUser.id,
+                    req.fromUser.name,
+                    req.toUser.id,
+                    req.toUser.name,
+                    AgentReadPreviewPolicy.friendRequestMessage(req.message),
+                )
             }
         }
 
@@ -53,7 +55,7 @@ internal object AgentSocialContactReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.getFriends(token).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No friends."
-            return rows.take(AgentContactQueryPolicy.MAX_CONTACT_ROWS).joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
+            return rows.take(AgentContactQueryPolicy.MAX_CONTACT_ROWS).joinToString("\n") { AgentContactRowPolicy.personRow(it.id, it.name, AgentReadPreviewPolicy.contactStatus(it.status)) }
         }
 
         internal suspend fun searchUsers(app: MaodouchatApp, query: String, limit: Int): String {
@@ -62,14 +64,14 @@ internal object AgentSocialContactReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.searchUsers(token, q, AgentContactQueryPolicy.userSearchLimit(limit)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No users."
-            return rows.joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
+            return rows.joinToString("\n") { AgentContactRowPolicy.personRow(it.id, it.name, AgentReadPreviewPolicy.contactStatus(it.status)) }
         }
 
         internal suspend fun listBlocked(app: MaodouchatApp): String {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.getBlockedUserDetails(token).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No blocked users."
-            return rows.joinToString("\n") { "${it.id}\t${it.name}" }
+            return rows.joinToString("\n") { AgentContactRowPolicy.blockedRow(it.id, it.name) }
         }
 }
 
