@@ -5,7 +5,6 @@ import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.SeenSet
 import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals

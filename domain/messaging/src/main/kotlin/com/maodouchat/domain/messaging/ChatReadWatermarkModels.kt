@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 data class Plan(
     /** 本轮要标已读的消息 id（保序）。 */
