@@ -11,8 +11,8 @@ import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.core.model.NotificationCenterType
-import com.maodouchat.core.model.NotificationSlotPolicy
-import com.maodouchat.core.model.NotificationSoundPolicy
+import com.maodouchat.domain.messaging.NotificationSlotPolicy
+import com.maodouchat.domain.messaging.NotificationSoundPolicy
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.network.TokenManager

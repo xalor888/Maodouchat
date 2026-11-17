@@ -8,7 +8,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.notification.MessageNotificationService
-import com.maodouchat.core.model.NotificationSlotPolicy
+import com.maodouchat.domain.messaging.NotificationSlotPolicy
 import com.maodouchat.core.model.StartupPermissionPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
