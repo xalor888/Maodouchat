@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * P07 首切片：通知槽位纯策略（纯 Kotlin，无 Android 依赖）。
