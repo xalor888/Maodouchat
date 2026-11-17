@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.core.model.ChatListUnreadPolicy
+import com.maodouchat.domain.conversation.ChatListUnreadPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

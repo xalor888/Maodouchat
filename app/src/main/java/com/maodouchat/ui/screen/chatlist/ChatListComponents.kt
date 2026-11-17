@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatListReceiptPolicy
+import com.maodouchat.domain.conversation.ChatListReceiptPolicy
 import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.formatChatTime
 import com.maodouchat.data.local.entity.ChatDraftEntity

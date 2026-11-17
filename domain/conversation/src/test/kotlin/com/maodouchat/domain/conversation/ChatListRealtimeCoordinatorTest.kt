@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.Trigger
 import com.maodouchat.core.model.User
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent

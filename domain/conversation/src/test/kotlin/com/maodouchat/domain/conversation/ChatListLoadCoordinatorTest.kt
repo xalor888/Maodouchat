@@ -6,8 +6,6 @@ import com.maodouchat.core.model.MissedCall
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.ChatListReloadPolicy
-import com.maodouchat.core.model.Trigger
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

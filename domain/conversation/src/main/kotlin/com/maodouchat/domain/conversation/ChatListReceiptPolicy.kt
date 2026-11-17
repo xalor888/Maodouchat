@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.Receipt
 
 /**
  * Telegram-style list ticks: only when the list tail is our own outgoing message.
@@ -6,8 +9,8 @@ package com.maodouchat.core.model
  */
 object ChatListReceiptPolicy {
 
-    // Takes the tail message's fields instead of the app-side Message row, so the
-    // policy can live in :core:model; null sender/status means "no tail message".
+    // Takes the tail message's fields instead of the app-side Message row,
+    // so the policy stays decoupled from it; null sender/status means "no tail message".
     fun fromLatest(
         senderId: String?,
         status: MessageStatus?,

@@ -3,11 +3,8 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.core.model.ChatListReloadPolicy
-import com.maodouchat.core.model.Trigger
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.ChatListRemoteMergePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

@@ -1,7 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import org.junit.Assert.assertSame
-import org.junit.Test
+import com.maodouchat.core.model.SettingsSnapshot
+import kotlin.test.Test
+import kotlin.test.assertSame
 
 class ChatListSettingsMergePolicyTest {
 

@@ -10,7 +10,7 @@ import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.MessagePinPolicy
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.ReadReceiptPolicy
+import com.maodouchat.domain.conversation.ReadReceiptPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.MessageActionAvailabilityPolicy
 import com.maodouchat.domain.messaging.MessageEditWindowPolicy

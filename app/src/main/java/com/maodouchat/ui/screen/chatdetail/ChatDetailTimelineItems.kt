@@ -38,7 +38,7 @@ import com.maodouchat.domain.messaging.ReplyPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.core.model.ReadReceiptPolicy
+import com.maodouchat.domain.conversation.ReadReceiptPolicy
 import com.maodouchat.core.model.ReplyPreview
 import com.maodouchat.core.model.toggleMessageSelection
 import com.maodouchat.core.model.ChatDetailUiState

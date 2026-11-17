@@ -1,6 +1,6 @@
 package com.maodouchat.chatlist
 
-import com.maodouchat.core.model.ChatListSettingsMergePolicy
+import com.maodouchat.domain.conversation.ChatListSettingsMergePolicy
 import com.maodouchat.core.model.SettingsSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
