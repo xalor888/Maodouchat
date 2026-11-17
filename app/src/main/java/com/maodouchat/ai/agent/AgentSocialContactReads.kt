@@ -2,6 +2,7 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.flow.first
 internal object AgentSocialContactReads {
@@ -16,7 +17,7 @@ internal object AgentSocialContactReads {
             }
             val lines = all.take(80).map {
                 val display = it.nickname?.takeIf(String::isNotBlank) ?: it.name
-                "${it.id}\t$display\t${it.status.take(40)}"
+                "${it.id}\t$display\t${AgentReadPreviewPolicy.contactStatus(it.status)}"
             }
             return if (lines.isEmpty()) "No contacts." else lines.joinToString("\n")
         }
@@ -43,7 +44,7 @@ internal object AgentSocialContactReads {
             }
             if (rows.isEmpty()) return "No friend requests."
             return rows.take(50).joinToString("\n") { req ->
-                "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${req.message.take(80)}"
+                "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${AgentReadPreviewPolicy.friendRequestMessage(req.message)}"
             }
         }
 
@@ -51,7 +52,7 @@ internal object AgentSocialContactReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.getFriends(token).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No friends."
-            return rows.take(80).joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+            return rows.take(80).joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
         }
 
         internal suspend fun searchUsers(app: MaodouchatApp, query: String, limit: Int): String {
@@ -60,7 +61,7 @@ internal object AgentSocialContactReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.searchUsers(token, q, limit.coerceIn(1, 30)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No users."
-            return rows.joinToString("\n") { "${it.id}\t${it.name}\t${it.status.take(40)}" }
+            return rows.joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
         }
 
         internal suspend fun listBlocked(app: MaodouchatApp): String {

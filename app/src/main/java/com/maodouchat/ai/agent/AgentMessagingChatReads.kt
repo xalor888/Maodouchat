@@ -4,6 +4,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.security.ChatLockSession
 
 // 会话只读查询：列表、详情、历史（门闩复用 AgentMessagingReadGates）。
@@ -39,7 +40,7 @@ internal object AgentMessagingChatReads {
                         if (chat.archived) add("archived")
                         if (chat.unreadCount > 0) add("unread=${chat.unreadCount}")
                     }.joinToString(",")
-                    "${chat.id}\t$title\t${chat.lastMessage.take(80)}\t$flags"
+                    "${chat.id}\t$title\t${AgentReadPreviewPolicy.chatLastMessageList(chat.lastMessage)}\t$flags"
                 }
                 .toList()
             return if (lines.isEmpty()) "No chats." else lines.joinToString("\n")
@@ -59,7 +60,7 @@ internal object AgentMessagingChatReads {
                 appendLine("archived=${chat.archived}")
                 appendLine("unread=${chat.unreadCount}")
                 appendLine("markedUnread=${chat.markedUnread}")
-                appendLine("last=${chat.lastMessage.take(160)}")
+                appendLine("last=${AgentReadPreviewPolicy.chatLastMessageDetail(chat.lastMessage)}")
             }.trim()
         }
 

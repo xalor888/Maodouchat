@@ -1,6 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.network.ApiService
 internal object AgentSocialPostReads {
 
@@ -9,7 +10,7 @@ internal object AgentSocialPostReads {
             val rows = ApiService.getPosts(token, limit = limit.coerceIn(1, 40)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No posts."
             return rows.joinToString("\n") { post ->
-                "${post.id}\t${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\t${post.content.take(120)}"
+                "${post.id}\t${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\t${AgentReadPreviewPolicy.postListContent(post.content)}"
             }
         }
 
@@ -17,7 +18,7 @@ internal object AgentSocialPostReads {
             if (postId.isBlank()) return "Error: postId required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val post = ApiService.getPost(token, postId).getOrElse { return AgentToolHost.fail(it) }
-            return "id=${post.id}\tauthor=${post.author.id}/${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\tmine=${post.isMine}\n${post.content.take(1_000)}"
+            return "id=${post.id}\tauthor=${post.author.id}/${post.author.name}\tlikes=${post.likeCount}\tcomments=${post.commentCount}\tmine=${post.isMine}\n${AgentReadPreviewPolicy.postDetailContent(post.content)}"
         }
 
         internal suspend fun listPostComments(app: MaodouchatApp, postId: String, limit: Int): String {
@@ -25,7 +26,7 @@ internal object AgentSocialPostReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.getPostComments(token, postId, limit.coerceIn(1, 100)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No comments."
-            return rows.joinToString("\n") { "${it.id}\t${it.author.name}\t${it.content.take(160)}" }
+            return rows.joinToString("\n") { "${it.id}\t${it.author.name}\t${AgentReadPreviewPolicy.commentContent(it.content)}" }
         }
 }
 

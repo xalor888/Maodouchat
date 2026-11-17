@@ -6,6 +6,7 @@ import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.MessageSearchRepository
+import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession
 
@@ -28,7 +29,7 @@ internal object AgentMessagingMessageReads {
                     )
                 }
                 .joinToString("\n") { hit ->
-                    "${hit.chatId}\t${hit.messageId}\t${hit.searchableText.take(160)}"
+                    "${hit.chatId}\t${hit.messageId}\t${AgentReadPreviewPolicy.searchHitText(hit.searchableText)}"
                 }
                 .ifBlank { "No matches." }
         }
