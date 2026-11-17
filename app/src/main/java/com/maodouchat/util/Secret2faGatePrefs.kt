@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretGateTimeoutPolicy
 
 /**
  * 密聊双因素门禁开关（B2 surface · 双因素门禁，health 名 2faz）。
@@ -26,23 +27,27 @@ object Secret2faGatePrefs {
     private const val KEY_LAST_VERIFIED_AT = "last_verified_at"
 
     /** 默认免验证窗口：5 分钟。 */
-    const val DEFAULT_TIMEOUT_MS = 5L * 60 * 1000
+    const val DEFAULT_TIMEOUT_MS = SecretGateTimeoutPolicy.DEFAULT_TIMEOUT_MS
 
     fun gateTimeoutMs(context: Context): Long {
         val userId = switch.userId(context) ?: return DEFAULT_TIMEOUT_MS
-        return switch.prefs(context).getLong(switch.key(KEY_TIMEOUT_MS, userId), DEFAULT_TIMEOUT_MS).coerceIn(10_000L, 24L * 60 * 60 * 1000)
+        return SecretGateTimeoutPolicy.clampTimeoutMs(
+            switch.prefs(context).getLong(switch.key(KEY_TIMEOUT_MS, userId), DEFAULT_TIMEOUT_MS)
+        )
     }
 
     fun setGateTimeoutMs(context: Context, timeoutMs: Long) {
         val userId = switch.userId(context) ?: return
-        switch.prefs(context).edit { putLong(switch.key(KEY_TIMEOUT_MS, userId), timeoutMs.coerceIn(10_000L, 24L * 60 * 60 * 1000)) }
+        switch.prefs(context).edit {
+            putLong(switch.key(KEY_TIMEOUT_MS, userId), SecretGateTimeoutPolicy.clampTimeoutMs(timeoutMs))
+        }
     }
 
     fun isGateOpen(context: Context): Boolean {
         if (!isEnabled(context)) return true
         val userId = switch.userId(context) ?: return false
         val last = switch.prefs(context).getLong(switch.key(KEY_LAST_VERIFIED_AT, userId), 0L)
-        return last > 0L && System.currentTimeMillis() - last < gateTimeoutMs(context)
+        return SecretGateTimeoutPolicy.isGateOpen(last, System.currentTimeMillis(), gateTimeoutMs(context))
     }
 
     fun markVerified(context: Context) {

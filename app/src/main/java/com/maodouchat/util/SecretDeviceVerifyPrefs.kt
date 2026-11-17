@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretTrustPolicy
 
 /**
  * 密聊设备核验开关（B2 surface · 设备核验，health 名 dvz）。
@@ -27,31 +28,29 @@ object SecretDeviceVerifyPrefs {
     /** 已核验的对端设备指纹集合（fingerprint -> chatId 映射由接入方按需扩展）。 */
     fun verifiedFingerprints(context: Context): Set<String> {
         val userId = switch.userId(context) ?: return emptySet()
-        return switch.prefs(context).getStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), emptySet())
-            .orEmpty()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .toSet()
+        return SecretTrustPolicy.normalizeIds(
+            switch.prefs(context).getStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), emptySet()).orEmpty()
+        )
     }
 
     fun setVerifiedFingerprints(context: Context, fingerprints: Set<String>) {
         val userId = switch.userId(context) ?: return
         switch.prefs(context).edit {
-            putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), fingerprints.map { it.trim() }.filter { it.isNotBlank() }.toSet())
+            putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), SecretTrustPolicy.normalizeIds(fingerprints))
         }
     }
 
-    fun isFingerprintVerified(context: Context, fingerprint: String): Boolean {
-        if (fingerprint.isBlank()) return false
-        if (!isEnabled(context)) return true
-        return fingerprint in verifiedFingerprints(context)
-    }
+    fun isFingerprintVerified(context: Context, fingerprint: String): Boolean =
+        SecretTrustPolicy.isFingerprintVerified(isEnabled(context), fingerprint, verifiedFingerprints(context))
 
     fun markFingerprintVerified(context: Context, fingerprint: String) {
         if (fingerprint.isBlank()) return
         val userId = switch.userId(context) ?: return
         switch.prefs(context).edit {
-            putStringSet(switch.key(KEY_VERIFIED_FINGERPRINTS, userId), verifiedFingerprints(context) + fingerprint.trim())
+            putStringSet(
+                switch.key(KEY_VERIFIED_FINGERPRINTS, userId),
+                verifiedFingerprints(context) + SecretTrustPolicy.normalizeId(fingerprint)
+            )
         }
     }
 }

@@ -2,6 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
+import com.maodouchat.domain.messaging.SecretTrustPolicy
 
 /**
  * 密聊新设备风控开关（B2 surface · 新设备风控，health 名 ndz）。
@@ -29,30 +30,25 @@ object SecretNewDeviceRiskPrefs {
     /** 已登记的设备指纹集合（见 [SimChangeWatcher]/设备核验的 deviceId 来源）。 */
     fun knownDevices(context: Context): Set<String> {
         val userId = switch.userId(context) ?: return emptySet()
-        return switch.prefs(context).getStringSet(switch.key(KEY_KNOWN_DEVICES, userId), emptySet())
-            .orEmpty()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .toSet()
+        return SecretTrustPolicy.normalizeIds(
+            switch.prefs(context).getStringSet(switch.key(KEY_KNOWN_DEVICES, userId), emptySet()).orEmpty()
+        )
     }
 
     fun setKnownDevices(context: Context, devices: Set<String>) {
         val userId = switch.userId(context) ?: return
         switch.prefs(context).edit {
-            putStringSet(switch.key(KEY_KNOWN_DEVICES, userId), devices.map { it.trim() }.filter { it.isNotBlank() }.toSet())
+            putStringSet(switch.key(KEY_KNOWN_DEVICES, userId), SecretTrustPolicy.normalizeIds(devices))
         }
     }
 
-    fun isDeviceTrusted(context: Context, deviceId: String): Boolean {
-        if (deviceId.isBlank()) return false
-        if (!isEnabled(context)) return true
-        return deviceId in knownDevices(context)
-    }
+    fun isDeviceTrusted(context: Context, deviceId: String): Boolean =
+        SecretTrustPolicy.isDeviceTrusted(isEnabled(context), deviceId, knownDevices(context))
 
     fun registerDevice(context: Context, deviceId: String) {
         if (deviceId.isBlank()) return
         val userId = switch.userId(context) ?: return
-        val updated = knownDevices(context) + deviceId.trim()
+        val updated = knownDevices(context) + SecretTrustPolicy.normalizeId(deviceId)
         switch.prefs(context).edit {
             putStringSet(switch.key(KEY_KNOWN_DEVICES, userId), updated)
         }
