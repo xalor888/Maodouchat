@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.ChatDetailMessageLabels
-import com.maodouchat.core.model.ChatHeaderStatus
-import com.maodouchat.core.model.resolveChatHeaderStatus
+import com.maodouchat.domain.conversation.ChatHeaderStatus
+import com.maodouchat.domain.conversation.resolveChatHeaderStatus
 
 import android.content.Context
 import androidx.compose.runtime.Composable

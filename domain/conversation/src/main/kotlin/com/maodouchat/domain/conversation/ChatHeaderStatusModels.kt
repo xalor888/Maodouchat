@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 sealed interface ChatHeaderStatus {
     data class Typing(val userId: String) : ChatHeaderStatus
