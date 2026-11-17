@@ -1,12 +1,13 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.core.model.MessageStatus
 import kotlinx.coroutines.Job
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ChatDetailBookkeepingTest {
 
@@ -64,5 +65,36 @@ class ChatDetailBookkeepingTest {
         bookkeeping.markReadJob = job
         assertEquals(job, bookkeeping.markReadJob)
         job.cancel()
+    }
+
+    @Test
+    fun aiDefaultsEmpty() {
+        val bookkeeping = ChatDetailAiBookkeeping()
+        assertNull(bookkeeping.pendingAiAction)
+        assertNull(bookkeeping.pendingAiOperationRetryId)
+        assertEquals(false, bookkeeping.aiSettingsLoaded)
+        assertNull(bookkeeping.unreadSummaryAttemptedForKey)
+        assertNull(bookkeeping.unreadSummaryInFlightKey)
+        assertTrue(bookkeeping.aiOperationJobs.isEmpty())
+        assertTrue(bookkeeping.aiAutoRetryJobs.isEmpty())
+        assertTrue(bookkeeping.aiAutoRetryAt.isEmpty())
+        assertNotNull(bookkeeping.aiOperationQueueMutex)
+        assertNotNull(bookkeeping.aiOperationJson)
+        assertNull(bookkeeping.aiRewriteStreamJob)
+        assertNull(bookkeeping.aiReplyStreamJob)
+        assertNull(bookkeeping.semanticSearchJob)
+        assertNull(bookkeeping.groupAiJob)
+        assertNull(bookkeeping.manualSummaryJob)
+        assertNull(bookkeeping.unreadSummaryJob)
+        assertEquals("polish", bookkeeping.lastAiRewriteMode)
+        assertNull(bookkeeping.lastAiRewriteTargetLanguage)
+        assertEquals("friendly", bookkeeping.lastAiReplyTone)
+    }
+
+    @Test
+    fun draftDefaultsEmpty() {
+        val bookkeeping = ChatDetailDraftBookkeeping()
+        assertNull(bookkeeping.draftSaveJob)
+        assertEquals(0L, bookkeeping.draftGeneration)
     }
 }
