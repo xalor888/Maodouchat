@@ -6,10 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
-import com.maodouchat.util.EmojiRecentPreferences
 import com.maodouchat.core.model.StickerCatalog
 import com.maodouchat.core.model.StickerPack
 import com.maodouchat.core.model.StickerPolicy
+import com.maodouchat.domain.messaging.StickerTabDisplayPolicy
+import com.maodouchat.util.EmojiRecentPreferences
 import com.maodouchat.util.StickerPreferences
 
 // 表情面板贴纸页签的状态簇：remember/rememberSaveable 的键与原内联一一对应，displayItems 保持原 when 判定。
@@ -25,13 +26,13 @@ internal class ExpressionStickerState(
     val searchHits: List<String>,
 ) {
     val displayItems: List<String>
-        get() = when {
-            stickerQuery.value.isNotBlank() -> searchHits
-            stickerTab.value == StickerCatalog.PACK_RECENT -> recentStickers.value
-            else -> enabledPacks.firstOrNull { it.id == stickerTab.value }?.stickers
-                ?: enabledPacks.firstOrNull()?.stickers
-                ?: emptyList()
-        }
+        get() = StickerTabDisplayPolicy.resolveItems(
+            query = stickerQuery.value,
+            tabId = stickerTab.value,
+            recent = recentStickers.value,
+            searchHits = searchHits,
+            enabledPacks = enabledPacks,
+        )
 }
 
 @Composable

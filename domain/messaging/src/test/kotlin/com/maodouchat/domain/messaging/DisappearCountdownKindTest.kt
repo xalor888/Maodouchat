@@ -48,4 +48,21 @@ class DisappearCountdownKindTest {
         assertEquals(DisappearCountdownKind.Seconds(0),
             disappearCountdownKind(now - 1_000L, now))
     }
+
+    @Test
+    fun `refresh delay is 15 seconds when more than an hour remains`() {
+        assertEquals(15_000L, disappearCountdownRefreshDelayMs(3_600_001L))
+        assertEquals(15_000L, disappearCountdownRefreshDelayMs(86_400_000L))
+    }
+
+    @Test
+    fun `refresh delay is 1 second at or under an hour`() {
+        assertEquals(1_000L, disappearCountdownRefreshDelayMs(3_600_000L))
+        assertEquals(1_000L, disappearCountdownRefreshDelayMs(1_000L))
+    }
+
+    @Test
+    fun `refresh delay is 1 second when expired`() {
+        assertEquals(1_000L, disappearCountdownRefreshDelayMs(0L))
+    }
 }

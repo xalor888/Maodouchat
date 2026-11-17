@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.LocalAiProviderJsonCodec
+import com.maodouchat.domain.messaging.LocalAiProviderSelectionPolicy
 
 // provider 增删改查簇：用户自配模型端点的列表/当前选中/新增更新/删除/切换。
 // 原 LocalAiProviderStorage 的 CRUD 部分整体搬入。
@@ -15,16 +16,14 @@ internal object LocalAiProviderCrud {
     }
 
     fun activeProvider(context: Context): LocalAiProvider? {
-        val list = listProviders(context)
-        if (list.isEmpty()) return null
         val activeId = LocalAiStorePrefs.prefs(context)
             ?.getString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_ACTIVE), null)
-        return list.firstOrNull { it.id == activeId } ?: list.first()
+        return LocalAiProviderSelectionPolicy.resolveActive(listProviders(context), activeId)
     }
 
     fun upsertProvider(context: Context, provider: LocalAiProvider): LocalAiProvider {
         val prefs = LocalAiStorePrefs.prefs(context) ?: return provider
-        val next = listProviders(context).filterNot { it.id == provider.id } + provider
+        val next = LocalAiProviderSelectionPolicy.upsert(listProviders(context), provider)
         prefs.edit {
             putString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_PROVIDERS), LocalAiProviderJsonCodec.encodeProviders(next))
             putString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_ACTIVE), provider.id)
@@ -34,12 +33,12 @@ internal object LocalAiProviderCrud {
 
     fun deleteProvider(context: Context, id: String) {
         val prefs = LocalAiStorePrefs.prefs(context) ?: return
-        val next = listProviders(context).filterNot { it.id == id }
+        val next = LocalAiProviderSelectionPolicy.delete(listProviders(context), id)
         prefs.edit {
             putString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_PROVIDERS), LocalAiProviderJsonCodec.encodeProviders(next))
             val active = prefs.getString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_ACTIVE), null)
             if (active == id) {
-                putString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_ACTIVE), next.firstOrNull()?.id.orEmpty())
+                putString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_ACTIVE), LocalAiProviderSelectionPolicy.activeIdAfterDelete(next, id, active))
             }
         }
     }
