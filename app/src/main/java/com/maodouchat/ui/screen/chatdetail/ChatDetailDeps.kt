@@ -80,10 +80,10 @@ import com.maodouchat.util.VoiceRecorder
 import com.maodouchat.core.model.AiChatClassificationSource
 import com.maodouchat.core.model.AiEmotionReplySource
 import com.maodouchat.core.model.AiWeeklyReportSource
-import com.maodouchat.core.model.ChatDetailAiBookkeeping
-import com.maodouchat.core.model.ChatDetailDraftBookkeeping
-import com.maodouchat.core.model.ChatDetailLiveLocationBookkeeping
-import com.maodouchat.core.model.ChatDetailReadReceiptBookkeeping
+import com.maodouchat.domain.messaging.ChatDetailAiBookkeeping
+import com.maodouchat.domain.messaging.ChatDetailDraftBookkeeping
+import com.maodouchat.domain.messaging.ChatDetailLiveLocationBookkeeping
+import com.maodouchat.domain.messaging.ChatDetailReadReceiptBookkeeping
 import com.maodouchat.core.crypto.ChatDetailDecryptStatus
 import com.maodouchat.core.model.DecryptTexts
 import com.maodouchat.core.model.MessageTerminalStore

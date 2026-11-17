@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.MessageStatus
+import com.maodouchat.core.model.SeenSet
 
 /** 已读回执记账：seen 集合、待写水印与 mark-read 任务。从 ChatDetailDeps 抽出，纯搬移。 */
 class ChatDetailReadReceiptBookkeeping {

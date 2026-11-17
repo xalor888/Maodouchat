@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.LocationPayload
 
 import kotlinx.coroutines.sync.Mutex
 

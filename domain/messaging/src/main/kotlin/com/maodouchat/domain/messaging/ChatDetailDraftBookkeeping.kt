@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** 草稿记账：保存任务与代际计数。从 ChatDetailDeps 抽出，纯搬移。 */
 class ChatDetailDraftBookkeeping {
