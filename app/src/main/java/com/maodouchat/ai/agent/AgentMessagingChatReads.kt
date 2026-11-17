@@ -4,6 +4,8 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.AgentSecretGatePolicy
 import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.messaging.AgentChatListPolicy
+import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.security.ChatLockSession
 
@@ -11,7 +13,7 @@ import com.maodouchat.security.ChatLockSession
 internal object AgentMessagingChatReads {
         internal suspend fun listChats(app: MaodouchatApp, query: String?): String {
             val all = app.database.chatDao().getAllChatsDirect()
-            val q = query?.trim()?.lowercase().orEmpty()
+            val q = AgentChatListPolicy.normalizeQuery(query)
             val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
             val secret = app.database.chatDao().listSecretChatIds().toHashSet()
             val lines = all.asSequence()
@@ -22,24 +24,22 @@ internal object AgentMessagingChatReads {
                             unlocked = ChatLockSession.isUnlocked(chat.id)
                         )
                     ) return@filter false
-                    if (q.isBlank()) true
-                    else (chat.groupName.orEmpty() + " " + chat.lastMessage).lowercase().contains(q)
+                    AgentChatListPolicy.matchesQuery(chat.groupName, chat.lastMessage, q)
                 }
                 .take(AgentToolPolicy.MAX_LIST_CHATS)
                 .map { chat ->
-                    val title = chat.groupName?.takeIf { it.isNotBlank() }
-                        ?: chat.participantIds.split(",").firstOrNull { it.isNotBlank() }
-                        ?: chat.id
-                    val flags = buildList {
-                        if (chat.isGroup) add("group")
-                        if (chat.chatType == "CHANNEL") add("channel")
-                        if (chat.id in secret) add("secret")
-                        if (chat.id in locked) add("pin")
-                        if (chat.notificationsMuted) add("muted")
-                        if (chat.pinnedAt > 0) add("pinned")
-                        if (chat.archived) add("archived")
-                        if (chat.unreadCount > 0) add("unread=${chat.unreadCount}")
-                    }.joinToString(",")
+                    val title = AgentChatListPolicy.listTitle(chat.groupName, chat.participantIds, chat.id)
+                    val flags = AgentChatListPolicy.chatFlags(
+                        isGroup = chat.isGroup,
+                        chatType = chat.chatType,
+                        id = chat.id,
+                        secretIds = secret,
+                        lockedIds = locked,
+                        notificationsMuted = chat.notificationsMuted,
+                        pinnedAt = chat.pinnedAt,
+                        archived = chat.archived,
+                        unreadCount = chat.unreadCount,
+                    )
                     "${chat.id}\t$title\t${AgentReadPreviewPolicy.chatLastMessageList(chat.lastMessage)}\t$flags"
                 }
                 .toList()
@@ -49,8 +49,7 @@ internal object AgentMessagingChatReads {
         internal suspend fun getChat(app: MaodouchatApp, chatId: String): String {
             AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
             val chat = app.database.chatDao().getChatById(chatId) ?: return "Error: chat not found"
-            val title = chat.groupName?.takeIf { it.isNotBlank() }
-                ?: chat.participantIds
+            val title = AgentChatListPolicy.detailTitle(chat.groupName, chat.participantIds)
             return buildString {
                 appendLine("id=${chat.id}")
                 appendLine("title=$title")
@@ -67,8 +66,8 @@ internal object AgentMessagingChatReads {
         internal suspend fun getChatHistory(app: MaodouchatApp, chatId: String, limit: Int): String {
             AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
             val messages = LocalMessageStore(app.database.messageDao(), app.database)
-                .getRecentMessages(chatId, limit.coerceIn(1, AgentToolPolicy.MAX_CHAT_HISTORY))
+                .getRecentMessages(chatId, AgentChatListPolicy.historyLimit(limit))
             if (messages.isEmpty()) return "No messages."
-            return messages.asReversed().joinToString("\n") { AgentMessagingMessageReads.formatMessage(it) }
+            return messages.asReversed().joinToString("\n") { AgentMessageLinePolicy.formatMessage(it) }
         }
 }

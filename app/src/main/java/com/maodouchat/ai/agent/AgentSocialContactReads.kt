@@ -2,21 +2,22 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.messaging.AgentContactQueryPolicy
 import com.maodouchat.domain.messaging.AgentReadPreviewPolicy
 import com.maodouchat.network.ApiService
 import kotlinx.coroutines.flow.first
 internal object AgentSocialContactReads {
 
         internal suspend fun getContacts(app: MaodouchatApp, query: String?): String {
-            val q = query?.trim().orEmpty()
+            val q = AgentContactQueryPolicy.normalizeQuery(query)
             val all = if (q.isBlank()) {
                 app.database.userDao().getAllUsers().first()
             } else {
-                val escaped = LikeQueryPolicy.escapeForContains(q.take(80))
-                if (escaped.isBlank()) emptyList() else app.database.userDao().searchUsers(escaped, 80)
+                val escaped = LikeQueryPolicy.escapeForContains(AgentContactQueryPolicy.searchQuery(q))
+                if (escaped.isBlank()) emptyList() else app.database.userDao().searchUsers(escaped, AgentContactQueryPolicy.MAX_CONTACT_ROWS)
             }
-            val lines = all.take(80).map {
-                val display = it.nickname?.takeIf(String::isNotBlank) ?: it.name
+            val lines = all.take(AgentContactQueryPolicy.MAX_CONTACT_ROWS).map {
+                val display = AgentContactQueryPolicy.displayName(it.nickname, it.name)
                 "${it.id}\t$display\t${AgentReadPreviewPolicy.contactStatus(it.status)}"
             }
             return if (lines.isEmpty()) "No contacts." else lines.joinToString("\n")
@@ -36,14 +37,14 @@ internal object AgentSocialContactReads {
 
         internal suspend fun listFriendRequests(app: MaodouchatApp, direction: String): String {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
-            val incoming = !direction.equals("outgoing", ignoreCase = true)
+            val incoming = AgentContactQueryPolicy.isIncoming(direction)
             val rows = if (incoming) {
                 ApiService.getIncomingFriendRequests(token).getOrElse { return AgentToolHost.fail(it) }
             } else {
                 ApiService.getOutgoingFriendRequests(token).getOrElse { return AgentToolHost.fail(it) }
             }
             if (rows.isEmpty()) return "No friend requests."
-            return rows.take(50).joinToString("\n") { req ->
+            return rows.take(AgentContactQueryPolicy.MAX_FRIEND_REQUEST_ROWS).joinToString("\n") { req ->
                 "${req.id}\t${req.status}\tfrom=${req.fromUser.id}/${req.fromUser.name}\tto=${req.toUser.id}/${req.toUser.name}\t${AgentReadPreviewPolicy.friendRequestMessage(req.message)}"
             }
         }
@@ -52,14 +53,14 @@ internal object AgentSocialContactReads {
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
             val rows = ApiService.getFriends(token).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No friends."
-            return rows.take(80).joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
+            return rows.take(AgentContactQueryPolicy.MAX_CONTACT_ROWS).joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
         }
 
         internal suspend fun searchUsers(app: MaodouchatApp, query: String, limit: Int): String {
-            val q = query.trim()
+            val q = AgentContactQueryPolicy.normalizeQuery(query)
             if (q.isBlank()) return "Error: query required"
             val token = AgentToolHost.token(app) ?: return "Error: not signed in"
-            val rows = ApiService.searchUsers(token, q, limit.coerceIn(1, 30)).getOrElse { return AgentToolHost.fail(it) }
+            val rows = ApiService.searchUsers(token, q, AgentContactQueryPolicy.userSearchLimit(limit)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return "No users."
             return rows.joinToString("\n") { "${it.id}\t${it.name}\t${AgentReadPreviewPolicy.contactStatus(it.status)}" }
         }
