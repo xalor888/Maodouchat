@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.AttachmentTransferDisposition
 import java.io.IOException
 
 /** 附件上传错误处置（纯逻辑）：失败码、可重试判定与 claim 失败处置。 */

@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.AttachmentSendAfterUploadPolicy
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 
