@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.CaptureAlertPolicy
+import com.maodouchat.domain.conversation.CaptureAlertPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.CaptureAlertPolicy
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.MessageType
 
