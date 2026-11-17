@@ -1,23 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
-/**
- * 群玩法 B3 策略：群投票 / 群签到+排行 / 群接龙 / 群 PK。
- *
- * 本文件为纯本地策略层（与 GroupPlayPolicy.kt 职责一致但独立成文件，避免改动既有文件）：
- *  1. Markdown 快捷符（~vote / ~checkin / ~chain / ~pk）的构建与解析；
- *  2. 输入校验策略（标题/选项/内容长度、范围）；
- *  3. 聊天内共享文本的格式化（消息气泡展示用）。
- *
- * 数据持久化在服务端（PollRouting.kt / GroupCheckinRepository.kt），
- * 投票/签到为群内公开元数据，明文传输即可。
- */
-/**
- * 群投票的**校验 / 快捷指令 / 分享文案**策略（U06 解耦后遗留的门面）。
- *
- * 投票 payload 的构建与解析（`POLL:` 前缀 + JSON 编解码）现由
- * `GroupPlayPolicy.buildPollPayload` / `parsePoll` 负责（kotlinx.serialization-json），
- * 本对象只负责校验、投票/打卡/接龙/PK 的快捷指令与分享文案。
- */
 object GroupPollPolicy {
 
     // ── 快捷符前缀（与服务端事件名无耦合，纯客户端契约）──

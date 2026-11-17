@@ -28,7 +28,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.core.model.GroupMemberUi
-import com.maodouchat.core.model.GroupMutePolicy
+import com.maodouchat.domain.groups.GroupMutePolicy
 import com.maodouchat.core.model.GroupMutationFeedbackKind
 import com.maodouchat.domain.groups.GroupMutePresetLabelKind
 import com.maodouchat.domain.groups.groupMutePresetLabelKind

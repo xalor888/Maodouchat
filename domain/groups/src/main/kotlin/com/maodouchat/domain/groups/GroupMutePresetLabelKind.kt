@@ -1,8 +1,7 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupMutePreset
 
-// 群禁言预设标签种类；预设枚举本身在 :core:model，domain 只做 1:1 映射。
+// 群禁言预设标签种类；预设枚举已随禁言策略迁入本模块，只做 1:1 映射。
 enum class GroupMutePresetLabelKind {
     MINUTES_5,
     MINUTES_10,

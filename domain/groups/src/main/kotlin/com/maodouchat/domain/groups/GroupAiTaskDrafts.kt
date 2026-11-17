@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 // 任务草稿消毒：标题必填、字段截断、最多保留 30 个；空列表不可保存。原逻辑逐字搬入。
 internal object GroupAiTaskDrafts {

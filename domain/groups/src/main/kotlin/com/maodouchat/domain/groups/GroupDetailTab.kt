@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
+
+import com.maodouchat.core.model.MediaCenterCategory
 
 enum class GroupDetailTab(val mediaCategory: MediaCenterCategory? = null) {
     MEMBERS,

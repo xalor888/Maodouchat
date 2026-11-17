@@ -8,8 +8,8 @@ import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.domain.messaging.summaryScopeFromCacheKey
 import com.maodouchat.core.model.AiSummaryHistoryUi
-import com.maodouchat.core.model.GroupAiSharePolicy
-import com.maodouchat.core.model.TaskDraft
+import com.maodouchat.domain.groups.GroupAiSharePolicy
+import com.maodouchat.domain.groups.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.core.model.MessageMeta

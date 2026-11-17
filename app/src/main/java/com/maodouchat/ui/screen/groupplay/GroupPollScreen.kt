@@ -48,7 +48,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.core.model.GroupPollPolicy
+import com.maodouchat.domain.groups.GroupPollPolicy
 import com.maodouchat.core.model.GroupPollUiState
 import com.maodouchat.core.model.PollListItem
 import com.maodouchat.domain.groups.GroupPlayErrorPolicy
