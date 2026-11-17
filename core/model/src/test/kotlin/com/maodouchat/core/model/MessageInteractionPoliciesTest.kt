@@ -63,13 +63,4 @@ class MessageInteractionPoliciesTest {
         assertEquals("hello", MessagePinPolicy.textPreview("hello<meta>{\"a\":1}"))
     }
 
-    @Test
-    fun spoilerPolicyOnlyVisualMedia() {
-        assertTrue(SpoilerMediaPolicy.supports(MessageType.IMAGE))
-        assertTrue(SpoilerMediaPolicy.supports(MessageType.VIDEO))
-        assertTrue(SpoilerMediaPolicy.supports(MessageType.GIF))
-        assertFalse(SpoilerMediaPolicy.supports(MessageType.STICKER))
-        assertFalse(SpoilerMediaPolicy.supports(MessageType.TEXT))
-        assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
-    }
 }

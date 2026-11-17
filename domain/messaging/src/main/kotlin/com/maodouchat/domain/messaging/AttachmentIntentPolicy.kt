@@ -1,8 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.SpoilerMediaPolicy
-import com.maodouchat.core.model.ViewOncePolicy
 
 // geo: URI 解析出的经纬度；非法数字默认 0.0。
 data class GeoLocation(

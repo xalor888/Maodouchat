@@ -1,13 +1,11 @@
-package com.maodouchat.util
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.SpoilerMediaPolicy
-import com.maodouchat.core.model.ViewOncePolicy
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * G154b：`SpoilerMediaPolicy` 的测试（新建，收敛三处内联/重复的集合）。
@@ -17,7 +15,7 @@ class SpoilerMediaPolicyTest {
     @Test
     fun `the three visual media types support spoiler`() {
         listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).forEach {
-            assertTrue("$it 应支持剧透", SpoilerMediaPolicy.supports(it))
+            assertTrue(SpoilerMediaPolicy.supports(it), "$it 应支持剧透")
         }
     }
 
@@ -28,7 +26,7 @@ class SpoilerMediaPolicyTest {
             MessageType.STICKER, MessageType.LOCATION, MessageType.NUDGE,
             MessageType.SK_DIST, MessageType.SYSTEM, MessageType.REVOKED,
         ).forEach {
-            assertFalse("$it 不应支持剧透", SpoilerMediaPolicy.supports(it))
+            assertFalse(SpoilerMediaPolicy.supports(it), "$it 不应支持剧透")
         }
     }
 
@@ -36,7 +34,7 @@ class SpoilerMediaPolicyTest {
     fun `every enum value is classified`() {
         MessageType.entries.forEach { type ->
             val expected = type in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF)
-            assertEquals("$type 分类与预期不符", expected, SpoilerMediaPolicy.supports(type))
+            assertEquals(expected, SpoilerMediaPolicy.supports(type), "$type 分类与预期不符")
         }
     }
 
@@ -57,7 +55,7 @@ class SpoilerMediaPolicyTest {
         // 回归：取值与 ViewOncePolicy 一致是巧合，注释里已声明概念独立——将来新增类型
         // 可能只支持其一；这个测试钉住的是「当前取值」，不是「必须永远一致」
         MessageType.entries.forEach {
-            assertEquals("$it 剧透与阅后即焚取值应一致", ViewOncePolicy.supports(it), SpoilerMediaPolicy.supports(it))
+            assertEquals(ViewOncePolicy.supports(it), SpoilerMediaPolicy.supports(it), "$it 剧透与阅后即焚取值应一致")
         }
         assertEquals(
             setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF),
@@ -69,7 +67,7 @@ class SpoilerMediaPolicyTest {
     fun `supports is just membership in the public set`() {
         // supports 的语义就是「在 SUPPORTED 里」——任何枚举值都不得有例外分支
         MessageType.entries.forEach {
-            assertEquals("$it", it in SpoilerMediaPolicy.SUPPORTED, SpoilerMediaPolicy.supports(it))
+            assertEquals(it in SpoilerMediaPolicy.SUPPORTED, SpoilerMediaPolicy.supports(it), "$it")
         }
     }
 
@@ -165,10 +163,10 @@ class SpoilerMediaPolicyTest {
     @Test
     fun `other attachment types never support spoiler`() {
         listOf(MessageType.FILE, MessageType.VOICE, MessageType.STICKER).forEach {
-            assertFalse("$it 不应支持剧透", SpoilerMediaPolicy.supports(it))
+            assertFalse(SpoilerMediaPolicy.supports(it), "$it 不应支持剧透")
         }
         listOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF).forEach {
-            assertTrue("$it 应支持剧透", SpoilerMediaPolicy.supports(it))
+            assertTrue(SpoilerMediaPolicy.supports(it), "$it 应支持剧透")
         }
     }
 
@@ -181,7 +179,7 @@ class SpoilerMediaPolicyTest {
         kotlin.test.assertFailsWith<UnsupportedOperationException> { mutable.clear() }
         MessageType.entries.forEach { type ->
             val expected = type in setOf(MessageType.IMAGE, MessageType.VIDEO, MessageType.GIF)
-            assertEquals("$type 风暴后分类应不变", expected, SpoilerMediaPolicy.supports(type))
+            assertEquals(expected, SpoilerMediaPolicy.supports(type), "$type 风暴后分类应不变")
         }
         assertEquals(3, SpoilerMediaPolicy.SUPPORTED.size)
     }

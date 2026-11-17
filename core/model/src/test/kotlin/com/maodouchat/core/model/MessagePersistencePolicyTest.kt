@@ -8,7 +8,6 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.mergeDeliveryStatusForPersistence
 import com.maodouchat.core.model.mergeLocalMediaMetaForPersistence
 import com.maodouchat.core.model.mergeMessageForPersistence
-import com.maodouchat.core.model.ViewOncePolicy
 import kotlin.test.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -118,7 +117,9 @@ class MessagePersistencePolicyTest {
         val message = base("m1").copy(type = MessageType.IMAGE)
             .withEncodedMeta(MessageMeta(viewOnce = true))
 
-        val opened = ViewOncePolicy.markOpened(message)
+        val opened = message.withEncodedMeta(
+            MessageMeta(viewOnce = true, viewOnceOpened = true)
+        )
 
         assertEquals("text", opened.parsedContent())
         assertTrue(opened.parsedMeta().viewOnce)
