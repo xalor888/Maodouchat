@@ -5,7 +5,6 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.ai.AiArchiveSuggestion
-import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
@@ -24,6 +23,7 @@ import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.data.repository.PushNetworkRepository
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
+import com.maodouchat.domain.conversation.ArchiveSuggestion
 import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.notification.CallNotificationService

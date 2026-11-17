@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.AnnouncementData
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull

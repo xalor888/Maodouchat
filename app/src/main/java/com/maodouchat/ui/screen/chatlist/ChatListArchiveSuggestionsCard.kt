@@ -26,8 +26,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.conversation.ArchiveSuggestion
 import com.maodouchat.domain.conversation.chatNameForSuggestion
 import com.maodouchat.ui.theme.LocalChatPalette
 

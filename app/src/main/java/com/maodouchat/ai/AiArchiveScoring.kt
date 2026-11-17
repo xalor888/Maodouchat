@@ -1,9 +1,9 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
+import com.maodouchat.domain.conversation.ArchiveSuggestion
 import com.maodouchat.domain.conversation.ArchiveSuggestionScoring
 import kotlinx.coroutines.flow.firstOrNull
 

@@ -1,9 +1,9 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.ArchiveSuggestion
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.AiProfileRepository
+import com.maodouchat.domain.conversation.ArchiveSuggestion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

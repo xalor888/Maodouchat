@@ -2,8 +2,8 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatQuietHoursPolicy
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.conversation.ChatQuietHoursPolicy
 import com.maodouchat.domain.messaging.ArrivalPreview
 import com.maodouchat.domain.messaging.ArrivalPreviewPolicy
 import com.maodouchat.notification.ChatQuietHoursStore
