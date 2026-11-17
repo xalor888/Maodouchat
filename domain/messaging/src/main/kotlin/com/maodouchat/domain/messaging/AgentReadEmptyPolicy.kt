@@ -1,7 +1,7 @@
 package com.maodouchat.domain.messaging
 
-// Agent 只读查询空结果文案：未接来电、草稿、待办均为空时返回的提示。
-// 自 app 侧 AgentTaskCallReads / AgentTaskDraftReads / AgentTaskTodoReads 收敛。
+// Agent 只读查询空结果文案：未接来电、草稿、待办、通知均为空时返回的提示。
+// 自 app 侧 AgentTaskCallReads / AgentTaskDraftReads / AgentTaskTodoReads / AgentTaskNotificationReads 收敛。
 object AgentReadEmptyPolicy {
 
     fun noMissedCalls(): String = "No missed calls."
@@ -11,4 +11,6 @@ object AgentReadEmptyPolicy {
     fun noDraft(): String = "No draft."
 
     fun noTasks(): String = "No tasks."
+
+    fun noNotifications(): String = "No notifications."
 }

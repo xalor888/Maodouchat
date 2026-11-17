@@ -35,7 +35,7 @@ internal object AgentMessagingReadGates {
         internal suspend fun secretPeerIds(app: MaodouchatApp): Set<String> =
             AgentSecretPeerPolicy.secretPeerIds(
                 app.database.chatDao().getAllChatsDirect()
-                    .filter { it.chatType == "SECRET" }
+                    .filter { AgentSecretPeerPolicy.isSecretChat(it.chatType) }
                     .map { it.participantIds }
             )
 }

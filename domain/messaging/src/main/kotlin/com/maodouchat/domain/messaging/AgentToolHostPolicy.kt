@@ -7,8 +7,13 @@ object AgentToolHostPolicy {
 
     const val NOT_SIGNED_IN: String = "Error: not signed in"
 
+    const val REWRITE_TOOL_NAME: String = "rewrite_text"
+
     const val REWRITE_HANDLED_BY_ENGINE: String =
-        "Error: rewrite_text is handled by the engine, not the host"
+        "Error: $REWRITE_TOOL_NAME is handled by the engine, not the host"
+
+    // 由 Agent 创建的记录的来源标记：发送消息的 aiAssistantMode 与任务的 sourceQuery 共用。
+    const val AGENT_SOURCE: String = "agent"
 
     const val PREVIEW_ARGS_CHARS: Int = 160
 

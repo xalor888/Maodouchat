@@ -24,4 +24,9 @@ class AgentReadEmptyPolicyTest {
     fun `noTasks matches the empty tasks message`() {
         assertEquals("No tasks.", AgentReadEmptyPolicy.noTasks())
     }
+
+    @Test
+    fun `noNotifications matches the empty notifications message`() {
+        assertEquals("No notifications.", AgentReadEmptyPolicy.noNotifications())
+    }
 }
