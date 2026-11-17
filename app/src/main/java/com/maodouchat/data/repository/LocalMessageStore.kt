@@ -10,7 +10,7 @@ import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageDuplicatePolicy
+import com.maodouchat.domain.messaging.MessageDuplicatePolicy
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.applyEditedMessageVersion

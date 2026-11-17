@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.DisappearingMessagePolicy
 
 // 阅后即焚倒计时分桶；R.string 映射留在 app 侧；无期限或已过期返回 null。
 sealed interface DisappearCountdownKind {

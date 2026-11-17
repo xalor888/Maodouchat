@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.SeenSet
 import com.maodouchat.core.model.ChatReadWatermarkInput

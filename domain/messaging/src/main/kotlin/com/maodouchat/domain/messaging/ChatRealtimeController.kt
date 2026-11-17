@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.DisappearingMessagePolicy
 import com.maodouchat.core.model.WebSocketErrorKind
 import com.maodouchat.core.model.WebSocketEvent
 import com.maodouchat.core.model.isActiveChatEvent
