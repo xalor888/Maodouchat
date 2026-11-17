@@ -7,6 +7,7 @@ import com.maodouchat.core.model.AgentSession
 import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.LocalAiProviderJsonCodec
+import com.maodouchat.domain.messaging.AgentOverlayModePolicy
 
 /**
  * Account-scoped encrypted store for user-owned model endpoints.
@@ -35,7 +36,7 @@ object LocalAiProviderStore {
     fun overlayMode(context: Context): AgentOverlayMode {
         val raw = LocalAiStorePrefs.prefs(context)
             ?.getString(LocalAiStorePrefs.scoped(context, LocalAiStorePrefs.KEY_OVERLAY), AgentOverlayMode.DISABLED.name)
-        return runCatching { AgentOverlayMode.valueOf(raw.orEmpty()) }.getOrDefault(AgentOverlayMode.DISABLED)
+        return AgentOverlayModePolicy.parse(raw)
     }
 
     fun setOverlayMode(context: Context, mode: AgentOverlayMode) {

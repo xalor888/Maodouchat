@@ -15,6 +15,7 @@ import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.BallState
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.PendingAgentApproval
+import com.maodouchat.domain.messaging.AgentSessionTitlePolicy
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -167,7 +168,7 @@ object MaodouAgentService {
         val id = currentSessionId.value ?: return
         val idx = sessions.indexOfFirst { it.id == id }
         if (idx < 0) return
-        val title = messages.firstOrNull { it.role == "user" }?.content?.take(24) ?: sessions[idx].title
+        val title = AgentSessionTitlePolicy.deriveTitle(messages.toList(), sessions[idx].title)
         sessions[idx] = sessions[idx].copy(title = title, messages = messages.toList())
         LocalAiProviderStore.saveSessions(context, sessions.toList())
     }
