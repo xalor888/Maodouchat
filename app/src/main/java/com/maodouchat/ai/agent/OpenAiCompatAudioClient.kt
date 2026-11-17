@@ -2,6 +2,8 @@ package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentModelErrorPolicy
+import com.maodouchat.domain.messaging.AgentTranscriptionPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -10,7 +12,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 
 // 音频簇：语音转写。原 OpenAiCompatClient 的 transcribeAudio 整体搬入，逻辑逐行不变。
 object OpenAiCompatAudioClient {
@@ -42,10 +43,10 @@ object OpenAiCompatAudioClient {
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     return@withContext LocalAiCompletion.Error(
-                        "语音接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
+                        AgentModelErrorPolicy.formatHttpError("语音接口", response.code, payload, response.message)
                     )
                 }
-                val text = runCatching { JSONObject(payload).optString("text") }.getOrNull().orEmpty()
+                val text = AgentTranscriptionPolicy.extractText(payload)
                 if (text.isBlank()) LocalAiCompletion.Error("语音接口没有 text") else LocalAiCompletion.Text(text)
             }
         } catch (cancel: kotlinx.coroutines.CancellationException) {

@@ -3,14 +3,14 @@ package com.maodouchat.ai.agent
 import com.maodouchat.core.model.LocalAiCompletion
 import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.core.model.LocalAiProtocolCodec
+import com.maodouchat.domain.messaging.AgentModelErrorPolicy
+import com.maodouchat.domain.messaging.AgentVisionRequestPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
 
 // 视觉簇：图片理解。原 OpenAiCompatClient 的 completeVision / parseNonStream 整体搬入，逻辑逐行不变。
 object OpenAiCompatVisionClient {
@@ -31,31 +31,10 @@ object OpenAiCompatVisionClient {
         images: List<Pair<String, String>>
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
         if (images.isEmpty()) return@withContext LocalAiCompletion.Error("没有可分析的图片")
-        val url = provider.baseUrl.trimEnd('/') + "/chat/completions"
-        val parts = JSONArray().put(JSONObject().put("type", "text").put("text", instruction.take(2_000)))
-        images.take(LocalAiFileAnalyzer.MAX_PDF_PAGES).forEach { (mimeType, imageBase64) ->
-            val mime = mimeType.ifBlank { "image/jpeg" }
-            parts.put(
-                JSONObject()
-                    .put("type", "image_url")
-                    .put(
-                        "image_url",
-                        JSONObject().put("url", "data:$mime;base64,$imageBase64")
-                    )
-            )
-        }
-        val user = JSONObject()
-            .put("role", "user")
-            .put("content", parts)
-        val body = JSONObject()
-            .put("model", provider.model)
-            .put("stream", false)
-            .put(
-                "messages",
-                JSONArray()
-                    .put(JSONObject().put("role", "system").put("content", "只根据图片作答。不要声称已发送或已删除消息。"))
-                    .put(user)
-            )
+        val url = AgentVisionRequestPolicy.visionUrl(provider.baseUrl)
+        val body = AgentVisionRequestPolicy.buildVisionBody(
+            provider.model, instruction, images, LocalAiFileAnalyzer.MAX_PDF_PAGES
+        )
         val requestBuilder = Request.Builder()
             .url(url)
             .addHeader("Content-Type", "application/json")
@@ -67,7 +46,7 @@ object OpenAiCompatVisionClient {
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
                     return@withContext LocalAiCompletion.Error(
-                        "模型接口 ${response.code}: ${payload.take(240).ifBlank { response.message }}"
+                        AgentModelErrorPolicy.formatHttpError("模型接口", response.code, payload, response.message)
                     )
                 }
                 parseNonStream(payload)
