@@ -5,14 +5,14 @@ package com.maodouchat.domain.messaging
 object AgentToolLimitPolicy {
 
     fun defaultLimit(name: String): Int = when (name) {
-        "search_messages", "list_missed_calls" -> 12
-        "list_post_comments" -> 30
-        "get_chat_history",
-        "list_starred_messages",
-        "search_users",
-        "list_posts",
-        "list_local_tasks",
-        "list_notifications" -> 20
+        AgentToolNamePolicy.SEARCH_MESSAGES, AgentToolNamePolicy.LIST_MISSED_CALLS -> 12
+        AgentToolNamePolicy.LIST_POST_COMMENTS -> 30
+        AgentToolNamePolicy.GET_CHAT_HISTORY,
+        AgentToolNamePolicy.LIST_STARRED_MESSAGES,
+        AgentToolNamePolicy.SEARCH_USERS,
+        AgentToolNamePolicy.LIST_POSTS,
+        AgentToolNamePolicy.LIST_LOCAL_TASKS,
+        AgentToolNamePolicy.LIST_NOTIFICATIONS -> 20
         else -> 20
     }
 }
