@@ -1,14 +1,21 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.async
-import kotlinx.coroutines.test.runTest
+import com.maodouchat.core.model.ConversationReactionOutcome
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageReaction
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.MessagingV2Event
+import com.maodouchat.core.model.MessagingV2EventOutbox
+import com.maodouchat.core.model.MessagingV2MutationFacade
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runTest
 
 class ConversationReactionCoordinatorTest {
     @Test

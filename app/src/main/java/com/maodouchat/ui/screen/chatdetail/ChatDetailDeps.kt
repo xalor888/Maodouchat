@@ -63,7 +63,7 @@ import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
-import com.maodouchat.core.model.ConversationReactionCoordinator
+import com.maodouchat.domain.messaging.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.core.model.MessagingV2MutationFacade

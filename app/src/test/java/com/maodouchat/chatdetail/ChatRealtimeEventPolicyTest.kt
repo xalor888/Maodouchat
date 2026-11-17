@@ -1,10 +1,10 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.core.model.GroupRevisionImpact
-import com.maodouchat.core.model.groupRevisionImpact
-import com.maodouchat.core.model.isActiveChatEvent
-import com.maodouchat.core.model.shouldApplyContactPresence
-import com.maodouchat.core.model.shouldInvalidateGroupKey
+import com.maodouchat.domain.messaging.GroupRevisionImpact
+import com.maodouchat.domain.messaging.groupRevisionImpact
+import com.maodouchat.domain.messaging.isActiveChatEvent
+import com.maodouchat.domain.messaging.shouldApplyContactPresence
+import com.maodouchat.domain.messaging.shouldInvalidateGroupKey
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

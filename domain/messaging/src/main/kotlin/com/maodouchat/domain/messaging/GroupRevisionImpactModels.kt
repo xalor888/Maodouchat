@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 fun isActiveChatEvent(activeChatId: String, eventChatId: String): Boolean =
     activeChatId.isNotBlank() && eventChatId == activeChatId

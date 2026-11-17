@@ -1,8 +1,14 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.ConversationReactionOutcome
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.MessagingV2MutationFacade
+import com.maodouchat.core.model.ReactionLock
+import com.maodouchat.core.model.ReactionMutationPolicy
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ConcurrentHashMap
 
 /** Serializes actor-scoped reaction toggles per message around the durable v2 commit boundary. */
 class ConversationReactionCoordinator(
