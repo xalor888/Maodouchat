@@ -6,18 +6,18 @@ import com.maodouchat.R
 import com.maodouchat.core.model.PackLock
 import com.maodouchat.core.model.RemotePack
 import com.maodouchat.core.model.RemoteSticker
-import com.maodouchat.core.model.StickerFilePolicy
-import com.maodouchat.core.model.StickerNamePolicy
 import com.maodouchat.core.model.StickerPackDownloadResult
+import com.maodouchat.domain.messaging.StickerFilePolicy
 import com.maodouchat.domain.messaging.StickerManifestPolicy
+import com.maodouchat.domain.messaging.StickerNamePolicy
 import com.maodouchat.network.ApiConfig
+import java.io.File
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Request
-import java.io.File
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 按需贴纸包存储（B1 区块 · 包体瘦身与构建基线，2026-08-01）。

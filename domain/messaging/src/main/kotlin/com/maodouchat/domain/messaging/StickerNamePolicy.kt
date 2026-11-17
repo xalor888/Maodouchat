@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * 远程贴纸清单中的路径名约束。

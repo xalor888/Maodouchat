@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.RemotePack
 import com.maodouchat.core.model.RemoteSticker
-import com.maodouchat.core.model.StickerNamePolicy
 import com.maodouchat.core.model.StickerSourcePolicy
 import org.json.JSONArray
 import org.json.JSONObject

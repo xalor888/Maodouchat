@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.StickerCatalog
 import com.maodouchat.core.model.StickerPack
 
 // 表情面板贴纸页签展示项选择；状态持有仍在 app 侧。

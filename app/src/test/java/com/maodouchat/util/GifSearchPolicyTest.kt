@@ -1,6 +1,6 @@
 package com.maodouchat.util
-import com.maodouchat.core.model.GifSearchPolicy
-import com.maodouchat.core.model.LocalGifItem
+import com.maodouchat.domain.messaging.GifSearchPolicy
+import com.maodouchat.domain.messaging.LocalGifItem
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

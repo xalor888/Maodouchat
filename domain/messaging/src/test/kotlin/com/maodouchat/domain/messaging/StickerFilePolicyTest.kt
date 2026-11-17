@@ -1,21 +1,20 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import java.io.File
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Rule
-import org.junit.Test
-import org.junit.rules.TemporaryFolder
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
 
 class StickerFilePolicyTest {
 
-    @get:Rule
-    val temporaryFolder = TemporaryFolder()
+    @TempDir
+    lateinit var tempDir: File
 
     @Test
     fun sha256_matchesKnownDigest() {
-        val file = temporaryFolder.newFile("known.bin").apply { writeText("abc") }
+        val file = File(tempDir, "known.bin").apply { writeText("abc") }
         assertEquals(
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
             StickerFilePolicy.sha256(file),
@@ -24,7 +23,7 @@ class StickerFilePolicyTest {
 
     @Test
     fun isCurrent_acceptsMatchingHashRegardlessOfCase() {
-        val file = temporaryFolder.newFile("current.bin").apply { writeText("abc") }
+        val file = File(tempDir, "current.bin").apply { writeText("abc") }
         val digest = StickerFilePolicy.sha256(file)
         assertTrue(StickerFilePolicy.isCurrent(file, digest))
         assertTrue(StickerFilePolicy.isCurrent(file, digest.uppercase()))
@@ -32,15 +31,15 @@ class StickerFilePolicyTest {
 
     @Test
     fun isCurrent_rejectsWrongHashEmptyFileMissingFileAndDirectory() {
-        val wrong = temporaryFolder.newFile("wrong.bin").apply { writeText("abc") }
+        val wrong = File(tempDir, "wrong.bin").apply { writeText("abc") }
         assertFalse(StickerFilePolicy.isCurrent(wrong, "0".repeat(64)))
 
-        val empty = temporaryFolder.newFile("empty.bin")
+        val empty = File(tempDir, "empty.bin").apply { createNewFile() }
         assertFalse(StickerFilePolicy.isCurrent(empty, StickerFilePolicy.sha256(empty)))
 
-        val missing = File(temporaryFolder.root, "missing.bin")
+        val missing = File(tempDir, "missing.bin")
         assertFalse(StickerFilePolicy.isCurrent(missing, "0".repeat(64)))
 
-        assertFalse(StickerFilePolicy.isCurrent(temporaryFolder.root, "0".repeat(64)))
+        assertFalse(StickerFilePolicy.isCurrent(tempDir, "0".repeat(64)))
     }
 }
