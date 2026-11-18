@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import com.maodouchat.ai.AiPrivacyPreferences
-import com.maodouchat.core.model.AiRetryPolicy
+import com.maodouchat.domain.messaging.AiRetryPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.domain.messaging.classifyAiOperationErrorDetailed

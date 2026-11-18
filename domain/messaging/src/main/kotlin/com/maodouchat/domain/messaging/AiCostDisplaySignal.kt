@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 展示信号簇：把错误基码 + 等待秒数 + 计费提示绑成一个信号，供状态栏 / 流式条直接展示，避免配额被当成普通失败。
 internal object AiCostDisplaySignal {

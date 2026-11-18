@@ -8,7 +8,7 @@ import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
 import com.maodouchat.core.model.PendingAiAction
-import com.maodouchat.core.model.AiRetryPolicyCategory
+import com.maodouchat.domain.messaging.AiRetryPolicyCategory
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.domain.messaging.invocationCategory
 import kotlinx.serialization.json.Json

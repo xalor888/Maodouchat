@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.PendingAiAction

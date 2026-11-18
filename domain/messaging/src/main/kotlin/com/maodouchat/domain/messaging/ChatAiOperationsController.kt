@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiCostVisibilityPolicy
 import com.maodouchat.core.model.AiOperationUi
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message

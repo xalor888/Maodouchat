@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
-import com.maodouchat.core.model.AiRetryPolicy
-import com.maodouchat.core.model.AiRetryPolicyCategory
+import com.maodouchat.domain.messaging.AiRetryPolicy
+import com.maodouchat.domain.messaging.AiRetryPolicyCategory
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals

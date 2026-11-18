@@ -1,8 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiClassifiedError
-import com.maodouchat.core.model.AiCostVisibilityPolicy
-import com.maodouchat.core.model.AiRetryPolicyCategory
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.PendingAiAction

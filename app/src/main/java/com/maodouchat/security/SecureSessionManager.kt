@@ -93,7 +93,7 @@ class SecureSessionManager(
             // Stop any in-flight voice bubble so the next account never hears prior media.
             runCatching { com.maodouchat.util.VoicePlayer.stop() }
             // AI per-chat / global rate windows are process-local; clear so switch doesn't throttle.
-            runCatching { com.maodouchat.core.model.AiRetryPolicy.clearSession() }
+            runCatching { com.maodouchat.domain.messaging.AiRetryPolicy.clearSession() }
             // Invalidate buffered group-call / direct-chat navigations from the prior session.
             runCatching { CallOrchestrator.invalidateSession() }
             // Drop ApiService in-memory access token before disk clear (concurrent refresh race).
