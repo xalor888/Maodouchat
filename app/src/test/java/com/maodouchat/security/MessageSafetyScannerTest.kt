@@ -1,6 +1,6 @@
 package com.maodouchat.security
 
-import com.maodouchat.core.model.MessageSafetyScanner
+import com.maodouchat.domain.messaging.MessageSafetyScanner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

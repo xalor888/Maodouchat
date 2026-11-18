@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
 
@@ -47,10 +47,8 @@ object OwnSentMediaRestorePolicy {
         return autoDownload || senderIsCurrentUser
     }
 
-    /** Soft logout must not delete ordinary (non-secret) decrypted media. */
     fun wipeOrdinaryMediaOnLogout(destroyEncryptedDatabase: Boolean): Boolean = destroyEncryptedDatabase
 
-    /** Room attachment meta (id/key/iv) survives keep-store; destroy-store wipes the DB. */
     fun keepAttachmentMetaOnLogout(destroyEncryptedDatabase: Boolean): Boolean =
         !destroyEncryptedDatabase
 }

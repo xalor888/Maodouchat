@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.MessageSafetyScanner
+import com.maodouchat.domain.messaging.MessageSafetyScanner
 import com.maodouchat.core.model.Chat
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.ChatDateLabel
