@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.groupplay
 
-import com.maodouchat.core.model.GroupPlayJson
+import com.maodouchat.domain.groups.GroupPlayJson
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

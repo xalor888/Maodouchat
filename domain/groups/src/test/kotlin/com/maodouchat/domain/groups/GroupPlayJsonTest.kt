@@ -1,10 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
-import org.junit.Test
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class GroupPlayJsonTest {
 
@@ -30,7 +30,7 @@ class GroupPlayJsonTest {
 
     @Test
     fun `array rejects error objects instead of swallowing them as empty`() {
-        assertThrows(IllegalStateException::class.java) { GroupPlayJson.array("""{"error":"无权访问该群"}""") }
+        assertFailsWith<IllegalStateException> { GroupPlayJson.array("""{"error":"无权访问该群"}""") }
     }
 
     @Test

@@ -2,7 +2,6 @@ package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

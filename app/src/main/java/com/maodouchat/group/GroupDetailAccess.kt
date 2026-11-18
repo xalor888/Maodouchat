@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import android.app.Application
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.GroupMembershipStore
+import com.maodouchat.domain.groups.GroupMembershipStore
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.messaging.v2.createAndroidGroupMessagingCoordinator
 import com.maodouchat.network.TokenManager

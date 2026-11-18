@@ -2,7 +2,7 @@ package com.maodouchat.group
 
 import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
-import com.maodouchat.core.model.GroupMembershipStore
+import com.maodouchat.domain.groups.GroupMembershipStore
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.domain.groups.DefaultGroupLifecycleService
 import com.maodouchat.domain.groups.GroupAuditController
