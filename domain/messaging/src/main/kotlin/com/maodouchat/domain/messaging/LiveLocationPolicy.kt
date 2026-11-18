@@ -1,5 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
 
 /**
  * Client-side live location policy (E2EE LOCATION payloads).
