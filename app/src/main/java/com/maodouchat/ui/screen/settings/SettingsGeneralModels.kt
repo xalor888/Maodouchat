@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.settings
 
-import com.maodouchat.core.model.ChatFontScale
-import com.maodouchat.core.model.ChatWallpaperPreset
+import com.maodouchat.domain.messaging.ChatFontScale
+import com.maodouchat.domain.messaging.ChatWallpaperPreset
 import com.maodouchat.util.AppLocaleManager
 
 /** 「通用」设置页的 UI 状态。 */

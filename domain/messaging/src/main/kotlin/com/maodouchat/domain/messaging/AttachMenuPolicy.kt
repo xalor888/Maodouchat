@@ -1,6 +1,4 @@
-package com.maodouchat.core.model
-
-import com.maodouchat.core.model.AttachMenuKind
+package com.maodouchat.domain.messaging
 
 object AttachMenuPolicy {
 

@@ -25,8 +25,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatFontScale
-import com.maodouchat.core.model.ChatWallpaperPreset
+import com.maodouchat.domain.messaging.ChatFontScale
+import com.maodouchat.domain.messaging.ChatWallpaperPreset
 import com.maodouchat.util.AppLocaleManager
 import com.maodouchat.ui.theme.LocalChatPalette
 
