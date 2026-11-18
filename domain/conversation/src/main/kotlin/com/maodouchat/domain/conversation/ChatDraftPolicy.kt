@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * Draft save scheduling decisions (pure; §6 extract from ChatDetailViewModel).

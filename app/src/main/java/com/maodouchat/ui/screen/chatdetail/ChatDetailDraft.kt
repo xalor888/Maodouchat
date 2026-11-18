@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.core.model.ChatDraftPolicy
 import com.maodouchat.data.local.entity.ChatDraftEntity
+import com.maodouchat.domain.conversation.ChatDraftPolicy
 import com.maodouchat.util.RuntimeFlags
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable

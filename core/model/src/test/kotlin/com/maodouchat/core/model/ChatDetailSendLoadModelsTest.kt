@@ -15,7 +15,9 @@ class ChatDetailSendLoadModelsTest {
             currentUserId = "u1",
         )
         assertFalse(input.fromCache)
-        assertEquals(Chat(id = "c1"), input.chat)
+        // 只比 id：Chat.lastMessageTime 默认取 System.currentTimeMillis()，
+        // 两次构造跨过毫秒边界时整对象相等断言会随机失败。
+        assertEquals("c1", input.chat.id)
         assertEquals("u1", input.currentUserId)
     }
 
