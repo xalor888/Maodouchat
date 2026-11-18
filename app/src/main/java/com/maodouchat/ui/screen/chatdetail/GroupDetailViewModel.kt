@@ -28,12 +28,12 @@ import com.maodouchat.group.createAndroidGroupInviteController
 import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.group.GroupDetailAccess
 import com.maodouchat.core.model.GroupLifecycleService
-import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
+import com.maodouchat.domain.groups.GroupSenderKeyMaintenanceCoordinator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import com.maodouchat.core.model.GroupLifecycleCoordinator
+import com.maodouchat.domain.groups.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupDetailUiState
 
 class GroupDetailViewModel(

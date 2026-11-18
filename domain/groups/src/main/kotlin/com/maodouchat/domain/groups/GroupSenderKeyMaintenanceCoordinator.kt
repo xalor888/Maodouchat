@@ -1,5 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
+import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CancellationException
 
 /** Owns manual/automatic Sender Key coverage retries without UI-held epoch state. */

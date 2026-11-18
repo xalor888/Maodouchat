@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.toDomainChat
 

@@ -1,16 +1,14 @@
-package com.maodouchat.chatdetail
+package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.GroupLifecycleCoordinator
-import com.maodouchat.core.model.GroupLifecycleSessionException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import java.io.IOException
 
 class GroupLifecycleCoordinatorTest {
@@ -831,7 +829,7 @@ class GroupLifecycleCoordinatorTest {
 
         assertTrue(first.committed)
         assertTrue(second.committed)
-        assertEquals(listOf(5L, 9L), invalidatedRevisions)
+        assertEquals(listOf<Long?>(5L, 9L), invalidatedRevisions)
     }
 
     @Test

@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

@@ -3,7 +3,6 @@ package com.maodouchat.domain.groups
 import com.maodouchat.core.model.BotCommandItem
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.CoroutineDispatcher
