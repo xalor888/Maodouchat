@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.MessagingV2EventAction
 
 /** Receiver-side authorization for mutations carried by the blind v2 relay. */
 object MessagingV2MutationAuthority {

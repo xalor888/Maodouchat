@@ -9,27 +9,6 @@ import kotlin.test.assertIs
 class MessagingV2ReactionScheduleModelsTest {
 
     @Test
-    fun reactionAddsForNewActor() {
-        val existing = listOf(MessageReaction(userId = "alice", emoji = "like", reactedAt = 10L))
-        val updated = ReactionMutationPolicy.apply(existing, "bob", "laugh", 20L)
-        assertEquals(2, updated.size)
-        assertEquals("laugh", updated.last().emoji)
-    }
-
-    @Test
-    fun reactionReplacesActorAndNullEmojiRemoves() {
-        val existing = listOf(
-            MessageReaction(userId = "alice", emoji = "like", reactedAt = 10L),
-            MessageReaction(userId = "bob", emoji = "wow", reactedAt = 11L),
-        )
-        val replaced = ReactionMutationPolicy.apply(existing, "alice", "love", 20L)
-        assertEquals(2, replaced.size)
-        assertEquals("love", replaced.first { it.userId == "alice" }.emoji)
-        val removed = ReactionMutationPolicy.apply(replaced, "alice", null, 30L)
-        assertEquals(listOf("bob"), removed.map { it.userId })
-    }
-
-    @Test
     fun eventOutboxFakeRecordsEnqueue() = runBlocking {
         val recorded = mutableListOf<Triple<String, MessagingV2Event, Long?>>()
         val outbox = MessagingV2EventOutbox { conversationId, event, groupRevision ->

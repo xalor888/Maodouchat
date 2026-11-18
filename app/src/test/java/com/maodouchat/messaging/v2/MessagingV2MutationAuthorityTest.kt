@@ -4,7 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import com.maodouchat.core.model.MessagingV2EventAction
-import com.maodouchat.core.model.MessagingV2MutationAuthority
+import com.maodouchat.domain.messaging.MessagingV2MutationAuthority
 
 class MessagingV2MutationAuthorityTest {
     @Test

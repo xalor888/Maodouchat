@@ -215,7 +215,7 @@ class MaodouchatApp : Application() {
         )
 
     internal val messagingV2MutationEvents by lazy {
-        com.maodouchat.core.model.MessagingV2MutationEventBus()
+        com.maodouchat.domain.messaging.MessagingV2MutationEventBus()
     }
 
 
