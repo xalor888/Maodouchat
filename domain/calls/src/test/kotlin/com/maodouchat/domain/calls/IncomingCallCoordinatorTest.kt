@@ -1,17 +1,18 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.CallType
+import kotlin.test.AfterTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class IncomingCallCoordinatorTest {
 
-    @After
+    @AfterTest
     fun tearDown() {
         IncomingCallCoordinator.clear()
     }

@@ -2,7 +2,7 @@ package com.maodouchat.call
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.CallLogEntry
+import com.maodouchat.domain.calls.CallLogEntry
 import com.maodouchat.domain.calls.decodeCallLog
 import com.maodouchat.domain.calls.encodeCallLog
 import com.maodouchat.domain.calls.removeCallLogEntry

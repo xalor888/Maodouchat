@@ -15,9 +15,9 @@ import com.maodouchat.session.CurrentSession
 import com.maodouchat.telecom.MaodouchatConnectionService
 import com.maodouchat.domain.calls.CallOfferSelector
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.IncomingCallCoordinator
+import com.maodouchat.domain.calls.IncomingCallCoordinator
 import com.maodouchat.domain.calls.MissedCallTimeoutPolicy
-import com.maodouchat.core.model.PendingIncomingCall
+import com.maodouchat.domain.calls.PendingIncomingCall
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

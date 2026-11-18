@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

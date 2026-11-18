@@ -22,7 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
-import com.maodouchat.core.model.CallLogRow
+import com.maodouchat.domain.calls.CallLogRow
 import com.maodouchat.core.model.MissedCall
 import com.maodouchat.domain.calls.MissedCallSuffixKind
 import com.maodouchat.domain.calls.missedCallSuffixKind
@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import com.maodouchat.core.model.State
+import com.maodouchat.domain.calls.State
 import com.maodouchat.domain.calls.CallHistoryTime
 
 @OptIn(ExperimentalFoundationApi::class)

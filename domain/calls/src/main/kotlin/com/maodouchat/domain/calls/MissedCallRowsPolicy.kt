@@ -1,10 +1,6 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.CallLogRow
-import com.maodouchat.core.model.Direction
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.core.model.State
 
 // 未接来电行：本地通话记录优先、Room 未接补齐，同 id 去重后按时间倒序；
 // CallLogStore 优先是 8.53 的竞态处理：接听瞬间对端挂断时，已接记录不被 Room 的 MISSED 覆盖。

@@ -1,8 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
 import org.json.JSONArray
 import org.json.JSONObject
 

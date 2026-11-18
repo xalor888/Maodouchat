@@ -1,9 +1,6 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.Direction
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.core.model.State
 
 /** 未接来电一次超时记录要同时写下的两条记录。 */
 data class MissedCallRecord(

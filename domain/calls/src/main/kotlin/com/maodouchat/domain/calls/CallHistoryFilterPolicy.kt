@@ -1,8 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.State
-
 // 通话记录过滤：仅看未接先筛 state，再按对端名/ID 搜。
 // 自 CallHistoryScreen 的 filteredLogs 收敛。
 object CallHistoryFilterPolicy {

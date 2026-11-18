@@ -2,7 +2,6 @@ package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.MissedRecordParams
-import com.maodouchat.core.model.PendingIncomingCall
 import com.maodouchat.core.model.SignalMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
