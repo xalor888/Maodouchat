@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
 /**
  * 音频约束的纯策略（G178 从 WebRTCManager 抽出）。

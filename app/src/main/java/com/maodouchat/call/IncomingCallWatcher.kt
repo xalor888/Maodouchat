@@ -3,7 +3,7 @@ package com.maodouchat.call
 import android.app.Application
 import android.content.Context
 import android.util.Log
-import com.maodouchat.core.model.PolledIncomingBatchPolicy
+import com.maodouchat.domain.calls.PolledIncomingBatchPolicy
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.domain.calls.CallActionBus
 import com.maodouchat.navigation.AppNavigationEvents
@@ -13,10 +13,10 @@ import com.maodouchat.service.CallForegroundService
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.telecom.MaodouchatConnectionService
-import com.maodouchat.core.model.CallOfferSelector
+import com.maodouchat.domain.calls.CallOfferSelector
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.IncomingCallCoordinator
-import com.maodouchat.core.model.MissedCallTimeoutPolicy
+import com.maodouchat.domain.calls.MissedCallTimeoutPolicy
 import com.maodouchat.core.model.PendingIncomingCall
 import com.maodouchat.webrtc.WebRTCSignaling
 import kotlinx.coroutines.CancellationException

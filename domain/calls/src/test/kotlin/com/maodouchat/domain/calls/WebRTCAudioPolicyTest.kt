@@ -1,8 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * G178：`WebRTCAudioPolicy` 的测试（G178 刚从 WebRTCManager 抽出）。
@@ -28,7 +28,7 @@ class WebRTCAudioPolicyTest {
     fun `no deprecated goog prefixed key names`() {
         // 改回 goog* 前缀会被废弃 API 警告；这条把标准名称钉住
         standardAudioConstraints().forEach { (key, _) ->
-            assertTrue("用了废弃的 goog* 前缀: $key", !key.startsWith("goog"))
+            assertTrue( !key.startsWith("goog"), "用了废弃的 goog* 前缀: $key")
         }
     }
 
@@ -61,8 +61,8 @@ class WebRTCAudioPolicyTest {
     @Test
     fun `keys contain no separator or deprecated prefix`() {
         standardAudioConstraints().forEach { (key, _) ->
-            assertTrue("键名含分隔符: $key", key.none { it == '_' || it == '-' || it == ' ' })
-            assertTrue("键名是 goog* 变体: $key", !key.lowercase().startsWith("goog"))
+            assertTrue( key.none { it == '_' || it == '-' || it == ' ' }, "键名含分隔符: $key")
+            assertTrue( !key.lowercase().startsWith("goog"), "键名是 goog* 变体: $key")
         }
     }
 
@@ -108,8 +108,8 @@ class WebRTCAudioPolicyTest {
     @Test
     fun `keys are camelCase`() {
         standardAudioConstraints().forEach { (key, _) ->
-            assertTrue("首字母应小写: $key", key.first().isLowerCase())
-            assertTrue("应含大写字母: $key", key.any { it.isUpperCase() })
+            assertTrue( key.first().isLowerCase(), "首字母应小写: $key")
+            assertTrue( key.any { it.isUpperCase() }, "应含大写字母: $key")
         }
     }
 
@@ -118,7 +118,7 @@ class WebRTCAudioPolicyTest {
         standardAudioConstraints().forEach { (key, value) ->
             assertTrue(key.isNotBlank())
             assertTrue(value.isNotBlank())
-            assertTrue("键与值相同: $key", key != value)
+            assertTrue( key != value, "键与值相同: $key")
         }
     }
 

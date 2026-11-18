@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
 /**
  * WebRTC 统计报告里的两个纯计算（G176 从 WebRTCManager 抽出）。
