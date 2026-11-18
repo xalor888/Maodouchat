@@ -33,7 +33,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.core.model.MentionPolicy
+import com.maodouchat.domain.messaging.MentionPolicy
 import kotlinx.coroutines.flow.filter
 
 /**

@@ -4,7 +4,6 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.MentionPolicy
 import java.util.Calendar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -98,7 +97,7 @@ class ChatSearchModelTest {
         val documents = buildChatSearchDocuments(
             listOf(
                 message("direct", MessageType.TEXT, "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
-                message("everyone", MessageType.TEXT, "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("everyone", MessageType.TEXT, "all", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
                 message("other", MessageType.TEXT, "them", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
             )
         )
@@ -407,7 +406,7 @@ class ChatSearchModelTest {
         val documents = buildChatSearchDocuments(
             listOf(
                 message("direct", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
-                message("everyone", MessageType.TEXT, "beta", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("everyone", MessageType.TEXT, "beta", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
                 message("other", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
             )
         )
@@ -435,7 +434,7 @@ class ChatSearchModelTest {
         val documents = buildChatSearchDocuments(
             listOf(
                 message("direct", MessageType.TEXT, "a", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
-                message("everyone", MessageType.TEXT, "b", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("everyone", MessageType.TEXT, "b", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
                 message("other", MessageType.TEXT, "c", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
             )
         )
@@ -468,7 +467,7 @@ class ChatSearchModelTest {
     fun `mentions scope with query returns everyone match and drops other mention`() {
         val documents = buildChatSearchDocuments(
             listOf(
-                message("everyone", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+                message("everyone", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
                 message("other", MessageType.TEXT, "alpha", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L)
             )
         )
