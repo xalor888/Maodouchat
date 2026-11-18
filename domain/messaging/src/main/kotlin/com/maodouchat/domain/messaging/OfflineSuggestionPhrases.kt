@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 离线建议话术库：纯关键词匹配，无 VM / 网络依赖。簇已按主题拆出同包三文件。
 object OfflineSuggestionPhrases {

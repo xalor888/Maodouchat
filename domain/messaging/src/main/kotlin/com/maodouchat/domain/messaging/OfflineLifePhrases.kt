@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 离线话术：日常事务/生活簇。
 object OfflineLifePhrases {
