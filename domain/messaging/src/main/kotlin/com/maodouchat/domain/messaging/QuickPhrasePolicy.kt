@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * 输入栏快捷短语（常用语）策略：默认短语 + 增删改校验（纯函数）。

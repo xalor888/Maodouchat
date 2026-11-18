@@ -1,7 +1,7 @@
 package com.maodouchat.quickreply
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.QuickReplyCommand
+import com.maodouchat.domain.messaging.QuickReplyCommand
 import com.maodouchat.domain.messaging.QuickReplyCommandHandler
 import com.maodouchat.domain.messaging.QuickReplyDedupePort
 import com.maodouchat.domain.messaging.QuickReplyGatePort

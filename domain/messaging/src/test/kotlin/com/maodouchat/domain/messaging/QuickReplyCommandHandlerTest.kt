@@ -1,8 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatGateVerdict
-import com.maodouchat.core.model.QuickReplyCommand
-import com.maodouchat.core.model.QuickReplyCommandResult
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
