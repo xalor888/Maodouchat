@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
 fun Message.semanticSearchText(maxLength: Int = 700): String {

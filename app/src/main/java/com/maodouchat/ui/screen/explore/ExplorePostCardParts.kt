@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.RelativeTimePolicy
+import com.maodouchat.domain.messaging.RelativeTimePolicy
 import com.maodouchat.domain.conversation.ExploreVisibilityOption
 import com.maodouchat.domain.conversation.exploreVisibilityOption
 import com.maodouchat.ui.theme.LocalMotionSettings

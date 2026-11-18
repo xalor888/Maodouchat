@@ -1,5 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
