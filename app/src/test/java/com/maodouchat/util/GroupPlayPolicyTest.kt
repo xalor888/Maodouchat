@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.GroupPlayPolicy
+import com.maodouchat.domain.groups.GroupPlayPolicy
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -171,7 +171,7 @@ class GroupPlayPolicyTest {
      */
     @Test
     fun `unreferenced members only shrink`() {
-        val source = File(TEST_SOURCE_ROOT, "core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt")
+        val source = File(TEST_SOURCE_ROOT, "domain/groups/src/main/kotlin/com/maodouchat/domain/groups/GroupPlayPolicy.kt")
         assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
         val policyText = stripComments(source.readText())
         val members = Regex("""^    (?:internal |private )?(?:suspend )?fun (\w+)\(""", RegexOption.MULTILINE)
@@ -259,7 +259,7 @@ class GroupPlayPolicyTest {
      */
     @Test
     fun `unreferenced vals only shrink`() {
-        val source = File(TEST_SOURCE_ROOT, "core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt")
+        val source = File(TEST_SOURCE_ROOT, "domain/groups/src/main/kotlin/com/maodouchat/domain/groups/GroupPlayPolicy.kt")
         assertTrue(source.isFile, "GroupPlayPolicy.kt 不存在：${source.path}")
         val policyText = stripComments(source.readText())
         val allSources = sourcesOutsideCluster()

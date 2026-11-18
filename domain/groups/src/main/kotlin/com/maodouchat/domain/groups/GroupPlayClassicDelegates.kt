@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * 经典群玩法在 GroupPlayPolicy 上的同名委托：实现在 GroupPlayClassicPolicy，

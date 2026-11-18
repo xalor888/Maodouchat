@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * 经典群玩法模式的编解码门面：实现已按游戏族拆到
