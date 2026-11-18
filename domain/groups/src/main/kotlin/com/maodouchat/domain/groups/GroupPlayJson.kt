@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray

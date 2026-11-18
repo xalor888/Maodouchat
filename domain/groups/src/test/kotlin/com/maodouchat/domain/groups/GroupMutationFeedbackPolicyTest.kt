@@ -1,10 +1,14 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.ApiException
+import com.maodouchat.core.model.ApiFailureKind
+import com.maodouchat.core.model.GroupMutationAction
+import com.maodouchat.core.model.GroupMutationFeedbackKind
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import java.io.IOException
 import java.net.SocketTimeoutException
 

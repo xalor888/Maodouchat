@@ -3,7 +3,6 @@ package com.maodouchat.domain.groups
 import com.maodouchat.core.model.ChainEntryItem
 import com.maodouchat.core.model.ChainListItem
 import com.maodouchat.core.model.CheckinRankItem
-import com.maodouchat.core.model.GroupPlayJson
 import com.maodouchat.core.model.PkListItem
 import com.maodouchat.core.model.PollListItem
 import org.json.JSONArray

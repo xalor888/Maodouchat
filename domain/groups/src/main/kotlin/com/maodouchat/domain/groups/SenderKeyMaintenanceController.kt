@@ -2,7 +2,6 @@ package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.core.model.GroupSenderKeyMaintenanceOutcome
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CoroutineDispatcher

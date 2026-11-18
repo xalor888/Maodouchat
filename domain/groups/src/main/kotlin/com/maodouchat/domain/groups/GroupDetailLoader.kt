@@ -4,7 +4,6 @@ import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.core.model.GroupMutationFeedbackPolicy
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

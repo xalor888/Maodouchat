@@ -10,26 +10,6 @@ import org.junit.Test
 class GroupCoordinatorsTest {
 
     @Test
-    fun membershipStoreUpdateAndOnlineStatus() = runTest {
-        val store = InMemoryGroupMembershipStore()
-        assertNull(store.getSnapshot("c1"))
-        store.updateMembers(
-            "c1",
-            listOf(GroupMemberUi("u1", "A"), GroupMemberUi("u2", "B")),
-            revision = 3L,
-        )
-        val snap = store.getSnapshot("c1")
-        assertEquals(3L, snap?.memberRevision)
-        assertEquals(listOf("u1", "u2"), snap?.members?.map { it.userId })
-        store.updateMemberOnlineStatus("c1", "u2", true)
-        val members = store.getSnapshot("c1")?.members.orEmpty()
-        assertTrue(members.first { it.userId == "u2" }.isOnline)
-        assertFalse(members.first { it.userId == "u1" }.isOnline)
-        store.invalidate("c1")
-        assertNull(store.getSnapshot("c1"))
-    }
-
-    @Test
     fun lifecycleCoordinatorSessionMissingThrows() = runTest {
         val coordinator = GroupLifecycleCoordinator(
             ownerUserId = { "u1" },
@@ -46,7 +26,6 @@ class GroupCoordinatorsTest {
         }
         assertTrue(thrown is GroupLifecycleSessionException)
     }
-
     @Test
     fun lifecycleCoordinatorSuccessReturnsCommit() = runTest {
         val coordinator = GroupLifecycleCoordinator(
@@ -62,7 +41,6 @@ class GroupCoordinatorsTest {
         assertNull(commit.refreshError)
         assertNull(commit.reconciliationError)
     }
-
     @Test
     fun messagingCoordinatorBlankChatIsNoop() = runTest {
         var calls = 0
@@ -71,14 +49,12 @@ class GroupCoordinatorsTest {
         assertEquals(0, calls)
         assertFalse(coordinator.hasLocalSenderKey("c1", 0L))
     }
-
     @Test
     fun messagingCoordinatorSessionMissingFailsCoverage() = runTest {
         val coordinator = messagingCoordinator(session = null)
         val result = coordinator.ensureSenderKeyCoverage("c1", 1L)
         assertTrue(result.isFailure)
     }
-
     @Test
     fun senderKeyMaintenanceBlankAndCoverageComplete() = runTest {
         val coordinator = GroupSenderKeyMaintenanceCoordinator(

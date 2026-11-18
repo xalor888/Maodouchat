@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.maodouchat.core.model.GroupParticipant
+import com.maodouchat.domain.groups.GroupParticipant
 import com.maodouchat.domain.contacts.AvatarDisplayPolicy
 import com.maodouchat.session.CurrentSession
 import com.maodouchat.ui.theme.AvatarGradients
