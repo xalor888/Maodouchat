@@ -1,17 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
-import com.maodouchat.core.model.MdBlock
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
-/**
- * G147：Markdown 块级解析的测试（保护 G127 从 `MarkdownMessage.kt` 抽出的 `MarkdownParser.kt`）。
- *
- * `parseMarkdownBlocks` 是一个手写的行扫描器，分支很多而且**每条分支都有历史 bug 修复记录**
- * （9.160 反引号长度匹配、9.230 CommonMark 闭栏规则、`>abc` 不算引用……）。
- * 这些边界正是回归最容易踩的地方，所以逐条钉住。
- */
 class MarkdownParserTest {
 
     private fun blocks(src: String) = parseMarkdownBlocks(src)

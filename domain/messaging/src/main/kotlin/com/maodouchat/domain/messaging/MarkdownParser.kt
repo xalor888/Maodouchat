@@ -1,9 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MdBlock
 
 /** Markdown 块级解析：围栏代码块 / 列表 / 段落。（行内扫描器见 MarkdownInlineParser） */
-/** Pre-compiled, hot-path Markdown matchers — avoid recompiling Regex on every message render. */
 val MD_ORDERED_LIST_REGEX = Regex("""^\d+\.\s+""")
 
 fun parseMarkdownBlocks(src: String): List<MdBlock> {
