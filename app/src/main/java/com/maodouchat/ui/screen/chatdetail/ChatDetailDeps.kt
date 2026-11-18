@@ -86,8 +86,8 @@ import com.maodouchat.domain.messaging.ChatDetailLiveLocationBookkeeping
 import com.maodouchat.domain.messaging.ChatDetailReadReceiptBookkeeping
 import com.maodouchat.core.crypto.ChatDetailDecryptStatus
 import com.maodouchat.core.model.DecryptTexts
-import com.maodouchat.core.model.MessageTerminalStore
-import com.maodouchat.core.model.ReactionMutationPolicy
+import com.maodouchat.domain.messaging.MessageTerminalStore
+import com.maodouchat.domain.messaging.ReactionMutationPolicy
 import com.maodouchat.domain.messaging.VoiceRecordingWaveform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job

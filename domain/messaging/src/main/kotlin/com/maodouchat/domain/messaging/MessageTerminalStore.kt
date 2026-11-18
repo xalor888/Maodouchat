@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.Message
 
 /** Serializes privacy-sensitive local effects shared by REST success and WebSocket authority. */
 class MessageTerminalStore(

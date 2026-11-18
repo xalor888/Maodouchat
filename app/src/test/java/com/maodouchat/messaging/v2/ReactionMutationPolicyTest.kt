@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.model.MessageReaction
-import com.maodouchat.core.model.ReactionMutationPolicy
+import com.maodouchat.domain.messaging.ReactionMutationPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -282,6 +282,27 @@ class ReactionMutationPolicyTest {
             listOf(MessageReaction("bob", "heart", 20L)),
             ReactionMutationPolicy.applyLegacySnapshot(existing, "alice", emptyList(), 99L),
         )
+    }
+
+    @Test
+    fun reactionAddsForNewActor() {
+        val existing = listOf(MessageReaction(userId = "alice", emoji = "like", reactedAt = 10L))
+        val updated = ReactionMutationPolicy.apply(existing, "bob", "laugh", 20L)
+        assertEquals(2, updated.size)
+        assertEquals("laugh", updated.last().emoji)
+    }
+
+    @Test
+    fun reactionReplacesActorAndNullEmojiRemoves() {
+        val existing = listOf(
+            MessageReaction(userId = "alice", emoji = "like", reactedAt = 10L),
+            MessageReaction(userId = "bob", emoji = "wow", reactedAt = 11L),
+        )
+        val replaced = ReactionMutationPolicy.apply(existing, "alice", "love", 20L)
+        assertEquals(2, replaced.size)
+        assertEquals("love", replaced.first { it.userId == "alice" }.emoji)
+        val removed = ReactionMutationPolicy.apply(replaced, "alice", null, 30L)
+        assertEquals(listOf("bob"), removed.map { it.userId })
     }
 
 }
