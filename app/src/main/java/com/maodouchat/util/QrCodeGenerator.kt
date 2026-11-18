@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.set
-import com.maodouchat.core.model.QrParsedPayload
-import com.maodouchat.core.model.QrPayloadParser
+import com.maodouchat.domain.contacts.QrParsedPayload
+import com.maodouchat.domain.contacts.QrPayloadParser
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.domain.contacts.QrPayloadCodec
 import com.google.zxing.BarcodeFormat

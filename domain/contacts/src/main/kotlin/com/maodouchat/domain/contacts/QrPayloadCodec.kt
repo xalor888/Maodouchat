@@ -3,7 +3,7 @@ package com.maodouchat.domain.contacts
 import java.nio.charset.StandardCharsets
 
 // 二维码 payload 编码：把 userId/chatId/邀请 token/安全码拼成 maodouchat:<kind>:... 文本。
-// 解析侧在 :core:model 的 QrPayloadParser；生成 Bitmap 仍在 app 侧 QrCodeGenerator。
+// 解析侧在 :domain:contacts 的 QrPayloadParser；生成 Bitmap 仍在 app 侧 QrCodeGenerator。
 object QrPayloadCodec {
     private const val PREFIX_USER = "maodouchat:user:"
     private const val PREFIX_CHAT = "maodouchat:chat:"

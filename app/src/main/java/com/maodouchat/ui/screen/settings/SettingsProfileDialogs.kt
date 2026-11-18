@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.CustomStatusPolicy
+import com.maodouchat.domain.contacts.CustomStatusPolicy
 import com.maodouchat.domain.contacts.UsernamePolicy
 import com.maodouchat.ui.theme.MaodouDimens
 import com.maodouchat.ui.theme.LocalChatPalette

@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
 
 /**
  * 自定义状态 / 个性签名策略（纯函数）。
