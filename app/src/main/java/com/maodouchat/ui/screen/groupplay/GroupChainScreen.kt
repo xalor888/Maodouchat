@@ -40,8 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupChainDetailState
-import com.maodouchat.core.model.GroupChainUiState
+import com.maodouchat.domain.groups.GroupChainDetailState
+import com.maodouchat.domain.groups.GroupChainUiState
 import com.maodouchat.domain.groups.GroupChainValidationPolicy
 import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
