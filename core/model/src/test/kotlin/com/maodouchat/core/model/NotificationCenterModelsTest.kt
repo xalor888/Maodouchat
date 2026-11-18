@@ -20,16 +20,6 @@ class NotificationCenterModelsTest {
     }
 
     @Test
-    fun adminBroadcastProjectionCarriesItemAndBanner() {
-        val item = NotificationCenterItem(
-            id = "n1", type = NotificationCenterType.MESSAGE, mergeKey = "k", title = "t",
-        )
-        val projection = AdminBroadcastProjection(item = item, bannerText = "b")
-        assertEquals(item, projection.item)
-        assertEquals("b", projection.bannerText)
-    }
-
-    @Test
     fun notifFilterAllMatchesEveryItem() {
         val item = NotificationCenterItem(
             id = "n1", type = NotificationCenterType.MESSAGE, mergeKey = "k", title = "t",

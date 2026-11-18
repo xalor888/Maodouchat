@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.SemanticSearchAdmission
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

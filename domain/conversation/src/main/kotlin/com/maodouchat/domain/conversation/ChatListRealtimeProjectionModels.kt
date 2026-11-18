@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.NotificationCenterItem
 
 data class AdminBroadcastProjection(
     val item: NotificationCenterItem,

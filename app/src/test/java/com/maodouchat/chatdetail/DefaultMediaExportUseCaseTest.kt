@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.core.model.MediaExportRequest
-import com.maodouchat.core.model.MediaExportResult
+import com.maodouchat.domain.conversation.MediaExportRequest
+import com.maodouchat.domain.conversation.MediaExportResult
 import com.maodouchat.ui.screen.chatdetail.DefaultMediaExportUseCase
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

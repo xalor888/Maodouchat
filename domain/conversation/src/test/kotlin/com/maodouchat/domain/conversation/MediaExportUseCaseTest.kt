@@ -3,8 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MediaExportRequest
-import com.maodouchat.core.model.MediaExportResult
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

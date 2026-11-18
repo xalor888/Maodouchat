@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.SettingsSnapshot
 import com.maodouchat.core.model.User
 
 /**

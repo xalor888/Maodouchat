@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * 媒体大图浏览 / 保存 / 分享策略（纯函数）。

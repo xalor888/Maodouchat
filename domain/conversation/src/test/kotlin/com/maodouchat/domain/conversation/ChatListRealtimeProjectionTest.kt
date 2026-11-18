@@ -1,6 +1,8 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -95,5 +97,15 @@ class ChatListRealtimeProjectionTest {
         val p = buildAdminBroadcastProjection("T", body, 1L, "S")!!
         assertEquals(200, p.item.preview!!.length)
         assertTrue(p.bannerText.length <= 240)
+    }
+
+    @Test
+    fun adminBroadcastProjectionCarriesItemAndBanner() {
+        val item = NotificationCenterItem(
+            id = "n1", type = NotificationCenterType.MESSAGE, mergeKey = "k", title = "t",
+        )
+        val projection = AdminBroadcastProjection(item = item, bannerText = "b")
+        assertEquals(item, projection.item)
+        assertEquals("b", projection.bannerText)
     }
 }

@@ -1,8 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-/**
- * 媒体导出请求参数。
- */
 data class MediaExportRequest(
     val rawUri: String,
     val mimeType: String,
@@ -11,9 +8,6 @@ data class MediaExportRequest(
     val chooserTitle: String = "",
 )
 
-/**
- * 媒体导出执行结果。
- */
 sealed interface MediaExportResult {
     data object Success : MediaExportResult
     data object SecretBlocked : MediaExportResult

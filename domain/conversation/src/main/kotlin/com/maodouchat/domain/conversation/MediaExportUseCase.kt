@@ -1,8 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.MediaExportRequest
-import com.maodouchat.core.model.MediaExportResult
-import com.maodouchat.core.model.MediaViewerPolicy
 import com.maodouchat.core.model.Message
 
 /**

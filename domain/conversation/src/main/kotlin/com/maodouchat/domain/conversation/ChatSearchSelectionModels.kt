@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.ChatDetailUiState
 
 sealed interface SemanticSearchAdmission {
     data class Accepted(val query: String, val candidateIds: List<String>) : SemanticSearchAdmission
