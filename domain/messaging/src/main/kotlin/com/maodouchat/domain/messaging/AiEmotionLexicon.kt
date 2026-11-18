@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.Emotion
+import com.maodouchat.core.model.EmotionResult
 
 /** 情绪检测词典簇：关键词/表情词典 + 纯本地规则检测，不引入 embedding。 */
 object AiEmotionLexicon {

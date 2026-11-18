@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.core.model.ComposerSection
-import com.maodouchat.core.model.MessageAiAction
+import com.maodouchat.domain.messaging.MessageAiAction
 import com.maodouchat.domain.messaging.AiEntryVisibilityPolicy
 import com.maodouchat.domain.messaging.MessageAiActionPolicy
 import com.maodouchat.util.RuntimeFlags

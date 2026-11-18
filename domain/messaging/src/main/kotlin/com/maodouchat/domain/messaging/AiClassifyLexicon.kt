@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.AiMessageClassifierCategory
+import com.maodouchat.core.model.Classification
 
 /**
  * 消息分类词典簇：启发式关键词词典 + 单条消息分类（纯函数）。

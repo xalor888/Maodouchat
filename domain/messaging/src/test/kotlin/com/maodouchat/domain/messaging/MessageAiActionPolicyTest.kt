@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessageAiAction
+import com.maodouchat.domain.messaging.MessageAiAction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue

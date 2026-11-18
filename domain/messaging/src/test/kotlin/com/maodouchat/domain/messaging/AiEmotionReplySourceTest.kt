@@ -1,8 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Test
 
 class AiEmotionReplySourceTest {
 
