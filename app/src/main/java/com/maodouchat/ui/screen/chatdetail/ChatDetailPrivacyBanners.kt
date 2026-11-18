@@ -26,7 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.LiveLocationPolicy
+import com.maodouchat.domain.messaging.LiveLocationPolicy
 
 /**
  * 隐私/位置类横幅：实时位置共享与阅后即焚状态条。

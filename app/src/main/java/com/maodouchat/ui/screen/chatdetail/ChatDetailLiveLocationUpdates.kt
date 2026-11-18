@@ -9,7 +9,7 @@ import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.toOptimisticEdit
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.core.model.LiveLocationPolicy
+import com.maodouchat.domain.messaging.LiveLocationPolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.LocationProvider

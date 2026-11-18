@@ -4,10 +4,10 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.LiveLocationPolicy
 import com.maodouchat.domain.messaging.LocationPayloadPolicy
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.session.AppRuntime
-import com.maodouchat.core.model.LiveLocationPolicy
 import com.maodouchat.util.LocationProvider
 import com.maodouchat.util.RuntimeFlags
 import java.util.UUID
