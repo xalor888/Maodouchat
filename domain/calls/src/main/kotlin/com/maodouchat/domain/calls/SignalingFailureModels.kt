@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
 enum class FailureOperation { SEND, FETCH, HANG_UP }
 

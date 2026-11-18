@@ -1,7 +1,7 @@
 package com.maodouchat.webrtc
 
-import com.maodouchat.core.model.FailureOperation
-import com.maodouchat.core.model.SignalingException
+import com.maodouchat.domain.calls.FailureOperation
+import com.maodouchat.domain.calls.SignalingException
 import com.maodouchat.core.model.CallIceServer
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind

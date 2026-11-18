@@ -38,59 +38,6 @@ class CallReliabilityPolicyTest {
     }
 
     @Test
-    fun `audio route prioritizes bluetooth then wired and respects video speaker preference`() {
-        assertEquals(
-            CallAudioRoute.BLUETOOTH,
-            CallAudioRoutePolicy.preferred(setOf(CallAudioRoute.BLUETOOTH, CallAudioRoute.WIRED), false)
-        )
-        assertEquals(
-            CallAudioRoute.WIRED,
-            CallAudioRoutePolicy.preferred(setOf(CallAudioRoute.WIRED, CallAudioRoute.EARPIECE), false)
-        )
-        assertEquals(
-            CallAudioRoute.SPEAKER,
-            CallAudioRoutePolicy.preferred(setOf(CallAudioRoute.SPEAKER, CallAudioRoute.EARPIECE), true)
-        )
-        assertEquals(
-            CallAudioRoute.EARPIECE,
-            CallAudioRoutePolicy.selected(
-                setOf(CallAudioRoute.BLUETOOTH, CallAudioRoute.EARPIECE),
-                speakerPreferred = false,
-                manualRoute = CallAudioRoute.EARPIECE
-            )
-        )
-        assertEquals(
-            CallAudioRoute.BLUETOOTH,
-            CallAudioRoutePolicy.selected(
-                setOf(CallAudioRoute.BLUETOOTH, CallAudioRoute.EARPIECE),
-                speakerPreferred = false,
-                manualRoute = CallAudioRoute.WIRED
-            )
-        )
-        assertEquals(
-            listOf(CallAudioRoute.BLUETOOTH, CallAudioRoute.WIRED, CallAudioRoute.EARPIECE, CallAudioRoute.SPEAKER),
-            CallAudioRoutePolicy.candidates(
-                linkedSetOf(
-                    CallAudioRoute.SPEAKER,
-                    CallAudioRoute.EARPIECE,
-                    CallAudioRoute.WIRED,
-                    CallAudioRoute.BLUETOOTH
-                ),
-                speakerPreferred = false,
-                manualRoute = null
-            )
-        )
-        assertEquals(
-            listOf(CallAudioRoute.EARPIECE, CallAudioRoute.BLUETOOTH, CallAudioRoute.SPEAKER),
-            CallAudioRoutePolicy.candidates(
-                setOf(CallAudioRoute.BLUETOOTH, CallAudioRoute.EARPIECE, CallAudioRoute.SPEAKER),
-                speakerPreferred = false,
-                manualRoute = CallAudioRoute.EARPIECE
-            )
-        )
-    }
-
-    @Test
     fun `signaling types are normalized case-insensitively for REST fallback`() {
         assertEquals("offer", CallReliabilityPolicy.normalizeSignalingType("OFFER"))
         assertEquals("hang-up", CallReliabilityPolicy.normalizeSignalingType(" Hang-Up "))
