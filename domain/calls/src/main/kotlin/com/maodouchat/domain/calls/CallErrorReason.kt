@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.SignalingException
-
 // 通话错误原因文案种类（app 侧映射到 R.string）。
 enum class CallErrorMessage {
     RATE_LIMITED,

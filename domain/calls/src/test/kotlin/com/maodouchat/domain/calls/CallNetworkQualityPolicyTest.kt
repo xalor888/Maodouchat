@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.NetworkQuality
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

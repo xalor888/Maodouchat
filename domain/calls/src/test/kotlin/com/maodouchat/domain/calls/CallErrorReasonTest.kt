@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.FailureOperation
-import com.maodouchat.core.model.SignalingException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

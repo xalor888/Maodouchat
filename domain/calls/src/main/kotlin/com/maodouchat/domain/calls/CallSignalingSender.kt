@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallReliabilityPolicy
-import com.maodouchat.core.model.SignalingException
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

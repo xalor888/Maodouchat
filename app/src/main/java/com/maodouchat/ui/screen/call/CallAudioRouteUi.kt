@@ -24,7 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.domain.calls.CallAudioRoute
 import com.maodouchat.domain.calls.CallAudioRouteKind
 import com.maodouchat.domain.calls.callAudioRouteKind
 

@@ -1,6 +1,6 @@
 package com.maodouchat.call
 
-import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.domain.calls.CallAudioRoute
 import com.maodouchat.webrtc.WebRTCManager
 import org.webrtc.SurfaceViewRenderer
 

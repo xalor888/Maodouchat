@@ -10,8 +10,8 @@ import android.media.AudioDeviceCallback
 import android.media.AudioManager
 import android.os.Build
 import androidx.core.content.ContextCompat
-import com.maodouchat.core.model.CallAudioRoute
-import com.maodouchat.core.model.CallAudioRoutePolicy
+import com.maodouchat.domain.calls.CallAudioRoute
+import com.maodouchat.domain.calls.CallAudioRoutePolicy
 import com.maodouchat.core.model.CallType
 
 /** Owns audio focus and communication routing for the lifetime of one WebRTC manager. */

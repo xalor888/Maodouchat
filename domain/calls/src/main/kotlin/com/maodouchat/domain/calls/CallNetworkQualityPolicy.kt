@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.NetworkQuality
-
 /**
  * Maps RTT + packet loss into UI quality buckets (W3-03).
  * Null RTT or missing sample → UNKNOWN (still measuring).

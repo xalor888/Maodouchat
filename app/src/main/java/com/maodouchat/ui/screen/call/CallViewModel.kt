@@ -18,7 +18,7 @@ import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.core.model.CallType
 import com.maodouchat.domain.calls.CallSessionGate
-import com.maodouchat.core.model.CallAudioRoute
+import com.maodouchat.domain.calls.CallAudioRoute
 import com.maodouchat.domain.calls.CallUiState
 import com.maodouchat.domain.calls.CallConnectionStats
 import com.maodouchat.domain.calls.CallForegroundServiceController
