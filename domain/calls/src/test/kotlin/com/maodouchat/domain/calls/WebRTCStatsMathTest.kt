@@ -1,9 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * G176：`WebRTCStatsMath` 两个纯函数的测试
@@ -74,7 +74,7 @@ class WebRTCStatsMathTest {
         val big = 100_000_000_000L
         val pct = packetLossPercent(big, big)!!
         assertEquals(50.0, pct, 1e-9)
-        assertTrue("结果应在 0..100 之间", pct in 0.0..100.0)
+        assertTrue( pct in 0.0..100.0, "结果应在 0..100 之间")
     }
 
     @Test
@@ -83,7 +83,7 @@ class WebRTCStatsMathTest {
         // 于是「几乎全丢」会被算成负百分比。实现必须先转 Double 再乘。
         val huge = Long.MAX_VALUE / 10
         val pct = packetLossPercent(huge, huge)!!
-        assertTrue("回绕成负数了: $pct", pct >= 0.0)
+        assertTrue( pct >= 0.0, "回绕成负数了: $pct")
         assertEquals(50.0, pct, 1e-6)
     }
 
@@ -91,7 +91,7 @@ class WebRTCStatsMathTest {
     fun `result is always within zero and one hundred for non negative inputs`() {
         listOf(0L to 1L, 1L to 0L, 3L to 7L, 999L to 1L, 1L to 999L).forEach { (lost, received) ->
             val pct = packetLossPercent(lost, received)!!
-            assertTrue("$lost/$received 越界: $pct", pct in 0.0..100.0)
+            assertTrue( pct in 0.0..100.0, "$lost/$received 越界: $pct")
         }
     }
 

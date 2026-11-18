@@ -1,9 +1,11 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Test
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import com.maodouchat.core.model.CallType
+import com.maodouchat.core.model.PendingIncomingCall
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class MissedCallTimeoutPolicyTest {
 

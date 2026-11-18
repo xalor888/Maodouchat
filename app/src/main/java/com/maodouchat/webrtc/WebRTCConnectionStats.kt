@@ -1,7 +1,7 @@
 package com.maodouchat.webrtc
 
-import com.maodouchat.core.model.packetLossPercent
-import com.maodouchat.core.model.readStatNumber
+import com.maodouchat.domain.calls.packetLossPercent
+import com.maodouchat.domain.calls.readStatNumber
 import org.webrtc.PeerConnection
 import org.webrtc.RTCStatsReport
 import java.util.concurrent.atomic.AtomicLong

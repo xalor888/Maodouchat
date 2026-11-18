@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
 /**
  * Pure gates for whether a polled signaling offer is still actionable.

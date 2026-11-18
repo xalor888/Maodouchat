@@ -1,11 +1,12 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.CallIceServer
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotSame
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
  * G178：`WebRTCIcePolicy` 的测试（G178 刚从 WebRTCManager 的 3 处同构写法抽出）。
@@ -16,7 +17,7 @@ class WebRTCIcePolicyTest {
     fun `empty configuration falls back to public stun`() {
         val resolved = resolveIceServers(emptyList())
         assertEquals(CallIceServer.defaultStun(), resolved)
-        assertTrue("回落结果应含 google stun", resolved.single().urls.any { it.contains("stun.l.google.com") })
+        assertTrue( resolved.single().urls.any { it.contains("stun.l.google.com") }, "回落结果应含 google stun")
     }
 
     @Test

@@ -3,7 +3,7 @@ package com.maodouchat.call
 import com.maodouchat.notification.CallNotificationService
 import android.content.Context
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.MissedCallTimeoutPolicy
+import com.maodouchat.domain.calls.MissedCallTimeoutPolicy
 import com.maodouchat.domain.calls.buildMissedCallRecord
 import com.maodouchat.data.repository.MissedCallRepository
 import com.maodouchat.network.TokenManager

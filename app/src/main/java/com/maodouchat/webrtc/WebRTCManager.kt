@@ -11,8 +11,8 @@ import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.WebRTCException
-import com.maodouchat.core.model.resolveIceServers
-import com.maodouchat.core.model.standardAudioConstraints
+import com.maodouchat.domain.calls.resolveIceServers
+import com.maodouchat.domain.calls.standardAudioConstraints
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
