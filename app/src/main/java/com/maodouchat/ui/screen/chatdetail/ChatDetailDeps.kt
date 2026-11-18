@@ -16,6 +16,8 @@ import com.maodouchat.domain.messaging.ChatAiOperationsController
 import com.maodouchat.domain.messaging.ChatNudgeSender
 import com.maodouchat.domain.messaging.ChatOutgoingFacade
 import com.maodouchat.domain.messaging.ChatRetrySender
+import com.maodouchat.domain.messaging.OutgoingConversationErrors
+import com.maodouchat.domain.messaging.OutgoingConversationRequest
 import com.maodouchat.domain.messaging.ScheduledMessageController
 import com.maodouchat.domain.messaging.ChatOutgoingHydrationController
 import com.maodouchat.domain.messaging.ChatSessionCipherController
@@ -67,8 +69,6 @@ import com.maodouchat.domain.messaging.ConversationReactionCoordinator
 import com.maodouchat.core.model.MessagingV2EventOutbox
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
 import com.maodouchat.core.model.MessagingV2MutationFacade
-import com.maodouchat.core.model.OutgoingConversationErrors
-import com.maodouchat.core.model.OutgoingConversationRequest
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.scheduling.AndroidConversationScheduleBackend
 import com.maodouchat.core.model.ChatScheduleController

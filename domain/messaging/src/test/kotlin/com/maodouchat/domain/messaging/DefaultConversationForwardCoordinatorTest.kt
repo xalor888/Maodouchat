@@ -2,8 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.core.model.ConversationMessageStagingGateway
-import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta

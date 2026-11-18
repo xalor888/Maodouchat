@@ -5,8 +5,6 @@ import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.OutgoingConversationErrors
-import com.maodouchat.core.model.OutgoingConversationRequest
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.mergeMessageVersions
 import java.util.concurrent.ConcurrentHashMap

@@ -3,8 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.OutgoingMessageCommand
-import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

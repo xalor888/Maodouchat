@@ -14,8 +14,6 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.core.model.ConversationMessageStagingGateway
-import com.maodouchat.core.model.MessagingV2MessageGatewayOutcome
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
