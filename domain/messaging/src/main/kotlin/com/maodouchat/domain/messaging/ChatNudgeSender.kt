@@ -2,8 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.OutgoingMessageCommand
-import com.maodouchat.core.model.OutgoingMessageResult
 import com.maodouchat.core.model.mergeMessageVersions
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

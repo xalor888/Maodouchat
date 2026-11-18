@@ -3,9 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.OutgoingConversationContext
-import com.maodouchat.core.model.OutgoingMessageCommand
-import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

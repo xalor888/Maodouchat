@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageMutationKind
 import com.maodouchat.core.model.MessageMutationTicket
-import com.maodouchat.core.model.MessagingV2ArrivalDecision
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

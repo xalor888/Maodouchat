@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.core.model.MessagingV2DeviceTarget
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
-import com.maodouchat.core.model.MessagingV2DeviceTarget
 
 /** 加密目标用户 id：按快照目标顺序去重，加密调用按此顺序排队。 */
 fun targetUserIds(targets: Set<MessagingV2DeviceTarget>): LinkedHashSet<String> =

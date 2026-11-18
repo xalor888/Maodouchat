@@ -2,8 +2,8 @@ package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.core.model.MessagingV2Content
-import com.maodouchat.core.model.MessagingV2ConversationSnapshot
-import com.maodouchat.core.model.MessagingV2DeviceTarget
+import com.maodouchat.domain.messaging.MessagingV2ConversationSnapshot
+import com.maodouchat.domain.messaging.MessagingV2DeviceTarget
 import com.maodouchat.domain.messaging.MessagingV2GroupControlPolicy
 import com.maodouchat.domain.messaging.MessagingV2StaleGroupControlException
 import com.maodouchat.crypto.SignalProtocol

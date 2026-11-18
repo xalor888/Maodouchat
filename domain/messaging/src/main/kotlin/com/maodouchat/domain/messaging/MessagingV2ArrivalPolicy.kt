@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MessagingV2ArrivalDecision
 
 /** Pure policy for effects caused by one decrypted inbox message. */
 object MessagingV2ArrivalPolicy {
