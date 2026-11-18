@@ -39,7 +39,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.User
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
-import com.maodouchat.core.model.GroupMemberUi
+import com.maodouchat.domain.groups.GroupMemberUi
 import com.maodouchat.domain.groups.GroupMemberActionPolicy
 import com.maodouchat.domain.groups.GroupMemberMuteBadgePolicy
 import com.maodouchat.domain.groups.GroupMemberRoleKind

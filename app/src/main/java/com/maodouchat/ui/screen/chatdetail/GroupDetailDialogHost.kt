@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.maodouchat.core.model.GroupDetailUiState
+import com.maodouchat.domain.groups.GroupDetailUiState
 import com.maodouchat.ui.screen.chatdetail.group.BotPickerDialog
 import com.maodouchat.ui.screen.chatdetail.group.GroupAvatarPreview
 import com.maodouchat.ui.screen.chatdetail.group.MuteAllConfirmDialog

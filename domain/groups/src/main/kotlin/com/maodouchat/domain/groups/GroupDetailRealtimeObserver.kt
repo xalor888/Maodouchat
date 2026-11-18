@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.resolveUserVisibility
 import com.maodouchat.core.realtime.RealtimeDomainEvent

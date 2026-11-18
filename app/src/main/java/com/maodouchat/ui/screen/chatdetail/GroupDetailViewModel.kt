@@ -34,7 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import com.maodouchat.domain.groups.GroupLifecycleCoordinator
-import com.maodouchat.core.model.GroupDetailUiState
+import com.maodouchat.domain.groups.GroupDetailUiState
 
 class GroupDetailViewModel(
     application: Application,

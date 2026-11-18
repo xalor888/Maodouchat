@@ -2,7 +2,6 @@ package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.GroupMessagingCoordinator

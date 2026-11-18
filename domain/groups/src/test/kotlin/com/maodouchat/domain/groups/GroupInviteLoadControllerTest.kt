@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupDetailUiState
 import com.maodouchat.core.model.GroupInviteResponse
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationFeedbackKind

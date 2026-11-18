@@ -1,7 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.GroupMessagingSession
 import com.maodouchat.core.model.User

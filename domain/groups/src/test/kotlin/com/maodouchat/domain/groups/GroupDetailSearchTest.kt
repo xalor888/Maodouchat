@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

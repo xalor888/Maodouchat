@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.GroupMemberUi
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
