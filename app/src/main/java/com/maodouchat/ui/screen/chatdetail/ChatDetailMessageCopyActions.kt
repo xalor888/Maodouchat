@@ -13,7 +13,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.isMessageCopyable
+import com.maodouchat.domain.conversation.isMessageCopyable
 import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MessageShareMimePolicy

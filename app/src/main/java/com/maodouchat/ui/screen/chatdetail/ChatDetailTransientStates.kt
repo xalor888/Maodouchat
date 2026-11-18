@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.core.model.ParticleAction
+import com.maodouchat.domain.conversation.ParticleAction
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue

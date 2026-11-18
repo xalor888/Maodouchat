@@ -1,4 +1,4 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType

@@ -19,8 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.isMessageForwardable
-import com.maodouchat.core.model.isMessageReplyable
+import com.maodouchat.domain.conversation.isMessageForwardable
+import com.maodouchat.domain.conversation.isMessageReplyable
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.domain.messaging.displayedTranslation

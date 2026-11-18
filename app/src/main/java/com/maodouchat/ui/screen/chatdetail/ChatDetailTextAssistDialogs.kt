@@ -39,7 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.QuickPhrasePolicy
-import com.maodouchat.domain.messaging.TranslationLanguageFilterPolicy
+import com.maodouchat.domain.conversation.TranslationLanguageFilterPolicy
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Outline

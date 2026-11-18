@@ -2,7 +2,7 @@ package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.PreviewKind
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MessagePinPolicy
+import com.maodouchat.domain.conversation.MessagePinPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

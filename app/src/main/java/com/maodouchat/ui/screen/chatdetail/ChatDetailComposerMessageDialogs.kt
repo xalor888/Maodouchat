@@ -23,8 +23,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
-import com.maodouchat.domain.messaging.PinnedPreview
-import com.maodouchat.domain.messaging.pinnedPreview
+import com.maodouchat.domain.conversation.PinnedPreview
+import com.maodouchat.domain.conversation.pinnedPreview
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.Primary

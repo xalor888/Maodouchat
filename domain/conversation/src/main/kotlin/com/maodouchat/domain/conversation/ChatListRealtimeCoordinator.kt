@@ -3,9 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.applyPresenceProjection
-import com.maodouchat.core.model.buildAdminBroadcastProjection
-import com.maodouchat.core.model.zeroChatUnread
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.RealtimeConnectionState

@@ -48,8 +48,8 @@ import com.maodouchat.R
 import com.maodouchat.core.model.ChatMessageRowState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.isMessageGestureEligible
-import com.maodouchat.core.model.shouldTriggerSwipeReply
+import com.maodouchat.domain.conversation.isMessageGestureEligible
+import com.maodouchat.domain.conversation.shouldTriggerSwipeReply
 import com.maodouchat.domain.messaging.MessageSwipeReplyPolicy
 import com.maodouchat.domain.messaging.displayedTranslation
 import com.maodouchat.ui.component.MessageBubble

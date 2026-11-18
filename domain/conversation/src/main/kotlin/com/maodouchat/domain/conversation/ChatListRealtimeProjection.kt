@@ -1,5 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.AdminBroadcastProjection
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.core.model.resolveUserVisibility
 
 /**
  * 会话列表实时投影纯函数（ChatList 瘦身第 3 切片）。

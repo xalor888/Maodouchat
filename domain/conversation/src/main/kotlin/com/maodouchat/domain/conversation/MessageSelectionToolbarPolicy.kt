@@ -1,11 +1,8 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessagePinPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.isMessageCopyable
-import com.maodouchat.core.model.isMessageForwardable
 
 // 多选工具条派生判定，逐字平移自 app 侧 ChatDetailSelectionToolbar。
 // RuntimeFlags 读取留在 app 侧，以布尔值传入。

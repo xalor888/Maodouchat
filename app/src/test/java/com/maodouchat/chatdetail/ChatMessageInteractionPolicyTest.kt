@@ -1,13 +1,13 @@
 package com.maodouchat.chatdetail
 
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.DEFAULT_QUICK_REACTION
-import com.maodouchat.core.model.isMessageGestureEligible
-import com.maodouchat.core.model.isMessageForwardable
-import com.maodouchat.core.model.isMessageCopyable
-import com.maodouchat.core.model.isMessageReplyable
-import com.maodouchat.core.model.shouldTriggerSwipeReply
-import com.maodouchat.core.model.toggleMessageSelection
+import com.maodouchat.domain.conversation.DEFAULT_QUICK_REACTION
+import com.maodouchat.domain.conversation.isMessageGestureEligible
+import com.maodouchat.domain.conversation.isMessageForwardable
+import com.maodouchat.domain.conversation.isMessageCopyable
+import com.maodouchat.domain.conversation.isMessageReplyable
+import com.maodouchat.domain.conversation.shouldTriggerSwipeReply
+import com.maodouchat.domain.conversation.toggleMessageSelection
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

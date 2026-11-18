@@ -24,23 +24,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatItem
+import com.maodouchat.domain.conversation.ChatItem
 import com.maodouchat.core.model.ChatMessageRowState
-import com.maodouchat.core.model.DEFAULT_QUICK_REACTION
+import com.maodouchat.domain.conversation.DEFAULT_QUICK_REACTION
 import com.maodouchat.core.model.MessagePreviewText
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.MessageLookupPolicy
-import com.maodouchat.domain.messaging.MessageTimelineGroupingPolicy
+import com.maodouchat.domain.conversation.MessageTimelineGroupingPolicy
 import com.maodouchat.domain.messaging.ReplyPreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.theme.MotionSettings
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.domain.conversation.ReadReceiptPolicy
 import com.maodouchat.core.model.ReplyPreview
-import com.maodouchat.core.model.toggleMessageSelection
+import com.maodouchat.domain.conversation.toggleMessageSelection
 import com.maodouchat.core.model.ChatDetailUiState
 
 /**
