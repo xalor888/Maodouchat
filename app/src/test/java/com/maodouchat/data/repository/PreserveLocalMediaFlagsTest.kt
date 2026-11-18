@@ -3,7 +3,7 @@ package com.maodouchat.data.repository
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.preserveLocalMediaFlags
+import com.maodouchat.domain.messaging.preserveLocalMediaFlags
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame

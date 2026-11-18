@@ -3,7 +3,7 @@ package com.maodouchat.data
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.mergeMessageForPersistence
+import com.maodouchat.domain.messaging.mergeMessageForPersistence
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
