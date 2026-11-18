@@ -1,7 +1,7 @@
 package com.maodouchat.data.repository
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.RedactionSets
+import com.maodouchat.domain.conversation.RedactionSets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

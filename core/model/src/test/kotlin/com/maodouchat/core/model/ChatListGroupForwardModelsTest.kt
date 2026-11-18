@@ -12,14 +12,6 @@ import javax.net.ssl.SSLHandshakeException
 class ChatListGroupForwardModelsTest {
 
     @Test
-    fun receiptHoldsStatus() {
-        val receipt = Receipt(fromMe = true, status = MessageStatus.SENT)
-        assertTrue(receipt.fromMe)
-        assertEquals(MessageStatus.SENT, receipt.status)
-        assertEquals(MessageStatus.READ, receipt.copy(status = MessageStatus.READ).status)
-    }
-
-    @Test
     fun chatListPreviewConstruction() {
         val preview = ChatListPreview(
             text = "hi",

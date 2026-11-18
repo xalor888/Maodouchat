@@ -7,7 +7,6 @@ import com.maodouchat.domain.conversation.ChatSettingsToggle
 import com.maodouchat.domain.conversation.applyConfirmedSettings
 import com.maodouchat.domain.conversation.buildSettingsToggle
 import com.maodouchat.domain.conversation.bumpOptimisticSettingsClock
-import com.maodouchat.core.model.selectUnreadBatchTargets
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Receipt
 
 /**
  * Telegram-style list ticks: only when the list tail is our own outgoing message.

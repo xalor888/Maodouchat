@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.Receipt
 import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.core.model.User
 import kotlin.test.Test
