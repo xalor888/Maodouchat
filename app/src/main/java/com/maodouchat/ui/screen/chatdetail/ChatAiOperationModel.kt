@@ -4,7 +4,7 @@ import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json

@@ -1,9 +1,9 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.MediaCenterCategory
-import com.maodouchat.core.model.MediaCenterUiState
+import com.maodouchat.domain.messaging.MediaCenterUiState
 import com.maodouchat.domain.conversation.MediaExportResult
-import com.maodouchat.core.model.buildMediaCenterItems
+import com.maodouchat.domain.messaging.buildMediaCenterItems
 import android.app.Application
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

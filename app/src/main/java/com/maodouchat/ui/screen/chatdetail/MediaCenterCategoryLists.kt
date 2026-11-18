@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.core.model.MediaCenterItem
+import com.maodouchat.domain.messaging.MediaCenterItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MediaCenterDisplay

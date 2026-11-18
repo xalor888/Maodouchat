@@ -5,7 +5,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.RuntimeFlags

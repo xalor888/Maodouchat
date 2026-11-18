@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatFolderPolicy
 
 // 文件夹条芯片：密聊/锁定芯片有计数就显示，选中该系统文件夹时即使计数为 0 也显示。
 object ChatFolderStripPolicy {

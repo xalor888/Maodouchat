@@ -13,7 +13,7 @@ import com.maodouchat.data.local.entity.AiOperationParameters
 import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers

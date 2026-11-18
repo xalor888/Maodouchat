@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.Message
 
 data class StarredMessagesUiState(
     val chat: Chat? = null,
