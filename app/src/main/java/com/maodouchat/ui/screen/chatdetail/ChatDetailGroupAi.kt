@@ -5,7 +5,7 @@ import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.domain.messaging.AiSemanticSearchPolicy
-import com.maodouchat.core.model.semanticSearchText
+import com.maodouchat.domain.messaging.semanticSearchText
 import com.maodouchat.core.model.buildPlainAiContextMessages
 import com.maodouchat.domain.messaging.parseGroupAiCommand
 import com.maodouchat.domain.messaging.parseGroupAiTasks

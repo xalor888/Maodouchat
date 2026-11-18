@@ -8,7 +8,7 @@ import com.maodouchat.data.local.entity.MessageSearchTokenEntity
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.semanticSearchText
+import com.maodouchat.domain.messaging.semanticSearchText
 import com.maodouchat.core.model.ChatListPreviewPolicy
 import com.maodouchat.domain.messaging.MessageSearchContentHash
 import com.maodouchat.domain.messaging.MessageSearchTokenizer
