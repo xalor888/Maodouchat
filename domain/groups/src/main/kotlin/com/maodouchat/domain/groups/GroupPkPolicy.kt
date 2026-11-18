@@ -1,11 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 import kotlin.random.Random
 
-/**
- * 群 PK 玩法策略（U06 解耦）。
- * 包含剪刀石头布、数字炸弹、手速抢答等 PK 模式。
- */
 object GroupPkPolicy {
     private val rpsChoices = listOf("rock", "paper", "scissors")
     const val RPS_PREFIX = "RPS:"
