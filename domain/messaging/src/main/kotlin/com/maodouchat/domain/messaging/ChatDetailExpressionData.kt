@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** Lightweight keyword aliases for emoji panel search (zh/en). */
 val EMOJI_SEARCH_ALIASES: Map<String, List<String>> = mapOf<String, List<String>>(

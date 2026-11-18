@@ -28,8 +28,8 @@ import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.ui.theme.OnSurface
 import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.TextSecondary
-import com.maodouchat.core.model.LinkPreviewPolicy
-import com.maodouchat.core.model.Preview
+import com.maodouchat.domain.messaging.LinkPreviewPolicy
+import com.maodouchat.domain.messaging.Preview
 
 // ─── LinkPreviewCard ───
 @Composable
