@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 计费提示簇：按错误码决定 UI 应展示哪种计费提示、手动重试按钮旁是否标注「可能再次计费」。
 internal object AiCostBillingHint {

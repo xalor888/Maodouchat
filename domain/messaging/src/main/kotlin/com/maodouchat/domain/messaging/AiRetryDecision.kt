@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 重试决策簇：根据错误特征返回是否值得退避重试。只读取错误特征，不读数据库 —
 // 数据库状态由调用方在 markFailed 时落地。

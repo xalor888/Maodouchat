@@ -1,8 +1,8 @@
 package com.maodouchat.ai
 
-import com.maodouchat.core.model.AiCostVisibilityPolicy
-import com.maodouchat.core.model.AiRetryPolicy
-import com.maodouchat.core.model.AiRetryPolicyCategory
+import com.maodouchat.domain.messaging.AiCostVisibilityPolicy
+import com.maodouchat.domain.messaging.AiRetryPolicy
+import com.maodouchat.domain.messaging.AiRetryPolicyCategory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.core.model.AiCostVisibilityPolicy
+import com.maodouchat.domain.messaging.AiCostVisibilityPolicy
 import com.maodouchat.core.model.CallType
 import com.maodouchat.domain.messaging.AiStreamStatusText
 import com.maodouchat.domain.messaging.resolveAiStreamStatusText
