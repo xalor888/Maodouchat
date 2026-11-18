@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /** 群 PK 列表项。 */
 data class PkListItem(

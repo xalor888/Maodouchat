@@ -1,8 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.CheckinRankItem
-import com.maodouchat.core.model.PkListItem
-import com.maodouchat.core.model.PollListItem
 
 data class GroupChainUiState(
     val loading: Boolean = true,

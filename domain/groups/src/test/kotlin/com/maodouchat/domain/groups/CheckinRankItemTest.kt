@@ -1,8 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.Test
 
 class CheckinRankItemTest {
 
