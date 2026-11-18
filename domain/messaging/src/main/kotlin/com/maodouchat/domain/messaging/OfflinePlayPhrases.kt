@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 离线话术：群玩/应用功能簇。
 object OfflinePlayPhrases {

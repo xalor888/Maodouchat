@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 离线话术：问候/寒暄/情感簇（含疑问句优先分支）。
 object OfflineGreetingPhrases {
