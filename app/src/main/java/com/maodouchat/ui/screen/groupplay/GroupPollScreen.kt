@@ -46,12 +46,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.PollListItem
 import com.maodouchat.data.repository.GroupPollNetworkRepository
 import com.maodouchat.domain.groups.GroupPlayErrorPolicy
 import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import com.maodouchat.domain.groups.GroupPollPolicy
 import com.maodouchat.domain.groups.GroupPollUiState
+import com.maodouchat.domain.groups.PollListItem
 import com.maodouchat.ui.theme.LocalChatPalette
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

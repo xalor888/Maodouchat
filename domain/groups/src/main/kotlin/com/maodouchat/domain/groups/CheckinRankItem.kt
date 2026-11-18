@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /** 签到排行项。 */
 data class CheckinRankItem(
