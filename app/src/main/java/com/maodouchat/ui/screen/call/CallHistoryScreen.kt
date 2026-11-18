@@ -63,8 +63,8 @@ import com.maodouchat.domain.calls.CallRelativeTime
 import com.maodouchat.ui.theme.UnreadRed
 import kotlinx.coroutines.launch
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.core.model.Direction
-import com.maodouchat.core.model.State
+import com.maodouchat.domain.calls.Direction
+import com.maodouchat.domain.calls.State
 
 /** 1.29：通话记录页——展示本地 CallLogStore 全量历史，点击回拨，可清空。 */
 @OptIn(ExperimentalMaterial3Api::class)

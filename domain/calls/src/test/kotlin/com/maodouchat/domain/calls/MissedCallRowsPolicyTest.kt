@@ -1,10 +1,6 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLogEntry
-import com.maodouchat.core.model.CallLogRow
-import com.maodouchat.core.model.Direction
 import com.maodouchat.core.model.MissedCall
-import com.maodouchat.core.model.State
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

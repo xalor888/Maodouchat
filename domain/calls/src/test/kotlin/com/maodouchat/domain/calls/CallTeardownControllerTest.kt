@@ -4,7 +4,6 @@ import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
-import com.maodouchat.core.model.State
 import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import kotlin.test.Test

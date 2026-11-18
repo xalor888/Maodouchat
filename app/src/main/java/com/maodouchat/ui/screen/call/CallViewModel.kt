@@ -20,7 +20,6 @@ import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallUiState
-import com.maodouchat.core.model.IncomingCallCoordinator
 import com.maodouchat.domain.calls.CallConnectionStats
 import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallGroupMesh
@@ -32,6 +31,7 @@ import com.maodouchat.domain.calls.CallSessionController
 import com.maodouchat.domain.calls.CallSessionTimersController
 import com.maodouchat.domain.calls.CallSignalingIngressController
 import com.maodouchat.domain.calls.CallTeardownController
+import com.maodouchat.domain.calls.IncomingCallCoordinator
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.telecom.MaodouchatConnectionService
 import com.maodouchat.util.RuntimeFlags
@@ -101,7 +101,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
             activeCallSession = { activeCallSession },
             callSessionGate = callSessionGate,
             token = { token },
-            onLogAnswered = { writeCallLog(com.maodouchat.core.model.State.ANSWERED) },
+            onLogAnswered = { writeCallLog(com.maodouchat.domain.calls.State.ANSWERED) },
         )
     }
 
@@ -430,7 +430,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun writeCallLog(state: com.maodouchat.core.model.State) = callLogWriter.writeCallLog(state)
+    private fun writeCallLog(state: com.maodouchat.domain.calls.State) = callLogWriter.writeCallLog(state)
 
     // 拆卸收尾簇已搬入 CallTeardownController；此处只留同签名委托，各 controller 的 endCall 接线不变。
     private fun endCall(notifyPeer: Boolean, errorMessage: String? = null, logMissed: Boolean = true) = teardownController.endCall(notifyPeer, errorMessage, logMissed)

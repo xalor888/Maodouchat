@@ -1,7 +1,7 @@
 package com.maodouchat.call
 
 import android.content.Context
-import com.maodouchat.core.model.IncomingCallCoordinator
+import com.maodouchat.domain.calls.IncomingCallCoordinator
 import com.maodouchat.core.session.CallLockScreenFlagPolicy
 import com.maodouchat.service.CallForegroundService
 import com.maodouchat.telecom.TelecomHelper

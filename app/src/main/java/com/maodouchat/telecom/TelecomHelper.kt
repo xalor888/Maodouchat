@@ -7,7 +7,7 @@ import android.telecom.PhoneAccount
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.util.Log
-import com.maodouchat.core.model.IncomingCallCoordinator
+import com.maodouchat.domain.calls.IncomingCallCoordinator
 
 /**
  * 注册 PhoneAccount 并触发系统级来电。

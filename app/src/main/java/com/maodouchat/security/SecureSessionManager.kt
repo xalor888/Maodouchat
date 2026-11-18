@@ -8,7 +8,7 @@ import com.maodouchat.ai.AiTaskReminderScheduler
 import com.maodouchat.attachment.AttachmentTransferCoordinator
 import com.maodouchat.attachment.AttachmentTransferScheduler
 import com.maodouchat.core.model.CallOrchestrator
-import com.maodouchat.core.model.IncomingCallCoordinator
+import com.maodouchat.domain.calls.IncomingCallCoordinator
 import com.maodouchat.core.session.AccountIsolationPolicy
 import com.maodouchat.core.session.AccountSwitchAction
 import com.maodouchat.core.session.LogoutStorePolicy

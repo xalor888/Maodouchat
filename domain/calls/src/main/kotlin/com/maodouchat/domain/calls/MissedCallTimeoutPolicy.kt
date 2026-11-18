@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.PendingIncomingCall
-
 /**
  * Pure rules for the local ringing timeout → missed-call transition.
  * Keeps NavGraph free of ad-hoc id/tray choices and makes double-fire safe.
