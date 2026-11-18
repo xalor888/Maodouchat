@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 data class ProfileRow(val chatId: String, val statsJson: String, val narrative: String?, val updatedAt: Long)
 data class ArchiveRow(val chatId: String, val score: Int, val reason: String, val suggestedAt: Long)
