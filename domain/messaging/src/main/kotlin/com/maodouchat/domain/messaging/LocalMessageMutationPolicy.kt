@@ -1,5 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
 
 /** Deterministic local conflict rules shared by own-device and linked-device projections. */
 fun applyEditedMessageVersion(existing: Message, candidate: Message): Message? {

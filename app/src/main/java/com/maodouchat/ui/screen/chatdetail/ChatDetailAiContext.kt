@@ -9,7 +9,7 @@ import com.maodouchat.domain.messaging.buildUnreadSummaryCacheKey
 import com.maodouchat.domain.messaging.selectUnreadSummaryCandidates
 import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.core.model.isAmbiguousTransportFailure
+import com.maodouchat.domain.messaging.isAmbiguousTransportFailure
 import com.maodouchat.core.model.buildPlainAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers

@@ -2,8 +2,8 @@ package com.maodouchat.data.repository
 
 import androidx.room.withTransaction
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.mergeLocalMediaMetaForPersistence
-import com.maodouchat.core.model.mergeMessageForPersistence
+import com.maodouchat.domain.messaging.mergeLocalMediaMetaForPersistence
+import com.maodouchat.domain.messaging.mergeMessageForPersistence
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.entity.MessageEntity
@@ -13,8 +13,8 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.MessageDuplicatePolicy
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.applyEditedMessageVersion
-import com.maodouchat.core.model.applyRevokedMessageVersion
+import com.maodouchat.domain.messaging.applyEditedMessageVersion
+import com.maodouchat.domain.messaging.applyRevokedMessageVersion
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
