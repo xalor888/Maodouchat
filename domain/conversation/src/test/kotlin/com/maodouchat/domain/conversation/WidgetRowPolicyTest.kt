@@ -1,9 +1,13 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.User
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class WidgetRowPolicyTest {
 

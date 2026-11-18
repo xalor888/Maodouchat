@@ -12,14 +12,14 @@ import androidx.core.net.toUri
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.R
 import com.maodouchat.core.model.ConversationWidgetContract
-import com.maodouchat.core.model.WidgetChatInput
 import com.maodouchat.core.model.WidgetConfig
 import com.maodouchat.core.model.WidgetRow
-import com.maodouchat.core.model.WidgetRowLabels
 import com.maodouchat.core.model.WidgetSnapshot
-import com.maodouchat.core.model.buildWidgetRows
 import com.maodouchat.data.repository.ChatRepository
+import com.maodouchat.domain.conversation.WidgetChatInput
 import com.maodouchat.domain.conversation.WidgetConfigJsonPolicy
+import com.maodouchat.domain.conversation.WidgetRowLabels
+import com.maodouchat.domain.conversation.buildWidgetRows
 import com.maodouchat.domain.messaging.ConversationPrivacyPolicy
 import com.maodouchat.domain.messaging.PrivacyAction
 import com.maodouchat.network.TokenManager

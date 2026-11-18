@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.Chat
+import com.maodouchat.core.model.WidgetRow
 
 data class WidgetRowLabels(
     val appName: String,
