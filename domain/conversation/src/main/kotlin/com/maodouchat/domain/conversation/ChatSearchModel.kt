@@ -2,7 +2,6 @@ package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MentionPolicy
 import java.util.Calendar
 
 /** Parses encrypted-local message content/meta once per message-list revision, not once per keystroke. */
@@ -37,7 +36,7 @@ fun searchChatDocuments(
         .filter { scope != ChatSearchScope.STARRED || it.message.starred }
         .filter { scope != ChatSearchScope.MEDIA || it.matchesMediaScope() }
         // 1.26：提到我（含 @所有人）
-        .filter { scope != ChatSearchScope.MENTIONS || it.message.parsedMeta().mentions.any { m -> m == currentUserId || m == MentionPolicy.EVERYONE_ID } }
+        .filter { scope != ChatSearchScope.MENTIONS || it.message.parsedMeta().mentions.any { m -> m == currentUserId || m == EVERYONE_ID } }
         .mapNotNull { document ->
             if (scope == ChatSearchScope.MEDIA) {
                 if (normalizedQuery.isBlank()) {
@@ -84,7 +83,7 @@ fun semanticSearchCandidates(
         .filter { scope != ChatSearchScope.STARRED || it.message.starred }
         .filter { scope != ChatSearchScope.MEDIA || it.matchesMediaScope() }
         // 1.26：提到我（含 @所有人）
-        .filter { scope != ChatSearchScope.MENTIONS || it.message.parsedMeta().mentions.any { m -> m == currentUserId || m == MentionPolicy.EVERYONE_ID } }
+        .filter { scope != ChatSearchScope.MENTIONS || it.message.parsedMeta().mentions.any { m -> m == currentUserId || m == EVERYONE_ID } }
         .filter {
             if (scope == ChatSearchScope.MEDIA) true
             else it.parts(scope).any(String::isNotBlank)
@@ -148,6 +147,7 @@ fun searchWindowStart(window: ChatSearchWindow, now: Long): Long? = when (window
 private val EXCLUDED_TYPES = setOf(MessageType.SK_DIST, MessageType.SYSTEM, MessageType.NUDGE)
 private val WHITESPACE = Regex("\\s+")
 private const val MAX_SEMANTIC_CANDIDATES = 100
+private const val EVERYONE_ID = "__everyone__"
 
 const val SEVEN_DAYS_MS = 7L * 24L * 60L * 60L * 1_000L
 const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1_000L

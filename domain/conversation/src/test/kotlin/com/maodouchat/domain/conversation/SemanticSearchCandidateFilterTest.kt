@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MentionPolicy
 import com.maodouchat.core.model.MessageStatus
 import java.util.Calendar
 import org.junit.Assert.assertEquals
@@ -244,7 +243,7 @@ class SemanticSearchCandidateFilterTest {
     fun `mentions scope candidates keep direct and everyone mentions`() {
         val messages = listOf(
             message("direct", "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
-            message("everyone", "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+            message("everyone", "all", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
             message("other", "them", meta = MessageMeta(mentions = listOf("other")), timestamp = 3L),
             message("plain", "yo", timestamp = 4L)
         )
@@ -762,7 +761,7 @@ class SemanticSearchCandidateFilterTest {
     fun `mentions scope with a blank current user keeps only everyone mentions`() {
         val messages = listOf(
             message("direct", "hi", meta = MessageMeta(mentions = listOf("me")), timestamp = 1L),
-            message("everyone", "all", meta = MessageMeta(mentions = listOf(MentionPolicy.EVERYONE_ID)), timestamp = 2L),
+            message("everyone", "all", meta = MessageMeta(mentions = listOf("__everyone__")), timestamp = 2L),
             message("plain", "yo", timestamp = 3L)
         )
         val candidates = semanticSearchCandidates(

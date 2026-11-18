@@ -5,7 +5,6 @@ import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.MentionPolicy
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
 

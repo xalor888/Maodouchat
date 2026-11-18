@@ -1,12 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-/**
- * 群聊 @ 提及：检测输入、候选过滤、插入 token、从正文提取 mentions。
- * 展示 token 使用 `@displayName`（可含空格则用 displayName 原文）；
- * meta.mentions 存 userId 列表（E2EE 解密后客户端可读）。
- *
- * 与 @AI 助手命令共存：以 `@AI` 开头且后续为助手查询时不算成员提及。
- */
+import com.maodouchat.core.model.User
+
 object MentionPolicy {
     const val EVERYONE_ID: String = "__everyone__"
     private const val AI_PREFIX = "@AI"
