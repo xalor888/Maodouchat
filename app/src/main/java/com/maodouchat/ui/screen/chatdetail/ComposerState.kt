@@ -6,7 +6,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
-import com.maodouchat.core.model.ComposerStateSnapshot
+import com.maodouchat.domain.messaging.ComposerStateSnapshot
 
 @Stable
 internal class ComposerState private constructor(

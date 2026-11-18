@@ -1,8 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.Test
 
 class ChatComposerSendModelsTest {
 
@@ -37,7 +37,7 @@ class ChatComposerSendModelsTest {
     fun `nudge allow and reject are distinct decisions`() {
         val allow = NudgeDecision.Allow("u1", "c1")
         val reject = NudgeDecision.Reject(NudgeRejectReason.DISABLED)
-        assertNotEquals(allow, reject)
+        assertNotEquals<NudgeDecision>(allow, reject)
         assertEquals("u1", allow.ownerUserId)
         assertEquals(NudgeRejectReason.DISABLED, reject.reason)
     }

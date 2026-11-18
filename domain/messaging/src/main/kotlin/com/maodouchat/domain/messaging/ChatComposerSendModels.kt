@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 data class ComposerStateSnapshot(
     val attachMenuVisible: Boolean,

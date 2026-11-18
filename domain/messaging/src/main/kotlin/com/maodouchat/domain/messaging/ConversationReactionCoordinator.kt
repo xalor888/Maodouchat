@@ -1,10 +1,8 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MessagingV2MutationFacade
-import com.maodouchat.core.model.ReactionLock
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.withLock
