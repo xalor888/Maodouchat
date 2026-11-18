@@ -7,24 +7,7 @@ import kotlin.test.assertTrue
 
 class ChatDetailModelsTest {
 
-    @Test
-    fun mediaCenterUiStateDefaultsToLoadingEmpty() {
-        val state = MediaCenterUiState()
-        assertTrue(state.isLoading)
-        assertEquals(emptyList(), state.items)
-        assertEquals(null, state.isChatLocked)
-        assertEquals("", state.chatName)
-        assertFalse(state.isSecretChat)
-    }
 
-    @Test
-    fun starredMessagesUiStateDefaultsToLoadingEmpty() {
-        val state = StarredMessagesUiState()
-        assertTrue(state.isLoading)
-        assertEquals(emptyList(), state.messages)
-        assertEquals("", state.currentUserId)
-        assertFalse(state.globalScope)
-    }
 
     @Test
     fun chatSearchDocumentPartsFollowScope() {

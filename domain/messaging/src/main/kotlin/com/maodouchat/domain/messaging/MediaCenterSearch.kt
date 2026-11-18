@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MediaCenterCategory
-import com.maodouchat.core.model.MediaCenterItem
 
 // 媒体中心搜索匹配：文件名/MIME/正文/链接/位置标签五路忽略大小写匹配。自 app 侧 MediaCenterCategoryContent.kt 逐字平移。
 fun mediaCenterItemMatches(item: MediaCenterItem, query: String): Boolean {

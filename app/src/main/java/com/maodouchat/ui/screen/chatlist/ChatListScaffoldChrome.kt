@@ -39,7 +39,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.navigation.MainTab
-import com.maodouchat.core.model.ChatFolderPolicy
+import com.maodouchat.domain.conversation.ChatFolderPolicy
 
 /**
  * 会话列表的 Scaffold 外观（G140 从 `ChatListScreen.kt` 拆出，原 193 行）。

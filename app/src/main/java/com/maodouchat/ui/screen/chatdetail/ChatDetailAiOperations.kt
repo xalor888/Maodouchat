@@ -4,7 +4,7 @@ import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
 import com.maodouchat.domain.messaging.AiRetryPolicy
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import com.maodouchat.domain.messaging.AiOperationWaitPolicy
 import com.maodouchat.domain.messaging.invocationCategory
 import androidx.lifecycle.viewModelScope

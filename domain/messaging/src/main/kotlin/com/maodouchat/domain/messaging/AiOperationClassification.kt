@@ -3,7 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.AiClassifiedError
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.PendingAiAction
 
 // AI 操作调用分级：图片/文件分析与群助手是重型，其余是轻型。
 fun PendingAiAction.invocationCategory(): AiRetryPolicyCategory = when (this) {

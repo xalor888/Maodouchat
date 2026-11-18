@@ -13,7 +13,7 @@ import com.maodouchat.domain.groups.TaskDraft
 import com.maodouchat.data.local.entity.AiOperationState
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.core.model.MessageMeta
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

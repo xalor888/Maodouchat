@@ -1,4 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.AiFileAnalysisMode
+import com.maodouchat.core.model.AiImageAnalysisMode
+import com.maodouchat.core.model.AiSummaryScope
+import com.maodouchat.core.model.Message
 
 sealed class PendingAiAction {
     data class Rewrite(val mode: String, val targetLanguage: String? = null) : PendingAiAction()

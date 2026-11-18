@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatFolderPolicy
 
 // 会话列表空态种类；标题/副标题的 R.string 映射仍在 app 侧。
 enum class ChatListEmptyKind {

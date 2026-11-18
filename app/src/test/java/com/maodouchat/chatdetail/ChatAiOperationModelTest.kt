@@ -7,7 +7,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.ui.screen.chatdetail.ChatAiOperationFactory
-import com.maodouchat.core.model.PendingAiAction
+import com.maodouchat.domain.messaging.PendingAiAction
 import com.maodouchat.domain.messaging.AiRetryPolicyCategory
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.domain.messaging.invocationCategory

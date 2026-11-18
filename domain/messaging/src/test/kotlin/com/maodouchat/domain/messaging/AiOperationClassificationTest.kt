@@ -4,7 +4,6 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.PendingAiAction
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
