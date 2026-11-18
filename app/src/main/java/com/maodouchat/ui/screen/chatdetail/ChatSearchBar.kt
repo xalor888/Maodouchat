@@ -34,12 +34,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatSearchMode
-import com.maodouchat.core.model.ChatSearchScope
-import com.maodouchat.core.model.ChatSearchWindow
+import com.maodouchat.domain.conversation.ChatSearchMode
 import com.maodouchat.domain.conversation.ChatSearchModeKind
 import com.maodouchat.domain.conversation.ChatSearchPlaceholderKind
+import com.maodouchat.domain.conversation.ChatSearchScope
 import com.maodouchat.domain.conversation.ChatSearchScopeKind
+import com.maodouchat.domain.conversation.ChatSearchWindow
 import com.maodouchat.domain.conversation.ChatSearchWindowKind
 import com.maodouchat.domain.conversation.chatSearchModeKind
 import com.maodouchat.domain.conversation.chatSearchPlaceholderKind

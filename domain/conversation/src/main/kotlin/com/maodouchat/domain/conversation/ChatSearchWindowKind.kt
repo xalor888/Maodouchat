@@ -1,8 +1,7 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatSearchWindow
 
-// 聊天内搜索时间窗种类；时间窗枚举本身在 :core:model，domain 只做 1:1 映射。
+// 聊天内搜索时间窗种类；与同模块的 ChatSearchWindow 1:1 映射。
 enum class ChatSearchWindowKind {
     ALL,
     TODAY,

@@ -1,8 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatSearchDocument
-import com.maodouchat.core.model.ChatSearchScope
-import com.maodouchat.core.model.ChatSearchWindow
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.MentionPolicy

@@ -11,11 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatSearchMode
-import com.maodouchat.core.model.ChatSearchScope
-import com.maodouchat.core.model.ChatSearchWindow
-import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ChatDetailUiState
+import com.maodouchat.core.model.Message
+import com.maodouchat.domain.conversation.ChatSearchMode
+import com.maodouchat.domain.conversation.ChatSearchScope
+import com.maodouchat.domain.conversation.ChatSearchWindow
 
 @Composable
 internal fun ChatDetailSearchSection(

@@ -1,7 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatSearchMode
-import com.maodouchat.core.model.ChatSearchWindow
 import java.util.Calendar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
