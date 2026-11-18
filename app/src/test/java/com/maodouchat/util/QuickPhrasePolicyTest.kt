@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.QuickPhrasePolicy
+import com.maodouchat.domain.messaging.QuickPhrasePolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

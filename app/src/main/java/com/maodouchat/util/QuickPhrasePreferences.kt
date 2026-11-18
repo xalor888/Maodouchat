@@ -3,7 +3,7 @@ package com.maodouchat.util
 import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.PrefsJsonLists
-import com.maodouchat.core.model.QuickPhrasePolicy
+import com.maodouchat.domain.messaging.QuickPhrasePolicy
 
 /**
  * 输入栏快捷短语（常用语）本地存储：按账号隔离。

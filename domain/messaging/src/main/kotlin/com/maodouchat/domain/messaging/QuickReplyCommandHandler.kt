@@ -1,9 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatGateVerdict
-import com.maodouchat.core.model.QuickReplyCommand
-import com.maodouchat.core.model.QuickReplyCommandResult
-
 fun interface QuickReplyGatePort {
     suspend fun check(command: QuickReplyCommand): ChatGateVerdict
 }

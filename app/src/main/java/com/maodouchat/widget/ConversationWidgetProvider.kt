@@ -13,12 +13,12 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.ConversationWidgetContract
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.NotificationIntentPolicy
-import com.maodouchat.core.model.QuickReplyCommand
-import com.maodouchat.core.model.QuickReplyCommandResult
 import com.maodouchat.core.model.sanitizeChatIdStrict
+import com.maodouchat.domain.messaging.QuickReplyCommand
+import com.maodouchat.domain.messaging.QuickReplyCommandResult
+import com.maodouchat.domain.messaging.SyncVerdict
 import com.maodouchat.notification.NotificationIntents
 import com.maodouchat.quickreply.QuickReplyPolicy
-import com.maodouchat.core.model.SyncVerdict
 
 import kotlinx.coroutines.launch
 

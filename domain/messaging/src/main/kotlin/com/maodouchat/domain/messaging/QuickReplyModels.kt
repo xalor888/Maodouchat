@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** 同步门禁结果 */
 sealed class SyncVerdict {

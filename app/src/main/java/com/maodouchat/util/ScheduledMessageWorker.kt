@@ -1,6 +1,7 @@
 package com.maodouchat.util
 
 import com.maodouchat.core.model.ScheduledMessage
+import com.maodouchat.domain.messaging.ChatGateVerdict
 import com.maodouchat.notification.MessageNotificationService
 import android.content.Context
 import android.util.Log
@@ -12,7 +13,6 @@ import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
-import com.maodouchat.core.model.ChatGateVerdict
 import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.core.model.ConversationCommandOutcome
 import com.maodouchat.quickreply.QuickReplyPolicy
