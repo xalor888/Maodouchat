@@ -1,9 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.ChainEntryItem
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class GroupPlayUiStateModelsTest {
 

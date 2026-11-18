@@ -40,8 +40,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupPkUiState
 import com.maodouchat.core.model.PkListItem
+import com.maodouchat.domain.groups.GroupPkUiState
 import com.maodouchat.domain.groups.GroupPkValidationPolicy
 import com.maodouchat.domain.groups.GroupPlayJsonPolicy
 import kotlinx.coroutines.flow.MutableStateFlow
