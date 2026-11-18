@@ -4,7 +4,6 @@ import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.toUi
 import com.maodouchat.core.model.User
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupMutationCommit
 import com.maodouchat.core.model.GroupLifecycleService
 import kotlinx.coroutines.Dispatchers

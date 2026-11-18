@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupDetailUiState
-import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi

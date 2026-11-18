@@ -9,7 +9,6 @@ import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMutationCommit
 import com.maodouchat.core.model.GroupMutationFeedbackKind
-import com.maodouchat.core.model.GroupSenderKeyMaintenanceCoordinator
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CoroutineScope

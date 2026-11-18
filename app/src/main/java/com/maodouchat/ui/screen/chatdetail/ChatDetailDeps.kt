@@ -61,7 +61,7 @@ import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatSettingToggleController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
 import com.maodouchat.domain.groups.ChatBotGroupActionController
-import com.maodouchat.core.model.GroupLifecycleCoordinator
+import com.maodouchat.domain.groups.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
 import com.maodouchat.group.createAndroidGroupLifecycleService
 import com.maodouchat.core.model.ConversationMessageMutationCoordinator
