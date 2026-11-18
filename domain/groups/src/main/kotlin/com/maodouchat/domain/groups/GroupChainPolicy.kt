@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * 群接龙玩法策略（U06 解耦）。
