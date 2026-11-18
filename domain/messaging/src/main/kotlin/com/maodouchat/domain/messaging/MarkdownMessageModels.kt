@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 sealed interface MdBlock {
     data class Paragraph(val text: String) : MdBlock
