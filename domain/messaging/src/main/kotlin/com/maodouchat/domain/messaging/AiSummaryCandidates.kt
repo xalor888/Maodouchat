@@ -3,8 +3,6 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.SEVEN_DAYS_MS
-import com.maodouchat.core.model.THIRTY_DAYS_MS
 import com.maodouchat.core.model.aiSummaryContextText
 import java.util.Calendar
 
@@ -43,3 +41,6 @@ fun summaryCandidates(
         .toList()
         .takeLast(if (scope == AiSummaryScope.RECENT) 24 else MAX_AI_SUMMARY_MESSAGES)
 }
+
+private const val SEVEN_DAYS_MS = 7L * 24L * 60L * 60L * 1_000L
+private const val THIRTY_DAYS_MS = 30L * 24L * 60L * 60L * 1_000L

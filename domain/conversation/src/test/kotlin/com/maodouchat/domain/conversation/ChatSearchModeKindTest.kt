@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatSearchMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

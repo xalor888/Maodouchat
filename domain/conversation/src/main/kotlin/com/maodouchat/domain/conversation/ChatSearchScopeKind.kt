@@ -1,8 +1,7 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatSearchScope
 
-// 聊天内搜索范围种类；范围枚举本身在 :core:model，domain 只做 1:1 映射。
+// 聊天内搜索范围种类；与同模块的 ChatSearchScope 1:1 映射。
 enum class ChatSearchScopeKind {
     ALL,
     TEXT,

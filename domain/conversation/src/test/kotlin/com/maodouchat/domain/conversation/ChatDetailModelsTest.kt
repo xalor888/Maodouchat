@@ -1,9 +1,11 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageType
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 class ChatDetailModelsTest {
 
@@ -19,7 +21,7 @@ class ChatDetailModelsTest {
         assertEquals(listOf("hello"), doc.parts(ChatSearchScope.TEXT))
         assertEquals(listOf("voice"), doc.parts(ChatSearchScope.VOICE))
         assertEquals(listOf("你好"), doc.parts(ChatSearchScope.TRANSLATION))
-        assertEquals(emptyList(), doc.parts(ChatSearchScope.MEDIA))
+        assertEquals(emptyList<String>(), doc.parts(ChatSearchScope.MEDIA))
         assertFalse(doc.matchesMediaScope())
         val imageDoc = doc.copy(
             message = Message("m2", "chat", "u", "img", MessageType.IMAGE, 2))
