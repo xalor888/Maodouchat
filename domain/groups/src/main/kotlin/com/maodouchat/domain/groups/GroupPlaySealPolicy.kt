@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * 群玩法的「隐私开关」一族（G88 从 `GroupPlayPolicy.kt` 拆出）。

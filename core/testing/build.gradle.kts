@@ -51,7 +51,7 @@ tasks.test {
     listOf(
         "app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailRoute.kt",
         "app/src/main/java/com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt",
-        "core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt",
+        "domain/groups/src/main/kotlin/com/maodouchat/domain/groups/GroupPlayPolicy.kt",
     ).forEach { relative ->
         inputs.file(rootProject.file(relative))
             .withPropertyName("hotspot:" + relative.substringAfterLast('/'))

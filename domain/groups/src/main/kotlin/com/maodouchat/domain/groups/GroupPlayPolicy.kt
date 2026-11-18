@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
+import com.maodouchat.core.model.GroupCheckinPolicy
 import kotlin.random.Random
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray

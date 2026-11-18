@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 
 // 文字游戏类（文字玩法/接龙/字谜等）：编解码实现（从 GroupPlayClassicQuiz 逐字搬出，零行为改动）。

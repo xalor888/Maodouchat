@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 
 // 媒体类（照片/视频/语音玩法）：编解码实现（从 GroupPlayModePolicy 逐字搬出，零行为改动）。

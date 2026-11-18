@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * 群玩法编解码共用的字段转义（G328c 从 `GroupPlayPolicy` 提出为包内共享）。

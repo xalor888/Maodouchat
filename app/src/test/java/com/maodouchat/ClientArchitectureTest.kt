@@ -1212,7 +1212,7 @@ class ClientArchitectureTest {
             .map { it.relativeTo(repoRoot).path }
             .toList()
         assertEquals(
-            listOf("core/model/src/main/kotlin/com/maodouchat/core/model/GroupPlayPolicy.kt"),
+            listOf("domain/groups/src/main/kotlin/com/maodouchat/domain/groups/GroupPlayPolicy.kt"),
             matches.sorted(),
             "GroupPlayPolicy 出现同名重复文件——这个债必须只有一个",
         )

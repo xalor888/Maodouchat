@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 
 // 问答知识类（测验/谜语/知识竞答等）：编解码实现（从 GroupPlayClassicPolicy 逐字搬出，零行为改动）。
