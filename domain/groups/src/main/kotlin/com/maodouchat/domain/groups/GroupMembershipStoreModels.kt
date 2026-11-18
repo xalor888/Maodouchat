@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
+import com.maodouchat.core.model.GroupMemberDto
 
 data class GroupMemberUi(
     val userId: String,

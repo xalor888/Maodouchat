@@ -1,4 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
+
+import com.maodouchat.core.model.GroupAuditLogDto
+import com.maodouchat.core.model.GroupMutationFeedback
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
+import com.maodouchat.core.model.User
 
 /**
  * 群详情页界面状态（从 `ui/screen/chatdetail/GroupDetailViewModel.kt` 抽出）。

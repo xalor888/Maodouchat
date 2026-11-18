@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.core.model.GroupMemberUi
 import com.maodouchat.core.model.User
 
 // 群详情页成员 / 审计 / 可添加联系人三条「过滤→分页」链：纯搬移自 app 侧 GroupDetailSearchDerived。

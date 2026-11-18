@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.maodouchat.core.model.GroupAuditLogDto
 import com.maodouchat.core.model.User
-import com.maodouchat.core.model.GroupMemberUi
+import com.maodouchat.domain.groups.GroupMemberUi
 import com.maodouchat.domain.groups.GroupDetailSearch
 
 // 群详情页搜索过滤派生量：成员 / 审计 / 可添加联系人三条「过滤→分页」链。
