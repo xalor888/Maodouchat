@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.core.model.parseLegacyCenterDeeplink
 
 /**

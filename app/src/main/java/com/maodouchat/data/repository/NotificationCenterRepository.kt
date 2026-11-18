@@ -3,10 +3,11 @@ package com.maodouchat.data.repository
 import android.content.Context
 import android.util.Log
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.NotificationCenterReadPolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
+import com.maodouchat.domain.conversation.NotificationCenterMergePolicy
+import com.maodouchat.domain.conversation.NotificationCenterReadPolicy
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,7 @@ class NotificationCenterRepository(context: Context) {
                 val existing = current[index]
                 // FCM+WS same message, or ring-timeout+peer-hang-up same missed call:
                 // do not double-count under a shared mergeKey.
-                val skipCount = com.maodouchat.core.model.NotificationCenterMergePolicy
+                val skipCount = NotificationCenterMergePolicy
                     .shouldSkipCountIncrement(
                         itemType = item.type,
                         existingId = existing.id,
