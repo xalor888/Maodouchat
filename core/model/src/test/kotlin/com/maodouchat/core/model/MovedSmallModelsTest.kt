@@ -50,18 +50,6 @@ class MovedSmallModelsTest {
     }
 
     @Test
-    fun `chat list selection defaults to no selection mode`() {
-        val selection = ChatListSelection()
-        assertFalse(selection.selectionMode)
-        assertTrue(selection.selectedChatIds.isEmpty())
-        assertEquals(
-            UnreadBatchTargets(),
-            UnreadBatchTargets(ordinary = emptyList(), secret = emptyList()),
-        )
-    }
-
-
-    @Test
     fun `outgoing conversation models hold request and resolution`() {
         val request = OutgoingConversationRequest(
             ownerUserId = "u1",

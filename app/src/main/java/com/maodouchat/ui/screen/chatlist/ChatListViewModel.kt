@@ -9,7 +9,6 @@ import com.maodouchat.chatlist.AndroidChatListPorts
 import com.maodouchat.chatlist.ChatListPorts
 import com.maodouchat.conversation.conversationLocalCleanupSession
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatListSelection
 import com.maodouchat.domain.conversation.Trigger
 import com.maodouchat.domain.conversation.ChatListAnnouncementCoordinator
 import com.maodouchat.domain.conversation.ChatListArchiveSuggestionCoordinator
@@ -20,6 +19,7 @@ import com.maodouchat.domain.conversation.ChatListLocalCleanupCoordinator
 import com.maodouchat.domain.conversation.ChatListMissedCallCoordinator
 import com.maodouchat.domain.conversation.ChatListOwnerSessionGuard
 import com.maodouchat.domain.conversation.ChatListRealtimeCoordinator
+import com.maodouchat.domain.conversation.ChatListSelection
 import com.maodouchat.domain.conversation.ChatListSelectionCoordinator
 import com.maodouchat.domain.conversation.ChatListSettingsToggleCoordinator
 import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator

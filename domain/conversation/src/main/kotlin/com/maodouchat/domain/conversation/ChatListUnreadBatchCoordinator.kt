@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.selectUnreadBatchTargets
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.session.OwnerSessionSnapshot
 import kotlinx.coroutines.CancellationException

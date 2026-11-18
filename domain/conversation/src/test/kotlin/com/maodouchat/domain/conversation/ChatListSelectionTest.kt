@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.Chat
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -129,5 +130,16 @@ class ChatListSelectionTest {
         val excluded = selectUnreadBatchTargets(chats, setOf("s"), excludeArchived = true)
         assertTrue(excluded.ordinary.isEmpty())
         assertTrue(excluded.secret.isEmpty())
+    }
+
+    @Test
+    fun `chat list selection defaults to no selection mode`() {
+        val selection = ChatListSelection()
+        assertFalse(selection.selectionMode)
+        assertTrue(selection.selectedChatIds.isEmpty())
+        assertEquals(
+            UnreadBatchTargets(),
+            UnreadBatchTargets(ordinary = emptyList(), secret = emptyList()),
+        )
     }
 }

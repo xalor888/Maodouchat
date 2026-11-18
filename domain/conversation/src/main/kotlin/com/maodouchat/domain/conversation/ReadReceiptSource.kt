@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.MessageReceipt
 
 import kotlinx.coroutines.flow.Flow
 

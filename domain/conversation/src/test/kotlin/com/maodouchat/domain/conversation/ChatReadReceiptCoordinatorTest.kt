@@ -22,7 +22,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import com.maodouchat.core.model.ReadReceiptSource
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ChatDetailUiState
 

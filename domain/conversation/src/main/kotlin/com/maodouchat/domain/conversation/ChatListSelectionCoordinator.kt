@@ -1,9 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatListSelection
-import com.maodouchat.core.model.ChatListSelectionEvent
-import com.maodouchat.core.model.reduceSelection
-
 /**
  * 会话列表多选模式（ChatList 瘦身：进入/退出/勾选/批量置顶/批量删除）。
  *
