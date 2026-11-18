@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.CallUiState
 
 /**
  * G372：通话记录写入（8.52 幂等回写 / 呼出占位改 ANSWERED / 时长口径 / 8.53 属主守卫）

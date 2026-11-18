@@ -1,9 +1,6 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.CallUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

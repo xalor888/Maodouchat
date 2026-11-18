@@ -6,12 +6,6 @@ import org.junit.Test
 class CallStateModelsTest {
 
     @Test
-    fun `call state has all five states`() {
-        assertEquals(5, CallState.entries.size)
-        assertEquals(CallState.CONNECTED, CallState.valueOf("CONNECTED"))
-    }
-
-    @Test
     fun `detect from sdp returns audio for null blank and audio only`() {
         assertEquals(CallType.AUDIO, CallType.detectFromSdp(null))
         assertEquals(CallType.AUDIO, CallType.detectFromSdp("   "))

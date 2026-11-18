@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallSessionGate
 import com.maodouchat.core.session.CallSessionMachine
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -1,13 +1,6 @@
 package com.maodouchat.core.model
 
 /**
- * 通话状态
- */
-enum class CallState {
-    IDLE, CALLING, RINGING, CONNECTED, DISCONNECTED
-}
-
-/**
  * 通话类型
  */
 enum class CallType { AUDIO, VIDEO, GROUP;

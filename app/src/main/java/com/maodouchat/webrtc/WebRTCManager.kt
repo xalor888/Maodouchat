@@ -6,8 +6,8 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.CallIceServer
-import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.core.model.CallState
+import com.maodouchat.domain.calls.CallSessionGate
+import com.maodouchat.domain.calls.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.model.WebRTCException

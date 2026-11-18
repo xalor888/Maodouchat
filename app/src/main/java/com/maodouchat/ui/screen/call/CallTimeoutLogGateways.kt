@@ -6,8 +6,8 @@ import com.maodouchat.R
 import com.maodouchat.call.CallLogStore
 import com.maodouchat.call.MissedCallRecorder
 import com.maodouchat.domain.calls.CallLogEntry
-import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.core.model.CallUiState
+import com.maodouchat.domain.calls.CallSessionGate
+import com.maodouchat.domain.calls.CallUiState
 import com.maodouchat.domain.calls.CallLogWriter
 import com.maodouchat.domain.calls.CallRingingTimeout
 import com.maodouchat.domain.calls.CallRingingTimeoutMessage

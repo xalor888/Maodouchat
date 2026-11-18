@@ -11,7 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
-import com.maodouchat.core.model.CallState
+import com.maodouchat.domain.calls.CallState
 import com.maodouchat.core.model.CallType
 import org.junit.Rule
 import org.junit.Test

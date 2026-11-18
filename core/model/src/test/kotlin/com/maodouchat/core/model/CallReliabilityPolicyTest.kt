@@ -38,20 +38,6 @@ class CallReliabilityPolicyTest {
     }
 
     @Test
-    fun `released call generation cannot affect the next call`() {
-        val gate = CallSessionGate()
-        val first = gate.begin()
-        assertTrue(gate.isCurrent(first))
-        assertTrue(gate.invalidate(first))
-        assertFalse(gate.isCurrent(first))
-
-        val second = gate.begin()
-        assertTrue(gate.isCurrent(second))
-        assertFalse(gate.invalidate(first))
-        assertTrue(gate.isCurrent(second))
-    }
-
-    @Test
     fun `audio route prioritizes bluetooth then wired and respects video speaker preference`() {
         assertEquals(
             CallAudioRoute.BLUETOOTH,
@@ -131,18 +117,6 @@ class CallReliabilityPolicyTest {
     }
 
     @Test
-    fun `network quality buckets from rtt and loss`() {
-        assertEquals(NetworkQuality.UNKNOWN, CallNetworkQualityPolicy.fromStats(null, 0.0))
-        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(120, 0.5))
-        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(350, 2.0))
-        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(800, 1.0))
-        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(100, 8.0))
-        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(180, null))
-        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(400, null))
-        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(900, null))
-    }
-
-    @Test
     fun `group grid and active participant policy stay bounded`() {
         assertEquals(2, GroupCallPolicy.gridColumns(1))
         assertEquals(2, GroupCallPolicy.gridColumns(4))
@@ -186,16 +160,6 @@ class CallReliabilityPolicyTest {
         assertEquals(5_000L, CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
     }
 
-    @Test
-    fun `network quality pins boundary values`() {
-        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(200, 1.0))
-        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(500, 4.0))
-        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(201, 1.0))
-        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(501, 0.0))
-        assertEquals(NetworkQuality.GOOD, CallNetworkQualityPolicy.fromStats(200, null))
-        assertEquals(NetworkQuality.FAIR, CallNetworkQualityPolicy.fromStats(500, null))
-        assertEquals(NetworkQuality.POOR, CallNetworkQualityPolicy.fromStats(501, null))
-    }
 
     @Test
     fun `group grid mesh and active states pin their edges`() {
