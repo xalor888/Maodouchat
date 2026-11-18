@@ -18,53 +18,6 @@ class SmallPureModelsTest {
     }
 
     @Test
-    fun ownSentMediaRestoreSecretExcluded() {
-        assertFalse(
-            OwnSentMediaRestorePolicy.shouldRestore(
-                isSecretChat = true, type = MessageType.IMAGE,
-                attachmentId = "a1", localUriReadable = false
-            )
-        )
-        assertTrue(
-            OwnSentMediaRestorePolicy.shouldRestore(
-                isSecretChat = false, type = MessageType.IMAGE,
-                attachmentId = "a1", localUriReadable = false
-            )
-        )
-        assertFalse(
-            OwnSentMediaRestorePolicy.shouldRestore(
-                isSecretChat = false, type = MessageType.IMAGE,
-                attachmentId = "a1", localUriReadable = true
-            )
-        )
-    }
-
-    @Test
-    fun ownSentMediaRestoreHydrateNeedsAutoDownloadOrOwnSent() {
-        assertTrue(
-            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
-                isSecretChat = false, type = MessageType.VIDEO,
-                attachmentId = "a1", localUriReadable = false,
-                senderIsCurrentUser = false, autoDownload = true
-            )
-        )
-        assertFalse(
-            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
-                isSecretChat = false, type = MessageType.VIDEO,
-                attachmentId = "a1", localUriReadable = false,
-                senderIsCurrentUser = false, autoDownload = false
-            )
-        )
-        assertTrue(
-            OwnSentMediaRestorePolicy.shouldHydrateMissingLocalAttachment(
-                isSecretChat = false, type = MessageType.VIDEO,
-                attachmentId = "a1", localUriReadable = false,
-                senderIsCurrentUser = true, autoDownload = false
-            )
-        )
-    }
-
-    @Test
     fun normalizeAttachmentMetadataImageToJpg() {
         val out = normalizeAttachmentMetadata(
             MessageType.IMAGE,

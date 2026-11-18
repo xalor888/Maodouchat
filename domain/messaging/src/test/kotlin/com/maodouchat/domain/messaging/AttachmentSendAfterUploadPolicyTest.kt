@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.NoRecipientDevicesException
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertFalse

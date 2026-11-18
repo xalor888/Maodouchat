@@ -111,10 +111,4 @@ class ScheduleModelsTest {
         )
         assertEquals("m1", reminderRequest.messageId)
     }
-
-    @Test
-    fun noRecipientDevicesExceptionIsIllegalState() {
-        val error = NoRecipientDevicesException()
-        assertTrue(error is IllegalStateException)
-    }
 }
