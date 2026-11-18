@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * Pure matching for which notification-center rows belong to a chat.
