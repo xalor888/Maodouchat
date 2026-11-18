@@ -1,6 +1,5 @@
-package com.maodouchat.ui
+package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallLockScreenFlagController
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -48,5 +47,22 @@ class CallLockScreenFlagControllerTest {
         controller.onHostDestroyed()
         assertEquals(false, applied)
         assertFalse(applied == true)
+    }
+
+    @Test
+    fun callLockFlagTickStopDestroy() {
+        var applied: Boolean? = null
+        var needed = true
+        val controller = CallLockScreenFlagController(
+            flagsNeeded = { needed },
+            applyFlags = { applied = it },
+        )
+        assertTrue(controller.onHostStartedTick())
+        assertEquals(true, applied)
+        needed = false
+        controller.onHostStopped()
+        assertEquals(false, applied)
+        controller.onHostDestroyed()
+        assertEquals(false, applied)
     }
 }

@@ -66,23 +66,6 @@ class AppShellPureLogicTest {
     }
 
     @Test
-    fun callLockFlagTickStopDestroy() {
-        var applied: Boolean? = null
-        var needed = true
-        val controller = CallLockScreenFlagController(
-            flagsNeeded = { needed },
-            applyFlags = { applied = it },
-        )
-        assertTrue(controller.onHostStartedTick())
-        assertEquals(true, applied)
-        needed = false
-        controller.onHostStopped()
-        assertEquals(false, applied)
-        controller.onHostDestroyed()
-        assertEquals(false, applied)
-    }
-
-    @Test
     fun secretWatermarkPolicyGatesOnSecretAndFlag() {
         assertTrue(SecretWatermarkPolicy.pageBlindWatermarkEnabled(true, true))
         assertFalse(SecretWatermarkPolicy.pageBlindWatermarkEnabled(false, true))

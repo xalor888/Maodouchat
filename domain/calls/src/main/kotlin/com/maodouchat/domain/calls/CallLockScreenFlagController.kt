@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
 /**
  * P08：来电锁屏旗标轮询。
@@ -10,21 +10,15 @@ class CallLockScreenFlagController(
     private val applyFlags: (enabled: Boolean) -> Unit,
     private val delayMs: Long = 500L,
 ) {
-    /**
-     * Host entered foreground: overwrite any stale intent-carried flags, then poll.
-     * @return true while the poll loop should continue (caller sleeps [delayMs] between ticks).
-     */
     fun onHostStartedTick(): Boolean {
         applyFlags(flagsNeeded())
         return true
     }
 
-    /** Host left foreground: keep only flags still justified by a live call. */
     fun onHostStopped() {
         applyFlags(flagsNeeded())
     }
 
-    /** Activity is destroyed: never leave lock-screen visibility for a later instance. */
     fun onHostDestroyed() {
         applyFlags(false)
     }
