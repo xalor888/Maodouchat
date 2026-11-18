@@ -19,6 +19,22 @@ class LocalAiProtocolCodecTest {
         historyMessageLimit = 12
     )
 
+    // AgentToolPolicy 已迁入 :domain:messaging，core/model 测试只取一条同形工具描述。
+    private fun sampleToolJson(): List<Map<String, Any?>> = listOf(
+        mapOf(
+            "type" to "function",
+            "function" to mapOf(
+                "name" to "list_chats",
+                "description" to "列出会话",
+                "parameters" to mapOf(
+                    "type" to "object",
+                    "properties" to emptyMap<String, Any?>(),
+                    "required" to emptyList<String>()
+                )
+            )
+        )
+    )
+
     @Test
     fun `parse protocol aliases`() {
         assertEquals(LocalAiProtocol.OPENAI_RESPONSES, LocalAiProtocolCodec.parseProtocol("responses"))
@@ -31,7 +47,7 @@ class LocalAiProtocolCodecTest {
         val body = LocalAiProtocolCodec.chatCompletionsBody(
             provider,
             listOf(AgentChatMessage(role = "user", content = "hi")),
-            AgentToolPolicy.openaiToolsJson().take(1),
+            sampleToolJson(),
             stream = true
         )
         assertEquals("m", body.getString("model"))
@@ -279,7 +295,7 @@ class LocalAiProtocolCodecTest {
 
     @Test
     fun `responses body flattens tools and encodes tool traffic`() {
-        val tools = AgentToolPolicy.openaiToolsJson().take(1)
+        val tools = sampleToolJson()
         val expectedName = (tools.single()["function"] as Map<*, *>)["name"] as String
         val body = LocalAiProtocolCodec.responsesBody(provider, emptyList(), tools, stream = true)
         assertEquals(false, body.getBoolean("stream"))

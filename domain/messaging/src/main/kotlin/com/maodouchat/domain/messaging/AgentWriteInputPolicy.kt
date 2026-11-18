@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentToolPolicy
 import com.maodouchat.core.model.VISIBILITY_VALUES
 
 // Agent 工具写操作入口的输入清洗，自 app 侧 ai/agent 写操作簇收敛；

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentToolPolicy
 
 // Agent 工具宿主的错误文案与结果处理，自 app 侧 AgentToolHost 收敛。
 object AgentToolHostPolicy {

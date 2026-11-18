@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentToolPolicy
 
 // Agent 会话列表/详情的纯展示逻辑，自 app 侧 ai/agent 会话读簇收敛；
 // 查库与门闩仍在 app 侧，这里只定标题、标记、查询匹配与历史条数边界。

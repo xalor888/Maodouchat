@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AgentChatMessage
 import com.maodouchat.core.model.AgentToolCall
-import com.maodouchat.core.model.AgentTurnEvent
 import com.maodouchat.core.model.LocalAiProvider
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
