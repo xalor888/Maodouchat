@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.settings
 import android.app.Application
 import android.net.Uri
 import com.maodouchat.R
-import com.maodouchat.core.model.CustomStatusPolicy
+import com.maodouchat.domain.contacts.CustomStatusPolicy
 import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.core.model.SettingsUiState
 import com.maodouchat.util.ImagePicker

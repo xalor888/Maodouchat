@@ -7,7 +7,7 @@ import com.maodouchat.domain.contacts.CustomStatusLabelKind
 import com.maodouchat.domain.contacts.customStatusLabelKind
 
 /**
- * 自定义状态预设（[com.maodouchat.core.model.CustomStatusPolicy.PRESETS]）的本地化展示。
+ * 自定义状态预设（[com.maodouchat.domain.contacts.CustomStatusPolicy.PRESETS]）的本地化展示。
  * wire 值是多端同步的中文原文（见 CustomStatusPolicy 注释），任何展示方都不得直接
  * 输出 wire 值——此前联系人搜索结果直接显示「在线」，英文界面里混出中文就是这个原因。
  */
