@@ -1,5 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.LocalStats
+import com.maodouchat.core.model.Message
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -9,7 +11,7 @@ class AiProfileStatsTest {
     private fun message(id: String, content: String, timestamp: Long) =
         Message(id = id, chatId = "c1", senderId = "u1", content = content, timestamp = timestamp)
 
-    /** Local-time timestamp for today at the given hour (robust to the runner TZ). */
+    // 今天指定小时（本地时区，runner 时区无关）。
     private fun todayAt(hour: Int): Long =
         java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, hour)

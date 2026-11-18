@@ -1,5 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.LocalStats
+import com.maodouchat.core.model.Message
 
 // 会话画像本地统计：消息量/活跃天数/时段分布/表情/高频主题词（CJK 二元组 + 拉丁词，
 // 本地轻量统计，不引入 embedding）。
