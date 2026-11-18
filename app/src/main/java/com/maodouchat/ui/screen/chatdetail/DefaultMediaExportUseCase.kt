@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import android.content.Context
-import com.maodouchat.core.model.MediaExportRequest
-import com.maodouchat.core.model.MediaExportResult
+import com.maodouchat.domain.conversation.MediaExportRequest
+import com.maodouchat.domain.conversation.MediaExportResult
 import com.maodouchat.domain.conversation.MediaExportUseCase
 import com.maodouchat.util.MediaExport
 import kotlinx.coroutines.Dispatchers

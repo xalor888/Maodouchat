@@ -1,5 +1,5 @@
 package com.maodouchat.util
-import com.maodouchat.core.model.MediaViewerPolicy
+import com.maodouchat.domain.conversation.MediaViewerPolicy
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

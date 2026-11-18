@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 data class SettingsSnapshot(
     val pinnedAt: Long,

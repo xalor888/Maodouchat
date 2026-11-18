@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.AdminBroadcastProjection
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.resolveUserVisibility

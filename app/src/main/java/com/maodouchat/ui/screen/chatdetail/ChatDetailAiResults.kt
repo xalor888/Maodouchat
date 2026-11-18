@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
-import com.maodouchat.core.model.SemanticSearchAdmission
+import com.maodouchat.domain.conversation.SemanticSearchAdmission
 
 
 fun ChatDetailViewModel.requestSemanticSearch(query: String, candidateMessageIds: List<String>) {

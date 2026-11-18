@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.core.model.MediaCenterCategory
 import com.maodouchat.core.model.MediaCenterUiState
-import com.maodouchat.core.model.MediaExportResult
+import com.maodouchat.domain.conversation.MediaExportResult
 import com.maodouchat.core.model.buildMediaCenterItems
 import android.app.Application
 import androidx.compose.foundation.layout.Box

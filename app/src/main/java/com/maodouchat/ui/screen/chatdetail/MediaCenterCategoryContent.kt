@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.chatdetail
 import com.maodouchat.core.model.MediaCenterCategory
 import com.maodouchat.core.model.MediaCenterItem
 import com.maodouchat.core.model.MediaCenterUiState
-import com.maodouchat.core.model.MediaExportResult
+import com.maodouchat.domain.conversation.MediaExportResult
 import com.maodouchat.domain.messaging.MediaCenterCategoryKind
 import com.maodouchat.domain.messaging.MediaCenterQueryPolicy
 import com.maodouchat.domain.messaging.mediaCenterCategoryKind

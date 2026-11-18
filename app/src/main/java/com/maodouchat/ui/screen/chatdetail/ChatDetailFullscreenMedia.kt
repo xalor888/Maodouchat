@@ -41,7 +41,7 @@ import com.maodouchat.R
 import com.maodouchat.core.model.Message
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.MediaExport
-import com.maodouchat.core.model.MediaViewerPolicy
+import com.maodouchat.domain.conversation.MediaViewerPolicy
 
 /**
  * 全屏媒体查看器（G76 从 `ChatDetailRoute.kt` 拆出，原 207 行 = 图片 116 + 视频 91）。
