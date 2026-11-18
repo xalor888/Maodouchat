@@ -1,8 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.core.model.CallState
-import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.session.CallSessionMachine
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle

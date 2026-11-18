@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.CallUiState
 
 // 前台服务起停一族：从 CallViewModel 纯搬移；VM 留同签名委托。
 // 系统集成（前台服务实际起停）与未知来电文案走构造端口。

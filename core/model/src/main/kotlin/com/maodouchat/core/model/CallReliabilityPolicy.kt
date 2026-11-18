@@ -1,7 +1,5 @@
 package com.maodouchat.core.model
 
-import java.util.concurrent.atomic.AtomicLong
-
 object CallReliabilityPolicy {
     /** ICE DISCONNECTED grace before treating the call as failed (ms). */
     const val ICE_RECONNECT_GRACE_MS = 10_000L
@@ -49,36 +47,6 @@ object CallReliabilityPolicy {
         "FAILED" -> if (restartAttempts < ICE_MAX_RESTART_ATTEMPTS) IceReconnectAction.RESTART_ICE else IceReconnectAction.END_NOW
         else -> IceReconnectAction.IGNORE
     }
-}
-
-/**
- * Maps RTT + packet loss into UI quality buckets (W3-03).
- * Null RTT or missing sample → UNKNOWN (still measuring).
- */
-object CallNetworkQualityPolicy {
-    fun fromStats(rttMs: Long?, packetLossPercent: Double?): NetworkQuality {
-        if (rttMs == null) return NetworkQuality.UNKNOWN
-        val loss = packetLossPercent
-        return when {
-            loss != null && rttMs <= 200 && loss <= 1.0 -> NetworkQuality.GOOD
-            loss != null && rttMs <= 500 && loss <= 4.0 -> NetworkQuality.FAIR
-            loss == null && rttMs <= 200 -> NetworkQuality.GOOD
-            loss == null && rttMs <= 500 -> NetworkQuality.FAIR
-            else -> NetworkQuality.POOR
-        }
-    }
-}
-
-/** Rejects native callbacks and asynchronous failures from a released call generation. */
-class CallSessionGate {
-    private val generation = AtomicLong(0L)
-
-    fun begin(): Long = generation.incrementAndGet()
-
-    fun invalidate(session: Long): Boolean =
-        generation.compareAndSet(session, session + 1L)
-
-    fun isCurrent(session: Long): Boolean = generation.get() == session
 }
 
 object GroupCallPolicy {

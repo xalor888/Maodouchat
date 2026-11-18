@@ -20,7 +20,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.maodouchat.R
-import com.maodouchat.core.model.CallState
+import com.maodouchat.domain.calls.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.ui.navigation.IncomingCallRoute
 

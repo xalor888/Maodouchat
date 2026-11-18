@@ -1,8 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallReliabilityPolicy
-import com.maodouchat.core.model.CallState
-import com.maodouchat.core.model.CallUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch

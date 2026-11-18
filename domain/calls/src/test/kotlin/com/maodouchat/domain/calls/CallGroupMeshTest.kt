@@ -1,9 +1,6 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallSessionGate
-import com.maodouchat.core.model.CallState
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.CallUiState
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.session.CallSessionMachine

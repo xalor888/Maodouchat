@@ -60,7 +60,7 @@ import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.ui.theme.rememberMotionPulse
-import com.maodouchat.core.model.CallState
+import com.maodouchat.domain.calls.CallState
 import com.maodouchat.core.model.CallAudioRoute
 import com.maodouchat.core.model.NetworkQuality
 import com.maodouchat.core.model.CallType

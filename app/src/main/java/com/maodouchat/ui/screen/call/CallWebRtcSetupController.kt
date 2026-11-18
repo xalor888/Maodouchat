@@ -4,9 +4,9 @@ import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.call.WebRtcNativeLibraryLoader
 import com.maodouchat.core.model.CallIceServer
-import com.maodouchat.core.model.CallUiState
-import com.maodouchat.core.model.WebRtcNativeLoadException
-import com.maodouchat.core.model.CallSessionGate
+import com.maodouchat.domain.calls.CallUiState
+import com.maodouchat.domain.calls.WebRtcNativeLoadException
+import com.maodouchat.domain.calls.CallSessionGate
 import com.maodouchat.domain.calls.CallGroupMesh
 import com.maodouchat.domain.calls.CallIceRecovery
 import com.maodouchat.webrtc.WebRTCManager
