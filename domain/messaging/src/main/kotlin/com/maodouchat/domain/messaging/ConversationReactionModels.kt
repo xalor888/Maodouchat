@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 sealed interface ConversationReactionOutcome {
     data class Applied(

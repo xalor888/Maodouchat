@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
@@ -8,10 +8,6 @@ import com.maodouchat.core.model.OutgoingMessageCommand
 import com.maodouchat.core.model.OutgoingMessageResult
 import kotlinx.coroutines.CancellationException
 
-/**
- * Owns the durable-send ordering shared by composer text and inline content.
- * UI layers only project [OutgoingMessageResult] into screen state.
- */
 class OutgoingMessageCoordinator(
     private val resolveConversation: suspend () -> OutgoingConversationContext,
     private val stageDurableMessage: suspend (

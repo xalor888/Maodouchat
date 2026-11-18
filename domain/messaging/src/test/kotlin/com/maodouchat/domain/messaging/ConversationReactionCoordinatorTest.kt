@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ConversationReactionOutcome
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
