@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.chatdetail
 
-import com.maodouchat.core.model.TranslationLanguageOption
+import com.maodouchat.domain.conversation.TranslationLanguageOption
 
 import com.maodouchat.R
 

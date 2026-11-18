@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.MessageType
 
 fun isMessageGestureEligible(type: MessageType): Boolean = type !in setOf(
     MessageType.NUDGE,

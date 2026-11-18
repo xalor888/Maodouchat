@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.maodouchat.core.model.Message
-import com.maodouchat.domain.messaging.resolveMessageSelectionToolbar
-import com.maodouchat.domain.messaging.selectableMessageIds
+import com.maodouchat.domain.conversation.resolveMessageSelectionToolbar
+import com.maodouchat.domain.conversation.selectableMessageIds
 import com.maodouchat.util.RuntimeFlags
 
 /**

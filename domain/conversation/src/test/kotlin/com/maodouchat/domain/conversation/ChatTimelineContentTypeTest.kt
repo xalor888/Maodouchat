@@ -1,10 +1,9 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatItem
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class ChatTimelineContentTypeTest {
 

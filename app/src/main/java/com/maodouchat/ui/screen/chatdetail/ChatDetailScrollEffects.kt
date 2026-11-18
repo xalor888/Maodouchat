@@ -4,7 +4,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 
-import com.maodouchat.core.model.ChatItem
+import com.maodouchat.domain.conversation.ChatItem
 import com.maodouchat.perf.CoalescedScroller
 import com.maodouchat.core.model.ChatDetailUiState
 

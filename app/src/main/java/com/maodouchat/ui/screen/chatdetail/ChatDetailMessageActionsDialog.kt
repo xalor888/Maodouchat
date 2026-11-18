@@ -10,8 +10,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.isMessageCopyable
-import com.maodouchat.core.model.isMessageForwardable
+import com.maodouchat.domain.conversation.isMessageCopyable
+import com.maodouchat.domain.conversation.isMessageForwardable
 import com.maodouchat.domain.messaging.MessageActionAvailabilityPolicy
 import com.maodouchat.domain.messaging.MessageEditWindowPolicy
 import com.maodouchat.ui.theme.LocalChatPalette

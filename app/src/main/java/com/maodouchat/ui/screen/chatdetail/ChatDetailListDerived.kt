@@ -4,9 +4,9 @@ import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.maodouchat.core.model.ChatItem
+import com.maodouchat.domain.conversation.ChatItem
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.buildChatItems
+import com.maodouchat.domain.conversation.buildChatItems
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.messaging.isMessageSelectionMode
 import com.maodouchat.domain.messaging.resolveMessagesById

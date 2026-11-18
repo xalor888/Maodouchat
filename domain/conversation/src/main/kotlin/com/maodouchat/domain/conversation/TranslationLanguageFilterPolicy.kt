@@ -1,6 +1,4 @@
-package com.maodouchat.domain.messaging
-
-import com.maodouchat.core.model.TranslationLanguageOption
+package com.maodouchat.domain.conversation
 
 // 翻译语言选项搜索：展示名或 wire 值任一含查询词即命中。
 // 自 TranslationLanguageDialog 的 filteredLanguages 收敛。

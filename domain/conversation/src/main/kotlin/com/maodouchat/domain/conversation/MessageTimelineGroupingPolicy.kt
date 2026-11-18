@@ -1,7 +1,6 @@
-package com.maodouchat.domain.messaging
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.SENDER_GROUP_WINDOW_MS
 
 // 时间线相邻消息分组判定：同一发送者 6 分钟内的连续消息紧凑成组。
 // 与 :core:model 的 sameSenderGroup 同源同窗口，但不复核日期标签——调用点上

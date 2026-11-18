@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
+
+import com.maodouchat.core.model.MessageType
+import com.maodouchat.core.model.PreviewKind
 
 /** 消息置顶权限与预览；服务端再校验一次。 */
 object MessagePinPolicy {
