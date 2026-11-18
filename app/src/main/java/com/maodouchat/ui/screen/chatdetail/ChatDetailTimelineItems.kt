@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import android.widget.Toast
 import com.maodouchat.R
 import com.maodouchat.domain.conversation.ChatItem
-import com.maodouchat.core.model.ChatMessageRowState
+import com.maodouchat.domain.messaging.ChatMessageRowState
 import com.maodouchat.domain.conversation.DEFAULT_QUICK_REACTION
 import com.maodouchat.domain.messaging.MessagePreviewText
 import com.maodouchat.core.model.MessageStatus

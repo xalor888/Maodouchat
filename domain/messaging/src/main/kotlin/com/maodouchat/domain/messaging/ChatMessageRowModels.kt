@@ -1,4 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.ReadCountUi
+import com.maodouchat.core.model.ReplyPreview
 
 data class ChatMessageRowState(
     val message: Message,

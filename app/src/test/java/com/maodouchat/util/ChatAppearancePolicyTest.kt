@@ -1,8 +1,8 @@
 package com.maodouchat.util
 
 import androidx.compose.ui.graphics.Color
-import com.maodouchat.core.model.ChatFontScale
-import com.maodouchat.core.model.ChatWallpaperPreset
+import com.maodouchat.domain.messaging.ChatFontScale
+import com.maodouchat.domain.messaging.ChatWallpaperPreset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
