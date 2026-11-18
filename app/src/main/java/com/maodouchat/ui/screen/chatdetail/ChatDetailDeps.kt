@@ -77,8 +77,8 @@ import com.maodouchat.util.ChatExport
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoiceRecorder
-import com.maodouchat.core.model.AiChatClassificationSource
-import com.maodouchat.core.model.AiEmotionReplySource
+import com.maodouchat.domain.messaging.AiChatClassificationSource
+import com.maodouchat.domain.messaging.AiEmotionReplySource
 import com.maodouchat.core.model.AiWeeklyReportSource
 import com.maodouchat.domain.messaging.ChatDetailAiBookkeeping
 import com.maodouchat.domain.messaging.ChatDetailDraftBookkeeping

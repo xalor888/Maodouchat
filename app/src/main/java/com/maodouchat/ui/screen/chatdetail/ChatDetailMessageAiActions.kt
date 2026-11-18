@@ -46,7 +46,7 @@ internal fun ChatDetailMessageAiActions(
         )
         contextAiActions.forEach { action ->
             when (action) {
-                com.maodouchat.core.model.MessageAiAction.TRANSLATE -> {
+                com.maodouchat.domain.messaging.MessageAiAction.TRANSLATE -> {
                     val busy = message.id in state.translatingMessageIds
                     TextButton(
                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -67,7 +67,7 @@ internal fun ChatDetailMessageAiActions(
                         )
                     }
                 }
-                com.maodouchat.core.model.MessageAiAction.TRANSCRIBE -> {
+                com.maodouchat.domain.messaging.MessageAiAction.TRANSCRIBE -> {
                     val busy = message.id in state.transcribingVoiceMessageIds
                     TextButton(
                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -88,7 +88,7 @@ internal fun ChatDetailMessageAiActions(
                         )
                     }
                 }
-                com.maodouchat.core.model.MessageAiAction.ANALYZE_IMAGE -> {
+                com.maodouchat.domain.messaging.MessageAiAction.ANALYZE_IMAGE -> {
                     val busy = message.id in state.analyzingImageMessageIds
                     TextButton(
                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),
@@ -109,7 +109,7 @@ internal fun ChatDetailMessageAiActions(
                         )
                     }
                 }
-                com.maodouchat.core.model.MessageAiAction.ANALYZE_FILE -> {
+                com.maodouchat.domain.messaging.MessageAiAction.ANALYZE_FILE -> {
                     val busy = message.id in state.analyzingFileMessageIds
                     TextButton(
                         enabled = com.maodouchat.ai.AiEntryPolicy.canRunContextAction(context, state.aiEnabled, busy),

@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.AiEmotionLexicon
+import com.maodouchat.domain.messaging.AiEmotionLexicon
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.EmotionResult
 import com.maodouchat.domain.messaging.AiEmotionTonePolicy

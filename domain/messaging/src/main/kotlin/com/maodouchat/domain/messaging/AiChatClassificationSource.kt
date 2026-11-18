@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.CategoryCount
 
 /** 「会话分类」AI 能力的读取端口（G73）。同 `AiWeeklyReportSource` 手法。 */
 interface AiChatClassificationSource {

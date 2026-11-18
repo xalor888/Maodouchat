@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessageAiAction
+import com.maodouchat.domain.messaging.MessageAiAction
 
 // 长按消息可用的 AI 动作与执行门闩：纯核，自 app 侧 AiContextActionPolicy 收敛。
 object MessageAiActionPolicy {

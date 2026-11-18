@@ -14,19 +14,6 @@ class AiEntryModelsTest {
     }
 
     @Test
-    fun `context actions cover the four message kinds`() {
-        assertEquals(
-            setOf(
-                MessageAiAction.TRANSLATE,
-                MessageAiAction.TRANSCRIBE,
-                MessageAiAction.ANALYZE_IMAGE,
-                MessageAiAction.ANALYZE_FILE
-            ),
-            MessageAiAction.entries.toSet()
-        )
-    }
-
-    @Test
     fun `sanitized line keeps its fields and copies`() {
         val line = SanitizedContextLine(sender = "user", text = "hello")
         assertEquals("user", line.sender)
