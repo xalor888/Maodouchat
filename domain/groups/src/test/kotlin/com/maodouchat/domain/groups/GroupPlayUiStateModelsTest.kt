@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.ChainEntryItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
