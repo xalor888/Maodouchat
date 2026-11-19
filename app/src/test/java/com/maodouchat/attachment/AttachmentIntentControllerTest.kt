@@ -14,7 +14,7 @@ import com.maodouchat.domain.messaging.SendMessageResult
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.domain.messaging.TransferStatus
 import com.maodouchat.network.TokenManager
-import com.maodouchat.core.model.SessionSnapshot
+import com.maodouchat.domain.messaging.SessionSnapshot
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.Flow

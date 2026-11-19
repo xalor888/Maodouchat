@@ -19,7 +19,6 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.core.model.ScheduledMessageRequest
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
-import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals

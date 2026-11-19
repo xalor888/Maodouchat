@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
