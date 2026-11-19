@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatFolder
+import com.maodouchat.domain.conversation.ChatFolder
 import com.maodouchat.domain.conversation.ChatFolderPolicy
 import com.maodouchat.domain.conversation.ChatFolderStripPolicy
 import com.maodouchat.domain.conversation.UnreadBadgePolicy

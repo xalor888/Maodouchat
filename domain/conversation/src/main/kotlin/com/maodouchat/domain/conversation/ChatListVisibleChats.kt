@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.session.SecretChatPolicy
 
 // 会话列表可见会话的纯决策：文件夹过滤 + 搜索 + 置顶/未读优先排序；草稿用纯模型 ChatDraft。

@@ -1,6 +1,6 @@
 package com.maodouchat.data.repository
 
-import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.conversation.LikeQueryPolicy
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity

@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.User
 import kotlin.test.Test
 import kotlin.test.assertEquals

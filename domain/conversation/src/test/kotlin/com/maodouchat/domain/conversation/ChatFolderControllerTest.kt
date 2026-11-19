@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ChatFolder
 import com.maodouchat.core.model.ChatFolderDto
 import com.maodouchat.core.model.ChatFoldersSyncResponse
 import kotlin.test.Test

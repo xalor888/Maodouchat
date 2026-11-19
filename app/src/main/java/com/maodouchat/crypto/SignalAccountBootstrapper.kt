@@ -8,7 +8,7 @@ import com.maodouchat.core.crypto.SignalInitializationAction
 import com.maodouchat.core.crypto.SignalInitializationPolicy
 import com.maodouchat.core.crypto.SignalPreKeyIdPolicy
 import com.maodouchat.core.crypto.SignalProtocolConstants
-import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.conversation.LikeQueryPolicy
 import kotlinx.coroutines.sync.withLock
 import org.signal.libsignal.protocol.IdentityKeyPair
 import org.signal.libsignal.protocol.state.SignedPreKeyRecord

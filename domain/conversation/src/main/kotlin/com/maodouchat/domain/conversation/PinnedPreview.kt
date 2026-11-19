@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.PreviewKind
 
 // 置顶横幅预览：消息 → 预览种类；R.string 映射留在 app 侧 @Composable 壳里。
 sealed interface PinnedPreview {
