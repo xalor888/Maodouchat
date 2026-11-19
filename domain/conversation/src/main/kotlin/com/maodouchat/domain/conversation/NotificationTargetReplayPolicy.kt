@@ -1,11 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.NotificationTarget
 
-/**
- * P08：通知 / 深链待办目标在 NavHost 就绪前的回放门闩（纯决策）。
- *
- * Activity 只注入登录态、当前路由与会话代际；不在此处读 TokenManager。
- */
 object NotificationTargetReplayPolicy {
 
     /**
