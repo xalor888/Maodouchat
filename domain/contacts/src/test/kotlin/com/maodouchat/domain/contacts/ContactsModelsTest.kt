@@ -1,11 +1,13 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
 
+import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class MovedSmallModelsTest {
+class ContactsModelsTest {
 
     @Test
     fun `friend request item derives identity fields from user`() {

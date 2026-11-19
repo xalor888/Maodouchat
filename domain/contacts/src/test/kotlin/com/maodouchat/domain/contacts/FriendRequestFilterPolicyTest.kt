@@ -1,6 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.FriendRequestItem
 import com.maodouchat.core.model.User
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

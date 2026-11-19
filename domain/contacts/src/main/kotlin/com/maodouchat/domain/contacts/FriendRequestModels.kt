@@ -1,4 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
+
+import com.maodouchat.core.model.User
 
 /**
  * 好友申请模型

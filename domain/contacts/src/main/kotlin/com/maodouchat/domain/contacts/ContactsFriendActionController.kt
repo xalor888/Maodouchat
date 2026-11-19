@@ -1,8 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.FriendRequestUseCase
-import com.maodouchat.core.model.ContactMutationUseCase
-import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

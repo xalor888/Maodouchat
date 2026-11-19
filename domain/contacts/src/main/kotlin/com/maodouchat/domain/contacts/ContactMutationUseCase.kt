@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
 
 /**
  * 联系人关系与属性变更用例契约

@@ -1,9 +1,6 @@
 package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.FriendRequestDto
-import com.maodouchat.core.model.FriendRequestItem
-import com.maodouchat.core.model.FriendRequestUseCase
-import com.maodouchat.core.model.FriendRequestsSnapshot
 import com.maodouchat.core.model.User
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap

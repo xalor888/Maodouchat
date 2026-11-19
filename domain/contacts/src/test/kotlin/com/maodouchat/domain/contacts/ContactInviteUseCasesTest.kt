@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

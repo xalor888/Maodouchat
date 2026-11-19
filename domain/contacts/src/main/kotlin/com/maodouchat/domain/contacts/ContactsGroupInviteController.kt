@@ -1,9 +1,7 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
-import com.maodouchat.core.model.GroupInviteItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
