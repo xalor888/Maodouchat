@@ -20,19 +20,6 @@ class ChatDetailPureEnumsTest {
     }
 
     @Test
-    fun `sender key target filters cover all four buckets`() {
-        assertEquals(
-            listOf(
-                SenderKeyTargetFilter.ALL,
-                SenderKeyTargetFilter.FAILED,
-                SenderKeyTargetFilter.PENDING,
-                SenderKeyTargetFilter.SENT,
-            ),
-            SenderKeyTargetFilter.entries,
-        )
-    }
-
-    @Test
     fun `ai task filters cover all three buckets`() {
         assertEquals(
             listOf(AiTaskFilter.ALL, AiTaskFilter.PENDING, AiTaskFilter.COMPLETED),

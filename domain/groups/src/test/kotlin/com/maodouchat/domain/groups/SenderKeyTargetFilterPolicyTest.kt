@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.SenderKeyDistributionTargetDto
-import com.maodouchat.core.model.SenderKeyTargetFilter
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

@@ -29,7 +29,7 @@ import com.maodouchat.ui.component.ZoomableAsyncImage
 import com.maodouchat.ui.screen.chatdetail.GroupDetailViewModel
 import com.maodouchat.domain.groups.GroupMemberUi
 import com.maodouchat.domain.groups.GroupMutePolicy
-import com.maodouchat.core.model.GroupMutationFeedbackKind
+import com.maodouchat.domain.groups.GroupMutationFeedbackKind
 import com.maodouchat.domain.groups.GroupMutePresetLabelKind
 import com.maodouchat.domain.groups.groupMutePresetLabelKind
 import com.maodouchat.ui.theme.LocalChatPalette
