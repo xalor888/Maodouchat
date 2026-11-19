@@ -1,10 +1,13 @@
 package com.maodouchat.domain.messaging
 
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class ApiErrorBodyPolicyTest {
+
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Test
     fun `valid error body decodes`() {
@@ -42,5 +45,23 @@ class ApiErrorBodyPolicyTest {
     @Test
     fun `invalid retry after gives null`() {
         assertNull(ApiErrorBodyPolicy.parseRetryAfterSeconds("{}", "abc"))
+    }
+
+    @Test
+    fun errorResponseOptionalFieldsDefaultNull() {
+        val decoded = json.decodeFromString<ErrorResponse>("""{"error":"boom"}""")
+        assertEquals("boom", decoded.error)
+        assertNull(decoded.code)
+        assertNull(decoded.retryAfterSeconds)
+    }
+
+    @Test
+    fun errorResponseWithCodeAndRetryAfterDecodes() {
+        val decoded = json.decodeFromString<ErrorResponse>(
+            """{"error":"slow","code":"RATE_LIMITED","retryAfterSeconds":30}"""
+        )
+        assertEquals("slow", decoded.error)
+        assertEquals("RATE_LIMITED", decoded.code)
+        assertEquals(30L, decoded.retryAfterSeconds)
     }
 }

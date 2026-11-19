@@ -1,10 +1,11 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Preset
-import com.maodouchat.core.model.Snapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AiWritingStylePolicyTest {
 
@@ -56,5 +57,20 @@ class AiWritingStylePolicyTest {
                 Snapshot(enabled = true, preset = Preset.DIRECT, customNote = "!!!")
             )
         )
+    }
+
+    @Test
+    fun `snapshot defaults to disabled with no memorable content`() {
+        val snapshot = Snapshot()
+        assertFalse(snapshot.enabled)
+        assertEquals(Preset.NONE, snapshot.preset)
+        assertFalse(snapshot.hasMemorableContent)
+    }
+
+    @Test
+    fun `snapshot has memorable content only when enabled`() {
+        assertTrue(Snapshot(enabled = true, preset = Preset.WARM).hasMemorableContent)
+        assertTrue(Snapshot(enabled = true, customNote = "hi").hasMemorableContent)
+        assertFalse(Snapshot(enabled = false, preset = Preset.WARM).hasMemorableContent)
     }
 }

@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import com.maodouchat.domain.messaging.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
-import com.maodouchat.core.model.Snapshot
+import com.maodouchat.domain.messaging.Snapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals

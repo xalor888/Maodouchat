@@ -8,7 +8,7 @@ import com.maodouchat.ai.AiWritingStylePrefsKeys.account
 import com.maodouchat.ai.AiWritingStylePrefsKeys.key
 import com.maodouchat.ai.AiWritingStylePrefsKeys.prefs
 import com.maodouchat.domain.messaging.AiWritingStylePolicy
-import com.maodouchat.core.model.Snapshot
+import com.maodouchat.domain.messaging.Snapshot
 
 // 读取簇：读 prefs 组装 Snapshot。原 AiWritingStylePreferences.snapshot 逐字搬入。
 internal object AiWritingStylePrefsReads {

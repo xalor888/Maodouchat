@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Snapshot
 
 // 写作风格偏好：可选、默认关、账号隔离；只影响改写类提示附加说明。
 // 写作风格策略门面：类型已迁入 :core:model（AiWritingStylePolicyModels），实现已按簇拆到

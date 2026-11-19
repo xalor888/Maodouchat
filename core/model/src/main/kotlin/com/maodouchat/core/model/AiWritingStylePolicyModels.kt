@@ -22,12 +22,3 @@ enum class Preset(val id: String) {
         }
     }
 }
-
-data class Snapshot(
-    val enabled: Boolean = false,
-    val preset: Preset = Preset.NONE,
-    val customNote: String = ""
-) {
-    val hasMemorableContent: Boolean
-        get() = enabled && (preset != Preset.NONE || customNote.isNotBlank())
-}
