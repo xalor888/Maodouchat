@@ -1,11 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatMarkdown
-import com.maodouchat.core.model.ConversationCapability
-import com.maodouchat.core.model.ConversationPrivacyContext
-import com.maodouchat.core.model.ConversationPrivacyDecision
-import com.maodouchat.core.model.ConversationPrivacyPolicy
-import com.maodouchat.core.model.ConversationPrivacyRejection
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
@@ -24,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class DefaultConversationCommandFacade(
     private val gateway: ConversationMessageStagingGateway,
-    private val privacyPolicy: ConversationPrivacyPolicy = ConversationPrivacyPolicy(),
+    private val privacyPolicy: ConversationCommandPrivacyPolicy = ConversationCommandPrivacyPolicy(),
     private val resolveChat: (suspend (conversationId: String) -> Chat?)? = null,
     private val getMessage: (suspend (messageId: String) -> Message?)? = null,
     private val ownerUserId: () -> String = { "" },
