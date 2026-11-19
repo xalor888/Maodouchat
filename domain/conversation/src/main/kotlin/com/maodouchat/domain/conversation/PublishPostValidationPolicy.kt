@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.PublishPostValidation
 
 // 发布动态校验：正文 trim 后为空且无图片不合法；正文超过 5000 字不合法。
 // 自 PublishPostUseCase.validate 逐字平移。

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.WidgetConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

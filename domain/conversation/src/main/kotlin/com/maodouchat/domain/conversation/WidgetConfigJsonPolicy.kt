@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.ConversationWidgetContract
-import com.maodouchat.core.model.WidgetConfig
 import org.json.JSONArray
 import org.json.JSONObject
 

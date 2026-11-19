@@ -12,7 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.MainActivity
 import com.maodouchat.core.model.ConversationWidgetContract
-import com.maodouchat.core.model.WidgetConfig
+import com.maodouchat.domain.conversation.WidgetConfig
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.service.CallForegroundService
