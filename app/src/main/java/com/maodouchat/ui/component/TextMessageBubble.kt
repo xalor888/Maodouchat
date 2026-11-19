@@ -3,7 +3,7 @@ package com.maodouchat.ui.component
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.domain.conversation.CaptureAlertPolicy
 import com.maodouchat.domain.groups.GroupPlayPolicy
-import com.maodouchat.core.model.ReplyPreview
+import com.maodouchat.domain.messaging.ReplyPreview
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring

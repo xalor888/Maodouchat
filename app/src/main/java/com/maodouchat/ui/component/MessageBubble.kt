@@ -11,7 +11,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.domain.conversation.ChatListReceiptPolicy
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.NudgeDisplayPolicy
-import com.maodouchat.core.model.ReplyPreview
+import com.maodouchat.domain.messaging.ReplyPreview
 import com.maodouchat.core.model.Templates
 
 /**
