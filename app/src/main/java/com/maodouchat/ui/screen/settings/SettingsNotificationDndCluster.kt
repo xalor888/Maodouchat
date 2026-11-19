@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.settings
 
 import com.maodouchat.notification.ReminderNotificationService
 import com.maodouchat.notification.NotificationInfrastructure
-import com.maodouchat.core.model.LocalNotificationSuppressPolicy
+import com.maodouchat.domain.conversation.LocalNotificationSuppressPolicy
 import com.maodouchat.domain.messaging.DndWindowPolicy
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application

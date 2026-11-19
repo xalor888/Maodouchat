@@ -3,7 +3,7 @@ package com.maodouchat.notification
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.maodouchat.core.model.DndPreferenceResolve
+import com.maodouchat.domain.conversation.DndPreferenceResolve
 import com.maodouchat.util.AccountScopedPrefs
 
 /**

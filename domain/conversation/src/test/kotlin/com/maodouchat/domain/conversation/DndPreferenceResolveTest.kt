@@ -1,6 +1,6 @@
-package com.maodouchat.notification
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.DndPreferenceResolve
+import com.maodouchat.domain.conversation.DndPreferenceResolve
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -325,5 +325,26 @@ class DndPreferenceResolveTest {
     fun storedMinuteWinsOverDerived() {
         assertEquals(0, DndPreferenceResolve.endMinute(0, 100))
         assertEquals(1439, DndPreferenceResolve.startMinute(1439, -5))
+    }
+
+
+    @Test
+    fun `stored switch always wins`() {
+        assertTrue(DndPreferenceResolve.enabled(true, false, false, 22, 7))
+        assertFalse(DndPreferenceResolve.enabled(false, true, true, 22, 7))
+    }
+
+    @Test
+    fun `legacy hours infer only when window is non-empty`() {
+        assertFalse(DndPreferenceResolve.enabled(null, false, false, 22, 7))
+        assertFalse(DndPreferenceResolve.enabled(null, true, true, 22, 22))
+        assertTrue(DndPreferenceResolve.enabled(null, true, false, 22, 7))
+    }
+
+    @Test
+    fun `minute fallbacks coerce hour ranges`() {
+        assertEquals(1380, DndPreferenceResolve.startMinute(null, 99))
+        assertEquals(0, DndPreferenceResolve.endMinute(null, -3))
+        assertEquals(1439, DndPreferenceResolve.endMinute(9999, 7))
     }
 }
