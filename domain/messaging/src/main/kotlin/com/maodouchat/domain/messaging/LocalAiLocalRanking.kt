@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

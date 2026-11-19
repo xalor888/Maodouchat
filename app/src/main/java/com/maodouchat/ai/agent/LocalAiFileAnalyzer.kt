@@ -4,8 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import androidx.core.graphics.createBitmap
-import com.maodouchat.core.model.PreparedDocument
-import com.maodouchat.core.model.PreparedDocumentKind
+import com.maodouchat.domain.messaging.PreparedDocument
+import com.maodouchat.domain.messaging.PreparedDocumentKind
 import com.maodouchat.domain.messaging.LocalAiFilePrepPolicy
 import com.maodouchat.domain.messaging.LocalAiPdfPagePolicy
 import java.io.ByteArrayOutputStream

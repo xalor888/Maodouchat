@@ -1,6 +1,6 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.PreparedDocumentKind
+import com.maodouchat.domain.messaging.PreparedDocumentKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
