@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiSemanticSearchCandidate
-
 // 语义搜索候选构建与结果上限：发送者名/候选文本截断、候选上限、排序后白名单过滤去重取前 12。
 object AiSemanticSearchPolicy {
 

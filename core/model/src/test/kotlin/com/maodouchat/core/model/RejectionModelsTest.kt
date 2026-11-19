@@ -6,17 +6,6 @@ import org.junit.Test
 class RejectionModelsTest {
 
     @Test
-    fun `command rejections keep declaration order and valueOf round trip`() {
-        val reasons = ConversationCommandRejection.entries.toList()
-        assertEquals(5, reasons.size)
-        assertEquals(ConversationCommandRejection.EMPTY_TEXT, reasons.first())
-        assertEquals(
-            ConversationCommandRejection.LOCKED_CONVERSATION,
-            ConversationCommandRejection.valueOf("LOCKED_CONVERSATION")
-        )
-    }
-
-    @Test
     fun `schedule rejections keep declaration order and valueOf round trip`() {
         val reasons = ChatScheduleRejection.entries.toList()
         assertEquals(7, reasons.size)

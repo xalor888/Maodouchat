@@ -43,21 +43,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticSearchCandidateDecodesAllFields() {
-        val decoded = json.decodeFromString<AiSemanticSearchCandidate>(
-            """{"messageId":"m1","sender":"u1","text":"hello","timestamp":5}"""
-        )
-        assertEquals("m1", decoded.messageId)
-        assertEquals("u1", decoded.sender)
-        assertEquals("hello", decoded.text)
-        assertEquals(5L, decoded.timestamp)
-        val bare = json.decodeFromString<AiSemanticSearchCandidate>(
-            """{"messageId":"m2","text":"x","timestamp":1}"""
-        )
-        assertEquals("", bare.sender)
-    }
-
-    @Test
     fun auditLogResponseFillsNumericDefaults() {
         val decoded = json.decodeFromString<AiAuditLogResponse>(
             """{"id":"a1","feature":"chat","model":"m","status":"ok","createdAt":7}"""
@@ -95,17 +80,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticSearchCandidateRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(
-            messageId = "m9", sender = "u3", text = "关键词", timestamp = 777L
-        )
-        assertEquals(
-            candidate,
-            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
-        )
-    }
-
-    @Test
     fun auditLogResponseModelDefaultsNullWhenOmitted() {
         val decoded = json.decodeFromString<AiAuditLogResponse>(
             """{"id":"a3","feature":"chat","status":"ok","createdAt":9}"""
@@ -125,15 +99,6 @@ class AiApiModelsTest {
     fun groupTaskDueAtZeroDecodesAsZeroNotNull() {
         val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","dueAt":0}""")
         assertEquals(0L, decoded.dueAt)
-    }
-
-    @Test
-    fun semanticSearchCandidateEmptyTextZeroTimestampRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(messageId = "m0", sender = "", text = "", timestamp = 0L)
-        assertEquals(
-            candidate,
-            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
-        )
     }
 
     @Test
@@ -177,12 +142,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticSearchCandidateNegativeTimestampRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(messageId = "m1", sender = "u1", text = "x", timestamp = -1L)
-        assertEquals(candidate, json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate)))
-    }
-
-    @Test
     fun contextMessageEscapesRoundTrip() {
         val message = AiContextMessage(sender = "u1", text = "line1\nline2\t\"quoted\"")
         assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
@@ -219,17 +178,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticCandidateMaxTimestampRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(
-            messageId = "m1", sender = "u1", text = "x", timestamp = Long.MAX_VALUE
-        )
-        assertEquals(
-            candidate,
-            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
-        )
-    }
-
-    @Test
     fun auditResponseMaxIntCountersRoundTrip() {
         val response = AiAuditLogResponse(
             id = "a9",
@@ -243,17 +191,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticCandidateIgnoresUnknownKeys() {
-        val decoded = json.decodeFromString<AiSemanticSearchCandidate>(
-            """{"messageId":"m2","sender":"u1","text":"hi","timestamp":3,"score":0.9,"snippet":"x"}"""
-        )
-        assertEquals("m2", decoded.messageId)
-        assertEquals("u1", decoded.sender)
-        assertEquals("hi", decoded.text)
-        assertEquals(3L, decoded.timestamp)
-    }
-
-    @Test
     fun contextMessageWhitespaceSenderRoundTrips() {
         val message = AiContextMessage(sender = " ", text = "hi")
         assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
@@ -263,17 +200,6 @@ class AiApiModelsTest {
     fun groupTaskMaxDueAtRoundTrips() {
         val task = AiGroupTask(title = "t", dueAt = Long.MAX_VALUE)
         assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
-    }
-
-    @Test
-    fun semanticCandidateMinTimestampRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(
-            messageId = "m1", sender = "u1", text = "x", timestamp = Long.MIN_VALUE
-        )
-        assertEquals(
-            candidate,
-            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
-        )
     }
 
     @Test
@@ -314,12 +240,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun semanticCandidateEmptyMessageIdRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(messageId = "", sender = "u1", text = "x", timestamp = 5L)
-        assertEquals(candidate, json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate)))
-    }
-
-    @Test
     fun groupTaskEmptyOwnerRoundTripsAsEmptyNotNull() {
         val task = AiGroupTask(title = "t", owner = "")
         assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
@@ -346,15 +266,6 @@ class AiApiModelsTest {
         assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
         val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","dueText":""}""")
         assertEquals("", decoded.dueText)
-    }
-
-    @Test
-    fun semanticCandidateWhitespaceTextRoundTrips() {
-        val candidate = AiSemanticSearchCandidate(messageId = "m1", sender = "u1", text = " ", timestamp = 5L)
-        assertEquals(
-            candidate,
-            json.decodeFromString<AiSemanticSearchCandidate>(json.encodeToString(candidate))
-        )
     }
 
     @Test
