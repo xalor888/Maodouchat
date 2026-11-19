@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.messaging.MarkdownDetectionPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
@@ -75,7 +75,7 @@ class DefaultConversationForwardCoordinator(
                 is ConversationCommandOutcome.Rejected -> error("forward_note_rejected:${staged.reason}")
             }
         }
-        val markdown = ChatMarkdown.looksLikeMarkdown(normalized)
+        val markdown = MarkdownDetectionPolicy.looksLikeMarkdown(normalized)
         val type = if (markdown) MessageType.MARKDOWN else MessageType.TEXT
         val message = Message(
             id = messageId(),

@@ -63,7 +63,7 @@ import com.maodouchat.ui.theme.TextHint
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
 import com.maodouchat.navigation.AppLinkOpener
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.messaging.MarkdownDetectionPolicy
 
 @Composable
 @SuppressLint("LocalContextGetResourceValueCall") // 资源字符串均在回调/协程内读取，非组合作用域
@@ -441,7 +441,7 @@ internal fun TextBubble(
                 val useMarkdown = markdownAllowed && (
                     message.type == MessageType.MARKDOWN ||
                     parsedMeta.markdown ||
-                    ChatMarkdown.looksLikeMarkdown(displayBody)
+                    MarkdownDetectionPolicy.looksLikeMarkdown(displayBody)
                 )
                 if (useMarkdown) {
                     MarkdownMessageContent(
@@ -626,7 +626,7 @@ internal fun TextBubble(
                 val timeInline = !(RuntimeFlags.isEnabled(LocalContext.current, RuntimeFlags.MARKDOWN) && (
                     message.type == MessageType.MARKDOWN ||
                         presentation.meta.markdown ||
-                        ChatMarkdown.looksLikeMarkdown(displayBody)
+                        MarkdownDetectionPolicy.looksLikeMarkdown(displayBody)
                     ))
                 if (!timeInline) {
                     Text(
