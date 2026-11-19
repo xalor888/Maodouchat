@@ -1,6 +1,6 @@
-package com.maodouchat.notification
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.LocalNotificationSuppressPolicy
+import com.maodouchat.domain.conversation.LocalNotificationSuppressPolicy
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -335,6 +335,41 @@ class LocalNotificationSuppressPolicyTest {
                 startMinute = 600,
                 endMinute = 600,
                 currentMinute = 600
+            )
+        )
+    }
+
+
+    @Test
+    fun `global off always suppresses`() {
+        assertTrue(LocalNotificationSuppressPolicy.shouldSuppress(false, 22, 7, 12))
+    }
+
+    @Test
+    fun `overnight window suppresses inside and not outside`() {
+        assertTrue(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22, dndEndHour = 7, hourOfDay = 23,
+                startMinute = 1350, endMinute = 420, currentMinute = 1380
+            )
+        )
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 22, dndEndHour = 7, hourOfDay = 12,
+                startMinute = 1350, endMinute = 420, currentMinute = 720
+            )
+        )
+    }
+
+    @Test
+    fun `equal bounds mean disabled`() {
+        assertFalse(
+            LocalNotificationSuppressPolicy.shouldSuppress(
+                notificationsEnabled = true,
+                dndStartHour = 8, dndEndHour = 8, hourOfDay = 8,
+                startMinute = 480, endMinute = 480, currentMinute = 480
             )
         )
     }

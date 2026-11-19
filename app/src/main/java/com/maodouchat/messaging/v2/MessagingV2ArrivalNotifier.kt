@@ -7,7 +7,7 @@ import com.maodouchat.domain.conversation.ChatQuietHoursPolicy
 import com.maodouchat.domain.messaging.ArrivalPreview
 import com.maodouchat.domain.messaging.ArrivalPreviewPolicy
 import com.maodouchat.notification.ChatQuietHoursStore
-import com.maodouchat.core.model.LocalNotificationSuppressPolicy
+import com.maodouchat.domain.conversation.LocalNotificationSuppressPolicy
 import com.maodouchat.notification.MessageNotificationService
 import com.maodouchat.notification.NotificationPreferences
 

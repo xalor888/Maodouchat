@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * Pure gates for local delivery of message notifications (FCM data-only + in-app WS path).
