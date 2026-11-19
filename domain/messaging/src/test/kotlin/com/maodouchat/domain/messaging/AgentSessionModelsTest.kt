@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.domain.messaging.AgentToolCall
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

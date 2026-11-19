@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocalAiCompletion
+import com.maodouchat.domain.messaging.LocalAiCompletion
 
 // 本机模型单轮调用的结果规整，自 app 侧 AgentTextCompletion 与 LocalAiFileTasks 收敛；
 // 模型调用本身仍留在 app 侧。

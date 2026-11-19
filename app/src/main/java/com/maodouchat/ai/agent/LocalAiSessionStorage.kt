@@ -2,7 +2,7 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.AgentSession
+import com.maodouchat.domain.messaging.AgentSession
 import com.maodouchat.domain.messaging.AgentSessionCodec
 
 // 会话簇：最近会话列表的读写与 JSON 编解码。原 LocalAiProviderStore 的会话部分整体搬入。

@@ -2,8 +2,8 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.LocalAiProvider
-import com.maodouchat.core.model.LocalAiProviderJsonCodec
+import com.maodouchat.domain.messaging.LocalAiProvider
+import com.maodouchat.domain.messaging.LocalAiProviderJsonCodec
 import com.maodouchat.domain.messaging.LocalAiProviderSelectionPolicy
 
 // provider 增删改查簇：用户自配模型端点的列表/当前选中/新增更新/删除/切换。

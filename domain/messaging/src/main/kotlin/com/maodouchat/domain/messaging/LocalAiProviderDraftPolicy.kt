@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocalAiProtocol
+import com.maodouchat.domain.messaging.LocalAiProtocol
 
 // 新建端点草稿的协议默认（名称/地址/模型），自 app 侧 ai/agent 草稿簇收敛；
 // id 生成仍留在 app 侧，只迁协议到默认值的映射本身。

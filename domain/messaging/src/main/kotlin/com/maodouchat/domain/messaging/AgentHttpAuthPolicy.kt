@@ -1,8 +1,8 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProtocolCodec
-import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.LocalAiProtocol
+import com.maodouchat.domain.messaging.LocalAiProtocolCodec
+import com.maodouchat.domain.messaging.LocalAiProvider
 
 // 模型接口鉴权头装配：只算头列表，不碰网络，自 app 侧
 // OpenAiCompatHttp.applyAuth 收敛，调用方按序 addHeader。

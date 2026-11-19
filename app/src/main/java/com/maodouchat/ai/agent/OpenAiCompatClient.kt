@@ -1,8 +1,8 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.LocalAiCompletion
-import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentChatMessage
+import com.maodouchat.domain.messaging.LocalAiCompletion
+import com.maodouchat.domain.messaging.LocalAiProvider
 
 // 只和用户自配的 provider 对话：聊天明文绝不发到毛豆服务器。
 // 实现已按簇拆到 OpenAiCompat{Chat,Vision,Audio}Client，这里只保留统一入口。

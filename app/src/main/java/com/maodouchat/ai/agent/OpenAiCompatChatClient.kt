@@ -1,12 +1,12 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.LocalAiCompletion
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProtocolCodec
-import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentChatMessage
 import com.maodouchat.domain.messaging.AgentChatStreamPolicy
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
+import com.maodouchat.domain.messaging.LocalAiCompletion
+import com.maodouchat.domain.messaging.LocalAiProtocol
+import com.maodouchat.domain.messaging.LocalAiProtocolCodec
+import com.maodouchat.domain.messaging.LocalAiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

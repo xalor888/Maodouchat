@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentToolCall
+import com.maodouchat.domain.messaging.AgentToolCall
 
 data class PendingAgentApproval(
     val call: AgentToolCall,

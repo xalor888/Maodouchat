@@ -1,6 +1,6 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.LocalAiCompletion
+import com.maodouchat.domain.messaging.LocalAiCompletion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
