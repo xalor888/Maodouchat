@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Summary
-
 // 附件传输统计聚合的输入行：只有 domain 需要的状态字符串与字节数。
 data class TransferSummaryRow(
     val state: String,
