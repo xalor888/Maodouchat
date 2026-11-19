@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /**
  * Single source of privacy restrictions for command entry points.
@@ -7,7 +7,7 @@ package com.maodouchat.core.model
  * staging paths that cannot expose the secret conversation safely. A locked conversation rejects
  * all durable commands until its caller obtains an unlocked context.
  */
-class ConversationPrivacyPolicy {
+class ConversationCommandPrivacyPolicy {
     fun evaluate(
         capability: ConversationCapability,
         context: ConversationPrivacyContext,
