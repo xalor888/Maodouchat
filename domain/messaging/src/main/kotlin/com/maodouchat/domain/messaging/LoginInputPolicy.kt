@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LoginUiState
-
 // 登录页输入归一化与 Tab 切换：LoginUiState -> LoginUiState 的纯状态转移，
 // 副作用（倒计时取消、R.string、网络）留在 app 侧薄包装里。
 object LoginInputPolicy {

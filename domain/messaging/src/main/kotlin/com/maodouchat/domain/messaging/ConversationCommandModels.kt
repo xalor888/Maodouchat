@@ -1,5 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.ConversationCommandRejection
+import com.maodouchat.core.model.Message
 
 sealed interface ConversationCommandOutcome {
     data class Staged(val message: Message) : ConversationCommandOutcome

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.SyncCursor
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue

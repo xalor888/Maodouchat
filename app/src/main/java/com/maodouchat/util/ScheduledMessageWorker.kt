@@ -14,7 +14,7 @@ import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.ChatMarkdown
-import com.maodouchat.core.model.ConversationCommandOutcome
+import com.maodouchat.domain.messaging.ConversationCommandOutcome
 import com.maodouchat.quickreply.QuickReplyPolicy
 import com.maodouchat.domain.messaging.ConversationScheduledMessageDispatcher
 import com.maodouchat.domain.messaging.ScheduledMessageRetryPolicy

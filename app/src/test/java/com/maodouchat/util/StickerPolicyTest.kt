@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.StickerPack
+import com.maodouchat.domain.messaging.StickerPack
 import com.maodouchat.domain.messaging.StickerCatalog
 import com.maodouchat.domain.messaging.StickerPolicy
 import org.junit.Assert.assertEquals

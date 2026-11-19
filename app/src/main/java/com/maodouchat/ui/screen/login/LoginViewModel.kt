@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.login
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.maodouchat.core.model.LoginUiState
+import com.maodouchat.domain.messaging.LoginUiState
 import com.maodouchat.data.repository.AuthNetworkRepository
 import com.maodouchat.domain.messaging.LoginSubmitValidationPolicy
 import com.maodouchat.domain.messaging.LoginValidationFailure
