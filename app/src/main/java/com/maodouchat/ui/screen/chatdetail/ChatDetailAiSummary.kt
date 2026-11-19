@@ -8,8 +8,8 @@ import com.maodouchat.domain.messaging.normalizeAiSummaryStyle
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.AiContextMessage
-import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
-import com.maodouchat.core.model.buildSummaryAiContextMessages
+import com.maodouchat.domain.messaging.MAX_AI_SUMMARY_MESSAGES
+import com.maodouchat.domain.messaging.buildSummaryAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

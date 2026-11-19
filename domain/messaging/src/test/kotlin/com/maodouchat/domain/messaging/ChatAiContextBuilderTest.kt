@@ -1,9 +1,12 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.maodouchat.core.model.Message
+import com.maodouchat.core.model.MessageMeta
+import com.maodouchat.core.model.MessageType
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ChatAiContextBuilderTest {
     private val senders = AiContextSenders(

@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 data class PreparedAiFile(val base64: String, val fileName: String, val mimeType: String)
 

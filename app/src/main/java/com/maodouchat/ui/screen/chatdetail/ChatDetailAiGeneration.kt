@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.model.AiRequestSnapshot
+import com.maodouchat.domain.messaging.AiRequestSnapshot
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.AiDraftTextPolicy

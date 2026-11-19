@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.PreparedAiFile
 import java.util.Base64
 
 // AI 文件输入解析：附件内容 + base64 → 规范化文件名与 MIME。自 app 侧
