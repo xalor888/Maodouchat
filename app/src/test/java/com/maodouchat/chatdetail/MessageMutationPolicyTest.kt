@@ -12,8 +12,8 @@ import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.domain.messaging.isAlreadyTerminalMutation
 import com.maodouchat.domain.messaging.isAmbiguousTransportFailure
 import com.maodouchat.core.model.mergeMessageVersions
-import com.maodouchat.core.model.toOptimisticEdit
-import com.maodouchat.core.model.toRevokedPlaceholder
+import com.maodouchat.domain.messaging.toOptimisticEdit
+import com.maodouchat.domain.messaging.toRevokedPlaceholder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
