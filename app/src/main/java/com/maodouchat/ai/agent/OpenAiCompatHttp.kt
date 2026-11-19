@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.domain.messaging.AgentHttpAuthPolicy
+import com.maodouchat.domain.messaging.LocalAiProvider
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request

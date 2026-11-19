@@ -37,7 +37,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import com.maodouchat.core.model.AiWritingStylePolicy
-import com.maodouchat.core.model.LocalAiProtocol
 import com.maodouchat.domain.messaging.AiAuditLogFilterPolicy
 import com.maodouchat.domain.messaging.AiProviderFormPolicy
 import androidx.compose.runtime.Composable
@@ -57,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
 import android.widget.Toast
+import com.maodouchat.domain.messaging.LocalAiProtocol
 import com.maodouchat.ui.theme.Error
 import com.maodouchat.ui.theme.LocalChatPalette
 import androidx.compose.runtime.getValue

@@ -1,10 +1,10 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.LocalAiCompletion
-import com.maodouchat.core.model.LocalAiProvider
-import com.maodouchat.core.model.LocalAiProtocolCodec
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
 import com.maodouchat.domain.messaging.AgentVisionRequestPolicy
+import com.maodouchat.domain.messaging.LocalAiCompletion
+import com.maodouchat.domain.messaging.LocalAiProtocolCodec
+import com.maodouchat.domain.messaging.LocalAiProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

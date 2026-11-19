@@ -1,7 +1,7 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.AgentSession
+import com.maodouchat.domain.messaging.AgentChatMessage
+import com.maodouchat.domain.messaging.AgentSession
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test

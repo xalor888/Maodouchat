@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** 本地 AI 模型调用的统一结果：纯文本、工具调用或失败。 */
 sealed interface LocalAiCompletion {

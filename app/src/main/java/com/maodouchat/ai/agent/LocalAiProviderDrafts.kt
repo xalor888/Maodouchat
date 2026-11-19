@@ -1,10 +1,10 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
-import com.maodouchat.core.model.LocalAiProtocol
-import com.maodouchat.core.model.LocalAiProvider
 import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentProviderConfiguredPolicy
+import com.maodouchat.domain.messaging.LocalAiProtocol
+import com.maodouchat.domain.messaging.LocalAiProvider
 import com.maodouchat.domain.messaging.LocalAiProviderDraftPolicy
 import java.util.UUID
 

@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.LocalAiProvider
 
 // 用户自配模型端点列表的选中/增删纯规则；SharedPreferences 读写仍在 app 侧。
 object LocalAiProviderSelectionPolicy {

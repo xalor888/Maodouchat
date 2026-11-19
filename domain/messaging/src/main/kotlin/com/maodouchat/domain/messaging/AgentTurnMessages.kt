@@ -1,8 +1,8 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentChatMessage
-import com.maodouchat.core.model.AgentToolCall
-import com.maodouchat.core.model.LocalAiProvider
+import com.maodouchat.domain.messaging.AgentChatMessage
+import com.maodouchat.domain.messaging.AgentToolCall
+import com.maodouchat.domain.messaging.LocalAiProvider
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter

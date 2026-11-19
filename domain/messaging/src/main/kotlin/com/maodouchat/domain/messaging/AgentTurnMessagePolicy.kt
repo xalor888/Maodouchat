@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AgentChatMessage
+import com.maodouchat.domain.messaging.AgentChatMessage
 
 // 轮次引擎的工具结果文案，自 app 侧 AgentSessionEngine 收敛；
 // 未知工具文案与宿主侧同一句，复用 AgentToolHostPolicy，不另存副本。

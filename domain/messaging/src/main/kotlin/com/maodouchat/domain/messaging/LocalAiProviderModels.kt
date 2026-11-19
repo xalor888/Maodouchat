@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** 用户自配模型端点，只存本机加密存储，不发往毛豆服务器。 */
 enum class LocalAiProtocol {
