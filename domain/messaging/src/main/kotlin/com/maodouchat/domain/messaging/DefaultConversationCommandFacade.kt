@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.messaging.MarkdownDetectionPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
@@ -105,7 +105,7 @@ class DefaultConversationCommandFacade(
         }
         val normalized = text.trim()
         if (normalized.isBlank()) return ConversationCommandOutcome.Rejected(ConversationCommandRejection.EMPTY_TEXT)
-        val type = if (ChatMarkdown.looksLikeMarkdown(normalized)) {
+        val type = if (MarkdownDetectionPolicy.looksLikeMarkdown(normalized)) {
             MessageType.MARKDOWN
         } else {
             MessageType.TEXT
@@ -178,7 +178,7 @@ class DefaultConversationCommandFacade(
     private fun mapContentPayload(content: ContentPayload): Triple<String, MessageType, MessageMeta> = when (content) {
         is ContentPayload.Text -> {
             val trimmed = content.text.trim()
-            val isMd = ChatMarkdown.looksLikeMarkdown(trimmed)
+            val isMd = MarkdownDetectionPolicy.looksLikeMarkdown(trimmed)
             val msgType = if (isMd) MessageType.MARKDOWN else MessageType.TEXT
             val meta = MessageMeta(
                 mentions = content.mentions.map { it.userId },
@@ -315,7 +315,7 @@ class DefaultConversationCommandFacade(
     ): ConversationCommandOutcome {
         val normalized = text.trim()
         if (normalized.isBlank()) return ConversationCommandOutcome.Rejected(ConversationCommandRejection.EMPTY_TEXT)
-        val type = if (ChatMarkdown.looksLikeMarkdown(normalized)) {
+        val type = if (MarkdownDetectionPolicy.looksLikeMarkdown(normalized)) {
             MessageType.MARKDOWN
         } else {
             MessageType.TEXT

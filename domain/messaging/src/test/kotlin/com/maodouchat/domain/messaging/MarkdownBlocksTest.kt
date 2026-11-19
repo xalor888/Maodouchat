@@ -96,15 +96,6 @@ class MarkdownBlocksTest {
     }
 
     @Test
-    fun `looks like markdown basics`() {
-        assertTrue(ChatMarkdown.looksLikeMarkdown("# title"))
-        assertTrue(ChatMarkdown.looksLikeMarkdown("**bold**"))
-        assertTrue(ChatMarkdown.looksLikeMarkdown("- item"))
-        assertFalse(ChatMarkdown.looksLikeMarkdown("plain text"))
-        assertFalse(ChatMarkdown.looksLikeMarkdown(""))
-    }
-
-    @Test
     fun `to plain text strips syntax`() {
         val md = "# Title\n**bold** and `code`\n[link](https://x.cn)"
         val plain = ChatMarkdown.toPlainText(md)

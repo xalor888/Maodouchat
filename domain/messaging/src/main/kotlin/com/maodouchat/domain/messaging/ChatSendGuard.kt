@@ -3,7 +3,7 @@ package com.maodouchat.domain.messaging
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.messaging.MarkdownDetectionPolicy
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.ChatDetailUiState
 
@@ -84,7 +84,7 @@ object ChatSendGuard {
             return SendDecision.Reject(SendRejectReason.MENTION_EVERYONE_FORBIDDEN)
         }
 
-        val looksMd = ChatMarkdown.looksLikeMarkdown(text)
+        val looksMd = MarkdownDetectionPolicy.looksLikeMarkdown(text)
         val meta = forcedMeta ?: MessageMeta(
             mentions = extractedMentions,
             replyToId = replyTarget?.id,
