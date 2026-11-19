@@ -5,12 +5,12 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.maodouchat.domain.calls.CallAudioRoute
-import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.domain.calls.CallIceServer
 import com.maodouchat.domain.calls.CallSessionGate
 import com.maodouchat.domain.calls.CallState
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
-import com.maodouchat.core.model.WebRTCException
+import com.maodouchat.domain.calls.WebRTCException
 import com.maodouchat.domain.calls.resolveIceServers
 import com.maodouchat.domain.calls.standardAudioConstraints
 import kotlinx.coroutines.flow.MutableStateFlow

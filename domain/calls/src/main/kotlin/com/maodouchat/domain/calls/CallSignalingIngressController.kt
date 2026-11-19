@@ -3,7 +3,6 @@ package com.maodouchat.domain.calls
 import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupPeerConnectionState
-import com.maodouchat.core.model.SignalMessage
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import com.maodouchat.core.session.CallSignalingAdmissionPolicy
 import com.maodouchat.core.session.Cursor

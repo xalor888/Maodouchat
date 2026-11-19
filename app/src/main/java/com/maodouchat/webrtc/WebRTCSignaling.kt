@@ -2,11 +2,11 @@ package com.maodouchat.webrtc
 
 import com.maodouchat.domain.calls.FailureOperation
 import com.maodouchat.domain.calls.SignalingException
-import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.domain.calls.CallIceServer
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
 import com.maodouchat.core.model.SendSignalRequest
-import com.maodouchat.core.model.SignalMessage
+import com.maodouchat.domain.calls.SignalMessage
 import com.maodouchat.core.model.WsMessage
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.WebSocketClient
