@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocalStats
-
 // 画像叙事统计提示与拼接上限，自 app 侧 AiProfileNarrative 收敛；
 // 消息抓取与模型调用仍留在 app 侧。
 object AiProfileNarrativePolicy {

@@ -4,7 +4,7 @@ import android.app.Application
 import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.model.AiConversationProfileSource
+import com.maodouchat.domain.messaging.AiConversationProfileSource
 import com.maodouchat.attachment.AttachmentDownloadCoordinator
 import com.maodouchat.attachment.AttachmentTransferSummaryRepository
 import com.maodouchat.attachment.DefaultAttachmentIntentController
@@ -79,7 +79,7 @@ import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.util.VoiceRecorder
 import com.maodouchat.domain.messaging.AiChatClassificationSource
 import com.maodouchat.domain.messaging.AiEmotionReplySource
-import com.maodouchat.core.model.AiWeeklyReportSource
+import com.maodouchat.domain.messaging.AiWeeklyReportSource
 import com.maodouchat.domain.messaging.ChatDetailAiBookkeeping
 import com.maodouchat.domain.messaging.ChatDetailDraftBookkeeping
 import com.maodouchat.domain.messaging.ChatDetailLiveLocationBookkeeping

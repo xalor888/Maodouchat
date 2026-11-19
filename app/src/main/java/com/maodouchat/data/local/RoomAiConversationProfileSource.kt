@@ -1,8 +1,8 @@
 package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiConversationProfile
-import com.maodouchat.core.model.AiConversationProfileSource
-import com.maodouchat.core.model.ConversationProfile
+import com.maodouchat.domain.messaging.AiConversationProfileSource
+import com.maodouchat.domain.messaging.ConversationProfile
 
 /**
  * `AiConversationProfileSource` 的装配实现（G73）。

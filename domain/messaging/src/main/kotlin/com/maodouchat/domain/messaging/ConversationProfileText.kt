@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ConversationProfile
-
 // 会话画像复制文本：统计→时段分布→Top 8 热词→叙述的顺序与分隔符；三处文案模板由调用方传入。
 fun conversationProfileText(
     profile: ConversationProfile,

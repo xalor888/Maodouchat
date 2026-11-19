@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ConversationProfile
-import com.maodouchat.core.model.LocalStats
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

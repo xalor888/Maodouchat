@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.ConversationProfile
+import com.maodouchat.domain.messaging.ConversationProfile
 import com.maodouchat.data.local.AppDatabase
 
 /**

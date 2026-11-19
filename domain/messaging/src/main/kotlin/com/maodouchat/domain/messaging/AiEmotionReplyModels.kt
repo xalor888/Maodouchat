@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 enum class Emotion(val wire: String) {
     HAPPY("happy"),

@@ -2,7 +2,7 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.R
-import com.maodouchat.core.model.Emotion
+import com.maodouchat.domain.messaging.Emotion
 import com.maodouchat.domain.messaging.AiEmotionFallbackKind
 import com.maodouchat.domain.messaging.aiEmotionFallbackKind
 

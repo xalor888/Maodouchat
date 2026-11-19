@@ -3,7 +3,7 @@ package com.maodouchat.ai
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
-import com.maodouchat.core.model.Emotion
+import com.maodouchat.domain.messaging.Emotion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
