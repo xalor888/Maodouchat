@@ -1,6 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-/** 通知/深链待办目标回放门闩的纯决策结果（原 NotificationTargetReplayPolicy.Decision，零行为改动搬出）。 */
 sealed interface NotificationTargetReplayDecision {
     /** 尚未登录或 Nav 未就绪：继续等待（调用方 delay）。 */
     data object ContinueWaiting : NotificationTargetReplayDecision
