@@ -1,8 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.Test
 
 class NotificationCenterOpenOutcomeTest {
 
@@ -22,15 +22,15 @@ class NotificationCenterOpenOutcomeTest {
 
     @Test
     fun `singleton outcomes stay apart`() {
-        assertNotEquals(
+        assertNotEquals<NotificationCenterOpenOutcome>(
             NotificationCenterOpenOutcome.PopBackStack,
             NotificationCenterOpenOutcome.GoLogin
         )
-        assertNotEquals(
+        assertNotEquals<NotificationCenterOpenOutcome>(
             NotificationCenterOpenOutcome.GoLogin,
             NotificationCenterOpenOutcome.None
         )
-        assertNotEquals(
+        assertNotEquals<NotificationCenterOpenOutcome>(
             NotificationCenterOpenOutcome.PopBackStack,
             NotificationCenterOpenOutcome.None
         )

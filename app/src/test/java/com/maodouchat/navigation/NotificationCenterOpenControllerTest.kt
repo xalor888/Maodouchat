@@ -1,12 +1,12 @@
 package com.maodouchat.navigation
 
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.NotificationCenterOpenOutcome
+import com.maodouchat.domain.conversation.NotificationCenterOpenOutcome
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)

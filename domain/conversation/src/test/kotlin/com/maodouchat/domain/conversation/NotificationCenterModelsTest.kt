@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.NotificationCenterItem
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

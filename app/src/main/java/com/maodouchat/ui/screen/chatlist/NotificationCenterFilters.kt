@@ -14,8 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.NotifFilter
 import com.maodouchat.domain.conversation.ExploreRelativeTimeBucket
+import com.maodouchat.domain.conversation.NotifFilter
 import com.maodouchat.domain.conversation.relativeTimeBucket
 import com.maodouchat.domain.messaging.StringBucket
 

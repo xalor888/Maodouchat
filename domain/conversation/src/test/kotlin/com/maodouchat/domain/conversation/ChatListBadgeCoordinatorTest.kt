@@ -2,7 +2,6 @@ package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.model.NotificationCenterType
 import com.maodouchat.core.session.SessionUiResetEvent
 import kotlin.test.Test
 import kotlin.test.assertEquals
