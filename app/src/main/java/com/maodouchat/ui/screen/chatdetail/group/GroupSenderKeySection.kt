@@ -30,7 +30,7 @@ import com.maodouchat.domain.groups.GroupMemberUi
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.UnreadRed
 import com.maodouchat.core.crypto.Reason
-import com.maodouchat.core.model.SenderKeyTargetFilter
+import com.maodouchat.domain.groups.SenderKeyTargetFilter
 import com.maodouchat.domain.messaging.SenderKeyReasonLabel
 import com.maodouchat.domain.messaging.SenderKeyStatusLabel
 import com.maodouchat.domain.messaging.senderKeyReasonLabelKind

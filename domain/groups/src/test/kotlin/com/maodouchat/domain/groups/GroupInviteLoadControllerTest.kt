@@ -1,8 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupInviteResponse
-import com.maodouchat.core.model.GroupMutationAction
-import com.maodouchat.core.model.GroupMutationFeedbackKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

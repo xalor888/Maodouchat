@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.SenderKeyDistributionTargetDto
-import com.maodouchat.core.model.SenderKeyTargetFilter
 
 // 发送者密钥分发目标按状态筛选；自 GroupSenderKeyStatusSection 收敛。
 object SenderKeyTargetFilterPolicy {

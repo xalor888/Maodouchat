@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 /**
  * W3-01: classifies group-management failures so UI can offer retry vs. reload vs. acknowledge-only.

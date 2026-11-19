@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupLifecycleService
-import com.maodouchat.core.model.GroupMutationAction
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

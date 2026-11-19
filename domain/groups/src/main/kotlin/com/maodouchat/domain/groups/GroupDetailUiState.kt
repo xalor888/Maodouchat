@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.GroupAuditLogDto
-import com.maodouchat.core.model.GroupMutationFeedback
 import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 import com.maodouchat.core.model.User
 
