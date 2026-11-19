@@ -49,7 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiTaskEntity
-import com.maodouchat.core.model.AiTaskFilter
+import com.maodouchat.domain.messaging.AiTaskFilter
 import com.maodouchat.domain.messaging.aiTaskDueLabel
 import com.maodouchat.domain.messaging.isAiTaskOverdue
 import com.maodouchat.ui.theme.LocalChatPalette

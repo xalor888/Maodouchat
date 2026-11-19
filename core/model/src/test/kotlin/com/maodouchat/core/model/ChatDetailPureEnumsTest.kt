@@ -18,12 +18,4 @@ class ChatDetailPureEnumsTest {
             MediaCenterCategory.entries,
         )
     }
-
-    @Test
-    fun `ai task filters cover all three buckets`() {
-        assertEquals(
-            listOf(AiTaskFilter.ALL, AiTaskFilter.PENDING, AiTaskFilter.COMPLETED),
-            AiTaskFilter.entries,
-        )
-    }
 }

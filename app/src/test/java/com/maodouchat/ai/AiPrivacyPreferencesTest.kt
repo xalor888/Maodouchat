@@ -1,6 +1,6 @@
 package com.maodouchat.ai
 
-import com.maodouchat.core.model.AiPrivacyKeys
+import com.maodouchat.domain.messaging.AiPrivacyKeys
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
