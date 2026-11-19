@@ -7,7 +7,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.buildUnreadSummaryCacheKey
 import com.maodouchat.domain.messaging.selectUnreadSummaryCandidates
-import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiContextMessage
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.domain.messaging.isAmbiguousTransportFailure
 import com.maodouchat.domain.messaging.buildPlainAiContextMessages

@@ -3,9 +3,6 @@ package com.maodouchat.core.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class AiContextMessage(val sender: String = "", val text: String)
-
-@Serializable
 data class AiGroupTask(
     val title: String,
     val owner: String? = null,

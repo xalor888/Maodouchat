@@ -10,22 +10,9 @@ class AiApiModelsTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun localContextMessageRoundTrips() {
-        val message = AiContextMessage(sender = "小猫", text = "hello")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
-    }
-
-    @Test
     fun groupTaskRoundTrips() {
         val task = AiGroupTask(title = "确认方案", owner = "小猫", dueAt = 42L)
         assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
-    }
-
-    @Test
-    fun contextMessageSenderDefaultsEmptyWhenOmitted() {
-        val decoded = json.decodeFromString<AiContextMessage>("""{"text":"hi"}""")
-        assertEquals("", decoded.sender)
-        assertEquals("hi", decoded.text)
     }
 
     @Test
@@ -59,21 +46,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun contextMessageIgnoresUnknownKeys() {
-        val decoded = json.decodeFromString<AiContextMessage>(
-            """{"sender":"u1","text":"hi","traceId":"t1","serverTs":99}"""
-        )
-        assertEquals("u1", decoded.sender)
-        assertEquals("hi", decoded.text)
-    }
-
-    @Test
-    fun contextMessageUnicodeRoundTrips() {
-        val message = AiContextMessage(sender = "用户1", text = "你好，世界 🌍")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
-    }
-
-    @Test
     fun groupTaskFullFieldsRoundTrip() {
         val task = AiGroupTask(title = "复查", owner = "u2", dueText = "周五前", dueAt = 12345L)
         assertEquals(task, json.decodeFromString<AiGroupTask>(json.encodeToString(task)))
@@ -87,12 +59,6 @@ class AiApiModelsTest {
         assertNull(decoded.model)
         assertNull(decoded.chatId)
         assertEquals(0, decoded.inputChars)
-    }
-
-    @Test
-    fun contextMessageEmptyTextRoundTrips() {
-        val message = AiContextMessage(sender = "u1", text = "")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
     }
 
     @Test
@@ -142,12 +108,6 @@ class AiApiModelsTest {
     }
 
     @Test
-    fun contextMessageEscapesRoundTrip() {
-        val message = AiContextMessage(sender = "u1", text = "line1\nline2\t\"quoted\"")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
-    }
-
-    @Test
     fun groupTaskNegativeDueAtDecodesAsIs() {
         val decoded = json.decodeFromString<AiGroupTask>("""{"title":"t","dueAt":-100}""")
         assertEquals(-100L, decoded.dueAt)
@@ -163,12 +123,6 @@ class AiApiModelsTest {
         assertEquals(7, decoded.inputChars)
         assertEquals(2, decoded.contextMessages)
         assertNull(decoded.error)
-    }
-
-    @Test
-    fun emptyContextMessageRoundTrips() {
-        val message = AiContextMessage(text = "")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
     }
 
     @Test
@@ -188,12 +142,6 @@ class AiApiModelsTest {
             createdAt = 1L
         )
         assertEquals(response, json.decodeFromString<AiAuditLogResponse>(json.encodeToString(response)))
-    }
-
-    @Test
-    fun contextMessageWhitespaceSenderRoundTrips() {
-        val message = AiContextMessage(sender = " ", text = "hi")
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
     }
 
     @Test
@@ -251,13 +199,6 @@ class AiApiModelsTest {
             """{"id":"a","feature":"f","status":"ok","createdAt":1,"durationMs":0}"""
         )
         assertEquals(0L, decoded.durationMs)
-    }
-
-
-    @Test
-    fun contextMessageLongTextRoundTrips() {
-        val message = AiContextMessage(sender = "u1", text = "x".repeat(2000))
-        assertEquals(message, json.decodeFromString<AiContextMessage>(json.encodeToString(message)))
     }
 
     @Test

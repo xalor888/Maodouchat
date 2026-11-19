@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiContextMessage
 import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.domain.messaging.AiSemanticSearchPolicy
