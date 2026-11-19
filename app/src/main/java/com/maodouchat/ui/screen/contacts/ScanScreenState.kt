@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.core.model.QrScanFeedbackPolicy
+import com.maodouchat.domain.groups.QrScanFeedbackPolicy
 import com.maodouchat.core.model.QrTarget
 import com.maodouchat.core.session.SafetyScanResult
 import com.maodouchat.domain.messaging.SafetyScanStatusKind
