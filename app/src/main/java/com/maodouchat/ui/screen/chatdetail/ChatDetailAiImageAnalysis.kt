@@ -3,9 +3,9 @@ package com.maodouchat.ui.screen.chatdetail
 import androidx.core.net.toUri
 import com.maodouchat.R
 import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.local.entity.AiOperationError
 import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import com.maodouchat.domain.messaging.TimelineMessageReplacePolicy
 import com.maodouchat.util.ImagePicker

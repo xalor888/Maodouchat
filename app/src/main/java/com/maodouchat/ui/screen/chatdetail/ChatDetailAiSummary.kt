@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.AiSummaryScope
+import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.buildAiSummaryCacheKey
 import com.maodouchat.domain.messaging.normalizeAiSummaryStyle
 import com.maodouchat.data.local.entity.AiOperationError

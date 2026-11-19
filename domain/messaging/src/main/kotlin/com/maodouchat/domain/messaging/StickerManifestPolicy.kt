@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.StickerSourcePolicy
 import org.json.JSONArray
 import org.json.JSONObject
 

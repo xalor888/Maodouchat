@@ -1,4 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.AiPrivilegeClaimScan
+import com.maodouchat.core.model.AiPromptSanitization
+import com.maodouchat.core.model.PrivilegeScan
+import com.maodouchat.core.model.SanitizedContextLine
 
 /** AI 提示注入与越权防护：薄门面，逻辑已按簇拆入 AiPromptSanitization / AiPrivilegeClaimScan。 */
 object AiPromptSafetyPolicy {

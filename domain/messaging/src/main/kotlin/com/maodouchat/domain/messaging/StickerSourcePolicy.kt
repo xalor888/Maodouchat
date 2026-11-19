@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 

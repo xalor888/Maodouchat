@@ -3,8 +3,8 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.domain.messaging.AiContextSenders
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
+import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.buildUnreadSummaryCacheKey
 import com.maodouchat.domain.messaging.selectUnreadSummaryCandidates
 import com.maodouchat.core.model.AiContextMessage
