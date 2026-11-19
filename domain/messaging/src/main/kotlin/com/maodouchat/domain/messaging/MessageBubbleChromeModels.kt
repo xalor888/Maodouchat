@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 /** Reply preview model for quote bars (chat detail + text bubbles). */
 data class ReplyPreview(val senderName: String, val preview: String)
