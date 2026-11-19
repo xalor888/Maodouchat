@@ -41,6 +41,7 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.ForwardMergePolicy
 import com.maodouchat.domain.messaging.ForwardPreviewPolicy
+import com.maodouchat.domain.messaging.WireEnvelopePreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import android.widget.Toast
 import com.maodouchat.core.model.ChatDetailUiState
@@ -115,7 +116,7 @@ internal fun ChatDetailForwardPicker(
                     forwardMessages.take(ForwardPreviewPolicy.PREVIEW_COUNT).forEach { fm ->
                         val previewText = forwardPreviewText(fm.type)?.let { stringResource(chatMessagePreviewTextResId(it)) }
                             ?: ForwardPreviewPolicy.previewText(
-                                com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                                WireEnvelopePreviewPolicy.redactedIfWire(
                                     fm.parsedContent(),
                                     stringResource(R.string.chat_decrypt_failed)
                                 )

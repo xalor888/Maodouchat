@@ -9,7 +9,7 @@ import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.semanticSearchText
-import com.maodouchat.core.model.ChatListPreviewPolicy
+import com.maodouchat.domain.messaging.WireEnvelopePreviewPolicy
 import com.maodouchat.domain.messaging.MessageSearchContentHash
 import com.maodouchat.domain.messaging.MessageSearchTokenizer
 
@@ -117,7 +117,7 @@ class MessageSearchRepository(private val database: AppDatabase) {
             return knownFingerprint != null
         }
         // Never index ciphertext / multi-device JSON as searchable body.
-        if (ChatListPreviewPolicy.looksLikeWireEnvelope(text)) return false
+        if (WireEnvelopePreviewPolicy.looksLikeWireEnvelope(text)) return false
         val hash = MessageSearchContentHash.contentHash(message.chatId, message.senderId, message.timestamp, text)
         val previous = knownFingerprint ?: searchDao.getFingerprint(message.id)
         if (previous?.contentHash == hash && previous.messageType == message.type.name) return false

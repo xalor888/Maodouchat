@@ -15,7 +15,6 @@ class SignalWireEnvelopePreviewTest {
     fun `signal one to one envelope is wire`() {
         val body = """{"version":2,"algorithm":"signal-v2","ciphertext":"abc"}"""
         assertTrue(ChatListPreviewPolicy.isSignalWireEnvelope(body))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope(body))
     }
 
     @Test
@@ -34,7 +33,6 @@ class SignalWireEnvelopePreviewTest {
     @Test
     fun `user json starting with brace is not a signal envelope`() {
         assertFalse(ChatListPreviewPolicy.isSignalWireEnvelope("""{"hello":"world"}"""))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""{"hello":"world"}"""))
     }
 
     @Test
@@ -48,7 +46,6 @@ class SignalWireEnvelopePreviewTest {
     @Test
     fun `array envelope without signal marker is not strict wire`() {
         assertFalse(ChatListPreviewPolicy.isSignalWireEnvelope("""[{"deviceId":1}]"""))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""[{"deviceId":1}]"""))
     }
 
     @Test
@@ -56,7 +53,6 @@ class SignalWireEnvelopePreviewTest {
         val body =
             """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"recipientUserId":"u2","recipientDeviceId":188,"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
         assertTrue(ChatListPreviewPolicy.isSignalWireEnvelope(body))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope(body))
     }
 
     @Test
@@ -65,11 +61,5 @@ class SignalWireEnvelopePreviewTest {
             """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
         assertTrue(ChatListPreviewPolicy.isSignalWireEnvelope(body))
         assertFalse(ChatListPreviewPolicy.isSignalWireEnvelope("""{"hello":"world","entries":[]}"""))
-        assertEquals(
-            "[encrypted]",
-            ChatListPreviewPolicy.redactedIfWire(body, "[encrypted]")
-        )
-        assertEquals("hello", ChatListPreviewPolicy.redactedIfWire("hello", "[encrypted]"))
-        assertEquals("{\"hello\":\"world\"}", ChatListPreviewPolicy.redactedIfWire("""{"hello":"world"}""", "[encrypted]"))
     }
 }

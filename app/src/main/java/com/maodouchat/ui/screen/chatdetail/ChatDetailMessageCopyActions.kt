@@ -18,6 +18,7 @@ import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MessageShareMimePolicy
 import com.maodouchat.domain.messaging.MessageSharePreviewKind
+import com.maodouchat.domain.messaging.WireEnvelopePreviewPolicy
 import com.maodouchat.domain.messaging.copyMessageLabelWithSender
 import com.maodouchat.domain.messaging.copyMessageLabelWithSenderTime
 import com.maodouchat.domain.messaging.messageSharePreviewKind
@@ -47,7 +48,7 @@ internal fun ChatDetailMessageCopyActions(
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText(
                     chatClipboardMessageLabel,
-                    com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                    WireEnvelopePreviewPolicy.redactedIfWire(
                         message.parsedContent(),
                         context.getString(R.string.chat_decrypt_failed)
                     )
@@ -61,7 +62,7 @@ internal fun ChatDetailMessageCopyActions(
         TextButton(
             onClick = {
                 val sender = senderName ?: ""
-                val copied = com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                val copied = WireEnvelopePreviewPolicy.redactedIfWire(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )
@@ -78,7 +79,7 @@ internal fun ChatDetailMessageCopyActions(
             onClick = {
                 val sender = senderName ?: ""
                 val time = ChatDateDisplay.formatMonthDayTime(message.timestamp, java.util.Locale.getDefault())
-                val body = com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+                val body = WireEnvelopePreviewPolicy.redactedIfWire(
                     message.parsedContent(),
                     context.getString(R.string.chat_decrypt_failed)
                 )

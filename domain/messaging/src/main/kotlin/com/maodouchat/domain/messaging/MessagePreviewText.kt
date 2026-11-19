@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ChatListPreviewPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
@@ -24,7 +23,7 @@ object MessagePreviewText {
             MessageType.LOCATION -> mediaLabel(message.type)
             MessageType.REVOKED -> encryptedPlaceholder
             MessageType.SK_DIST -> encryptedPlaceholder
-            else -> ChatListPreviewPolicy.redactedIfWire(
+            else -> WireEnvelopePreviewPolicy.redactedIfWire(
                 message.parsedContent(),
                 encryptedPlaceholder,
             )

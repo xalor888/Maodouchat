@@ -48,7 +48,7 @@ class ChatMessagePreviewController(
     private fun listPreviewTextForMessage(message: Message): String {
         if (message.type == MessageType.TEXT || message.type == MessageType.MARKDOWN) {
             val body = message.parsedContent()
-            return if (body.isBlank() || ChatListPreviewPolicy.looksLikeWireEnvelope(body)) {
+            return if (body.isBlank() || WireEnvelopePreviewPolicy.looksLikeWireEnvelope(body)) {
                 text(ChatMessagePreviewText.PREVIEW_ENCRYPTED)
             } else {
                 body.take(200)
