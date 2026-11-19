@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.JoinGroupInviteResult
 import com.maodouchat.core.model.Kind
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
