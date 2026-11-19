@@ -1,8 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import com.maodouchat.core.model.Preset
+import com.maodouchat.core.model.Snapshot
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class AiWritingStylePolicyTest {
 

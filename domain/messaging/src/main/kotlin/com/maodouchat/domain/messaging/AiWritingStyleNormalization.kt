@@ -1,6 +1,5 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiWritingStylePolicy.MAX_CUSTOM_CHARS
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot
 
@@ -10,7 +9,7 @@ object AiWritingStyleNormalization {
     private val styleTextWhitespaceRegex = Regex("\\s+")
 
     fun normalizeCustomNote(raw: String?): String =
-        raw.orEmpty().trim().replace(styleTextWhitespaceRegex, " ").take(MAX_CUSTOM_CHARS)
+        raw.orEmpty().trim().replace(styleTextWhitespaceRegex, " ").take(AiWritingStylePolicy.MAX_CUSTOM_CHARS)
 
     fun normalize(enabled: Boolean, presetId: String?, customNote: String?): Snapshot {
         val preset = Preset.fromId(presetId)

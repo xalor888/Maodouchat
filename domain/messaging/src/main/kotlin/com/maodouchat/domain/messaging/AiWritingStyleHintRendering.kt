@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Preset
 import com.maodouchat.core.model.Snapshot

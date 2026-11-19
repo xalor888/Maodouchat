@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // AI 隐私偏好键簇：SharedPreferences 键名与账号隔离后缀规则。
 object AiPrivacyKeys {

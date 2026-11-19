@@ -1,6 +1,6 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.core.model.AiWritingStylePolicy
+import com.maodouchat.domain.messaging.AiWritingStylePolicy
 import com.maodouchat.core.model.Snapshot
 import com.maodouchat.domain.messaging.AgentChatMessage
 import com.maodouchat.domain.messaging.AgentCompletionResultPolicy
