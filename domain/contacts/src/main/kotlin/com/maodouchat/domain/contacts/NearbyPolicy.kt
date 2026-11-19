@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
 
 /**
  * 附近的人：半径档位与可见剩余时间（纯函数，可单测）。

@@ -1,8 +1,8 @@
 package com.maodouchat.ui.screen.contacts
 
-import com.maodouchat.core.model.MyQrCodeDecision
-import com.maodouchat.core.model.MyQrCodeLoadPolicy
-import com.maodouchat.core.model.RejectReason
+import com.maodouchat.domain.contacts.MyQrCodeDecision
+import com.maodouchat.domain.contacts.MyQrCodeLoadPolicy
+import com.maodouchat.domain.contacts.RejectReason
 import com.maodouchat.util.RuntimeFlags
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel

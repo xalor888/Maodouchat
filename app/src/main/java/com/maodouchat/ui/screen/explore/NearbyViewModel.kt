@@ -14,7 +14,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.AndroidViewModel
 import com.maodouchat.R
 import com.maodouchat.core.model.User
-import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.domain.contacts.NearbyPolicy
 import com.maodouchat.domain.messaging.LocationFailureKind
 import com.maodouchat.domain.messaging.locationFailureKind
 import kotlinx.coroutines.launch
