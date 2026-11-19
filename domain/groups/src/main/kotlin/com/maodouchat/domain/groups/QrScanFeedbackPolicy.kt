@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
+
+import com.maodouchat.core.model.Feedback
+import com.maodouchat.core.model.Kind
 
 /**
  * Maps QR parse / join-invite failures to stable, UI-localizable kinds (W3-04).
