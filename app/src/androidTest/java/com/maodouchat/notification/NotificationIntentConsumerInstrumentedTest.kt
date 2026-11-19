@@ -11,7 +11,7 @@ import com.maodouchat.domain.calls.IncomingCallCoordinator
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.domain.calls.PendingIncomingCall
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.NotificationTarget
+import com.maodouchat.domain.conversation.NotificationTarget
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.telecom.TelecomHelper

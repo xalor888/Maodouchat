@@ -1,7 +1,7 @@
 package com.maodouchat
 
 import com.maodouchat.notification.NotificationIntentConsumer
-import com.maodouchat.core.model.NotificationTarget
+import com.maodouchat.domain.conversation.NotificationTarget
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
@@ -28,7 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.maodouchat.domain.conversation.NotificationTargetReplayDecision
 import com.maodouchat.domain.conversation.NotificationTargetReplayPolicy
 import com.maodouchat.navigation.Routes
-import com.maodouchat.core.model.toDestination
+import com.maodouchat.domain.conversation.toDestination
 import com.maodouchat.ui.theme.MaodouchatTheme
 import com.maodouchat.call.CallSystemIntegration
 import com.maodouchat.network.TokenManager
