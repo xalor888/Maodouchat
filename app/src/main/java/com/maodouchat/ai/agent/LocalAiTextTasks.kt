@@ -2,7 +2,7 @@ package com.maodouchat.ai.agent
 
 import android.content.Context
 import com.maodouchat.ai.AiWritingStylePreferences
-import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiContextMessage
 import com.maodouchat.domain.messaging.AgentTextTaskPolicy
 import com.maodouchat.domain.messaging.AiSuggestionCleanupPolicy
 

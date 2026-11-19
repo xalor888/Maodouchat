@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiContextMessage
 
 // 本机模型文本任务的纯文本装配，自 app 侧 LocalAiTextTasks 收敛；
 // 端点选择与模型调用仍在 app 侧，这里只定对话转录与任务指令。

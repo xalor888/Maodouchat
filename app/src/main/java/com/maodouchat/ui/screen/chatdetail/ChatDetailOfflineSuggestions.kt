@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.R
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiContextMessage
 import com.maodouchat.domain.messaging.AiOfflineSuggestionPolicy
 import com.maodouchat.domain.messaging.AiReplyTonePolicy
 import com.maodouchat.domain.messaging.OfflineSuggestionPhrases

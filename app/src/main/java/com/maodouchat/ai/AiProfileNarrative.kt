@@ -5,7 +5,7 @@ import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.LocalStats
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
-import com.maodouchat.core.model.AiContextMessage
+import com.maodouchat.domain.messaging.AiContextMessage
 import com.maodouchat.domain.messaging.AiProfileNarrativePolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
