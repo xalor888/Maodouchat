@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.DeviceCiphertext
 import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
 
 /** 加密目标用户 id：按快照目标顺序去重，加密调用按此顺序排队。 */
