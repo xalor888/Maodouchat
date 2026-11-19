@@ -1,9 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNull
+import kotlin.test.Test
 
 class FindingTest {
 

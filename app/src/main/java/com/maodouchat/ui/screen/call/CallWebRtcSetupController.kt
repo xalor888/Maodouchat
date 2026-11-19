@@ -3,7 +3,7 @@ package com.maodouchat.ui.screen.call
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.call.WebRtcNativeLibraryLoader
-import com.maodouchat.core.model.CallIceServer
+import com.maodouchat.domain.calls.CallIceServer
 import com.maodouchat.domain.calls.CallUiState
 import com.maodouchat.domain.calls.WebRtcNativeLoadException
 import com.maodouchat.domain.calls.CallSessionGate

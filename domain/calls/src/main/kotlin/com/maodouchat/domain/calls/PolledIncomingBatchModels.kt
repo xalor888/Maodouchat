@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.SignalMessage
 
 /** 未接来电墓碑的参数：调用方用它调 MissedCallRecorder（带会话门禁的写路径）。 */
 data class MissedRecordParams(

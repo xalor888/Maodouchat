@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.SignalMessage
 
 /** 来电 offer 选择纯策略：终端信令判定、群 mesh 边过滤、首选 offer 选择。 */
 object CallOfferSelector {

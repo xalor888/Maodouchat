@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Finding
 import java.util.Locale
 import java.util.regex.Pattern
 
