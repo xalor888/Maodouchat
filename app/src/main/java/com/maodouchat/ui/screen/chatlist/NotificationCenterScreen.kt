@@ -42,8 +42,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.NotifFilter
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.conversation.NotifFilter
 import com.maodouchat.domain.conversation.NotificationCenterFilterPolicy
 import com.maodouchat.domain.messaging.groupByDay
 import com.maodouchat.domain.messaging.resolvedNotificationChatId

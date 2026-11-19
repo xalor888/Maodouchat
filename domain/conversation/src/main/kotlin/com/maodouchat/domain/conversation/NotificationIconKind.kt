@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.NotificationCenterType
 
 // 通知中心图标种类；图标与颜色留 app 侧，domain 只做类型→种类判定。
 enum class NotificationIconKind {

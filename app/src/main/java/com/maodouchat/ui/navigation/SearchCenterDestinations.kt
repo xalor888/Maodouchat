@@ -4,11 +4,11 @@ import androidx.compose.runtime.remember
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.maodouchat.domain.conversation.NotificationCenterOpenOutcome
+import com.maodouchat.navigation.NotificationCenterEffects
+import com.maodouchat.navigation.Routes
 import com.maodouchat.ui.screen.chatlist.GlobalSearchScreen
 import com.maodouchat.ui.screen.chatlist.NotificationCenterScreen
-import com.maodouchat.navigation.NotificationCenterEffects
-import com.maodouchat.core.model.NotificationCenterOpenOutcome
-import com.maodouchat.navigation.Routes
 
 /**
  * 搜索/通知中心目的地（P08：自 `NavGraph.kt` 迁出的第五个 feature 簇）。

@@ -14,7 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.core.model.NotificationPrivacyPolicy
+import com.maodouchat.domain.conversation.NotificationPrivacyPolicy
 import com.maodouchat.domain.messaging.NotificationSoundPolicy
 import com.maodouchat.security.AppLockManager
 

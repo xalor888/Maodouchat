@@ -9,9 +9,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
-import com.maodouchat.core.model.NotificationCenterType
-import com.maodouchat.domain.messaging.NotificationSlotPolicy
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.domain.conversation.NotificationCenterType
+import com.maodouchat.domain.messaging.NotificationSlotPolicy
 
 
 /**

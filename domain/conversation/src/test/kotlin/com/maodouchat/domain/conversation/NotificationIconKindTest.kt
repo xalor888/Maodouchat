@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.NotificationCenterType
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

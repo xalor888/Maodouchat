@@ -2,10 +2,10 @@ package com.maodouchat.conversation
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.NotificationIntentPolicy
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.LocalMessageStore
+import com.maodouchat.domain.conversation.NotificationIntentPolicy
 import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.MessageNotificationService

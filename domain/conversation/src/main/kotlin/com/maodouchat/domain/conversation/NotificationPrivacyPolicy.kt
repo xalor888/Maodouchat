@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 object NotificationPrivacyPolicy {
     /** App lock is an explicit privacy choice, so system notifications stay generic while enabled. */

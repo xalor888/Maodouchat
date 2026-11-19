@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /** 通知中心行点击打开结果（原 NotificationCenterOpenController.Outcome，零行为改动搬出）。 */
 sealed interface NotificationCenterOpenOutcome {

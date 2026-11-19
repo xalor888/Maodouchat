@@ -1,10 +1,10 @@
 package com.maodouchat.navigation
 
-import com.maodouchat.core.model.NotificationCenterOpenOutcome
 import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkRouter
-import com.maodouchat.core.model.parseLegacyCenterDeeplink
 import com.maodouchat.core.model.NotificationCenterItem
+import com.maodouchat.core.model.parseLegacyCenterDeeplink
+import com.maodouchat.domain.conversation.NotificationCenterOpenOutcome
 
 class NotificationCenterOpenController(
     /** 原判据：`TokenManager.getInstance(context).getToken().isNullOrBlank()`。 */
