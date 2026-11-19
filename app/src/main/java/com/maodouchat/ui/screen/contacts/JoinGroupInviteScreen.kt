@@ -27,7 +27,7 @@ import com.maodouchat.domain.groups.JoinGroupInviteUseCase
 import com.maodouchat.data.repository.ContactNetworkRepository
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.ui.theme.LocalChatPalette
-import com.maodouchat.core.model.Feedback
+import com.maodouchat.domain.groups.Feedback
 import com.maodouchat.domain.contacts.QrScanFeedbackLabelKind
 import com.maodouchat.domain.contacts.qrScanFeedbackLabelKind
 

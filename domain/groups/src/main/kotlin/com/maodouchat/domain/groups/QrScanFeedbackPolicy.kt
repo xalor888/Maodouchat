@@ -1,6 +1,5 @@
 package com.maodouchat.domain.groups
 
-import com.maodouchat.core.model.Feedback
 import com.maodouchat.core.model.Kind
 
 /**

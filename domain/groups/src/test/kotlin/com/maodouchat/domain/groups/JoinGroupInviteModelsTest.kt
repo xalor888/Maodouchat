@@ -1,7 +1,6 @@
 package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
-import com.maodouchat.core.model.Feedback
 import com.maodouchat.core.model.Kind
 import kotlin.test.Test
 import kotlin.test.assertEquals
