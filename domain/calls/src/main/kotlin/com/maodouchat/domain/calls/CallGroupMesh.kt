@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallReliabilityPolicy
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
@@ -101,7 +100,7 @@ class CallGroupMesh(
                     if (groupReconnectJobs[userId]?.isActive != true) {
                         val session = activeCallSession()
                         groupReconnectJobs[userId] = scope.launch {
-                            delay(CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
+                            delay(ICE_RECONNECT_GRACE_MS)
                             if (
                                 callSessionGate.isCurrent(session) &&
                                 currentState().groupParticipants.firstOrNull { it.userId == userId }?.connectionState == GroupPeerConnectionState.RECONNECTING

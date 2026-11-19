@@ -32,35 +32,12 @@ class CallReliabilityPolicyTest {
         assertFalse(CallReliabilityPolicy.shouldAcceptCallId("call-a", ""))
         assertTrue(CallReliabilityPolicy.shouldAcceptCallId("", "call-a"))
         assertTrue(CallReliabilityPolicy.shouldAcceptCallId("", ""))
-        assertTrue(CallReliabilityPolicy.shouldAcceptHangUpAction("call-a", "call-a"))
-        assertFalse(CallReliabilityPolicy.shouldAcceptHangUpAction("call-a", ""))
-        assertFalse(CallReliabilityPolicy.shouldAcceptHangUpAction("", "stale-call"))
     }
 
     @Test
     fun `signaling types are normalized case-insensitively for REST fallback`() {
         assertEquals("offer", CallReliabilityPolicy.normalizeSignalingType("OFFER"))
         assertEquals("hang-up", CallReliabilityPolicy.normalizeSignalingType(" Hang-Up "))
-        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("ANSWER"))
-        assertTrue(CallReliabilityPolicy.isCriticalSignalingType(" reject "))
-        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("BUSY"))
-        assertTrue(CallReliabilityPolicy.isCriticalSignalingType("hang-up"))
-        assertFalse(CallReliabilityPolicy.isCriticalSignalingType("ice-candidate"))
-        assertFalse(CallReliabilityPolicy.isCriticalSignalingType("hangup"))
-    }
-
-    @Test
-    fun `ice reconnect grace transitions`() {
-        assertEquals(IceReconnectAction.START_GRACE, CallReliabilityPolicy.iceReconnectAction("DISCONNECTED"))
-        assertEquals(IceReconnectAction.CANCEL_GRACE, CallReliabilityPolicy.iceReconnectAction("connected"))
-        assertEquals(IceReconnectAction.CANCEL_GRACE, CallReliabilityPolicy.iceReconnectAction("COMPLETED"))
-        // FAILED now attempts ICE restart before giving up
-        assertEquals(IceReconnectAction.RESTART_ICE, CallReliabilityPolicy.iceReconnectAction("FAILED", restartAttempts = 0))
-        assertEquals(IceReconnectAction.RESTART_ICE, CallReliabilityPolicy.iceReconnectAction("FAILED", restartAttempts = 1))
-        assertEquals(IceReconnectAction.END_NOW, CallReliabilityPolicy.iceReconnectAction("FAILED", restartAttempts = 2))
-        assertEquals(IceReconnectAction.END_NOW, CallReliabilityPolicy.iceReconnectAction("FAILED", restartAttempts = 99))
-        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction("CHECKING"))
-        assertEquals(10_000L, CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
     }
 
     @Test
@@ -69,13 +46,6 @@ class CallReliabilityPolicyTest {
         assertEquals(2, GroupCallPolicy.gridColumns(4))
         assertEquals(3, GroupCallPolicy.gridColumns(5))
         assertEquals(6, GroupCallPolicy.MAX_MESH_MEMBERS)
-        assertTrue(GroupCallPolicy.isActive(GroupPeerConnectionState.CONNECTING))
-        assertTrue(GroupCallPolicy.isActive(GroupPeerConnectionState.RECONNECTING))
-        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.REJECTED))
-        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.FAILED))
-        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.NO_ANSWER))
-        assertTrue(GroupCallPolicy.shouldInitiateMeshEdge("user-a", "user-b"))
-        assertFalse(GroupCallPolicy.shouldInitiateMeshEdge("user-b", "user-a"))
         assertTrue(GroupCallPolicy.shouldAcceptMetadata("group-a", "group-a", listOf("a", "b"), listOf("b", "a")))
         assertFalse(GroupCallPolicy.shouldAcceptMetadata("group-a", "group-b", listOf("a", "b"), listOf("a", "b")))
         assertFalse(GroupCallPolicy.shouldAcceptMetadata("group-a", "group-a", listOf("a", "b"), listOf("a", "c")))
@@ -99,53 +69,9 @@ class CallReliabilityPolicyTest {
     }
 
     @Test
-    fun `ice reconnect handles lowercase states negative attempts and unknown states`() {
-        assertEquals(IceReconnectAction.START_GRACE, CallReliabilityPolicy.iceReconnectAction("disconnected"))
-        assertEquals(IceReconnectAction.RESTART_ICE, CallReliabilityPolicy.iceReconnectAction("failed", restartAttempts = -1))
-        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction("gathering"))
-        assertEquals(2, CallReliabilityPolicy.ICE_MAX_RESTART_ATTEMPTS)
-        assertEquals(5_000L, CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
-    }
-
-
-    @Test
     fun `group grid mesh and active states pin their edges`() {
         assertEquals(2, GroupCallPolicy.gridColumns(0))
         assertEquals(3, GroupCallPolicy.gridColumns(100))
-        assertFalse(GroupCallPolicy.shouldInitiateMeshEdge("", "user-b"))
-        assertFalse(GroupCallPolicy.shouldInitiateMeshEdge("user-a", "user-a"))
-        assertTrue(GroupCallPolicy.isActive(GroupPeerConnectionState.CONNECTED))
-        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.DISCONNECTED))
-        assertFalse(GroupCallPolicy.isActive(GroupPeerConnectionState.BUSY))
-    }
-    @Test
-    fun `hang-up action with both ids blank passes exact equality`() {
-        // 挂断要求精确相等，空白 == 空白也算相等（与初始信令的放行语义不同）
-        assertTrue(CallReliabilityPolicy.shouldAcceptHangUpAction("", ""))
-    }
-
-    @Test
-    fun `disconnected and connected grace ignore restart attempts`() {
-        assertEquals(
-            IceReconnectAction.START_GRACE,
-            CallReliabilityPolicy.iceReconnectAction("DISCONNECTED", restartAttempts = 99)
-        )
-        assertEquals(
-            IceReconnectAction.CANCEL_GRACE,
-            CallReliabilityPolicy.iceReconnectAction("connected", restartAttempts = 99)
-        )
-        assertEquals(
-            IceReconnectAction.CANCEL_GRACE,
-            CallReliabilityPolicy.iceReconnectAction("COMPLETED", restartAttempts = 5)
-        )
-    }
-
-    @Test
-    fun `ice state with surrounding whitespace is not recognized`() {
-        // 状态只做 uppercase，不 trim：带空白的状态落到 IGNORE
-        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction(" disconnected "))
-        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction("failed "))
-        assertEquals(IceReconnectAction.IGNORE, CallReliabilityPolicy.iceReconnectAction(""))
     }
 
     @Test

@@ -1,7 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.maodouchat.core.model.CallReliabilityPolicy
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 class CallReliabilityPolicyIceRestartTest {
 
@@ -55,17 +56,17 @@ class CallReliabilityPolicyIceRestartTest {
 
     @Test
     fun `max restart attempts is 2`() {
-        assertEquals(2, CallReliabilityPolicy.ICE_MAX_RESTART_ATTEMPTS)
+        assertEquals(2, ICE_MAX_RESTART_ATTEMPTS)
     }
 
     @Test
     fun `restart interval is 5 seconds`() {
-        assertEquals(5_000L, CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
+        assertEquals(5_000L, ICE_RESTART_INTERVAL_MS)
     }
 
     @Test
     fun `grace period is 10 seconds`() {
-        assertEquals(10_000L, CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
+        assertEquals(10_000L, ICE_RECONNECT_GRACE_MS)
     }
 
     @Test
