@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 // LIKE-pattern escaping for queries using ESCAPE '\': without it, `%` / `_` / `\` in input would widen the match.
 object LikeQueryPolicy {

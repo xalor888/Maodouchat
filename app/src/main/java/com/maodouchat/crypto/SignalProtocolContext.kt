@@ -4,7 +4,7 @@ import com.maodouchat.core.crypto.DecryptRetryTracker
 import com.maodouchat.core.crypto.SignalInitializationPolicy
 import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.crypto.SignalStorePersistenceException
-import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.conversation.LikeQueryPolicy
 import com.maodouchat.core.model.SignalInitializationState
 import com.maodouchat.data.local.dao.IdentityTrustDao
 import com.maodouchat.data.local.dao.SignalKeyDao

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.ChatFolder
 import org.json.JSONArray
 import org.json.JSONObject
 

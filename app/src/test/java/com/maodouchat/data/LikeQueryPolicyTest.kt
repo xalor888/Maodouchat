@@ -1,6 +1,6 @@
 package com.maodouchat.data
 
-import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.conversation.LikeQueryPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

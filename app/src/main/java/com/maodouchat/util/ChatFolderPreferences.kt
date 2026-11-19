@@ -2,7 +2,7 @@ package com.maodouchat.util
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.ChatFolder
+import com.maodouchat.domain.conversation.ChatFolder
 import com.maodouchat.domain.conversation.ChatFolderJsonPolicy
 
 /**

@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.LikeQueryPolicy
+import com.maodouchat.domain.conversation.LikeQueryPolicy
 import com.maodouchat.domain.messaging.AgentContactQueryPolicy
 import com.maodouchat.domain.messaging.AgentContactRowPolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
