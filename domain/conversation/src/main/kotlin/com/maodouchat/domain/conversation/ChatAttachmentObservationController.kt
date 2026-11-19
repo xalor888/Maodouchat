@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.AttachmentFinalizedEvent
 import com.maodouchat.core.model.AttachmentTransferSnapshot
 import com.maodouchat.core.model.AttachmentTransferState
 import com.maodouchat.core.model.ChatDetailUiState

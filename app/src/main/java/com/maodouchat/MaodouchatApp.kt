@@ -1,6 +1,5 @@
 package com.maodouchat
 
-import com.maodouchat.core.model.AttachmentFinalizedEvent
 import com.maodouchat.core.model.IncomingCallWake
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.OpenContactsRequest
@@ -9,6 +8,7 @@ import com.maodouchat.core.model.SessionScopedEvent
 import com.maodouchat.core.realtime.ChatMessageSentEvent
 import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.WebSocketEventBridge
+import com.maodouchat.domain.conversation.AttachmentFinalizedEvent
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application

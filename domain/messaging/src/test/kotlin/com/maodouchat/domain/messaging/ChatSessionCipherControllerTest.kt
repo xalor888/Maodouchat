@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Lease
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatlist
 
 import com.maodouchat.R
 import com.maodouchat.core.model.GlobalSearchHit
-import com.maodouchat.core.model.GlobalSearchMode
+import com.maodouchat.domain.conversation.GlobalSearchMode
 
 /** 搜索类型过滤 */
 enum class SearchFilterType(val apiValue: String, val labelRes: Int) {

@@ -1,7 +1,5 @@
 package com.maodouchat.core.model
 
-enum class GlobalSearchMode { KEYWORD, AI }
-
 data class GlobalSearchHit(
     val chatId: String,
     val messageId: String,

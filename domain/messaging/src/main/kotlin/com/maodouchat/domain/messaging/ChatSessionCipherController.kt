@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.Lease
 
 // Signal session cipher 占用一族：app 侧纯搬移；占用标记仍在 app 侧
 // SessionCipherOccupancy（写 MaodouchatApp 全局单例），这里只持租约、经端口调用。

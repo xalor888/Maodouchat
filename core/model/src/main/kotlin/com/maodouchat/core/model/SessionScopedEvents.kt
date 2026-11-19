@@ -41,8 +41,3 @@ data class OpenContactsRequest(
     override val sessionGeneration: Long,
     val requestId: Long,
 ) : SessionScopedEvent
-
-data class AttachmentFinalizedEvent(
-    val message: Message,
-    val sessionGeneration: Long,
-)

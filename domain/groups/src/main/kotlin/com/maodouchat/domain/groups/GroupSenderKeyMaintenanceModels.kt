@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
+import com.maodouchat.core.model.SenderKeyDistributionStatusDto
 
 sealed interface GroupSenderKeyMaintenanceOutcome {
     data object Skipped : GroupSenderKeyMaintenanceOutcome
