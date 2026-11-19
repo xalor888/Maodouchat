@@ -1,7 +1,6 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.Approval
 import com.maodouchat.domain.messaging.AgentChatMessage
 import com.maodouchat.domain.messaging.AgentToolCall
 import com.maodouchat.domain.messaging.AgentToolHostPolicy
@@ -9,6 +8,7 @@ import com.maodouchat.domain.messaging.AgentToolPolicy
 import com.maodouchat.domain.messaging.AgentTurnEvent
 import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import com.maodouchat.domain.messaging.AgentTurnMessages
+import com.maodouchat.domain.messaging.Approval
 import com.maodouchat.domain.messaging.LocalAiCompletion
 import com.maodouchat.domain.messaging.LocalAiProvider
 import com.maodouchat.domain.messaging.PendingAgentApproval

@@ -1,8 +1,4 @@
-package com.maodouchat.core.model
-
-import com.maodouchat.core.model.Parameter
-import com.maodouchat.core.model.Risk
-import com.maodouchat.core.model.ToolSpec
+package com.maodouchat.domain.messaging
 
 val createTextPostToolSpec = ToolSpec(
     name = "create_text_post",

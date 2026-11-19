@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Approval
-import com.maodouchat.core.model.Risk
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
