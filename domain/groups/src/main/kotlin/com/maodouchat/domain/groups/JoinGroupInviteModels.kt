@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.groups
 
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.Feedback
