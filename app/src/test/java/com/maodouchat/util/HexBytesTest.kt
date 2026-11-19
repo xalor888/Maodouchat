@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.model.toHexString
+import com.maodouchat.domain.messaging.toHexString
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

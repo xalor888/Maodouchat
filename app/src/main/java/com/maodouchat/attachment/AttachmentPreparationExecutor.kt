@@ -8,8 +8,8 @@ import com.maodouchat.data.local.entity.AttachmentTransferEntity
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
-import com.maodouchat.core.model.LocalFileMetadata
-import com.maodouchat.core.model.normalizeAttachmentMetadata
+import com.maodouchat.domain.messaging.LocalFileMetadata
+import com.maodouchat.domain.messaging.normalizeAttachmentMetadata
 import com.maodouchat.domain.messaging.AttachmentImagePreparePolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.currentCoroutineContext

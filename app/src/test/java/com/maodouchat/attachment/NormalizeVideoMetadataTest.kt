@@ -2,7 +2,7 @@ package com.maodouchat.attachment
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import com.maodouchat.core.model.normalizeVideoMetadata
+import com.maodouchat.domain.messaging.normalizeVideoMetadata
 
 /**
  * G155：`AttachmentPreparationModel.normalizeVideoMetadata` 的测试。
