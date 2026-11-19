@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import com.maodouchat.domain.messaging.AiEmotionLexicon
-import com.maodouchat.core.model.Emotion
+import com.maodouchat.domain.messaging.Emotion
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Emotion
-
 // 情绪回退模板种类；R.string 映射留在 app 侧。与 AiEmotionTonePolicy 的语气映射不同，
 // 这里只定回退用哪条模板。
 enum class AiEmotionFallbackKind {

@@ -16,7 +16,7 @@ import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.core.model.AiImageAnalysisMode
 import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.CategoryCount
-import com.maodouchat.core.model.ConversationProfile
+import com.maodouchat.domain.messaging.ConversationProfile
 import com.maodouchat.domain.groups.GroupAiSharePolicy
 import com.maodouchat.core.model.WeeklyReport
 import com.maodouchat.core.model.Message

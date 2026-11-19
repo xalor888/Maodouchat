@@ -1,7 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.maodouchat.core.model.AiMessageClassifierCategory
+import com.maodouchat.core.model.Classification
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class AiEmotionClassifierModelsTest {
 
