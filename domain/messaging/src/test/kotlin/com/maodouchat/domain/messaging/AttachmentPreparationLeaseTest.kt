@@ -1,10 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class AttachmentPreparationLeaseTest {
     @Test
@@ -180,7 +180,7 @@ class AttachmentPreparationLeaseTest {
         lease.recordEncryptedPath("/private/encrypted.bin")
         lease.recordPreparedSource("file://prepared.jpg")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("boom", thrown.message)
@@ -269,7 +269,7 @@ class AttachmentPreparationLeaseTest {
         )
         lease.recordEncryptedPath("encrypted")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("perm", thrown.message)
@@ -311,7 +311,7 @@ class AttachmentPreparationLeaseTest {
         lease.recordEncryptedPath("/private/encrypted.bin")
         lease.recordPreparedSource("file://prepared.jpg")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("prep", thrown.message)
@@ -488,7 +488,7 @@ class AttachmentPreparationLeaseTest {
         )
         lease.recordPreparedSource("file://prepared.jpg")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("prep", thrown.message)
@@ -531,7 +531,7 @@ class AttachmentPreparationLeaseTest {
             releasePersistablePermission = { throw IllegalStateException("perm") }
         )
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("perm", thrown.message)
@@ -765,7 +765,7 @@ class AttachmentPreparationLeaseTest {
         )
         lease.recordEncryptedPath("first")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("boom", thrown.message)
@@ -822,7 +822,7 @@ class AttachmentPreparationLeaseTest {
         )
         lease.recordEncryptedPath("/private/encrypted.bin")
 
-        val thrown = assertThrows(IllegalStateException::class.java) {
+        val thrown = assertFailsWith<IllegalStateException> {
             lease.cleanupIfOwned()
         }
         assertEquals("boom", thrown.message)

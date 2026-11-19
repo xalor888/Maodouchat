@@ -2,7 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AttachmentPreparationLease
+import com.maodouchat.domain.messaging.AttachmentPreparationLease
 import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
