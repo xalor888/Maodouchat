@@ -1,17 +1,9 @@
 package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ContactMutationUseCase
-import com.maodouchat.core.model.ContactsLoadResult
-import com.maodouchat.core.model.ContactsSession
-import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.ConversationCreationPort
-import com.maodouchat.core.model.FriendRequestItem
-import com.maodouchat.core.model.FriendRequestsSnapshot
-import com.maodouchat.core.model.FriendRequestUseCase
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
-import com.maodouchat.core.model.GroupInviteItem
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

@@ -1,8 +1,8 @@
 package com.maodouchat.contacts
 
 import android.app.Application
-import com.maodouchat.core.model.ContactMutationUseCase
-import com.maodouchat.core.model.FriendRequestUseCase
+import com.maodouchat.domain.contacts.ContactMutationUseCase
+import com.maodouchat.domain.contacts.FriendRequestUseCase
 import com.maodouchat.data.repository.AppRepositories
 import com.maodouchat.data.repository.FriendCacheStore
 import com.maodouchat.domain.contacts.DefaultContactMutationUseCase

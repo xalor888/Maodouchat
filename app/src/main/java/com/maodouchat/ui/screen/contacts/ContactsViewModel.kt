@@ -7,11 +7,11 @@ import com.maodouchat.contacts.createAndroidContactMutationUseCase
 import com.maodouchat.contacts.createAndroidFriendRequestUseCase
 import com.maodouchat.contacts.sync.createAndroidContactsRealtimeSyncCoordinator
 import com.maodouchat.conversation.createAndroidConversationCreationPort
-import com.maodouchat.core.model.ContactMutationUseCase
-import com.maodouchat.core.model.ContactsIndexPolicy
-import com.maodouchat.core.model.ContactsUiState
+import com.maodouchat.domain.contacts.ContactMutationUseCase
+import com.maodouchat.domain.contacts.ContactsIndexPolicy
+import com.maodouchat.domain.contacts.ContactsUiState
 import com.maodouchat.core.model.ConversationCreationPort
-import com.maodouchat.core.model.FriendRequestUseCase
+import com.maodouchat.domain.contacts.FriendRequestUseCase
 import com.maodouchat.core.model.GroupInvitationDto
 import com.maodouchat.core.model.GroupInviteAcceptResponse
 import com.maodouchat.core.model.NotificationCenterItem

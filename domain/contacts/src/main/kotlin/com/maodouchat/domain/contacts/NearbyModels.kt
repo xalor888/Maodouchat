@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.contacts
+
+import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.core.model.User
 
 data class NearbyPerson(val user: User, val distanceMeters: Int, val locationUpdatedAt: Long)
 

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.ContactMutationUseCase
 import kotlinx.coroutines.CancellationException
 
 /**

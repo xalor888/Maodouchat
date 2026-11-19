@@ -2,7 +2,6 @@ package com.maodouchat.domain.contacts
 
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ContactsUiState
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

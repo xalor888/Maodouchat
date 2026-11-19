@@ -1,6 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.ContactsUiState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

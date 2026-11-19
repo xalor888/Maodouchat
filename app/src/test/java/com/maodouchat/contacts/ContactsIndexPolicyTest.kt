@@ -1,6 +1,6 @@
 package com.maodouchat.contacts
 
-import com.maodouchat.core.model.ContactsIndexPolicy
+import com.maodouchat.domain.contacts.ContactsIndexPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

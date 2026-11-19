@@ -1,6 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.ContactsIndexPolicy
 import com.maodouchat.core.model.User
 
 fun findLetterIndex(

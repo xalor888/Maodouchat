@@ -35,8 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.FriendRequestItem
-import com.maodouchat.core.model.GroupInviteItem
+import com.maodouchat.domain.contacts.FriendRequestItem
+import com.maodouchat.domain.contacts.GroupInviteItem
 import com.maodouchat.core.model.User
 import com.maodouchat.domain.conversation.ContactSearchActionKind
 import com.maodouchat.domain.conversation.contactSearchActionKind

@@ -1,7 +1,5 @@
 package com.maodouchat.domain.contacts
 
-import com.maodouchat.core.model.ContactsLoadResult
-import com.maodouchat.core.model.ContactsSession
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
