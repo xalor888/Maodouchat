@@ -160,21 +160,3 @@ data class ChatDetailUiState(
     /** 本会话已入群/私聊的 bot 斜杠命令（明文 inbox，不碰成员密文）。 */
     val botCommands: List<BotCommandItem> = emptyList()
 )
-
-// ── DTO 映射 ──────────────────────────
-
-fun ChatDto.toDomainChat(): Chat = Chat(
-    id = id,
-    participants = participants.map { User(it.id, it.name, it.avatar, it.email, it.isOnline, it.status, lastSeen = it.lastSeen) },
-    lastMessage = lastMessage,
-    lastMessageType = MessageType.fromWire(lastMessageType),
-    lastMessageTime = lastMessageTime,
-    unreadCount = unreadCount,
-    isGroup = isGroup,
-    chatType = chatType,
-    groupName = groupName,
-    groupAnnouncement = groupAnnouncement,
-    groupAvatar = groupAvatar,
-    memberRevision = memberRevision,
-    disappearingMessageSeconds = disappearingMessageSeconds
-)

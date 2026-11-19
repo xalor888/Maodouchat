@@ -96,7 +96,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.update
-import com.maodouchat.core.model.toDomainChat
+import com.maodouchat.domain.groups.toDomainChat
 // 构造顺序有语义：后面的协调器引用前面构造出来的仓库。
 internal class ChatDetailDeps(
     private val application: Application,

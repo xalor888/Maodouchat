@@ -13,7 +13,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.toDomainChat
+import com.maodouchat.domain.groups.toDomainChat
 
 /**
  * 机器人群操作向 UI 写入的文案种类。domain 侧只定种类，真正的本地化字符串由 app 侧
