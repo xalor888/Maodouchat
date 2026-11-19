@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.ChatLoadPlan
-import com.maodouchat.core.model.AUTO_DOWNLOAD_MEDIA_TYPES
 
 // 消息加载/分页/刷新：从 ChatDetailViewModel 纯搬移；
 // 仓库/网络/会话门禁/回执/R 文案与跨模块控制器走端口，其余逻辑逐字平移。

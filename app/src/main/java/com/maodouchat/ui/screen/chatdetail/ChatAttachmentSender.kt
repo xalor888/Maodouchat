@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
+import com.maodouchat.domain.messaging.RELIABLE_ATTACHMENT_TYPES
 
 internal class ChatAttachmentSender(
     private val scope: CoroutineScope,

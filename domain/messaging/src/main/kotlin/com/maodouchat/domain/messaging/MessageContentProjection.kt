@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.DecodedContentPayload
-import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 
