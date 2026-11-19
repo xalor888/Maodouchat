@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 enum class PrivilegeClaimKind {
     TRANSFER_OR_PAYMENT,
