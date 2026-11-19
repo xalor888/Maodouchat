@@ -1,5 +1,6 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
+import com.maodouchat.core.model.AppLinkDestination
 
 /** P08：系统入口目标 → 类型化导航目标（路由字符串经 `toRoute()` 统一生成）。 */
 fun NotificationTarget.toDestination(): AppLinkDestination = when (this) {

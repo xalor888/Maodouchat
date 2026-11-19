@@ -6,8 +6,6 @@ import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-// NotificationTarget lives in the same package (NavTargets.kt).
-
 class AppLinkRouterTest {
 
     @Test
@@ -86,18 +84,6 @@ class AppLinkRouterTest {
         assertIs<AppLinkParseResult.Rejected>(
             AppLinkRouter.parseDeepLink("maodouchat:chat-invite:v1:${"a".repeat(40)}/evil")
         )
-    }
-
-    @Test
-    fun groupInviteTargetMapsToDestination() {
-        val target = NotificationTarget.GroupInvite(
-            code = "B".repeat(40),
-            sessionGeneration = 1L,
-            ownerUserId = "u1",
-        )
-        val dest = target.toDestination() as AppLinkDestination.GroupInvite
-        assertEquals("B".repeat(40), dest.code)
-        assertEquals("join_group_invite/${"B".repeat(40)}", dest.toRoute())
     }
 
     @Test

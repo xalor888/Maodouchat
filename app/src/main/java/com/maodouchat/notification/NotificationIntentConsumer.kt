@@ -8,7 +8,7 @@ import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkParseResult
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.IncomingCallWake
-import com.maodouchat.core.model.NotificationTarget
+import com.maodouchat.domain.conversation.NotificationTarget
 import com.maodouchat.core.model.parseDeepLink
 import com.maodouchat.core.model.sanitizeCallIdStrict
 import com.maodouchat.core.model.sanitizeChatIdStrict

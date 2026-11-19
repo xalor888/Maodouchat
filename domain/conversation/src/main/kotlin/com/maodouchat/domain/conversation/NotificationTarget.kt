@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * 系统入口目标（P08：自 `MainActivity` 迁出，入口消费与导航共用同一类型）。
