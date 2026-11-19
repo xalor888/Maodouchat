@@ -1,9 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-class AiEntryModelsTest {
+class SanitizedContextLineTest {
 
     @Test
     fun `sanitized line keeps its fields and copies`() {

@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 
 // 上下文文本消毒簇：剥离控制字符、截断、弱化伪 system 行首标记。
