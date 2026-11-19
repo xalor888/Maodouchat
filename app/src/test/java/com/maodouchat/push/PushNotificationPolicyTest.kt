@@ -1,6 +1,6 @@
 package com.maodouchat.push
 
-import com.maodouchat.core.model.PushNotificationPolicy
+import com.maodouchat.domain.conversation.PushNotificationPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

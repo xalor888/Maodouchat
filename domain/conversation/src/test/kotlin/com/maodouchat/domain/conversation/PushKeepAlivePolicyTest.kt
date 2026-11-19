@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
