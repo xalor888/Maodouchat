@@ -1,4 +1,7 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.model.PrivilegeClaimKind
+import com.maodouchat.core.model.PrivilegeScan
 
 /** 特权幻觉扫描门面：阻断模型输出中「已执行特权动作」的幻觉（转账/删号/改密等），展示前 fail-closed。 */
 object AiPrivilegeClaimScan {

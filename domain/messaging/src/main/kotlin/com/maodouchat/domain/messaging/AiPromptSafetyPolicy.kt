@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiPrivilegeClaimScan
-import com.maodouchat.core.model.AiPromptSanitization
 import com.maodouchat.core.model.PrivilegeScan
 import com.maodouchat.core.model.SanitizedContextLine
 

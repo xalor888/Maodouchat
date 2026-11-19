@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiPrivilegeClaimScan
-import com.maodouchat.core.model.AiPromptSanitization
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
