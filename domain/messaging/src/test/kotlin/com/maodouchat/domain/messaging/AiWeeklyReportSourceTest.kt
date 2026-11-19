@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull

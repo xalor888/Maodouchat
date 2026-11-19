@@ -1,8 +1,8 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.AiWeeklyReportWeekRange
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.AiWeeklyReportWeekRange
+import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.util.RuntimeFlags
 

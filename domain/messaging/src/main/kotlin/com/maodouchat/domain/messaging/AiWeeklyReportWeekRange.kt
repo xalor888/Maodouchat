@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 周报时间窗口：本周一 00:00（本地时区）到下周一 00:00。
 object AiWeeklyReportWeekRange {

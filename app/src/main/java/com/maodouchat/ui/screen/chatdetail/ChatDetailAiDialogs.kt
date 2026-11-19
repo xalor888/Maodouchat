@@ -18,7 +18,7 @@ import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.domain.messaging.ConversationProfile
 import com.maodouchat.domain.groups.GroupAiSharePolicy
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ChatDetailUiState
 

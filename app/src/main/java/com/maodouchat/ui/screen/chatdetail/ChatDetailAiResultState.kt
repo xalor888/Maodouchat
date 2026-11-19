@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.maodouchat.domain.messaging.ConversationProfile
 import com.maodouchat.core.model.CategoryCount
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 
 /**
  * G335：**本地 AI 聚合结果的「值 / 加载中 / 失败」三态**——会话画像、本周周报、消息分类。

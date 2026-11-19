@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.data.repository.AiProfileRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
