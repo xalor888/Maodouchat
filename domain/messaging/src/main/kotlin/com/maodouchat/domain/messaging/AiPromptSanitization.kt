@@ -1,5 +1,8 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
+import com.maodouchat.core.model.AiPromptInjectionDetection
+import com.maodouchat.core.model.AiPromptSanitizeText
+import com.maodouchat.core.model.SanitizedContextLine
 
 /** 上下文消毒门面：文本消毒簇 + 注入检测簇的统一入口，全部透传。 */
 object AiPromptSanitization {

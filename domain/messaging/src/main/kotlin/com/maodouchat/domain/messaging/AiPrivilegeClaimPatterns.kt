@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 特权幻觉的四类声称模式 + 控制字符：展示前 fail-closed 扫描用，pattern 逐字搬入。
 internal object AiPrivilegeClaimPatterns {
