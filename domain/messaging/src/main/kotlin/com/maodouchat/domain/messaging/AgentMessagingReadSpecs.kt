@@ -1,8 +1,4 @@
-package com.maodouchat.core.model
-
-import com.maodouchat.core.model.Parameter
-import com.maodouchat.core.model.Risk
-import com.maodouchat.core.model.ToolSpec
+package com.maodouchat.domain.messaging
 
 // 消息工具规格：只读（会话/消息查询与改写）。
 val listChatsToolSpec = ToolSpec(

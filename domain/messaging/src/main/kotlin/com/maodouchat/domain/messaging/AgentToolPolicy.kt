@@ -1,10 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.Approval
-import com.maodouchat.core.model.Risk
-import com.maodouchat.core.model.ToolSpec
-import com.maodouchat.core.model.agentToolCatalog
-
 /** 纯规则：密聊密文不发往 Maodou 服务端；工具只读已解密本地行、只经 E2EE outbox 发送。 */
 object AgentToolPolicy {
     const val MAX_TOOL_ROUNDS = 12
