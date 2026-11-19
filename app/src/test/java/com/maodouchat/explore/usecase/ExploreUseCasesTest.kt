@@ -21,7 +21,7 @@ import com.maodouchat.core.model.SetUsernameResponse
 import com.maodouchat.core.model.UserDto
 import com.maodouchat.core.network.SocialApi
 import com.maodouchat.session.CurrentSession
-import com.maodouchat.core.model.SessionSnapshot
+import com.maodouchat.domain.messaging.SessionSnapshot
 import com.maodouchat.explore.repository.FeedRepository
 import com.maodouchat.core.model.FeedSession
 import kotlinx.coroutines.CancellationException

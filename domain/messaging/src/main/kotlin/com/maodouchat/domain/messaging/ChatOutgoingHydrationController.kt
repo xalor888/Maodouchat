@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.model.User
 import com.maodouchat.core.session.OwnerSessionPolicy
 import com.maodouchat.core.session.OwnerSessionSnapshot

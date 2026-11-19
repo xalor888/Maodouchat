@@ -7,7 +7,6 @@ import com.maodouchat.core.model.ConversationScheduleCoordinator
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.ScheduledMessage
 import com.maodouchat.core.model.ScheduledMessageRequest
-import com.maodouchat.core.model.SessionSnapshot
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update

@@ -1,6 +1,6 @@
 package com.maodouchat.session
 
-import com.maodouchat.core.model.SessionSnapshot
+import com.maodouchat.domain.messaging.SessionSnapshot
 import com.maodouchat.network.TokenManager
 
 // 当前账号身份的进程内唯一读取点：调用方只拿身份、拿不到令牌，网络层不会被拖进渲染路径。
