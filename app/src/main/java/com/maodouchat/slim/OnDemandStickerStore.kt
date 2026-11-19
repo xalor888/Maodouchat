@@ -3,13 +3,13 @@ package com.maodouchat.slim
 import android.content.Context
 import android.util.Log
 import com.maodouchat.R
-import com.maodouchat.core.model.PackLock
-import com.maodouchat.core.model.RemotePack
-import com.maodouchat.core.model.RemoteSticker
-import com.maodouchat.core.model.StickerPackDownloadResult
+import com.maodouchat.domain.messaging.PackLock
+import com.maodouchat.domain.messaging.RemotePack
+import com.maodouchat.domain.messaging.RemoteSticker
 import com.maodouchat.domain.messaging.StickerFilePolicy
 import com.maodouchat.domain.messaging.StickerManifestPolicy
 import com.maodouchat.domain.messaging.StickerNamePolicy
+import com.maodouchat.domain.messaging.StickerPackDownloadResult
 import com.maodouchat.network.ApiConfig
 import java.io.File
 import java.util.UUID

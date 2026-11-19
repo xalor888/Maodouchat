@@ -1,24 +1,24 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.core.model.DeviceCiphertext
+import com.maodouchat.crypto.SignalProtocol
+import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.domain.messaging.DeviceCiphertext
 import com.maodouchat.domain.messaging.MessagingV2ConversationSnapshot
 import com.maodouchat.domain.messaging.MessagingV2DeviceTarget
 import com.maodouchat.domain.messaging.MessagingV2StaleGroupControlException
-import com.maodouchat.core.model.MultiRecipientEnvelopePayload
-import com.maodouchat.crypto.SignalProtocol
-import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
+import com.maodouchat.domain.messaging.MultiRecipientEnvelopePayload
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
 
 /**
  * G13：Signal 信封**加密准备器**的第一批证据。

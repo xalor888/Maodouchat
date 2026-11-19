@@ -7,18 +7,18 @@ import com.maodouchat.core.crypto.MultiDeviceMessageEnvelope
 import com.maodouchat.core.crypto.MultiRecipientCoveragePolicy
 import com.maodouchat.core.crypto.SignalProtocolConstants
 import com.maodouchat.core.model.BotCommandPolicy
-import com.maodouchat.core.model.DeviceCiphertext
-import com.maodouchat.core.model.EncryptedPayload
-import com.maodouchat.core.model.MultiRecipientDeviceTarget
-import com.maodouchat.core.model.MultiRecipientEnvelopePayload
-import com.maodouchat.domain.messaging.NoRecipientDevicesException
 import com.maodouchat.core.model.Target
 import com.maodouchat.core.model.TransientCoverageException
+import com.maodouchat.domain.messaging.DeviceCiphertext
+import com.maodouchat.domain.messaging.EncryptedPayload
+import com.maodouchat.domain.messaging.MultiRecipientDeviceTarget
+import com.maodouchat.domain.messaging.MultiRecipientEnvelopePayload
+import com.maodouchat.domain.messaging.NoRecipientDevicesException
+import kotlin.concurrent.withLock
 import kotlinx.serialization.encodeToString
 import org.signal.libsignal.protocol.SessionCipher
 import org.signal.libsignal.protocol.SignalProtocolAddress
 import org.signal.libsignal.protocol.message.CiphertextMessage
-import kotlin.concurrent.withLock
 
 // 内容信封加密簇：单设备/多设备/多接收者信封组装与底层会话加密。
 // 从 SignalDirectCipher 纯搬移，零行为改动。
