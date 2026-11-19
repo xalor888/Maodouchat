@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.ConversationPrivacyContext
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message

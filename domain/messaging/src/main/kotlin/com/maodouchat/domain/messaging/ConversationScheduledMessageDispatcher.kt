@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.model.ConversationCommandRejection
 import com.maodouchat.core.model.ScheduledMessage as CoreScheduledMessage
 /** 到期的定时文本经消息命令门面转成持久发件箱消息；重试与重复排期仍由 Worker 负责。 */
 class ConversationScheduledMessageDispatcher(

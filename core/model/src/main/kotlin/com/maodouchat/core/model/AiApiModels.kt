@@ -14,14 +14,6 @@ data class AiGroupTask(
 )
 
 @Serializable
-data class AiSemanticSearchCandidate(
-    val messageId: String,
-    val sender: String = "",
-    val text: String,
-    val timestamp: Long
-)
-
-@Serializable
 data class AiAuditLogResponse(
     val id: String,
     val chatId: String? = null,

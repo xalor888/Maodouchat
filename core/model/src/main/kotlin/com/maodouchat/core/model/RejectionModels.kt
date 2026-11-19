@@ -1,13 +1,5 @@
 package com.maodouchat.core.model
 
-enum class ConversationCommandRejection {
-    EMPTY_TEXT,
-    CHAT_UNAVAILABLE,
-    TERMINAL_MESSAGE,
-    SECRET_CONVERSATION,
-    LOCKED_CONVERSATION,
-}
-
 enum class ChatScheduleRejection {
     DISABLED,
     INVALID_REQUEST,

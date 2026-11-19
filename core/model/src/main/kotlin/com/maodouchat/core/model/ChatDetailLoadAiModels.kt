@@ -1,12 +1,5 @@
 package com.maodouchat.core.model
 
-/** 附带 retry-after 的错误码解析；[persistedCode] 可写入 Room lastErrorCode。 */
-data class AiClassifiedError(
-    val code: String,
-    val retryAfterSeconds: Long? = null,
-    val persistedCode: String = code
-)
-
 /** 加载完成后要执行的副作用。用 sealed 让调用方的 `when` 必须穷尽。 */
 sealed interface ChatLoadEffect {
     data class OccupySessionCipher(val chatId: String, val peerUserId: String?) : ChatLoadEffect
