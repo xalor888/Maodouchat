@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.SyncCursor
-
 // 同步游标严格先后比较：先比时间戳，相等再比消息 id 字典序。
 object SyncCursorPolicy {
 

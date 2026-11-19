@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.StickerPack
-
 object StickerCatalog {
     const val PACK_RECENT = "recent"
     const val PACK_MOOD = "mood"

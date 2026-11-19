@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LoginUiState
-
 // 登录提交校验链：按序短路，返回首个失败原因；邮箱格式由调用方注入 predicate
 //（生产侧传 Patterns.EMAIL_ADDRESS，语义不变）。
 enum class LoginValidationFailure {

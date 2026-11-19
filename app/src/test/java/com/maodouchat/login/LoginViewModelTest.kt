@@ -1,6 +1,6 @@
 package com.maodouchat.login
 
-import com.maodouchat.core.model.LoginUiState
+import com.maodouchat.domain.messaging.LoginUiState
 import com.maodouchat.domain.messaging.LoginSubmitValidationPolicy
 import com.maodouchat.domain.messaging.LoginValidationFailure
 import org.junit.Test
