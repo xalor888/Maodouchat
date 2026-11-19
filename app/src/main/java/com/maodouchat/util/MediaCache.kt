@@ -5,7 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Base64
 import android.util.Log
-import com.maodouchat.core.model.LocalFileMetadata
+import com.maodouchat.domain.messaging.LocalFileMetadata
 import com.maodouchat.domain.messaging.AttachmentFileExtensionPolicy
 import androidx.core.net.toUri
 import java.io.File
