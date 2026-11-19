@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
-import com.maodouchat.core.model.PushKeepAlivePolicy
+import com.maodouchat.domain.conversation.PushKeepAlivePolicy
 import com.maodouchat.network.TokenManager
 
 /**

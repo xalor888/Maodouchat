@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull

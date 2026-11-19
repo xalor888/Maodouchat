@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * 保活启停纯门闩：登出 / MODE_OFF / 无 token 时禁止 daemon 复活与后台 FGS。

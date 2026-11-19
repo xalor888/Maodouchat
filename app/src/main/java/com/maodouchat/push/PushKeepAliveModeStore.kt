@@ -2,7 +2,7 @@ package com.maodouchat.push
 
 import android.content.Context
 import androidx.core.content.edit
-import com.maodouchat.core.model.PushKeepAlivePolicy
+import com.maodouchat.domain.conversation.PushKeepAlivePolicy
 
 /**
  * 后台推送保活模式偏好。

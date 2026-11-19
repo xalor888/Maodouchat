@@ -19,8 +19,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
-import com.maodouchat.core.model.PushKeepAlivePolicy
-import com.maodouchat.core.model.PushTransportState
+import com.maodouchat.domain.conversation.PushKeepAlivePolicy
+import com.maodouchat.domain.conversation.PushTransportState
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

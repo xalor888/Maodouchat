@@ -1,7 +1,7 @@
 package com.maodouchat.push
 
-import com.maodouchat.core.model.PushWakeDecision
-import com.maodouchat.core.model.PushWakePayloadPolicy
+import com.maodouchat.domain.conversation.PushWakeDecision
+import com.maodouchat.domain.conversation.PushWakePayloadPolicy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

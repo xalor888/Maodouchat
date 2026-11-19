@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 /**
  * P07：离线/保活唤醒载荷隐私门禁。

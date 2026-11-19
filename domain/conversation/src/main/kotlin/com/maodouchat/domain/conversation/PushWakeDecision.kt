@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 sealed interface PushWakeDecision {
     data object Accept : PushWakeDecision
