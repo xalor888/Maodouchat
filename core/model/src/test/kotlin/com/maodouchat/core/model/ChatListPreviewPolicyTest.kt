@@ -109,60 +109,6 @@ class ChatListPreviewPolicyTest {
     }
 
     @Test
-    fun shouldKeepExistingOwnPreviewOnlyForSameMessageReadableBody() {
-        // Room plaintext for this message id (local send echo).
-        assertTrue(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = true,
-                messageType = MessageType.TEXT,
-                existingSameMessageContent = "hello",
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-        assertTrue(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = true,
-                messageType = MessageType.IMAGE,
-                existingSameMessageContent = "blob-or-meta",
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-        // Previous chat-list tail alone is not enough — multi-device new send must not freeze.
-        assertFalse(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = true,
-                messageType = MessageType.TEXT,
-                existingSameMessageContent = null,
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-        assertFalse(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = false,
-                messageType = MessageType.TEXT,
-                existingSameMessageContent = "hello",
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-        assertFalse(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = true,
-                messageType = MessageType.TEXT,
-                existingSameMessageContent = """{"type":"ciphertext"}""",
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-        assertFalse(
-            ChatListPreviewPolicy.shouldKeepExistingOwnPreview(
-                isOwnMessage = true,
-                messageType = MessageType.TEXT,
-                existingSameMessageContent = "[enc]",
-                encryptedPlaceholder = "[enc]"
-            )
-        )
-    }
-
-    @Test
     fun ownEchoListPreviewUsesPlaintextOrMediaLabel() {
         assertEquals(
             "hello",
@@ -191,42 +137,6 @@ class ChatListPreviewPolicyTest {
                 mediaLabel = mediaLabel
             )
         )
-    }
-
-    @Test
-    fun textPreviewFromPlainOrEncryptedNeverSurfacesWire() {
-        assertEquals(
-            "hi there",
-            ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted("hi there", "[enc]")
-        )
-        assertEquals(
-            "[enc]",
-            ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted("""{"v":1}""", "[enc]")
-        )
-        assertEquals(
-            "[enc]",
-            ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted(null, "[enc]")
-        )
-        assertEquals(
-            "[enc]",
-            ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted("  ", "[enc]")
-        )
-        assertEquals(
-            "a".repeat(200),
-            ChatListPreviewPolicy.textPreviewFromPlainOrEncrypted("a".repeat(250), "[enc]")
-        )
-    }
-
-    @Test
-    fun looksLikeWireEnvelopeDoesNotTreatMediaLabelsAsJson() {
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""{"type":"ciphertext"}"""))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""[{"deviceId":1}]"""))
-        assertTrue(ChatListPreviewPolicy.looksLikeWireEnvelope("""["entry"]"""))
-        assertFalse(ChatListPreviewPolicy.looksLikeWireEnvelope("[图片]"))
-        assertFalse(ChatListPreviewPolicy.looksLikeWireEnvelope("[GIF]"))
-        assertFalse(ChatListPreviewPolicy.looksLikeWireEnvelope("[Image]"))
-        assertFalse(ChatListPreviewPolicy.looksLikeWireEnvelope("hello"))
-        assertFalse(ChatListPreviewPolicy.looksLikeWireEnvelope(""))
     }
 
     @Test
@@ -399,14 +309,6 @@ class ChatListPreviewPolicyTest {
         assertEquals("", preview.text)
         assertEquals(MessageType.TEXT, preview.type)
         assertEquals(0L, preview.timestamp)
-    }
-
-    @Test
-    fun redactedIfWireHidesEnvelopeButKeepsPlaintext() {
-        val wire = """{"senderDeviceId":76,"payloadType":"TEXT","entries":[{"ciphertextType":"prekey","ciphertext":"NAgB"}]}"""
-        assertEquals("[enc]", ChatListPreviewPolicy.redactedIfWire(wire, "[enc]"))
-        assertEquals("hello", ChatListPreviewPolicy.redactedIfWire("hello", "[enc]"))
-        assertEquals("[enc]", ChatListPreviewPolicy.redactedIfWire("  ", "[enc]"))
     }
 
     @Test

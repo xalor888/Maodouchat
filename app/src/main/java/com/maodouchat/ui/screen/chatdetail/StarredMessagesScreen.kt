@@ -62,6 +62,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.StarredMessageSearchPolicy
 import com.maodouchat.domain.messaging.StarredSearchQueryPolicy
+import com.maodouchat.domain.messaging.WireEnvelopePreviewPolicy
 import com.maodouchat.domain.messaging.forwardPreviewText
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -326,7 +327,7 @@ private fun chatTitle(chat: Chat?, currentUserId: String): String =
 private fun Message.starredPreview(context: android.content.Context): String =
     forwardPreviewText(type)?.let { stringResource(chatMessagePreviewTextResId(it)) } ?: when (type) {
         MessageType.TEXT, MessageType.MARKDOWN ->
-            com.maodouchat.core.model.ChatListPreviewPolicy.redactedIfWire(
+            WireEnvelopePreviewPolicy.redactedIfWire(
                 parsedContent(),
                 context.getString(R.string.starred_encrypted_message),
             )

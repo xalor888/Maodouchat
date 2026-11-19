@@ -88,11 +88,6 @@ object ChatListPreviewPolicy {
     }
 
     /**
-     * Heuristic for Signal JSON envelopes (object or multi-device array).
-     * Media list labels like `[图片]` / `[GIF]` start with `[` but are not wire —
-     * only treat as wire when the body looks like JSON structure.
-     */
-    /**
      * Chat-list TEXT preview must never dump `<meta>{...}</meta>` or a local file URI
      * after cache wipe. Room `lastMessage` historically stored composeContentWithMeta.
      */
@@ -164,15 +159,6 @@ object ChatListPreviewPolicy {
             isRemoteAttachmentUri(t)
     }
 
-    fun looksLikeWireEnvelope(content: String): Boolean {
-        val t = content.trimStart()
-        if (t.startsWith("{")) return true
-        // Multi-device / JSON array envelopes start with `[` then `{` or `"`.
-        // Localized labels are `[...]` without nested JSON.
-        if (t.startsWith("[{") || t.startsWith("[\"")) return true
-        return false
-    }
-
     /**
      * 9.3xx：严格版 Signal 密文判定——详情气泡兜底。此前 FutureEpoch/断线补拉路径把
      * wire envelope 原样落库，气泡整块输出 ciphertext/设备号等元数据。
@@ -197,41 +183,8 @@ object ChatListPreviewPolicy {
             (hasCiphertext && (hasSenderDevice || hasEntries || hasCiphertextType))
     }
 
-    /** UI / clipboard: never emit raw Signal JSON; keep Room wire for later decrypt. */
-    fun redactedIfWire(content: String, placeholder: String): String {
-        val body = visiblePreviewText(content)
-        if (body.isBlank()) return placeholder
-        return if (isSignalWireEnvelope(content) || isSignalWireEnvelope(body)) placeholder else body
-    }
-
     /**
-     * Same-message local echo: Room already holds a human-readable body for this message id
-     * (plaintext TEXT after local send). Prefer that over WS ciphertext so emitMessageSent
-     * plaintext is not overwritten.
-     *
-     * Must NOT key only on chat-list lastMessage — that is the *previous* head and would
-     * freeze multi-device new sends on the old tail.
-     */
-    fun shouldKeepExistingOwnPreview(
-        isOwnMessage: Boolean,
-        messageType: MessageType,
-        existingSameMessageContent: String?,
-        encryptedPlaceholder: String
-    ): Boolean {
-        if (!isOwnMessage) return false
-        if (messageType !in OWN_ECHO_PREVIEW_TYPES) return false
-        val body = existingSameMessageContent?.takeIf { it.isNotBlank() } ?: return false
-        // This helper is called for a same-id local echo. A JSON object/array here may be a
-        // wire envelope that has not been decrypted yet, even when an older/unknown envelope
-        // shape does not satisfy the stricter Signal signature detector.
-        if (looksLikeWireEnvelope(body)) return false
-        if (looksLikeLeftoverPreviewGarbage(body)) return false
-        if (body == encryptedPlaceholder) return false
-        return true
-    }
-
-    /**
-     * List-row tail for own same-message echo when [shouldKeepExistingOwnPreview] is true.
+     * List-row tail for own same-message echo when shouldKeepExistingOwnPreview is true.
      * TEXT uses Room plaintext (truncated); media types use localized labels.
      */
     fun ownEchoListPreview(
@@ -257,34 +210,6 @@ object ChatListPreviewPolicy {
         }
     }
 
-    /**
-     * TEXT list/notify body: prefer decrypted plaintext; never surface wire JSON.
-     */
-    fun textPreviewFromPlainOrEncrypted(
-        decryptedPlain: String?,
-        encryptedPlaceholder: String,
-        maxLen: Int = 200
-    ): String {
-        val body = decryptedPlain?.takeIf {
-            it.isNotBlank() &&
-                !looksLikeWireEnvelope(it) &&
-                !looksLikeLeftoverPreviewGarbage(it)
-        }
-        return body?.take(maxLen) ?: encryptedPlaceholder
-    }
-
-    private val OWN_ECHO_PREVIEW_TYPES = setOf(
-        MessageType.TEXT,
-        MessageType.MARKDOWN,
-        MessageType.STICKER,
-        MessageType.LOCATION,
-        MessageType.IMAGE,
-        MessageType.GIF,
-        MessageType.VOICE,
-        MessageType.VIDEO,
-        MessageType.FILE,
-        MessageType.NUDGE
-    )
 }
 
 /**
