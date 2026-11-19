@@ -1,5 +1,5 @@
 package com.maodouchat.util
-import com.maodouchat.core.model.NearbyPolicy
+import com.maodouchat.domain.contacts.NearbyPolicy
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
