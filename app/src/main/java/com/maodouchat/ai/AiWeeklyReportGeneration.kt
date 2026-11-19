@@ -1,7 +1,7 @@
 package com.maodouchat.ai
 
 import android.content.Context
-import com.maodouchat.core.model.AiPromptSafetyPolicy
+import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.domain.messaging.AiWeeklyReportWeekRange
 import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.data.local.AppDatabase

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
 
 // Agent 消息行的纯格式化逻辑，自 app 侧 ai/agent 消息读簇收敛；

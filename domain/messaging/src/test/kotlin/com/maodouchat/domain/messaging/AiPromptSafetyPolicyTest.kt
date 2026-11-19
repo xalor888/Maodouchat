@@ -1,8 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import com.maodouchat.core.model.AiPrivilegeClaimScan
+import com.maodouchat.core.model.AiPromptSanitization
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class AiPromptSafetyPolicyTest {
 

@@ -1,7 +1,6 @@
 package com.maodouchat.ai.agent
 
 import com.maodouchat.MaodouchatApp
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentPinnedLinePolicy
@@ -9,6 +8,7 @@ import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
 import com.maodouchat.domain.messaging.AgentReadGatePolicy
 import com.maodouchat.domain.messaging.AgentSecretGatePolicy
 import com.maodouchat.domain.messaging.AgentToolHostPolicy
+import com.maodouchat.domain.messaging.AiPromptSafetyPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.security.ChatLockSession
 

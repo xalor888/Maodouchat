@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiContextMessage
-import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 
