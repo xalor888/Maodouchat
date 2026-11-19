@@ -6,7 +6,7 @@ import com.maodouchat.core.model.AiContextMessage
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.domain.messaging.AiSemanticSearchPolicy
 import com.maodouchat.domain.messaging.semanticSearchText
-import com.maodouchat.core.model.buildPlainAiContextMessages
+import com.maodouchat.domain.messaging.buildPlainAiContextMessages
 import com.maodouchat.domain.messaging.parseGroupAiCommand
 import com.maodouchat.domain.messaging.parseGroupAiTasks
 import androidx.lifecycle.viewModelScope

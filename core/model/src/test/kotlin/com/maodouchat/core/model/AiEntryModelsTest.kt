@@ -6,14 +6,6 @@ import org.junit.Test
 class AiEntryModelsTest {
 
     @Test
-    fun `composer sections keep their order`() {
-        assertEquals(
-            listOf(ComposerSection.DRAFT, ComposerSection.CHAT, ComposerSection.SETTINGS),
-            ComposerSection.entries
-        )
-    }
-
-    @Test
     fun `sanitized line keeps its fields and copies`() {
         val line = SanitizedContextLine(sender = "user", text = "hello")
         assertEquals("user", line.sender)

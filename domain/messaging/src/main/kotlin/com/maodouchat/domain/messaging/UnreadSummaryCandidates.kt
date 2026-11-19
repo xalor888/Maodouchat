@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 

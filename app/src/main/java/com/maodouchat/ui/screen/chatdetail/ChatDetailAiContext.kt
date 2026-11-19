@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import android.app.Application
 import com.maodouchat.R
-import com.maodouchat.core.model.AiContextSenders
+import com.maodouchat.domain.messaging.AiContextSenders
 import com.maodouchat.core.model.AiPromptSafetyPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.buildUnreadSummaryCacheKey
@@ -10,7 +10,7 @@ import com.maodouchat.domain.messaging.selectUnreadSummaryCandidates
 import com.maodouchat.core.model.AiContextMessage
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.domain.messaging.isAmbiguousTransportFailure
-import com.maodouchat.core.model.buildPlainAiContextMessages
+import com.maodouchat.domain.messaging.buildPlainAiContextMessages
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

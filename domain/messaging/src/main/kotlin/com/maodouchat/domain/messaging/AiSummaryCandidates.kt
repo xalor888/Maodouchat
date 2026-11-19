@@ -1,9 +1,7 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiSummaryScope
-import com.maodouchat.core.model.MAX_AI_SUMMARY_MESSAGES
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.aiSummaryContextText
 import java.util.Calendar
 
 // AI 消息总结的候选消息筛选：按范围（最近 / 今天 / 7 天 / 30 天 / 搜索结果 / 未读）
