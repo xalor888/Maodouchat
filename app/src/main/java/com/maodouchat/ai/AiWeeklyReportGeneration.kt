@@ -2,8 +2,8 @@ package com.maodouchat.ai
 
 import android.content.Context
 import com.maodouchat.core.model.AiPromptSafetyPolicy
-import com.maodouchat.core.model.AiWeeklyReportWeekRange
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.AiWeeklyReportWeekRange
+import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.repository.AiProfileRepository

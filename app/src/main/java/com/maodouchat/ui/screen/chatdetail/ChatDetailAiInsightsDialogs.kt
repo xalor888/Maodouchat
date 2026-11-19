@@ -29,7 +29,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CategoryCount
 import com.maodouchat.domain.messaging.ConversationProfile
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 import com.maodouchat.domain.messaging.AiClassifyCategoryKind
 import com.maodouchat.domain.messaging.AiProfileTopTermsPolicy
 import com.maodouchat.domain.messaging.aiClassifyCategoryKind

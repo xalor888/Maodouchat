@@ -2,7 +2,7 @@ package com.maodouchat.data.local
 
 import com.maodouchat.ai.AiWeeklyReport
 import com.maodouchat.domain.messaging.AiWeeklyReportSource
-import com.maodouchat.core.model.WeeklyReport
+import com.maodouchat.domain.messaging.WeeklyReport
 
 /** `AiWeeklyReportSource` 的装配实现（G73）。 */
 internal class RoomAiWeeklyReportSource(
