@@ -7,7 +7,7 @@ import com.maodouchat.R
 import com.maodouchat.ai.AiWritingStylePreferences
 import com.maodouchat.domain.messaging.AiWritingStylePolicy
 import com.maodouchat.core.model.Preset
-import com.maodouchat.core.model.Snapshot
+import com.maodouchat.domain.messaging.Snapshot
 import com.maodouchat.core.model.ClientPrefsUpdateRequest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch

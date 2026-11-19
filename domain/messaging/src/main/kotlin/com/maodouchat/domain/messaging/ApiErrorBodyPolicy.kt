@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.ErrorResponse
 import kotlinx.serialization.json.Json
 
 private val apiErrorJson = Json { ignoreUnknownKeys = true }

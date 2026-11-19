@@ -121,14 +121,6 @@ class AuthApiModelsTest {
     }
 
     @Test
-    fun errorResponseOptionalFieldsDefaultNull() {
-        val decoded = json.decodeFromString<ErrorResponse>("""{"error":"boom"}""")
-        assertEquals("boom", decoded.error)
-        assertNull(decoded.code)
-        assertNull(decoded.retryAfterSeconds)
-    }
-
-    @Test
     fun setUsernameResponseDefaultsToNotOk() {
         val decoded = json.decodeFromString<SetUsernameResponse>("""{}""")
         assertFalse(decoded.ok)
@@ -237,16 +229,6 @@ class AuthApiModelsTest {
         assertEquals("", decoded.status)
         assertFalse(decoded.isModerator)
         assertNull(decoded.username)
-    }
-
-    @Test
-    fun errorResponseWithCodeAndRetryAfterDecodes() {
-        val decoded = json.decodeFromString<ErrorResponse>(
-            """{"error":"slow","code":"RATE_LIMITED","retryAfterSeconds":30}"""
-        )
-        assertEquals("slow", decoded.error)
-        assertEquals("RATE_LIMITED", decoded.code)
-        assertEquals(30L, decoded.retryAfterSeconds)
     }
 
     @Test

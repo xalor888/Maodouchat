@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.Preset
-import com.maodouchat.core.model.Snapshot
 
 // 归一化簇：预设 id 解析、自定义文本清洗、Snapshot 装配。原 AiWritingStylePolicy 逻辑逐字搬入。
 object AiWritingStyleNormalization {

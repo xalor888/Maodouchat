@@ -137,9 +137,6 @@ data class DevicePreKeyBundleDto(
 )
 
 @Serializable
-data class ErrorResponse(val error: String, val code: String? = null, val retryAfterSeconds: Long? = null)
-
-@Serializable
 data class SendCodeRequest(val email: String, val purpose: String = "register")
 
 @Serializable
