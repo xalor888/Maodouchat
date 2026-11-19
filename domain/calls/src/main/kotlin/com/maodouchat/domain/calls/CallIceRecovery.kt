@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallReliabilityPolicy
-import com.maodouchat.core.model.IceReconnectAction
 import com.maodouchat.core.session.CallSessionMachine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -62,7 +61,7 @@ class CallIceRecovery(
         if (iceReconnectJob?.isActive == true) return
         val session = activeCallSession()
         iceReconnectJob = scope.launch {
-            delay(CallReliabilityPolicy.ICE_RECONNECT_GRACE_MS)
+            delay(ICE_RECONNECT_GRACE_MS)
             if (callSessionGate.isCurrent(session) && currentState().networkReconnecting && currentState().callState == CallState.CONNECTED) {
                 onIceGiveUp(text(CallSignalingMessage.NETWORK_DISCONNECTED, emptyArray()))
             }
@@ -86,7 +85,7 @@ class CallIceRecovery(
                 updateState { it.copy(networkReconnecting = true) }
                 restartIce()
                 iceReconnectJob = scope.launch {
-                    delay(CallReliabilityPolicy.ICE_RESTART_INTERVAL_MS)
+                    delay(ICE_RESTART_INTERVAL_MS)
                     if (
                         callSessionGate.isCurrent(activeCallSession()) &&
                         currentState().networkReconnecting &&

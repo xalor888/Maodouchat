@@ -1,15 +1,6 @@
 package com.maodouchat.core.model
 
 object CallReliabilityPolicy {
-    /** ICE DISCONNECTED grace before treating the call as failed (ms). */
-    const val ICE_RECONNECT_GRACE_MS = 10_000L
-
-    /** ICE FAILED 后最多尝试 restartIce 重连次数；超过则结束通话。 */
-    const val ICE_MAX_RESTART_ATTEMPTS = 2
-
-    /** 两次 ICE restart 之间的间隔（ms），给 WebRTC 足够时间收集新候选。 */
-    const val ICE_RESTART_INTERVAL_MS = 5_000L
-
     fun requiredPermissions(callType: CallType): Set<CallMediaPermission> = when (callType) {
         CallType.VIDEO -> setOf(CallMediaPermission.MICROPHONE, CallMediaPermission.CAMERA)
         CallType.AUDIO, CallType.GROUP -> setOf(CallMediaPermission.MICROPHONE)
@@ -24,38 +15,12 @@ object CallReliabilityPolicy {
     fun shouldAcceptCallId(activeCallId: String, incomingCallId: String): Boolean =
         activeCallId.isBlank() || activeCallId == incomingCallId
 
-    /** User actions must always name the exact active call; unlike initial signaling they cannot bind a session. */
-    fun shouldAcceptHangUpAction(activeCallId: String, requestedCallId: String): Boolean =
-        activeCallId == requestedCallId
-
     fun normalizeSignalingType(type: String): String = type.trim().lowercase()
 
-    private val CRITICAL_SIGNALING_TYPES = setOf("offer", "answer", "reject", "busy", "hang-up")
-
-    fun isCriticalSignalingType(type: String): Boolean =
-        normalizeSignalingType(type) in CRITICAL_SIGNALING_TYPES
-
-    /**
-     * ICE state transitions for the single reconnect grace window.
-     * - DISCONNECTED -> start/refresh grace (ICE restart 已在 WebRTCManager 内自动触发)
-     * - CONNECTED/COMPLETED -> cancel grace + reset restart counter
-     * - FAILED -> 尝试 ICE restart 重连（最多 ICE_MAX_RESTART_ATTEMPTS 次），超过才 END_NOW
-     */
-    fun iceReconnectAction(iceState: String, restartAttempts: Int = 0): IceReconnectAction = when (iceState.uppercase()) {
-        "DISCONNECTED" -> IceReconnectAction.START_GRACE
-        "CONNECTED", "COMPLETED" -> IceReconnectAction.CANCEL_GRACE
-        "FAILED" -> if (restartAttempts < ICE_MAX_RESTART_ATTEMPTS) IceReconnectAction.RESTART_ICE else IceReconnectAction.END_NOW
-        else -> IceReconnectAction.IGNORE
-    }
 }
 
 object GroupCallPolicy {
     const val MAX_MESH_MEMBERS = 6
-
-    fun isActive(state: GroupPeerConnectionState): Boolean =
-        state == GroupPeerConnectionState.CONNECTING ||
-            state == GroupPeerConnectionState.CONNECTED ||
-            state == GroupPeerConnectionState.RECONNECTING
 
     fun gridColumns(participantCount: Int): Int = if (participantCount <= 4) 2 else 3
 
@@ -69,7 +34,4 @@ object GroupCallPolicy {
         return activeGroupId == incomingGroupId && activeMembers.toSet() == incomingMembers.toSet()
     }
 
-    /** Exactly one side creates an offer for each mesh edge, preventing SDP glare. */
-    fun shouldInitiateMeshEdge(selfUserId: String, peerUserId: String): Boolean =
-        selfUserId.isNotBlank() && peerUserId.isNotBlank() && selfUserId < peerUserId
 }

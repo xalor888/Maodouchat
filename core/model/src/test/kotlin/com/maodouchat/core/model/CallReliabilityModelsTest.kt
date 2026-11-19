@@ -13,11 +13,4 @@ class CallReliabilityModelsTest {
         )
     }
 
-    @Test
-    fun `ice reconnect actions keep declaration order and valueOf round trip`() {
-        val actions = IceReconnectAction.entries.toList()
-        assertEquals(5, actions.size)
-        assertEquals(IceReconnectAction.RESTART_ICE, IceReconnectAction.valueOf("RESTART_ICE"))
-        assertEquals(IceReconnectAction.IGNORE, actions.last())
-    }
 }
