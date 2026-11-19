@@ -4,7 +4,6 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.toRevokedPlaceholder
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

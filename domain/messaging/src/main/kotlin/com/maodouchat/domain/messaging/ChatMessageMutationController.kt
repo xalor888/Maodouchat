@@ -7,8 +7,6 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageMutationProjection
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.toOptimisticEdit
-import com.maodouchat.core.model.toRevokedPlaceholder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
