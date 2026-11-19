@@ -19,7 +19,7 @@ import com.maodouchat.core.model.ApiException
 import com.maodouchat.network.ApiService
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.network.TokenManager
-import com.maodouchat.core.model.EncryptedAttachmentReference
+import com.maodouchat.domain.messaging.EncryptedAttachmentReference
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException

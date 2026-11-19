@@ -5,7 +5,7 @@ import com.maodouchat.MaodouchatApp
 import com.maodouchat.domain.messaging.AttachmentPreparationLease
 import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.MessageStatus
-import com.maodouchat.core.model.RELIABLE_ATTACHMENT_TYPES
+import com.maodouchat.domain.messaging.RELIABLE_ATTACHMENT_TYPES
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.data.repository.LocalMessageStore

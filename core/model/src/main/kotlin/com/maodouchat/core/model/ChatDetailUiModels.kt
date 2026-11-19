@@ -5,15 +5,6 @@ package com.maodouchat.core.model
 const val DEFAULT_TRANSLATION_LANGUAGE = "中文"
 const val SYNCED_UNREAD_SUMMARY_DISPLAY_MAX_AGE_MS = 24L * 60L * 60L * 1_000L
 
-val RELIABLE_ATTACHMENT_TYPES = setOf(
-    MessageType.FILE,
-    MessageType.IMAGE,
-    MessageType.GIF,
-    MessageType.VIDEO,
-    MessageType.VOICE
-)
-val AUTO_DOWNLOAD_MEDIA_TYPES = RELIABLE_ATTACHMENT_TYPES - MessageType.FILE
-
 // ── UI 状态 ───────────────────────────
 
 data class ChatDetailUiState(

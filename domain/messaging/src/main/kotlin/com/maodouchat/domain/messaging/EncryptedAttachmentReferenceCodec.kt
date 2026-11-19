@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.crypto.AttachmentCryptoException
 import com.maodouchat.core.crypto.AttachmentCryptoFailure
-import com.maodouchat.core.model.EncryptedAttachmentReference
 import com.maodouchat.core.model.Message
 import kotlinx.serialization.json.Json
 

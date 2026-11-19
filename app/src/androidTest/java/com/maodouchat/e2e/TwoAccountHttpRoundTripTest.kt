@@ -12,7 +12,7 @@ import com.maodouchat.core.model.EncryptedDeviceEnvelopeRequestV2
 import com.maodouchat.core.model.PendingEnvelopeV2Dto
 import com.maodouchat.core.model.SendMessageRequestV2
 import com.maodouchat.crypto.SignalKeyExchange
-import com.maodouchat.core.model.EncryptedAttachmentReference
+import com.maodouchat.domain.messaging.EncryptedAttachmentReference
 import org.signal.libsignal.protocol.ecc.Curve
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
