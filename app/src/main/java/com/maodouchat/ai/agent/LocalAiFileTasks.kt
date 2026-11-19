@@ -1,7 +1,7 @@
 package com.maodouchat.ai.agent
 
 import android.content.Context
-import com.maodouchat.core.model.PreparedDocumentKind
+import com.maodouchat.domain.messaging.PreparedDocumentKind
 import com.maodouchat.domain.messaging.AgentCompletionResultPolicy
 import com.maodouchat.domain.messaging.AgentFileTaskMessagePolicy
 import com.maodouchat.domain.messaging.LocalAiFilePrepPolicy
