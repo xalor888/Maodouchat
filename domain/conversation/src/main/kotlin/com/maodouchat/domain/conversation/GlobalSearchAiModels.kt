@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 data class AiSearchOutcome(
     val hits: List<GlobalSearchHit>,

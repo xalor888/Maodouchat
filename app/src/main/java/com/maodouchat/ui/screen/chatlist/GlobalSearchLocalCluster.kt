@@ -2,8 +2,8 @@ package com.maodouchat.ui.screen.chatlist
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.model.GlobalSearchHit
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchHit
 import com.maodouchat.domain.conversation.GlobalSearchMode
 import com.maodouchat.domain.conversation.GlobalSearchNamePolicy
 import com.maodouchat.domain.conversation.GlobalSearchTypeFilter

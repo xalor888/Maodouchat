@@ -38,7 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.GlobalSearchHit
+import com.maodouchat.domain.conversation.GlobalSearchHit
 import com.maodouchat.domain.conversation.GlobalSearchHitIconKind
 import com.maodouchat.domain.conversation.globalSearchHitIconKind
 import com.maodouchat.ui.theme.LocalChatPalette
