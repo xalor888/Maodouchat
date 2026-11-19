@@ -2,8 +2,8 @@ package com.maodouchat.explore.usecase
 
 import com.maodouchat.core.model.PostDto
 import com.maodouchat.core.model.PostVisibility
-import com.maodouchat.core.model.PublishPostValidation
 import com.maodouchat.core.model.PostVisibilityPolicy
+import com.maodouchat.domain.conversation.PublishPostValidation
 import com.maodouchat.domain.conversation.PublishPostValidationPolicy
 import com.maodouchat.explore.repository.DraftRepository
 import com.maodouchat.explore.repository.MediaUploadQueue

@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.WidgetRow
 
 // 桌面小组件行投影纯策略：隐私门禁、脱敏标题/预览、角标、行数上限。
 // 密聊 / 隐私受限会话永不上桌；App 锁或 PIN 锁定时标题只显示应用名、正文只显示通用脱敏文案；App 锁定时角标强制 0。

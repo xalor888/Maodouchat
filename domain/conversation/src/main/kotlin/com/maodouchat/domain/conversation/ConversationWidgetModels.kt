@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.conversation
 
 // ---- 模型 ----
 data class WidgetConfig(
