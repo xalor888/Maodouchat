@@ -18,7 +18,7 @@ class ChatOutgoingHydrationControllerTest {
         val controller = ChatSessionCipherController(
             initialChatId = "",
             getChatById = { null },
-            acquireOccupancy = { com.maodouchat.core.model.Lease(1) },
+            acquireOccupancy = { Lease(1) },
             occupyOccupancy = { _, chatId, peerId, updatePeer ->
                 occupies += Triple(chatId, peerId, updatePeer)
             },

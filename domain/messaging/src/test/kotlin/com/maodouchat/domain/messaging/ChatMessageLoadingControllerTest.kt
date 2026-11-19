@@ -13,7 +13,6 @@ import com.maodouchat.core.model.GroupMemberDto
 import com.maodouchat.core.model.GroupMessagingCoordinator
 import com.maodouchat.core.model.GroupMessagingSession
 import com.maodouchat.core.model.GroupMutationCommit
-import com.maodouchat.core.model.Lease
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.MessageType

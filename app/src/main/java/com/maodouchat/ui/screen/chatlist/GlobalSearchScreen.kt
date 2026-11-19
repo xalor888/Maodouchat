@@ -63,8 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.domain.conversation.GlobalSearchContentKind
+import com.maodouchat.domain.conversation.GlobalSearchMode
 import com.maodouchat.domain.conversation.globalSearchContentKind
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.ui.theme.LocalMotionSettings

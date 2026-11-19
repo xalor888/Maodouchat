@@ -3,8 +3,8 @@ package com.maodouchat.ui.screen.chatlist
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
 import com.maodouchat.core.model.AiSearchOutcome
-import com.maodouchat.core.model.GlobalSearchMode
 import com.maodouchat.data.local.entity.MessageSearchDocumentEntity
+import com.maodouchat.domain.conversation.GlobalSearchMode
 import com.maodouchat.domain.conversation.GlobalSearchQueryPolicy
 import com.maodouchat.domain.conversation.GlobalSearchTypeFilter
 import com.maodouchat.util.RuntimeFlags

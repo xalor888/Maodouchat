@@ -44,8 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
-import com.maodouchat.core.model.BotUi
 import com.maodouchat.domain.messaging.BotCreateInputPolicy
+import com.maodouchat.domain.messaging.BotUi
 import com.maodouchat.domain.messaging.extractTokenOnce
 import com.maodouchat.domain.messaging.parseBots
 import com.maodouchat.session.CurrentSession

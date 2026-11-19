@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.model.GlobalSearchMode
 
 // 全局搜索内容态：优先级与 app 侧原 when 一致，空查询 > 加载中 > 失败空态 > AI 就绪/无结果 > 结果列表。
 enum class GlobalSearchContentKind {
