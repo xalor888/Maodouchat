@@ -27,7 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.maodouchat.core.model.Feedback
+import com.maodouchat.domain.groups.Feedback
 
 /**
  * 扫一扫页的可变状态与结果处理：从 ScanScreen 拆出的非 UI 簇。
