@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageStatus
 import kotlinx.coroutines.Job
 import kotlin.test.Test

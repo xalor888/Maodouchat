@@ -1,7 +1,7 @@
 package com.maodouchat.ui.component
 
 import com.maodouchat.core.model.InlineKeyboardButton
-import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.domain.messaging.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageReaction
