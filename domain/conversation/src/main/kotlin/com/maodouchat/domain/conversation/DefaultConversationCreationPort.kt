@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ConversationCreationPort
 import com.maodouchat.core.model.MessageType

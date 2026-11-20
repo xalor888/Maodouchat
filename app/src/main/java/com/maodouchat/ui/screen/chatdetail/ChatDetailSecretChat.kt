@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.maodouchat.data.repository.ChatNetworkRepository
 import com.maodouchat.domain.groups.toDomainChat
+import com.maodouchat.domain.conversation.SecretChatPolicy
 
 // 密聊（自 ChatDetailViewModel.kt 拆分）。
 // 涵盖密聊态刷新、已打开密聊清理与从普通单聊发起独立密聊，复用 chatRepo / secretTtlRepo。
@@ -73,7 +74,7 @@ internal fun ChatDetailViewModel.startSecretChat() {
         _uiState.update { it.copy(errorMessage = text(R.string.secret_chat_already)) }
         return
     }
-    if (!com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
+    if (!SecretChatPolicy.canStartFromDirect(
             isGroup = snapshot.chatIsGroup,
             chatType = snapshot.chat?.chatType
         )
@@ -101,7 +102,7 @@ internal fun ChatDetailViewModel.startSecretChat() {
             listOf(peerId),
             isGroup = false,
             groupName = null,
-            chatType = com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE
+            chatType = SecretChatPolicy.CHAT_TYPE
         )
         result.fold(
             onSuccess = { chatDto ->

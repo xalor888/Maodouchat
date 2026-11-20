@@ -3,7 +3,6 @@ package com.maodouchat.domain.conversation
 import com.maodouchat.core.model.ChatSettingsResponse
 import com.maodouchat.core.model.ConversationLocalCleanupSession
 import com.maodouchat.core.model.UpdateChatSettingsRequest
-import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.User

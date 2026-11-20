@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.conversation
 
 import org.junit.Test
 import org.junit.Assert.assertEquals

@@ -1,4 +1,4 @@
-package com.maodouchat.core.realtime
+package com.maodouchat.domain.conversation
 
 data class ChatReadEvent(
     val chatId: String,

@@ -1,6 +1,5 @@
 package com.maodouchat.domain.conversation
 
-import com.maodouchat.core.session.SecretChatPolicy
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.UserDto
 import kotlinx.coroutines.runBlocking

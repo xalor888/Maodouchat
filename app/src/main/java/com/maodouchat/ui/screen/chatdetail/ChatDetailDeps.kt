@@ -166,7 +166,7 @@ internal class ChatDetailDeps(
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken -> ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() } },
-            createDirectConversation = { liveToken, recipientId, secret -> ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null, chatType = if (secret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat() },
+            createDirectConversation = { liveToken, recipientId, secret -> ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null, chatType = if (secret) com.maodouchat.domain.conversation.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat() },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
