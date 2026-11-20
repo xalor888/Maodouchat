@@ -22,14 +22,6 @@ object SecretChatPolicy {
     fun canCreateSecret(isGroup: Boolean, participantCount: Int): Boolean =
         !isGroup && participantCount == 2
 
-    /** 「全部」列表不混排密聊；密聊只出现在密聊芯片。 */
-    fun excludeFromAllChats(isSecret: Boolean): Boolean = isSecret
-
-    fun mosaicDisplayName(raw: String?): String {
-        val trimmed = raw.orEmpty().trim()
-        if (trimmed.isEmpty()) return "密聊"
-        return "密聊"
-    }
 
     fun allowInCustomOrLockedFolder(isSecret: Boolean): Boolean = !isSecret
 }
