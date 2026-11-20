@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 
 fun GroupCallPolicy.isActive(state: GroupPeerConnectionState): Boolean =

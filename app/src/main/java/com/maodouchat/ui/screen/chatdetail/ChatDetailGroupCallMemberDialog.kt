@@ -30,7 +30,7 @@ import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.domain.calls.GroupCallPolicy
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.calls.GroupCallMemberFilterPolicy
 import com.maodouchat.domain.messaging.ChatParticipantsPolicy

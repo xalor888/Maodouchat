@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupCallPolicy
-
 /**
  * P03：群通话能力边界。Mesh 上限与 [GroupCallPolicy.MAX_MESH_MEMBERS] 对齐；
  * SFU / 屏幕共享 / 录制明确未实现，禁止在 UI 或文档中伪装为已完成。

@@ -11,7 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.maodouchat.R
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.domain.calls.GroupCallPolicy
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

@@ -9,7 +9,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.domain.calls.GroupCallPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.domain.messaging.ChatParticipantsPolicy
