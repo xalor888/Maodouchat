@@ -1,6 +1,7 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.GroupCallParticipantUi
+import com.maodouchat.core.session.GroupCallCapabilities
 
 // 会话重置簇：从 CallViewModel 纯搬移——呼出/呼入前重置 VM 状态的四个
 // inline lambda 原样搬入，各 controller 接线改方法引用。语句顺序与原实现逐字一致。

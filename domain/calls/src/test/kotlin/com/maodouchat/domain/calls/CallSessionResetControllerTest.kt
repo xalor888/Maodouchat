@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.GroupCallParticipantUi
 import org.junit.Assert.assertEquals

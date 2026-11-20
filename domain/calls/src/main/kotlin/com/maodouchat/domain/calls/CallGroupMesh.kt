@@ -3,7 +3,6 @@ package com.maodouchat.domain.calls
 import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
-import com.maodouchat.core.session.CallSessionMachine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

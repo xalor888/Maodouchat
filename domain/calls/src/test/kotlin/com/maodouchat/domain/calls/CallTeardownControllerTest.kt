@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.GroupCallParticipantUi
-import com.maodouchat.core.session.CallSessionMachine
 import com.maodouchat.core.session.CallSignalingOutboundCursor
 import kotlin.test.Test
 import kotlin.test.assertEquals
