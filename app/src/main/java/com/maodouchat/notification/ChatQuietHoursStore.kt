@@ -3,8 +3,8 @@ package com.maodouchat.notification
 import android.content.Context
 import androidx.core.content.edit
 import com.maodouchat.core.model.QuietWindow
+import com.maodouchat.domain.conversation.ChatQuietHoursJsonPolicy
 import com.maodouchat.util.currentUserId
-import org.json.JSONObject
 
 /**
  * 会话级「免打扰时段」（8.46）：按账号本地保存每个会话的静音时间窗，
@@ -22,15 +22,8 @@ object ChatQuietHoursStore {
     fun get(context: Context, chatId: String): QuietWindow {
         val userId = currentUserId(context) ?: return QuietWindow.OFF
         if (chatId.isBlank()) return QuietWindow.OFF
-        return runCatching {
-            val raw = prefs(context).getString(key(userId), null) ?: return QuietWindow.OFF
-            val obj = JSONObject(raw)
-            if (!obj.has(chatId)) return QuietWindow.OFF
-            val w = obj.getJSONObject(chatId)
-            val start = w.optInt("start", 0).coerceIn(0, 1439)
-            val end = w.optInt("end", 0).coerceIn(0, 1439)
-            QuietWindow(enabled = w.optBoolean("enabled", false), startMinute = start, endMinute = end)
-        }.getOrDefault(QuietWindow.OFF)
+        val raw = prefs(context).getString(key(userId), null)
+        return ChatQuietHoursJsonPolicy.quietWindow(ChatQuietHoursJsonPolicy.decodeEntries(raw), chatId)
     }
 
     fun set(context: Context, chatId: String, window: QuietWindow) {
@@ -39,16 +32,10 @@ object ChatQuietHoursStore {
         synchronized(lock) {
             runCatching {
                 val raw = prefs(context).getString(key(userId), null)
-                val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
-                val existing = obj.optJSONObject(chatId)
-                val entry = JSONObject()
-                    .put("enabled", window.enabled)
-                    .put("start", window.startMinute.coerceIn(0, 1439))
-                    .put("end", window.endMinute.coerceIn(0, 1439))
-                // 1.40：保留同条目内已有的临时静音至字段（1.02 语义为「与时段共存」）
-                existing?.optLong("silent_until", 0L)?.takeIf { it > 0L }?.let { entry.put("silent_until", it) }
-                obj.put(chatId, entry)
-                prefs(context).edit { putString(key(userId), obj.toString()) }
+                val entries = ChatQuietHoursJsonPolicy.withQuietWindow(
+                    ChatQuietHoursJsonPolicy.decodeEntries(raw), chatId, window
+                )
+                prefs(context).edit { putString(key(userId), ChatQuietHoursJsonPolicy.encodeEntries(entries)) }
             }
         }
     }
@@ -60,41 +47,35 @@ object ChatQuietHoursStore {
         synchronized(lock) {
             runCatching {
                 val raw = prefs(context).getString(key(userId), null) ?: return@runCatching
-                val obj = JSONObject(raw)
-                if (obj.has(chatId)) {
-                    obj.remove(chatId)
-                    prefs(context).edit { putString(key(userId), obj.toString()) }
+                val entries = ChatQuietHoursJsonPolicy.decodeEntries(raw)
+                if (entries.containsKey(chatId)) {
+                    prefs(context).edit {
+                        putString(key(userId), ChatQuietHoursJsonPolicy.encodeEntries(ChatQuietHoursJsonPolicy.withoutChat(entries, chatId)))
+                    }
                 }
             }
         }
     }
 
-    /** 1.02：设置会话「临时静音至」时间戳（untilMs<=0 清除）。与时段共存（同一条目）。 */
     fun setSilentUntil(context: Context, chatId: String, untilMs: Long) {
         val userId = currentUserId(context) ?: return
         if (chatId.isBlank()) return
         synchronized(lock) {
             runCatching {
                 val raw = prefs(context).getString(key(userId), null)
-                val obj = if (raw.isNullOrBlank()) JSONObject() else JSONObject(raw)
-                val existing = obj.optJSONObject(chatId)
-                val entry = if (existing != null) existing else JSONObject()
-                if (untilMs <= 0) entry.remove("silent_until") else entry.put("silent_until", untilMs)
-                if (entry.length() == 0) obj.remove(chatId) else obj.put(chatId, entry)
-                prefs(context).edit { putString(key(userId), obj.toString()) }
+                val entries = ChatQuietHoursJsonPolicy.withSilentUntil(
+                    ChatQuietHoursJsonPolicy.decodeEntries(raw), chatId, untilMs
+                )
+                prefs(context).edit { putString(key(userId), ChatQuietHoursJsonPolicy.encodeEntries(entries)) }
             }
         }
     }
 
-    /** 1.02：读取会话「临时静音至」时间戳（0 = 未设置/已过期）。 */
     fun silentUntil(context: Context, chatId: String): Long {
         val userId = currentUserId(context) ?: return 0L
         if (chatId.isBlank()) return 0L
-        return runCatching {
-            val raw = prefs(context).getString(key(userId), null) ?: return 0L
-            val obj = JSONObject(raw)
-            obj.optJSONObject(chatId)?.optLong("silent_until", 0L) ?: 0L
-        }.getOrDefault(0L)
+        val raw = prefs(context).getString(key(userId), null)
+        return ChatQuietHoursJsonPolicy.silentUntil(ChatQuietHoursJsonPolicy.decodeEntries(raw), chatId)
     }
 
     fun clearForUser(context: Context, userId: String) {
