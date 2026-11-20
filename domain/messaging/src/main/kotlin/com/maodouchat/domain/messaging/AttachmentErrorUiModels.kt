@@ -1,4 +1,4 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 // 原 app 侧 Kind：:core:model 已有 QrScanFeedbackModels.Kind，改名避让。
 enum class AttachmentErrorKind {
