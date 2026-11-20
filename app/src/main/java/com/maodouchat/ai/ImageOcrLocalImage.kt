@@ -6,7 +6,7 @@ import com.maodouchat.domain.messaging.MessageJsonPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.toEncryptedAttachmentReference
 import com.maodouchat.network.ApiService
-import com.maodouchat.util.EncryptedAttachmentCrypto
+import com.maodouchat.domain.messaging.EncryptedAttachmentCrypto
 import com.maodouchat.util.MediaCache
 
 // 本地图片获取：缓存命中直接返回，否则按密文附件引用下载+解密到缓存。

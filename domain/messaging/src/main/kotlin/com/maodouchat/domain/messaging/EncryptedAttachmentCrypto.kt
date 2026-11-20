@@ -1,0 +1,199 @@
+package com.maodouchat.domain.messaging
+
+import com.maodouchat.core.crypto.EncryptedFile
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.DigestInputStream
+import java.security.DigestOutputStream
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
+import kotlinx.coroutines.CancellationException
+import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
+import javax.crypto.CipherOutputStream
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
+object EncryptedAttachmentCrypto {
+    // SecureRandom 线程安全，每次加密附件都 new 会反复播种，对象级复用。
+    private val secureRandom = SecureRandom()
+
+    // MessageDigest 非线程安全，ThreadLocal 每线程各备一个；异常路径走不到 digest()，
+    // 所以每次取用前先 reset，否则残留状态会污染下一次计算。
+    private val cipherSha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+    private val plainSha256Digest: ThreadLocal<MessageDigest> =
+        ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
+
+    // Cipher 非线程安全，ThreadLocal 每线程复用一个；每次使用都以 init() 开头
+    //（按 JCA 语义 init 会完全重置实例），与新 getInstance 等价。
+    private val gcmCipher: ThreadLocal<Cipher> =
+        ThreadLocal.withInitial { Cipher.getInstance("AES/GCM/NoPadding") }
+
+    fun encryptFile(
+        source: File,
+        targetDirectory: File,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ): EncryptedFile {
+        targetDirectory.mkdirs()
+        val target = File.createTempFile("encrypted_", ".bin", targetDirectory)
+        return encryptToTarget(target, source.length(), { source.inputStream() }, onProgress)
+    }
+
+    fun encryptToTarget(
+        target: File,
+        expectedPlainSize: Long,
+        openInput: () -> InputStream?,
+        onProgress: (Long, Long) -> Unit
+    ): EncryptedFile {
+        if (expectedPlainSize > MAX_ATTACHMENT_PLAIN_BYTES) {
+            throw AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE)
+        }
+        if (expectedPlainSize < 0L) {
+            throw AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH)
+        }
+        val key = ByteArray(32).also(secureRandom::nextBytes)
+        val iv = ByteArray(12).also(secureRandom::nextBytes)
+        val digest = cipherSha256Digest.get().also { it.reset() }
+        val plainDigest = plainSha256Digest.get().also { it.reset() }
+        var copied = 0L
+        try {
+            val cipher = gcmCipher.get().apply {
+                init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
+            }
+            openInput()?.use { input ->
+                FileOutputStream(target).use { fileOutput ->
+                    DigestOutputStream(fileOutput, digest).use { digestOutput ->
+                        CipherOutputStream(digestOutput, cipher).use { encryptedOutput ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            while (true) {
+                                val read = input.read(buffer)
+                                if (read < 0) break
+                                copied += read
+                                if (copied > MAX_ATTACHMENT_PLAIN_BYTES) {
+                                    throw AttachmentCryptoException(AttachmentCryptoFailure.TOO_LARGE)
+                                }
+                                plainDigest.update(buffer, 0, read)
+                                encryptedOutput.write(buffer, 0, read)
+                                onProgress(copied, expectedPlainSize)
+                            }
+                        }
+                    }
+                }
+            } ?: throw AttachmentCryptoException(AttachmentCryptoFailure.READ_FAILED)
+            if (copied <= 0L || (expectedPlainSize != 0L && copied != expectedPlainSize)) {
+                throw AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH)
+            }
+            val cipherSize = target.length()
+            if (cipherSize !in 17L..MAX_ATTACHMENT_CIPHER_BYTES) {
+                throw AttachmentCryptoException(AttachmentCryptoFailure.SIZE_MISMATCH)
+            }
+            return EncryptedFile(
+                file = target,
+                keyBase64 = Base64.getEncoder().encodeToString(key),
+                ivBase64 = Base64.getEncoder().encodeToString(iv),
+                cipherSha256 = digest.digest().toHexString(),
+                plainSha256 = plainDigest.digest().toHexString(),
+                cipherSize = cipherSize,
+                plainSize = copied
+            )
+        } catch (error: Throwable) {
+            target.delete()
+            if (error is CancellationException) throw error
+            throw if (error is AttachmentCryptoException) error
+            else AttachmentCryptoException(AttachmentCryptoFailure.READ_FAILED, error)
+        } finally {
+            key.fill(0)
+            iv.fill(0)
+        }
+    }
+
+    fun decrypt(
+        encryptedFile: File,
+        targetFile: File,
+        reference: EncryptedAttachmentReference,
+        onProgress: (Long, Long) -> Unit = { _, _ -> }
+    ) {
+        if (encryptedFile.length() != reference.cipherSize) {
+            targetFile.delete()
+            throw AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED)
+        }
+        val key = runCatching { Base64.getDecoder().decode(reference.keyBase64) }
+            .getOrElse {
+                targetFile.delete()
+                throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE, it)
+            }
+        val iv = runCatching { Base64.getDecoder().decode(reference.ivBase64) }
+            .getOrElse {
+                key.fill(0)
+                targetFile.delete()
+                throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE, it)
+            }
+        if (key.size != 32 || iv.size != 12) {
+            key.fill(0)
+            iv.fill(0)
+            targetFile.delete()
+            throw AttachmentCryptoException(AttachmentCryptoFailure.INVALID_REFERENCE)
+        }
+        try {
+            val cipher = gcmCipher.get().apply {
+                init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(128, iv))
+            }
+            val digest = cipherSha256Digest.get().also { it.reset() }
+            val plainDigest = plainSha256Digest.get().also { it.reset() }
+            var cipherRead = 0L
+            FileInputStream(encryptedFile).use { fileInput ->
+                DigestInputStream(fileInput, digest).use { digestInput ->
+                    CipherInputStream(digestInput, cipher).use { decryptedInput ->
+                        FileOutputStream(targetFile).use { output ->
+                            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                            while (true) {
+                                val read = decryptedInput.read(buffer)
+                                if (read < 0) break
+                                plainDigest.update(buffer, 0, read)
+                                output.write(buffer, 0, read)
+                                cipherRead = encryptedFile.length() - fileInput.available()
+                                onProgress(cipherRead, reference.cipherSize)
+                            }
+                        }
+                    }
+                }
+            }
+            if (
+                digest.digest().toHexString() != reference.cipherSha256 ||
+                targetFile.length() != reference.plainSize ||
+                plainDigest.digest().toHexString() != reference.plainSha256
+            ) {
+                throw AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED)
+            }
+        } catch (error: Throwable) {
+            targetFile.delete()
+            if (error is CancellationException) throw error
+            throw if (error is AttachmentCryptoException) error
+            else AttachmentCryptoException(AttachmentCryptoFailure.INTEGRITY_FAILED, error)
+        } finally {
+            key.fill(0)
+            iv.fill(0)
+        }
+    }
+
+    fun isValidCachedPlaintext(file: File, reference: EncryptedAttachmentReference): Boolean {
+        if (!file.isFile || file.length() != reference.plainSize) return false
+        return runCatching {
+            val digest = plainSha256Digest.get()
+            FileInputStream(file).use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().toHexString() == reference.plainSha256
+        }.getOrDefault(false)
+    }
+
+}

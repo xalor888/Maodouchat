@@ -5,8 +5,8 @@ import kotlinx.serialization.json.Json
 
 // 加密附件引用编解码：原在 app 侧 MediaCache；两处重复的 Message→引用构造（下载协调器、本地图片 OCR）一并收敛到这里。
 private const val ATTACHMENT_PAYLOAD_KIND = "maodouchat-attachment-v1"
-private const val MAX_ATTACHMENT_PLAIN_BYTES = 100L * 1024L * 1024L
-private const val MAX_ATTACHMENT_CIPHER_BYTES = MAX_ATTACHMENT_PLAIN_BYTES + 64L
+internal const val MAX_ATTACHMENT_PLAIN_BYTES = 100L * 1024L * 1024L
+internal const val MAX_ATTACHMENT_CIPHER_BYTES = MAX_ATTACHMENT_PLAIN_BYTES + 64L
 private const val MAX_VOICE_DURATION_MS = 60L * 60L * 1_000L
 
 private val attachmentIdRegex = Regex("^att_[A-Za-z0-9_-]{20,100}$")
