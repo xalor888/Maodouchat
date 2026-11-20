@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocationPayload
-
 // 位置消息载荷构造：精度只在 hasAccuracy 时保留、采集时间 <= 0 回退到 now；
 // 静态与实时共用同一映射，实时再叠 label/live/liveUntil/sessionId。
 // 入参是原始值而非 android.location.Location——:domain:messaging 是纯 JVM 模块。

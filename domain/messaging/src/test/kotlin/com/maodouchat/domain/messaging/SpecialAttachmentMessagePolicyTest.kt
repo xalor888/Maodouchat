@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.MessageType
 import kotlinx.serialization.json.Json

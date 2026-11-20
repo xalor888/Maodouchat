@@ -36,13 +36,6 @@ class MessageModelsTest {
     }
 
     @Test
-    fun locationPayloadDefaults() {
-        val payload = LocationPayload(latitude = 31.2, longitude = 121.5)
-        assertEquals("", payload.label)
-        assertTrue(!payload.live)
-    }
-
-    @Test
     fun messageDtoRoundTrips() {
         val decoded = json.decodeFromString<MessageDto>("""{"id":"m1","chatId":"c1","senderId":"u1","content":"hi","timestamp":42}""")
         assertEquals("TEXT", decoded.type)

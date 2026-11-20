@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.lifecycle.viewModelScope
 import com.maodouchat.R
-import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.domain.messaging.LocationPayload
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.LocationException
 import com.maodouchat.domain.messaging.LocationFailureKind

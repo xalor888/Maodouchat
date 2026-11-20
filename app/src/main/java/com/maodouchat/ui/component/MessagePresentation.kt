@@ -1,7 +1,7 @@
 package com.maodouchat.ui.component
 
 import com.maodouchat.core.model.ChatListPreviewPolicy
-import com.maodouchat.core.model.LocationPayload
+import com.maodouchat.domain.messaging.LocationPayload
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ViewOncePolicy
