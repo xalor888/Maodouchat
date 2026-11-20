@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 /**
  * ABI + checksum helpers for WebRtcNativeLibraryLoader.

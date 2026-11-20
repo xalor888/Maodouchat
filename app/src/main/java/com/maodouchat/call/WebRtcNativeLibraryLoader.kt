@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import android.util.Log
-import com.maodouchat.core.session.WebRtcNativeDownloadPolicy
+import com.maodouchat.domain.calls.WebRtcNativeDownloadPolicy
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.Dispatchers
