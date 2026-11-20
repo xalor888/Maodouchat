@@ -1,11 +1,7 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.crypto.AttachmentCryptoException
-import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.AttachmentReferenceInvalidException
-import com.maodouchat.core.model.AttachmentTooLargeException
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus

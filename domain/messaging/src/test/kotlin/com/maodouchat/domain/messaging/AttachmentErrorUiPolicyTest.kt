@@ -1,12 +1,7 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.crypto.AttachmentCryptoException
-import com.maodouchat.core.crypto.AttachmentCryptoFailure
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.ApiFailureKind
-import com.maodouchat.core.model.AttachmentErrorKind
-import com.maodouchat.core.model.AttachmentReferenceInvalidException
-import com.maodouchat.core.model.AttachmentTooLargeException
 import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals

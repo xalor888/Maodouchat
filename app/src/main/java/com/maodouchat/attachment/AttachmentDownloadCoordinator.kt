@@ -2,7 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import android.net.Uri
-import com.maodouchat.core.model.AttachmentReferenceInvalidException
+import com.maodouchat.domain.messaging.AttachmentReferenceInvalidException
 import com.maodouchat.core.model.LockRef
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore

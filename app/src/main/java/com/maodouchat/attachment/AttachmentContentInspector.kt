@@ -2,8 +2,8 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import android.net.Uri
-import com.maodouchat.core.crypto.AttachmentCryptoException
-import com.maodouchat.core.crypto.AttachmentCryptoFailure
+import com.maodouchat.domain.messaging.AttachmentCryptoException
+import com.maodouchat.domain.messaging.AttachmentCryptoFailure
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.isAttachmentContentCompatible
 

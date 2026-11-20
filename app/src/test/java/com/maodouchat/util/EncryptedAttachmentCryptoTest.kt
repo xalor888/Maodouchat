@@ -8,8 +8,8 @@ import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import com.maodouchat.core.crypto.AttachmentCryptoException
-import com.maodouchat.core.crypto.AttachmentCryptoFailure
+import com.maodouchat.domain.messaging.AttachmentCryptoException
+import com.maodouchat.domain.messaging.AttachmentCryptoFailure
 import com.maodouchat.core.crypto.EncryptedFile
 import com.maodouchat.domain.messaging.EncryptedAttachmentReference
 import java.io.File

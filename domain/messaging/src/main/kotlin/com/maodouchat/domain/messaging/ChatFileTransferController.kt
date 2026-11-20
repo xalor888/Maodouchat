@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ApiException
-import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageStatus
