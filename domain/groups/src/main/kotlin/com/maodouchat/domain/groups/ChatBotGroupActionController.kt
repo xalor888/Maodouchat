@@ -136,7 +136,7 @@ class ChatBotGroupActionController(
         val hasGroupBots = isGroup && (
             state.botCommands.isNotEmpty() || state.chat?.participants.orEmpty().any { BotCommandPolicy.isBotUserId(it.id) }
         )
-        if (!BotCommandPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) return
+        if (!BotInboxPolicy.shouldSendInbox(plaintext, isDirectWithBot, hasGroupBots)) return
         botGroupActionGateway.postBotInbox(liveToken, chatId, plaintext).onFailure { error ->
             if (error is CancellationException) throw error
             logWarning("bot-inbox failed: ${error.message}")
