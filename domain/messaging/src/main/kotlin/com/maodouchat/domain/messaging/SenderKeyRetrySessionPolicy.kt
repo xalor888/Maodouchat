@@ -1,6 +1,4 @@
-package com.maodouchat.crypto
-
-import com.maodouchat.security.BackgroundSessionGate
+package com.maodouchat.domain.messaging
 
 /** Mid-batch gate for SenderKey redistribution under a stable local account. */
 object SenderKeyRetrySessionPolicy {
@@ -8,5 +6,6 @@ object SenderKeyRetrySessionPolicy {
         batchUserId: String,
         liveToken: String?,
         liveUserId: String?,
-    ): Boolean = BackgroundSessionGate.mayContinue(batchUserId, liveToken, liveUserId)
+        purgeInProgress: Boolean,
+    ): Boolean = BackgroundSessionGatePolicy.mayContinue(batchUserId, liveToken, liveUserId, purgeInProgress)
 }
