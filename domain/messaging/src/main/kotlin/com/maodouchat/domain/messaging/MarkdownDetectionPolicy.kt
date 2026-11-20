@@ -1,7 +1,7 @@
 package com.maodouchat.domain.messaging
 
 // Markdown 判定：一段文本是否含 Markdown 语法。
-// 由 :core:model 的 ChatMarkdown 迁入；toPlainText 留守 core。
+// 由 :core:model 的 ChatMarkdown 迁入；toPlainText 已随 ChatMarkdown 迁入 :domain:messaging。
 object MarkdownDetectionPolicy {
     // 原先这三个 matcher 声明在 ui/component/MarkdownParser.kt（internal），
     // 只有 looksLikeMarkdown 在用；跟着搬过来，避免 messaging -> ui 的反向引用。

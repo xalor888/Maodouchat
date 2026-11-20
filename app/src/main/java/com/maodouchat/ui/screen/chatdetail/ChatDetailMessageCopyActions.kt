@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.core.net.toUri
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.messaging.ChatMarkdown
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.conversation.isMessageCopyable
