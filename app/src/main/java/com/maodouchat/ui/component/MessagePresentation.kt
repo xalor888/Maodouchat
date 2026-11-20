@@ -6,6 +6,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ViewOncePolicy
 import com.maodouchat.domain.messaging.MessageFileNamePolicy
+import com.maodouchat.domain.messaging.parsedLocation
 
 /** Converts domain messages to stable Compose presentation data at the UI boundary. */
 object MessagePresentationMapper {

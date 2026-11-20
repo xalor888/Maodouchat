@@ -10,6 +10,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.domain.messaging.ViewOncePolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.domain.messaging.MessageLookupPolicy
+import com.maodouchat.domain.messaging.withEncodedMeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
