@@ -257,9 +257,9 @@ private fun PkCard(pk: PkListItem, voting: Boolean, onVote: (String) -> Unit) {
         Text(
             buildString {
                 append(pluralStringResource(R.plurals.group_play_voters_count, pk.totalVoters, pk.totalVoters))
-                pk.myChoice?.let {
+                pk.votedChoiceTitle?.let {
                     append(" · ")
-                    append(stringResource(R.string.group_play_voted_choice, if (it == "left") pk.leftTitle else pk.rightTitle))
+                    append(stringResource(R.string.group_play_voted_choice, it))
                 }
             },
             style = MaterialTheme.typography.bodySmall,
