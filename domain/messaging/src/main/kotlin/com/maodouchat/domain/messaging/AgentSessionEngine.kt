@@ -1,9 +1,11 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AgentChatMessage
+import com.maodouchat.domain.messaging.AgentToolArgs
 import com.maodouchat.domain.messaging.AgentToolCall
 import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.domain.messaging.AgentToolPolicy
+import com.maodouchat.domain.messaging.AgentToolPreview
 import com.maodouchat.domain.messaging.AgentTurnEvent
 import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import com.maodouchat.domain.messaging.AgentTurnMessages
@@ -22,12 +24,8 @@ class AgentSessionEngine(
         List<AgentChatMessage>,
         List<Map<String, Any?>>?,
         ((String) -> Unit)?
-    ) -> LocalAiCompletion = { provider, messages, tools, onDelta ->
-        OpenAiCompatClient.complete(provider, messages, tools, onDelta)
-    },
-    private val executeTool: suspend (String, String) -> String = { name, args ->
-        AgentToolHost.execute(name, args)
-    }
+    ) -> LocalAiCompletion,
+    private val executeTool: suspend (String, String) -> String
 ) {
     fun runTurn(
         provider: LocalAiProvider,
@@ -80,7 +78,7 @@ class AgentSessionEngine(
                             )
                             continue
                         }
-                        val args = AgentToolHost.parseArgs(call.argumentsJson)
+                        val args = AgentToolArgs.parseArgs(call.argumentsJson)
                         when (AgentToolPolicy.approvalFor(call.name, args)) {
                             Approval.DENY -> {
                                 working += AgentChatMessage(
@@ -93,7 +91,7 @@ class AgentSessionEngine(
                             Approval.NEED_USER -> {
                                 emit(
                                     AgentTurnEvent.NeedsApproval(
-                                        PendingAgentApproval(call, AgentToolHost.preview(call.name, call.argumentsJson))
+                                        PendingAgentApproval(call, AgentToolPreview.preview(call.name, AgentToolArgs.parseArgs(call.argumentsJson)) ?: AgentToolHostPolicy.previewFallback(call.name, call.argumentsJson))
                                     )
                                 )
                                 return@flow

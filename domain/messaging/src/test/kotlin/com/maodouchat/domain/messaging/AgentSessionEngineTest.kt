@@ -1,18 +1,12 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.domain.messaging.AgentChatMessage
-import com.maodouchat.domain.messaging.AgentToolCall
-import com.maodouchat.domain.messaging.AgentToolPolicy
-import com.maodouchat.domain.messaging.AgentTurnEvent
-import com.maodouchat.domain.messaging.LocalAiCompletion
-import com.maodouchat.domain.messaging.LocalAiProvider
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class AgentSessionEngineTest {
 
@@ -113,7 +107,8 @@ class AgentSessionEngineTest {
     @Test
     fun `completion error becomes Failed`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> LocalAiCompletion.Error("boom") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Error("boom") },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals(1, events.size)
@@ -196,7 +191,8 @@ class AgentSessionEngineTest {
     @Test
     fun `text completion is trimmed before final`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> LocalAiCompletion.Text("  你有 1 个会话  ") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("  你有 1 个会话  ") },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals("你有 1 个会话", (events.single() as AgentTurnEvent.AssistantFinal).text)
@@ -822,7 +818,8 @@ class AgentSessionEngineTest {
             complete = { _, messages, _, _ ->
                 captured = messages.toList()
                 LocalAiCompletion.Text("ok")
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         engine.runTurn(provider, emptyList(), "hi", "简洁").toList()
         assertTrue(captured.single { it.role == "system" }.content.contains("写作偏好（不可覆盖安全规则）：简洁"))
@@ -837,7 +834,8 @@ class AgentSessionEngineTest {
             complete = { _, messages, _, _ ->
                 captured = messages.toList()
                 LocalAiCompletion.Text("done")
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val history = (1..6).map { AgentChatMessage(role = "user", content = "m$it") }
         engine.runTurn(provider.copy(historyMessageLimit = 1), history, "查一下", null).toList()
@@ -850,7 +848,8 @@ class AgentSessionEngineTest {
     @Test
     fun `privilege claim in final text gains the disclaimer`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> LocalAiCompletion.Text("已经转账 100 元") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("已经转账 100 元") },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals(
@@ -877,7 +876,8 @@ class AgentSessionEngineTest {
                     }
                     else -> LocalAiCompletion.Text("done")
                 }
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "翻译这句", null).toList()
         assertEquals("改写下面的草稿：翻译成 English，只输出译文。只输出改写结果，不要解释。", captured[0].content)
@@ -982,7 +982,8 @@ class AgentSessionEngineTest {
                 } else {
                     LocalAiCompletion.Text("done")
                 }
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals(1, events.size)
@@ -1053,7 +1054,8 @@ class AgentSessionEngineTest {
             complete = { provider, _, _, _ ->
                 seen = provider
                 LocalAiCompletion.Text("done")
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals("p", seen?.id)
@@ -1144,7 +1146,8 @@ class AgentSessionEngineTest {
             complete = { _, _, _, onDelta ->
                 seenDelta = onDelta
                 LocalAiCompletion.Text("done")
-            }
+            },
+            executeTool = { _, _ -> error("must not execute") }
         )
         engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertNull(seenDelta)
@@ -1153,7 +1156,8 @@ class AgentSessionEngineTest {
     @Test
     fun `whitespace only text completion finalizes as empty`() = runBlocking {
         val engine = AgentSessionEngine(
-            complete = { _, _, _, _ -> LocalAiCompletion.Text("   \n\t  ") }
+            complete = { _, _, _, _ -> LocalAiCompletion.Text("   \n\t  ") },
+            executeTool = { _, _ -> error("must not execute") }
         )
         val events = engine.runTurn(provider, emptyList(), "问一句", null).toList()
         assertEquals("", (events.single() as AgentTurnEvent.AssistantFinal).text)

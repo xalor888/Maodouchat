@@ -4,9 +4,12 @@ import android.content.Context
 import com.maodouchat.domain.messaging.PreparedDocumentKind
 import com.maodouchat.domain.messaging.AgentCompletionResultPolicy
 import com.maodouchat.domain.messaging.AgentFileTaskMessagePolicy
+import com.maodouchat.domain.messaging.AgentTextCompletion
 import com.maodouchat.domain.messaging.LocalAiFilePrepPolicy
+import com.maodouchat.domain.messaging.OpenAiCompatClient
 import com.maodouchat.domain.messaging.aiFileTaskInstruction
 import com.maodouchat.domain.messaging.aiImageAnalysisInstruction
+import com.maodouchat.network.HttpClients
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,7 +23,7 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = aiImageAnalysisInstruction(mode)
-        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg"))
+        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, imageBase64, "image/jpeg", HttpClients.chatModel(provider.clampedTimeoutSeconds().toLong())))
     }
 
     suspend fun analyzeFileText(
@@ -34,7 +37,7 @@ internal object LocalAiFileTasks {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
         val instruction = aiFileTaskInstruction(fileName, mimeType, mode, question)
-        return AgentTextCompletion.completeText(provider, instruction, LocalAiFilePrepPolicy.truncateText(decodedText))
+        return AgentTextCompletion.completeText(provider, instruction, LocalAiFilePrepPolicy.truncateText(decodedText), httpClient = HttpClients.chatModel(provider.clampedTimeoutSeconds().toLong()))
     }
 
     suspend fun analyzeFile(
@@ -53,7 +56,7 @@ internal object LocalAiFileTasks {
         val instruction = aiFileTaskInstruction(prepared.fileName, prepared.mimeType, mode, question)
         return when (prepared.kind) {
             PreparedDocumentKind.TEXT ->
-                AgentTextCompletion.completeText(provider, instruction, prepared.text)
+                AgentTextCompletion.completeText(provider, instruction, prepared.text, httpClient = HttpClients.chatModel(provider.clampedTimeoutSeconds().toLong()))
             PreparedDocumentKind.PDF_PAGES -> {
                 if (!provider.hasVisionCapability()) {
                     return Result.failure(
@@ -61,7 +64,7 @@ internal object LocalAiFileTasks {
                     )
                 }
                 val pages = prepared.pageJpegsBase64.map { "image/jpeg" to it }
-                AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, pages))
+                AgentCompletionResultPolicy.toResult(OpenAiCompatClient.completeVision(provider, instruction, pages, HttpClients.chatModel(provider.clampedTimeoutSeconds().toLong())))
             }
         }
     }
@@ -73,6 +76,6 @@ internal object LocalAiFileTasks {
     ): Result<String> {
         val provider = LocalAiProviderStore.activeProvider(context)
             ?: return Result.failure(IllegalStateException(LocalAiGateway.missingProviderMessage()))
-        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType))
+        return AgentCompletionResultPolicy.toResult(OpenAiCompatClient.transcribeAudio(provider, audioBase64, mimeType, HttpClients.chatModel(provider.clampedTimeoutSeconds().toLong())))
     }
 }

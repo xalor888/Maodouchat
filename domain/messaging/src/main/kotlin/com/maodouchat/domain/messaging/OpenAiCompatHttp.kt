@@ -1,7 +1,8 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AgentHttpAuthPolicy
 import com.maodouchat.domain.messaging.LocalAiProvider
+import java.util.concurrent.TimeUnit
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -10,9 +11,9 @@ import okhttp3.Request
 internal object OpenAiCompatHttp {
     internal val jsonMedia = "application/json; charset=utf-8".toMediaType()
 
-    internal fun clientFor(provider: LocalAiProvider): OkHttpClient {
+    internal fun clientFor(provider: LocalAiProvider, baseClient: OkHttpClient): OkHttpClient {
         val timeout = provider.clampedTimeoutSeconds().toLong()
-        return com.maodouchat.network.HttpClients.chatModel(timeout)
+        return baseClient.newBuilder().readTimeout(timeout, TimeUnit.SECONDS).build()
     }
 
     internal fun applyAuth(builder: Request.Builder, provider: LocalAiProvider) {
