@@ -2,6 +2,7 @@ package com.maodouchat.attachment
 
 import android.content.Context
 import com.maodouchat.domain.messaging.AttachmentPreparationLease
+import com.maodouchat.domain.messaging.AttachmentSendResult
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore

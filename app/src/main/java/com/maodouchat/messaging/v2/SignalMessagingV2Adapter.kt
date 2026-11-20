@@ -3,6 +3,7 @@ package com.maodouchat.messaging.v2
 import com.maodouchat.core.crypto.DecryptResult
 import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.domain.messaging.MessagingV2ConversationSnapshot
+import com.maodouchat.domain.messaging.MessagingV2ConversationSnapshotProvider
 import com.maodouchat.domain.messaging.MessagingV2DeviceTarget
 import com.maodouchat.domain.messaging.MessagingV2GroupControlPolicy
 import com.maodouchat.domain.messaging.MessagingV2StaleGroupControlException
@@ -33,10 +34,6 @@ import com.maodouchat.domain.messaging.serviceEnvelopeContent
 import com.maodouchat.domain.messaging.targetUserIds
 import com.maodouchat.network.ApiService
 import kotlinx.serialization.json.Json
-
-fun interface MessagingV2ConversationSnapshotProvider {
-    suspend fun get(token: String, conversationId: String): MessagingV2ConversationSnapshot
-}
 
 class ApiMessagingV2ConversationSnapshotProvider(
     private val ownerUserId: () -> String,

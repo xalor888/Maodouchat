@@ -13,8 +13,3 @@ internal data class AttachmentSendRequest(
     val voiceDurationMs: Long?,
     val optimisticMessage: Message,
 )
-
-internal sealed interface AttachmentSendResult {
-    data object ExistingTransfer : AttachmentSendResult
-    data class Queued(val message: Message) : AttachmentSendResult
-}
