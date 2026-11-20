@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.crypto.AttachmentErrorUiPolicy
 import com.maodouchat.core.model.ApiException
 import com.maodouchat.core.model.AttachmentErrorKind
 import com.maodouchat.core.model.ChatDetailUiState
