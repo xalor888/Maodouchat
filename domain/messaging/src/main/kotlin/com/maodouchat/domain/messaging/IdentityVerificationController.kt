@@ -2,7 +2,6 @@ package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatDetailUiState
 import com.maodouchat.core.model.DeviceSafetyState
-import com.maodouchat.core.model.WarningKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

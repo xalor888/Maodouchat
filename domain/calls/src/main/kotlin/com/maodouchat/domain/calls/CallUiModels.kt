@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupCallParticipantUi
 
 /** WebRTC 原生库加载失败（下载/预加载），用于向用户呈现友好错误而非原生 UnsatisfiedLinkError。 */
 class WebRtcNativeLoadException(message: String) : Exception(message)
