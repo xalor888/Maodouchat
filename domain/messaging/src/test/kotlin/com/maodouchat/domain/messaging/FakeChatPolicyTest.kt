@@ -152,7 +152,8 @@ class FakeChatPolicyTest {
             FakeChatPolicy.shouldShowFake(
                 enabled = true,
                 hasPin = false,
-                unlockedForCurrentUser = true,
+                unlockedForCurrentUser = false,
+                relockOnBackground = true,
                 backgroundAtMillis = 10_000L
             )
         )
