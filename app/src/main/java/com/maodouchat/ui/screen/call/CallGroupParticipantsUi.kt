@@ -34,7 +34,7 @@ import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.domain.calls.GroupParticipantStatusKind
 import com.maodouchat.domain.calls.groupParticipantStatusKind
-import com.maodouchat.core.model.GroupCallParticipantUi
+import com.maodouchat.domain.calls.GroupCallParticipantUi
 
 @Composable
 internal fun GroupParticipantGrid(

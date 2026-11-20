@@ -1,9 +1,10 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.calls
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import com.maodouchat.core.model.GroupPeerConnectionState
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
-class CallUiModelsTest {
+class GroupCallParticipantUiTest {
 
     @Test
     fun `group participant name defaults to user id`() {

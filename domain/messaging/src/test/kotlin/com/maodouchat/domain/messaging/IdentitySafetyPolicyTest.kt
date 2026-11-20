@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.WarningKind
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull

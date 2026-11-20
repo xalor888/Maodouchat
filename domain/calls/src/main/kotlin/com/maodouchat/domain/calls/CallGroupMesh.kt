@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupCallPolicy
 import com.maodouchat.core.model.GroupPeerConnectionState
 import kotlinx.coroutines.CoroutineScope

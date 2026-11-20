@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupCallParticipantUi
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

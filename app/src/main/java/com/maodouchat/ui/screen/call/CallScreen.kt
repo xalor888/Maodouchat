@@ -64,7 +64,7 @@ import com.maodouchat.domain.calls.CallState
 import com.maodouchat.domain.calls.CallAudioRoute
 import com.maodouchat.domain.calls.NetworkQuality
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupCallParticipantUi
+import com.maodouchat.domain.calls.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupCallPolicy
 
 /** 音视频通话页面 */

@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupCallParticipantUi
 import com.maodouchat.core.model.GroupPeerConnectionState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
