@@ -16,6 +16,7 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import com.maodouchat.core.model.HttpResult
+import com.maodouchat.domain.messaging.ApiHttpErrors
 import com.maodouchat.core.session.ConditionalSessionSaveResult
 import com.maodouchat.core.session.TokenExpiredEvent
 import com.maodouchat.network.api.ApiEndpointClients
@@ -206,7 +207,6 @@ object ApiService :
         }
     }
 
-    /** 并发 refresh 成功后的内存兜底（落盘失败或其它 waiter 复用） */
     @Volatile private var memoryAccessToken: String? = null
     @Volatile private var memoryAccessTokenExpiresAt: Long = 0L
     @Volatile private var memoryAccessTokenOwnerUserId: String? = null

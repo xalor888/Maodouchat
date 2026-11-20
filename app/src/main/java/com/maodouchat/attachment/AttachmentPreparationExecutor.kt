@@ -9,6 +9,7 @@ import com.maodouchat.core.model.MessageType
 import com.maodouchat.util.EncryptedAttachmentCrypto
 import com.maodouchat.util.ImagePicker
 import com.maodouchat.domain.messaging.LocalFileMetadata
+import com.maodouchat.domain.messaging.PreparedAttachment
 import com.maodouchat.domain.messaging.normalizeAttachmentMetadata
 import com.maodouchat.domain.messaging.AttachmentImagePreparePolicy
 import com.maodouchat.util.MediaCache
