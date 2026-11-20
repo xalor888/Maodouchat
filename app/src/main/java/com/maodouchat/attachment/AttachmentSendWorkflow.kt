@@ -11,7 +11,7 @@ import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import com.maodouchat.domain.messaging.AttachmentIntentPolicy
 import com.maodouchat.util.MediaCache
 import kotlinx.coroutines.CancellationException
@@ -83,14 +83,14 @@ internal class AttachmentSendWorkflow(
         )
         val optimistic = command.existingMessage?.copy(
             chatId = command.chatId,
-            content = JsonFormat.composeContentWithMeta(command.sourceUri.toString(), initialMeta),
+            content = MessageJsonPolicy.composeContentWithMeta(command.sourceUri.toString(), initialMeta),
             status = MessageStatus.SENDING,
             meta = initialMeta,
         ) ?: Message(
             id = command.messageId,
             chatId = command.chatId,
             senderId = ownerUserId,
-            content = JsonFormat.composeContentWithMeta(command.sourceUri.toString(), initialMeta),
+            content = MessageJsonPolicy.composeContentWithMeta(command.sourceUri.toString(), initialMeta),
             type = command.type,
             timestamp = System.currentTimeMillis(),
             status = MessageStatus.SENDING,

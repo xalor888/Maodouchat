@@ -6,7 +6,6 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.JsonFormat
 import kotlinx.coroutines.CancellationException
 import java.util.UUID
 
@@ -140,7 +139,7 @@ class DefaultConversationForwardCoordinator(
             id = id,
             chatId = target.id,
             senderId = owner,
-            content = JsonFormat.composeContentWithMeta(plainContent, forwardMeta),
+            content = MessageJsonPolicy.composeContentWithMeta(plainContent, forwardMeta),
             type = message.type,
             timestamp = now(),
             status = MessageStatus.SENDING,

@@ -6,7 +6,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -30,7 +30,7 @@ class MessagePresentationMapperTest {
         )
         val message = message(
             type = MessageType.TEXT,
-            content = "hello<meta>${JsonFormat.encodeMessageMeta(meta)}</meta>",
+            content = "hello<meta>${MessageJsonPolicy.encodeMessageMeta(meta)}</meta>",
             meta = MessageMeta(),
             reactions = listOf(MessageReaction("me", "ok", 42L)),
         )

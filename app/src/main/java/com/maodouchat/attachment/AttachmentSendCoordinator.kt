@@ -7,7 +7,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import kotlinx.coroutines.CancellationException
 
 /**
@@ -69,7 +69,7 @@ internal class AttachmentSendCoordinator(
                 )
                 queuedMessage = request.optimisticMessage.copy(
                     chatId = prepared.chatId,
-                    content = JsonFormat.composeContentWithMeta(prepared.sourceUri, queuedMeta),
+                    content = MessageJsonPolicy.composeContentWithMeta(prepared.sourceUri, queuedMeta),
                     meta = queuedMeta,
                     status = MessageStatus.SENDING,
                 )

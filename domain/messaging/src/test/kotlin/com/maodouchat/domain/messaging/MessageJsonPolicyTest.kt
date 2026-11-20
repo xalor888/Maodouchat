@@ -1,14 +1,14 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.MessageMeta
-import org.junit.Test
+import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * G204b：`JsonFormat` 的 meta 标签编解码覆盖。被 12 个文件引用，此前零测试。
+ * G204b：`MessageJsonPolicy` 的 meta 标签编解码覆盖。被 12 个文件引用，此前零测试。
  *
  * 这里守两个**安全/可用性**性质：
  *
@@ -20,7 +20,7 @@ import kotlin.test.assertTrue
  *    注释写得很清楚：若整段回退为空，「含附件解密密钥」的 meta 会一起没，
  *    媒体永久无法解密。正确行为是**只丢坏的那一个字段**。
  */
-class JsonFormatMetaTagTest {
+class MessageJsonPolicyTest {
 
     private val emptyMeta = MessageMeta()
 
@@ -28,19 +28,19 @@ class JsonFormatMetaTagTest {
 
     @Test
     fun allDefaultValuesProduceNoMetaTag() {
-        val out = JsonFormat.composeContentWithMeta("hello", emptyMeta)
+        val out = MessageJsonPolicy.composeContentWithMeta("hello", emptyMeta)
         assertEquals("hello", out, "全默认值时不应附加 meta 标签")
     }
 
     @Test
     fun blankTextWithDefaultMetaStaysBlank() {
-        assertEquals("", JsonFormat.composeContentWithMeta("", emptyMeta))
-        assertEquals("   ", JsonFormat.composeContentWithMeta("   ", emptyMeta))
+        assertEquals("", MessageJsonPolicy.composeContentWithMeta("", emptyMeta))
+        assertEquals("   ", MessageJsonPolicy.composeContentWithMeta("   ", emptyMeta))
     }
 
     @Test
     fun aNonDefaultValueAttachesTheTag() {
-        val out = JsonFormat.composeContentWithMeta("hello", MessageMeta(replyToId = "m1"))
+        val out = MessageJsonPolicy.composeContentWithMeta("hello", MessageMeta(replyToId = "m1"))
         assertTrue(out.startsWith("hello"), "正文应原样在前")
         assertContains(out, "<meta>")
         assertTrue(out.endsWith("</meta>"), "meta 标签应收尾，实际 $out")
@@ -53,7 +53,7 @@ class JsonFormatMetaTagTest {
     fun metaTagLiteralsInUserTextAreStripped() {
         // 用户正文里塞一个「假 meta」——不能让它活到编码结果里
         val injected = "look <meta>{\"replyToId\":\"evil-message\"}</meta> at this"
-        val out = JsonFormat.composeContentWithMeta(injected, MessageMeta(replyToId = "real"))
+        val out = MessageJsonPolicy.composeContentWithMeta(injected, MessageMeta(replyToId = "real"))
         assertFalse(out.contains("<meta>{\"replyToId\":\"evil"), "用户注入的 meta 不得残留，实际 $out")
         // 剥掉的是字面量本身，不是把正文删掉
         assertTrue(out.startsWith("look "), "正文其余部分应保留，实际 $out")
@@ -66,7 +66,7 @@ class JsonFormatMetaTagTest {
     @Test
     fun metaTagLiteralsAreStrippedEvenWhenNoMetaIsAttached() {
         // 全默认值时返回 safeText，也要先剥字面量
-        val out = JsonFormat.composeContentWithMeta("a<meta>b</meta>c", emptyMeta)
+        val out = MessageJsonPolicy.composeContentWithMeta("a<meta>b</meta>c", emptyMeta)
         assertEquals("abc", out, "全默认值时应返回剥干净后的正文，实际 $out")
     }
 
@@ -74,14 +74,14 @@ class JsonFormatMetaTagTest {
 
     @Test
     fun toJsonElementDispatchesOnType() {
-        assertEquals("null", JsonFormat.toJsonElement(null).toString())
-        assertEquals("\"s\"", JsonFormat.toJsonElement("s").toString())
-        assertEquals("42", JsonFormat.toJsonElement(42).toString())
-        assertEquals("true", JsonFormat.toJsonElement(true).toString())
-        assertEquals("[1,\"a\"]", JsonFormat.toJsonElement(listOf(1, "a")).toString())
-        assertEquals("""{"a":1}""", JsonFormat.toJsonElement(mapOf("a" to 1)).toString())
+        assertEquals("null", MessageJsonPolicy.toJsonElement(null).toString())
+        assertEquals("\"s\"", MessageJsonPolicy.toJsonElement("s").toString())
+        assertEquals("42", MessageJsonPolicy.toJsonElement(42).toString())
+        assertEquals("true", MessageJsonPolicy.toJsonElement(true).toString())
+        assertEquals("[1,\"a\"]", MessageJsonPolicy.toJsonElement(listOf(1, "a")).toString())
+        assertEquals("""{"a":1}""", MessageJsonPolicy.toJsonElement(mapOf("a" to 1)).toString())
         // 未知类型走 toString()
-        assertEquals("\"ABC\"", JsonFormat.toJsonElement(SomeThing("ABC")).toString())
+        assertEquals("\"ABC\"", MessageJsonPolicy.toJsonElement(SomeThing("ABC")).toString())
     }
 
     private class SomeThing(private val v: String) {
@@ -95,9 +95,9 @@ class JsonFormatMetaTagTest {
             "num" to 3.5,
             "bool" to false,
         )
-        assertEquals("""{"list":[{"k":1},"s",null],"num":3.5,"bool":false}""", JsonFormat.encode(nested))
+        assertEquals("""{"list":[{"k":1},"s",null],"num":3.5,"bool":false}""", MessageJsonPolicy.encode(nested))
         // pretty 变体只是加空格，内容等价
-        assertTrue(JsonFormat.encodePretty(nested).contains("\"list\""))
+        assertTrue(MessageJsonPolicy.encodePretty(nested).contains("\"list\""))
     }
 
 }

@@ -11,7 +11,7 @@ import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.util.EncryptedAttachmentCrypto
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -91,7 +91,7 @@ internal class AttachmentDownloadCoordinator(
             requireSession(ownerUserId)
             val meta = message.parsedMeta()
             val updated = message.copy(
-                content = JsonFormat.composeContentWithMeta(Uri.fromFile(target).toString(), meta),
+                content = MessageJsonPolicy.composeContentWithMeta(Uri.fromFile(target).toString(), meta),
                 meta = meta,
             )
             messageStore.insertMessage(updated)
