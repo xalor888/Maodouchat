@@ -1,9 +1,9 @@
-package com.maodouchat.security
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class FakeChatPolicyTest {
     @Test
@@ -152,8 +152,7 @@ class FakeChatPolicyTest {
             FakeChatPolicy.shouldShowFake(
                 enabled = true,
                 hasPin = false,
-                unlockedForCurrentUser = false,
-                relockOnBackground = true,
+                unlockedForCurrentUser = true,
                 backgroundAtMillis = 10_000L
             )
         )
@@ -271,5 +270,54 @@ class FakeChatPolicyTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `pin must be 4 to 12 digits`() {
+        assertTrue(FakeChatPolicy.isPinValid("1234"))
+        assertTrue(FakeChatPolicy.isPinValid("123456789012"))
+        assertFalse(FakeChatPolicy.isPinValid("123"))
+        assertFalse(FakeChatPolicy.isPinValid("1234567890123"))
+        assertFalse(FakeChatPolicy.isPinValid("12a4"))
+        assertFalse(FakeChatPolicy.isPinValid(""))
+    }
+
+    @Test
+    fun `default weak pins are rejected`() {
+        assertTrue(FakeChatPolicy.isWeakPin("0000"))
+        assertTrue(FakeChatPolicy.isWeakPin("1234"))
+        assertFalse(FakeChatPolicy.isWeakPin("1235"))
+        assertFalse(FakeChatPolicy.isWeakPin("0001"))
+    }
+
+    @Test
+    fun `encoded pin verifies and wrong pin fails`() {
+        val stored = FakeChatPolicy.encodePinHash("4826")
+        assertTrue(FakeChatPolicy.verifyPinHash("4826", stored))
+        assertFalse(FakeChatPolicy.verifyPinHash("4827", stored))
+    }
+
+    @Test
+    fun `encoded pin has three colon separated parts`() {
+        val parts = FakeChatPolicy.encodePinHash("4826").split(':')
+        assertEquals(3, parts.size)
+        assertEquals(600_000, parts[0].toInt())
+    }
+
+    @Test
+    fun `two encodes of the same pin differ by salt but both verify`() {
+        val first = FakeChatPolicy.encodePinHash("4826")
+        val second = FakeChatPolicy.encodePinHash("4826")
+        assertFalse(first == second)
+        assertTrue(FakeChatPolicy.verifyPinHash("4826", first))
+        assertTrue(FakeChatPolicy.verifyPinHash("4826", second))
+    }
+
+    @Test
+    fun `malformed stored values never verify`() {
+        assertFalse(FakeChatPolicy.verifyPinHash("4826", "not-a-hash"))
+        assertFalse(FakeChatPolicy.verifyPinHash("4826", "abc:def"))
+        assertFalse(FakeChatPolicy.verifyPinHash("4826", "notanint:AA==:AA=="))
+        assertFalse(FakeChatPolicy.verifyPinHash("4826", "600000:!!!:AA=="))
     }
 }
