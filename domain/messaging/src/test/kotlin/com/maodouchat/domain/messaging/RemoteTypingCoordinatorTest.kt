@@ -1,11 +1,11 @@
-package com.maodouchat.core.realtime
+package com.maodouchat.domain.messaging
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemoteTypingCoordinatorTest {
@@ -19,7 +19,7 @@ class RemoteTypingCoordinatorTest {
         coordinator.onEvent("chat-1", "chat-1", "user-b", true)
         coordinator.onEvent("chat-1", "chat-1", "user-b", false)
 
-        assertEquals(listOf("user-a", "user-b", "user-a"), observed)
+        assertEquals(listOf<String?>("user-a", "user-b", "user-a"), observed)
         advanceTimeBy(3_000L)
         runCurrent()
         assertEquals(null, observed.last())
