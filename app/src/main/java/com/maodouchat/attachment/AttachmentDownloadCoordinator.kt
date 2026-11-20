@@ -10,7 +10,7 @@ import com.maodouchat.domain.messaging.toEncryptedAttachmentReference
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.util.EncryptedAttachmentCrypto
+import com.maodouchat.domain.messaging.EncryptedAttachmentCrypto
 import com.maodouchat.domain.messaging.MessageJsonPolicy
 import com.maodouchat.util.MediaCache
 import java.util.concurrent.ConcurrentHashMap

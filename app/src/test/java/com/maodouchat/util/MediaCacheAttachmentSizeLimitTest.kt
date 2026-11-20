@@ -10,6 +10,7 @@ import org.junit.rules.TemporaryFolder
 import com.maodouchat.domain.messaging.AttachmentCryptoException
 import com.maodouchat.domain.messaging.AttachmentCryptoFailure
 import com.maodouchat.domain.messaging.LocalFileMetadata
+import com.maodouchat.domain.messaging.EncryptedAttachmentCrypto as DomainEncryptedAttachmentCrypto
 import java.io.File
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -185,7 +186,7 @@ class MediaCacheAttachmentSizeLimitTest {
             while (written < max + 1) { out.write(chunk); written += chunk.size }
         }
         val e = assertFailsWith<AttachmentCryptoException> {
-            EncryptedAttachmentCrypto.encryptFile(big, temporaryFolder.newFolder("uploads-over"))
+            DomainEncryptedAttachmentCrypto.encryptFile(big, temporaryFolder.newFolder("uploads-over"))
         }
         assertEquals(AttachmentCryptoFailure.TOO_LARGE, e.failure, "声明值超过上界必须 TOO_LARGE")
     }
@@ -216,7 +217,7 @@ class MediaCacheAttachmentSizeLimitTest {
         // 所以「声明小、实际大」构造不出来。用一个正常文件证明这条路径走的是
         // 「前置放行 → 拷贝 → 完整性校验」而不是上界。
         val normal = temporaryFolder.newFile("normal.bin").apply { writeBytes(ByteArray(1024)) }
-        val encrypted = EncryptedAttachmentCrypto.encryptFile(normal, temporaryFolder.newFolder("uploads-ok"))
+        val encrypted = DomainEncryptedAttachmentCrypto.encryptFile(normal, temporaryFolder.newFolder("uploads-ok"))
         assertEquals(1024L, encrypted.plainSize, "正常小文件应完整通过全部层")
 
         // 举证 2（引用校验是 private）：编译期就不可直接调用，这里只断言
