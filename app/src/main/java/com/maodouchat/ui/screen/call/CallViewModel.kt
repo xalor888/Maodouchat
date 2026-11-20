@@ -10,7 +10,7 @@ import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.core.session.CallSignalingIdempotencyStore
 import com.maodouchat.core.session.Cursor
 import com.maodouchat.core.session.CallSignalingOutboundCursor
-import com.maodouchat.core.session.CallSessionResetController
+import com.maodouchat.domain.calls.CallSessionResetController
 import com.maodouchat.session.AppRuntime
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.call.CallSystemIntegration
@@ -60,7 +60,7 @@ class CallViewModel(application: Application) : AndroidViewModel(application) {
     private var pendingOfferSdp: String? = null
     private var activeCallId: String = ""
     private val callSessionGate = CallSessionGate()
-    private val callSessionMachine = com.maodouchat.core.session.CallSessionMachine()
+    private val callSessionMachine = com.maodouchat.domain.calls.CallSessionMachine()
     private val callSystemIntegration = CallSystemIntegration(application)
     private val foregroundService by lazy {
         CallForegroundServiceController(

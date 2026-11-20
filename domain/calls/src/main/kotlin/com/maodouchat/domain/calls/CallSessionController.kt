@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.session.CallSessionMachine
 import java.util.UUID
 
 // 通话会话簇：从 CallViewModel 纯搬移——会话世代开启/校验、callId 生成。
