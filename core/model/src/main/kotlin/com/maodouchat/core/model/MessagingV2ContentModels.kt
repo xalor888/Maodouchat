@@ -15,7 +15,7 @@ data class MessagingV2Content(
     val attributes: Map<String, String> = emptyMap(),
     /**
      * Structured message metadata introduced in content version 2. Version 1 encoded this in a
-     * trailing `<meta>` marker; readers accept that form through [ContentPayloadCodec], but new
+     * trailing `<meta>` marker; readers accept that form through [com.maodouchat.domain.messaging.ContentPayloadCodec], but new
      * command paths do not create it.
      */
     val metadata: MessageMeta? = null,

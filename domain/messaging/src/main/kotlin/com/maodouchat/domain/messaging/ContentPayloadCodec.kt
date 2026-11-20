@@ -1,8 +1,9 @@
-package com.maodouchat.core.model
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatTextDisplayPolicy
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.DecodedContentPayload
+import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.LegacyBody
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType

@@ -4,7 +4,7 @@ import androidx.room.withTransaction
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.domain.messaging.MessagingV2ArrivalPolicy
 import com.maodouchat.core.model.MessagingV2AuthoritativeMutation
-import com.maodouchat.core.model.ContentPayloadCodec
+import com.maodouchat.domain.messaging.ContentPayloadCodec
 import com.maodouchat.core.model.MessagingV2Content
 import com.maodouchat.crypto.SessionCipherOccupancy
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
