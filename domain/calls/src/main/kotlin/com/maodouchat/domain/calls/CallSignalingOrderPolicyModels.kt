@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 data class Cursor(val epoch: Long, val sequence: Long)
 
