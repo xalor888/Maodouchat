@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import kotlin.test.Test
 import kotlinx.coroutines.test.runTest
 import kotlin.test.assertEquals

@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import java.util.UUID
 
 /** Sender Key 请求的线上类型与属性键：发件箱与时间线投影共用，拼写改动会断线。 */

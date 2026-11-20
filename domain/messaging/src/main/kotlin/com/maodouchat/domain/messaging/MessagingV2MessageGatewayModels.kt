@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.DecodedContentPayload
+import com.maodouchat.domain.messaging.DecodedContentPayload
 import com.maodouchat.core.model.Message
 
 sealed interface MessagingV2MessageGatewayOutcome {
