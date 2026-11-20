@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupPeerConnectionState
 import kotlin.test.assertEquals
 import kotlin.test.Test
 

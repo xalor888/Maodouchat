@@ -24,3 +24,5 @@ data class CallIceServer(
 }
 
 class WebRTCException(message: String) : IllegalStateException(message)
+
+enum class GroupPeerConnectionState { CONNECTING, CONNECTED, RECONNECTING, DISCONNECTED, FAILED, REJECTED, BUSY, NO_ANSWER }

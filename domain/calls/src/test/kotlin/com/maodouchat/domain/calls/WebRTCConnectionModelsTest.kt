@@ -12,4 +12,11 @@ class WebRTCConnectionModelsTest {
         assertEquals("peer connection unavailable", error.message)
         assertTrue(error is IllegalStateException)
     }
+
+    @Test
+    fun `group peer connection state has all eight states`() {
+        assertEquals(8, GroupPeerConnectionState.entries.size)
+        assertTrue(GroupPeerConnectionState.entries.contains(
+            GroupPeerConnectionState.NO_ANSWER))
+    }
 }

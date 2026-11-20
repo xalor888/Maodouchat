@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import com.maodouchat.R
-import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.domain.calls.GroupPeerConnectionState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

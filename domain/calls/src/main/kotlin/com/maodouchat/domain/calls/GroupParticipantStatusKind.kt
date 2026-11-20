@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupPeerConnectionState
 
 // 群通话成员连接状态文案种类；R.string 映射留在 app 侧。
 enum class GroupParticipantStatusKind {
