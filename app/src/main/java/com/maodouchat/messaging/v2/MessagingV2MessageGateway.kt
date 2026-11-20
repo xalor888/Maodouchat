@@ -2,7 +2,7 @@ package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
 import com.maodouchat.domain.messaging.ContentPayloadCodec
-import com.maodouchat.core.model.DecodedContentPayload
+import com.maodouchat.domain.messaging.DecodedContentPayload
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.core.model.Message

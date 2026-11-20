@@ -1,6 +1,6 @@
 package com.maodouchat.messaging.v2
 
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.domain.messaging.MessagingV2ContentPolicy
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.domain.messaging.MessagingV2ServiceEnvelopePolicy

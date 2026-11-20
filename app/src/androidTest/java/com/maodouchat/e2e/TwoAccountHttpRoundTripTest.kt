@@ -17,7 +17,7 @@ import org.signal.libsignal.protocol.ecc.Curve
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.MessagingV2InboxEntity
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.messaging.v2.MessagingV2DomainSink

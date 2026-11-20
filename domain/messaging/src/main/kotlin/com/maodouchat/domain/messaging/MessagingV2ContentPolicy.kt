@@ -1,6 +1,6 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2EventAction
 
 /** Binds untrusted transport metadata to the authenticated encrypted application payload. */

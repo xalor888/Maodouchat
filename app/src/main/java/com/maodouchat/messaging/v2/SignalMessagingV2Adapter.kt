@@ -1,7 +1,7 @@
 package com.maodouchat.messaging.v2
 
 import com.maodouchat.core.crypto.DecryptResult
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.domain.messaging.MessagingV2ConversationSnapshot
 import com.maodouchat.domain.messaging.MessagingV2DeviceTarget
 import com.maodouchat.domain.messaging.MessagingV2GroupControlPolicy

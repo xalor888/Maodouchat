@@ -2,7 +2,7 @@ package com.maodouchat.messaging.v2
 
 import androidx.room.withTransaction
 import com.maodouchat.domain.messaging.ContentPayloadCodec
-import com.maodouchat.core.model.DecodedContentPayload
+import com.maodouchat.domain.messaging.DecodedContentPayload
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.dao.MessagingV2Dao
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
@@ -10,7 +10,7 @@ import com.maodouchat.data.local.entity.MessagingV2InboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxEntity
 import com.maodouchat.data.local.entity.MessagingV2OutboxState
 import com.maodouchat.core.model.MessageType
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.core.model.MessagingV2Event
 import com.maodouchat.core.model.MessagingV2EventAction
 import com.maodouchat.domain.messaging.OutboxIdempotencyPolicy

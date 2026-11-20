@@ -5,7 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.maodouchat.core.crypto.DecryptResult
-import com.maodouchat.core.model.MessagingV2Content
+import com.maodouchat.domain.messaging.MessagingV2Content
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.crypto.SignalProtocol
 import com.maodouchat.data.local.AppDatabase
