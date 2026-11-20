@@ -46,6 +46,7 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.ChatDateDisplay
 import com.maodouchat.domain.messaging.MediaCenterDisplay
 import com.maodouchat.domain.messaging.VoiceMessageDuration
+import com.maodouchat.domain.messaging.parsedLocation
 import com.maodouchat.ui.component.SearchHighlightAccent
 import com.maodouchat.ui.theme.LocalChatPalette
 import com.maodouchat.util.MediaCache

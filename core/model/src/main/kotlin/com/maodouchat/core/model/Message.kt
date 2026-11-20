@@ -1,7 +1,6 @@
 package com.maodouchat.core.model
 
 import com.maodouchat.core.model.ChatTextDisplayPolicy
-import com.maodouchat.core.model.LocationPayload
 import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.MessageStatus
@@ -42,26 +41,7 @@ data class Message(
         }.getOrDefault(meta)
     }
 
-    fun withEncodedMeta(updatedMeta: MessageMeta): Message {
-        val encoded = MessageMetaJson.encodeMessageMeta(updatedMeta)
-        return copy(
-            content = parsedContent() + META_TAG_PREFIX + encoded + "</meta>",
-            meta = updatedMeta
-        )
-    }
-
-    fun parsedLocation(): LocationPayload? {
-        if (type != MessageType.LOCATION) return null
-        return runCatching {
-            LOCATION_JSON.decodeFromString(LocationPayload.serializer(), parsedContent())
-        }.getOrNull()?.takeIf {
-            it.latitude.isFinite() && it.longitude.isFinite() &&
-                it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0
-        }
-    }
-
     companion object {
         const val META_TAG_PREFIX = "<meta>"
-        private val LOCATION_JSON = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
     }
 }
