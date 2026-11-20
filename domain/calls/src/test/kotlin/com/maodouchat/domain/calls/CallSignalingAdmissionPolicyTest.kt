@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.session.Cursor
-import com.maodouchat.core.session.Decision
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

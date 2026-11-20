@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 sealed interface Outcome {
     /** 无有效会话（token/owner 缺失或门禁不过）。 */

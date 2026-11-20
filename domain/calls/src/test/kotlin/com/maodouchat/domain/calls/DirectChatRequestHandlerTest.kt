@@ -2,7 +2,6 @@ package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.DirectChatRequest
-import com.maodouchat.core.session.Outcome
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

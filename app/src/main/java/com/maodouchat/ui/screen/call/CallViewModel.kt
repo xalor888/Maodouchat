@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.maodouchat.call.CallMediaBridge
 import com.maodouchat.data.repository.UserNetworkRepository
 import com.maodouchat.core.session.CallSignalingIdempotencyStore
-import com.maodouchat.core.session.Cursor
+import com.maodouchat.domain.calls.Cursor
 import com.maodouchat.domain.calls.CallSignalingOutboundCursor
 import com.maodouchat.domain.calls.CallSessionResetController
 import com.maodouchat.session.AppRuntime

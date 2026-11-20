@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 /**
  * P03 / B09：客户端通话信令 epoch / sequence 准入（与服务端 [CallSignalingOrderPolicy] 同构）。

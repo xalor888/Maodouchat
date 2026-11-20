@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.DirectChatRequest
-import com.maodouchat.core.session.Outcome
 
 // 扫一扫后"和某人创建私聊"：从 app 侧 DirectChatRequestHandler 纯搬移；
 // 会话快照/门禁/建聊网络/Log 全部走构造端口，方法体除端口替换外逐字平移。
