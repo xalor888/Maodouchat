@@ -9,8 +9,10 @@ import com.maodouchat.core.model.SenderKeyRetryView
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
+import com.maodouchat.domain.messaging.SenderKeyRetrySessionPolicy
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
+import com.maodouchat.security.SecureSessionManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -81,8 +83,6 @@ class SenderKeyRetryManager(
         }
         distributor.ensureSignalReady(token, userId)
         if (!sessionActive(userId)) return
-        // 8.41：互斥串行——Worker、应用内 60s 循环、发送路径可同时触发，无锁时
-        // 同一任务被两个执行者并发 redistribute（双重 SKDM + 双重密钥重置）
         processMutex.withLock {
             // 8.48 修复：收养 v24→v25 迁移遗留的孤儿行（ownerUserId='' 永不被 getDue 命中）——
             // 否则升级前已排队的 SK 分发重试永久失联，受影响会话的群成员 SK 覆盖缺口不补齐
@@ -101,7 +101,7 @@ class SenderKeyRetryManager(
         retryDao.getDue(userId, System.currentTimeMillis(), limit).forEach { task ->
             val liveToken = tokenManager.getToken().orEmpty()
             val liveUserId = tokenManager.getUserId().orEmpty()
-            if (!SenderKeyRetrySessionPolicy.mayContinueBatch(userId, liveToken, liveUserId)) {
+            if (!SenderKeyRetrySessionPolicy.mayContinueBatch(userId, liveToken, liveUserId, SecureSessionManager.isPurgeInProgress())) {
                 Log.i(TAG, "SenderKey retry batch aborted: session changed")
                 return
             }
@@ -154,7 +154,7 @@ class SenderKeyRetryManager(
         if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                 userId,
                 tokenManager.getToken(),
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             return false
@@ -190,7 +190,7 @@ class SenderKeyRetryManager(
         if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                 userId,
                 tokenManager.getToken(),
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             return Result.failure(IllegalStateException("sender_key_session_changed"))
@@ -249,7 +249,7 @@ class SenderKeyRetryManager(
                 if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                         userId,
                         sendToken,
-                        tokenManager.getUserId(),
+                        tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
                     )
                 ) {
                     return@withLock Result.failure(IllegalStateException("sender_key_session_changed"))
@@ -310,7 +310,7 @@ class SenderKeyRetryManager(
         SenderKeyRetrySessionPolicy.mayContinueBatch(
             expectedOwnerUserId,
             tokenManager.getToken(),
-            tokenManager.getUserId(),
+            tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
         )
 
     private companion object {

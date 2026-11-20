@@ -5,6 +5,7 @@ import android.util.Log
 import com.maodouchat.core.crypto.SenderKeyCoveragePolicy
 import com.maodouchat.core.model.BotCommandPolicy
 import com.maodouchat.domain.messaging.NoRecipientDevicesException
+import com.maodouchat.domain.messaging.SenderKeyRetrySessionPolicy
 import com.maodouchat.core.model.SenderKeyCoveragePendingException
 import com.maodouchat.core.model.SenderKeyDistributionTargetDto
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
@@ -14,6 +15,7 @@ import com.maodouchat.data.local.entity.hasCompletedUpload
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
+import com.maodouchat.security.SecureSessionManager
 import java.util.UUID
 
 class SenderKeyRetryDistributor(
@@ -30,7 +32,7 @@ class SenderKeyRetryDistributor(
             !SenderKeyRetrySessionPolicy.mayContinueBatch(
                 expectedOwnerUserId,
                 token,
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             error("sender_key_session_changed")
@@ -57,7 +59,7 @@ class SenderKeyRetryDistributor(
         if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                 expectedOwnerUserId,
                 tokenManager.getToken().orEmpty().ifBlank { liveToken },
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             error("sender_key_session_changed")
@@ -79,7 +81,7 @@ class SenderKeyRetryDistributor(
         if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                 expectedOwnerUserId,
                 tokenManager.getToken().orEmpty().ifBlank { liveToken },
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             error("sender_key_session_changed")
@@ -112,7 +114,7 @@ class SenderKeyRetryDistributor(
         if (!SenderKeyRetrySessionPolicy.mayContinueBatch(
                 expectedOwnerUserId,
                 tokenManager.getToken().orEmpty().ifBlank { liveToken },
-                tokenManager.getUserId(),
+                tokenManager.getUserId(), SecureSessionManager.isPurgeInProgress(),
             )
         ) {
             error("sender_key_session_changed")

@@ -1,8 +1,8 @@
-package com.maodouchat.data.repository
+package com.maodouchat.domain.messaging
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class TextOutboxSessionPolicyTest {
     @Test
@@ -12,6 +12,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -23,6 +24,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = null,
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
         assertFalse(
@@ -30,6 +32,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -41,6 +44,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = "u2",
+                purgeInProgress = false,
             )
         )
     }
@@ -52,6 +56,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = null,
+                purgeInProgress = false,
             )
         )
     }
@@ -63,6 +68,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "   ",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -74,6 +80,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = "   ",
+                purgeInProgress = false,
             )
         )
     }
@@ -85,6 +92,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = " u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -96,6 +104,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1 ",
                 liveToken = "tok",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -107,6 +116,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "",
                 liveToken = "tok",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -118,6 +128,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "   ",
                 liveToken = "tok",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -129,6 +140,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "\t\n",
                 liveUserId = "u1",
+                purgeInProgress = false,
             )
         )
     }
@@ -140,6 +152,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = "tok",
                 liveUserId = "U1",
+                purgeInProgress = false,
             )
         )
     }
@@ -151,6 +164,7 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = null,
                 liveUserId = null,
+                purgeInProgress = false,
             )
         )
     }
@@ -162,6 +176,19 @@ class TextOutboxSessionPolicyTest {
                 batchUserId = "u1",
                 liveToken = " tok ",
                 liveUserId = "u1",
+                purgeInProgress = false,
+            )
+        )
+    }
+
+    @Test
+    fun `purge in progress aborts stable session`() {
+        assertFalse(
+            TextOutboxSessionPolicy.mayContinueFlush(
+                batchUserId = "u1",
+                liveToken = "tok",
+                liveUserId = "u1",
+                purgeInProgress = true,
             )
         )
     }
