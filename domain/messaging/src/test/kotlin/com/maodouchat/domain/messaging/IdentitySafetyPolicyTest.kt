@@ -1,11 +1,11 @@
-package com.maodouchat.core.crypto
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.WarningKind
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState
 
