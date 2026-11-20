@@ -8,8 +8,6 @@ import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
 import com.maodouchat.core.realtime.RemoteTypingCoordinator
-import com.maodouchat.core.realtime.TypingSignalAction
-import com.maodouchat.core.realtime.resolveTypingSignalAction
 import com.maodouchat.core.session.SessionContextProvider
 import com.maodouchat.core.session.TypingSessionPolicy
 import kotlinx.coroutines.CoroutineDispatcher

@@ -114,13 +114,6 @@ class RealtimeEventPolicyTest {
         assertEquals(3_000L, REMOTE_TYPING_TIMEOUT_MS)
     }
 
-    @Test
-    fun `outgoing typing only signals state transitions`() {
-        assertEquals(TypingSignalAction.START, resolveTypingSignalAction(isAnnounced = false, hasInput = true))
-        assertEquals(TypingSignalAction.NONE, resolveTypingSignalAction(isAnnounced = true, hasInput = true))
-        assertEquals(TypingSignalAction.STOP, resolveTypingSignalAction(isAnnounced = true, hasInput = false))
-        assertEquals(TypingSignalAction.NONE, resolveTypingSignalAction(isAnnounced = false, hasInput = false))
-    }
 
     @Test
     fun `fresh gate starts at zero generation`() {

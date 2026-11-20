@@ -59,13 +59,4 @@ class WebSocketSessionGate {
 fun shouldApplyTypingEvent(activeChatId: String, eventChatId: String): Boolean =
     activeChatId.isNotBlank() && activeChatId == eventChatId
 
-enum class TypingSignalAction { START, STOP, NONE }
-
-fun resolveTypingSignalAction(isAnnounced: Boolean, hasInput: Boolean): TypingSignalAction =
-    when {
-        hasInput && !isAnnounced -> TypingSignalAction.START
-        !hasInput && isAnnounced -> TypingSignalAction.STOP
-        else -> TypingSignalAction.NONE
-    }
-
 const val REMOTE_TYPING_TIMEOUT_MS = 3_000L
