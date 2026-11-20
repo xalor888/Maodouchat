@@ -7,9 +7,7 @@ import com.maodouchat.core.model.resolveUserVisibility
 import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.core.realtime.RealtimeConnectionManager
 import com.maodouchat.core.realtime.RealtimeDisconnectPolicy
-import com.maodouchat.core.realtime.RemoteTypingCoordinator
 import com.maodouchat.core.session.SessionContextProvider
-import com.maodouchat.core.session.TypingSessionPolicy
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

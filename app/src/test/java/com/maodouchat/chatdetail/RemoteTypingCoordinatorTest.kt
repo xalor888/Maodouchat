@@ -1,6 +1,6 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.core.realtime.RemoteTypingCoordinator
+import com.maodouchat.domain.messaging.RemoteTypingCoordinator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
