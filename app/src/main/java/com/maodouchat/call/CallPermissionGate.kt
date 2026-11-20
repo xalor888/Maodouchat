@@ -1,12 +1,10 @@
 package com.maodouchat.call
 
-import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
-import com.maodouchat.domain.calls.CallMediaPermission
-import com.maodouchat.domain.calls.CallReliabilityPolicy
 import com.maodouchat.core.model.CallType
+import com.maodouchat.domain.calls.CallPermissionStrings
 
 /**
  * 通话权限的唯一入口：各入口（来电路由、去电目的地、聊天页通话按钮）不再各自硬编码权限集合，
@@ -14,14 +12,9 @@ import com.maodouchat.core.model.CallType
  */
 object CallPermissionGate {
 
-    /** CallType → Android 运行时权限；唯一来源是 webrtc 的 CallReliabilityPolicy。 */
+    /** CallType → Android 运行时权限；映射本身在 :domain:calls 的 CallPermissionStrings。 */
     fun requiredPermissions(callType: CallType): Array<String> =
-        CallReliabilityPolicy.requiredPermissions(callType).map { permission ->
-            when (permission) {
-                CallMediaPermission.MICROPHONE -> Manifest.permission.RECORD_AUDIO
-                CallMediaPermission.CAMERA -> Manifest.permission.CAMERA
-            }
-        }.toTypedArray()
+        CallPermissionStrings.requiredPermissions(callType)
 
     fun hasPermissions(context: Context, callType: CallType): Boolean =
         requiredPermissions(callType).all {
