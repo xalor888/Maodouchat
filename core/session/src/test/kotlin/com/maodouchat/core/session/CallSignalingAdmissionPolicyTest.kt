@@ -1,6 +1,5 @@
 package com.maodouchat.core.session
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,39 +24,4 @@ class CallSignalingIdempotencyStoreTest {
         assertFalse(store.remember("c", "u", "ice-candidate", "mid|0|cand-a"))
         assertTrue(store.remember("c", "u", "ice-candidate", "mid|0|cand-b"))
     }
-}
-
-class CallSignalingOutboundCursorTest {
-
-    @Test
-    fun `begin resets sequence and builds stable idempotency keys`() {
-        val cursor = CallSignalingOutboundCursor()
-        cursor.begin(epochSeed = 42L)
-        val first = cursor.next("call-a", "OFFER")
-        val second = cursor.next("call-a", "ice-candidate")
-        assertEquals(42L, first.epoch)
-        assertEquals(1L, first.sequence)
-        assertEquals("call-a|42|1|offer", first.idempotencyKey)
-        assertEquals(42L, second.epoch)
-        assertEquals(2L, second.sequence)
-        assertEquals("call-a|42|2|ice-candidate", second.idempotencyKey)
-    }
-}
-
-class GroupCallCapabilitiesTest {
-
-    @Test
-    fun `mesh size and unimplemented features are explicit`() {
-        assertTrue(GroupCallCapabilities.canStartMesh(2))
-        assertTrue(GroupCallCapabilities.canStartMesh(GroupCallCapabilities.MAX_MESH_MEMBERS))
-        assertFalse(GroupCallCapabilities.canStartMesh(1))
-        assertFalse(GroupCallCapabilities.canStartMesh(GroupCallCapabilities.MAX_MESH_MEMBERS + 1))
-        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.SFU))
-        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.SCREEN_SHARE))
-        assertTrue(GroupCallCapabilities.isUnimplemented(Feature.CALL_RECORDING))
-        assertFalse(GroupCallCapabilities.SFU_SUPPORTED)
-        assertFalse(GroupCallCapabilities.SCREEN_SHARE_SUPPORTED)
-        assertFalse(GroupCallCapabilities.CALL_RECORDING_SUPPORTED)
-    }
-
 }

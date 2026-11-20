@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallReliabilityPolicy
 import java.util.concurrent.atomic.AtomicLong

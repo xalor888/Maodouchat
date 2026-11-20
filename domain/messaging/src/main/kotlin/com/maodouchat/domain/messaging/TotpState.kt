@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.messaging
 
 sealed interface TotpState {
     object Uninitialized : TotpState

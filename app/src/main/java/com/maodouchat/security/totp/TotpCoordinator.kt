@@ -1,6 +1,6 @@
 package com.maodouchat.security.totp
 
-import com.maodouchat.core.session.TotpState
+import com.maodouchat.domain.messaging.TotpState
 import com.maodouchat.core.network.AuthApi
 import com.maodouchat.domain.messaging.TotpResponsePolicy
 import kotlinx.coroutines.flow.MutableStateFlow

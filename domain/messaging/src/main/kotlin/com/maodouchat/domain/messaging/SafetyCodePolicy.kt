@@ -1,4 +1,4 @@
-package com.maodouchat.core.crypto
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.IdentityTrustState
 

@@ -2,7 +2,7 @@ package com.maodouchat.security.totp
 
 import com.maodouchat.core.model.AuthResponse
 import com.maodouchat.core.model.DeleteAccountResponse
-import com.maodouchat.core.session.TotpState
+import com.maodouchat.domain.messaging.TotpState
 import com.maodouchat.core.network.AuthApi
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

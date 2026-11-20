@@ -2,7 +2,7 @@ package com.maodouchat.ui.screen.chatdetail
 
 import androidx.compose.runtime.Composable
 import com.maodouchat.R
-import com.maodouchat.core.crypto.SafetyCodePolicy
+import com.maodouchat.domain.messaging.SafetyCodePolicy
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeOut

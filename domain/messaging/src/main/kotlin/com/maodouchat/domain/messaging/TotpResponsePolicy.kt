@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.session.TotpState
 import org.json.JSONObject
 
 // TOTP 响应 JSON 解析簇：启用状态、开通响应与恢复码提取。

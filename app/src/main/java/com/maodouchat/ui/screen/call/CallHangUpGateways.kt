@@ -1,7 +1,7 @@
 package com.maodouchat.ui.screen.call
 
 import android.util.Log
-import com.maodouchat.core.session.CallSignalingOutboundCursor
+import com.maodouchat.domain.calls.CallSignalingOutboundCursor
 import com.maodouchat.domain.calls.CallHangUpGateway
 import com.maodouchat.domain.calls.CallHangUpSender
 import com.maodouchat.domain.calls.CallHangUpSession
