@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import com.maodouchat.R
+import com.maodouchat.domain.messaging.FakeChatPolicy
 import com.maodouchat.security.FakeChatManager
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
@@ -388,7 +389,7 @@ private fun FakePinDialog(
         },
         confirmButton = {
             TextButton(
-                enabled = FakeChatManager.isPinValid(pin) && lockoutMs <= 0L,
+                enabled = FakeChatPolicy.isPinValid(pin) && lockoutMs <= 0L,
                 onClick = {
                     if (!onConfirm(pin)) {
                         error = true

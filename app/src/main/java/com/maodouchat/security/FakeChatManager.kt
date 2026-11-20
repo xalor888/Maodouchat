@@ -2,17 +2,13 @@ package com.maodouchat.security
 
 import androidx.core.content.edit
 import com.maodouchat.MainActivity
+import com.maodouchat.domain.messaging.FakeChatPolicy
 import com.maodouchat.network.TokenManager
 import com.maodouchat.util.RuntimeFlags
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
-import java.security.MessageDigest
-import java.security.SecureRandom
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
-import java.util.Base64
 
 /**
  * 假聊天模式 / 隐藏桌面图标（隐私伪装）。
@@ -27,30 +23,7 @@ import java.util.Base64
  * 密码以 PBKDF2 哈希存储（salt + iterations + hash），不再保存明文；
  * 连续失败 [MAX_FAILURES] 次后进入 [LOCKOUT_MS] 退避，防暴力尝试。
  */
-object FakeChatPolicy {
-    fun shouldShowFake(
-        enabled: Boolean,
-        hasPin: Boolean,
-        unlockedForCurrentUser: Boolean,
-        relockOnBackground: Boolean,
-        backgroundAtMillis: Long
-    ): Boolean {
-        if (!enabled || !hasPin) return false
-        if (unlockedForCurrentUser) {
-            if (!relockOnBackground) return false
-            if (backgroundAtMillis <= 0L) return false
-        }
-        return true
-    }
-}
-
 object FakeChatManager {
-    // SecureRandom 线程安全，每次设 PIN 都 new 会反复播种，对象级复用。
-    private val secureRandom = SecureRandom()
-
-    // SecretKeyFactory 线程安全，getInstance 每次都要走 provider 查找，对象级复用。
-    private val pbkdf2Factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-
     private const val PREFS = "fake_chat"
 
     /** 拨号盘恢复码：`*#*#75263#*#*`（manifest 中 receiver 的 host 与此一致，勿改） */
@@ -64,10 +37,6 @@ object FakeChatManager {
     private const val KEY_FAILURES = "pin_failures"
     private const val KEY_LOCKED_UNTIL = "pin_locked_until"
 
-    private const val MIN_PIN_LENGTH = 4
-    private const val MAX_PIN_LENGTH = 12
-    private const val PBKDF2_ITERATIONS = 600_000
-    private const val SALT_BYTES = 16
     private const val MAX_FAILURES = 5
     private const val LOCKOUT_MS = 30_000L
 
@@ -78,9 +47,6 @@ object FakeChatManager {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private fun userId(ctx: Context): String = TokenManager.getInstance(ctx).getUserId().orEmpty()
     private fun key(base: String, userId: String): String = "$base:$userId"
-
-    fun isPinValid(pin: String): Boolean =
-        pin.length in MIN_PIN_LENGTH..MAX_PIN_LENGTH && pin.all(Char::isDigit)
 
     // ---- 假聊天模式开关 ----
 
@@ -121,15 +87,10 @@ object FakeChatManager {
     /** 设置/更新解锁密码。拒绝默认弱密码与非法格式；仅存 salt+hash。成功返回 true。 */
     fun setPin(ctx: Context, pin: String): Boolean {
         val userId = userId(ctx)
-        if (userId.isBlank() || !isPinValid(pin)) return false
-        if (pin == "0000" || pin == "1234") return false
-        val salt = ByteArray(SALT_BYTES).also { secureRandom.nextBytes(it) }
-        val hash = pbkdf2(pin, salt, PBKDF2_ITERATIONS)
+        if (userId.isBlank() || !FakeChatPolicy.isPinValid(pin)) return false
+        if (FakeChatPolicy.isWeakPin(pin)) return false
         prefs(ctx).edit {
-            putString(
-                key(KEY_PIN, userId),
-                "$PBKDF2_ITERATIONS:${Base64.getEncoder().encodeToString(salt)}:${Base64.getEncoder().encodeToString(hash)}"
-            )
+            putString(key(KEY_PIN, userId), FakeChatPolicy.encodePinHash(pin))
             remove(key(KEY_FAILURES, userId))
             remove(key(KEY_LOCKED_UNTIL, userId))
         }
@@ -147,7 +108,7 @@ object FakeChatManager {
         val lockedUntil = prefs(ctx).getLong(key(KEY_LOCKED_UNTIL, userId), 0L)
         if (lockedUntil > now) return false
         val ok = if (stored.contains(':')) {
-            verifyPbkdf2(pin, stored)
+            FakeChatPolicy.verifyPinHash(pin, stored)
         } else {
             // 旧版本明文存储迁移：匹配则升级为哈希，不匹配按失败处理
             val legacyOk = stored == pin
@@ -182,25 +143,6 @@ object FakeChatManager {
         val userId = userId(ctx)
         if (userId.isBlank()) return 0L
         return (prefs(ctx).getLong(key(KEY_LOCKED_UNTIL, userId), 0L) - System.currentTimeMillis()).coerceAtLeast(0L)
-    }
-
-    private fun pbkdf2(pin: String, salt: ByteArray, iterations: Int): ByteArray {
-        val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, 256)
-        return try {
-            pbkdf2Factory.generateSecret(spec).encoded
-        } finally {
-            spec.clearPassword()
-        }
-    }
-
-    private fun verifyPbkdf2(pin: String, stored: String): Boolean {
-        val parts = stored.split(':')
-        if (parts.size != 3) return false
-        val iterations = parts[0].toIntOrNull() ?: return false
-        val salt = runCatching { Base64.getDecoder().decode(parts[1]) }.getOrNull() ?: return false
-        val expected = runCatching { Base64.getDecoder().decode(parts[2]) }.getOrNull() ?: return false
-        val actual = pbkdf2(pin, salt, iterations)
-        return MessageDigest.isEqual(expected, actual)
     }
 
     // ---- 前台拦截（armed / unlock / relock） ----
