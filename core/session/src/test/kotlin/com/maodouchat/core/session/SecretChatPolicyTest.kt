@@ -36,12 +36,6 @@ class SecretChatPolicyTest {
     }
 
     @Test
-    fun allChatsFolderHidesSecret() {
-        assertTrue(SecretChatPolicy.excludeFromAllChats(isSecret = true))
-        assertFalse(SecretChatPolicy.excludeFromAllChats(isSecret = false))
-    }
-
-    @Test
     fun isSecretChatTypeToleratesPaddingAndMixedCase() {
         assertTrue(SecretChatPolicy.isSecretChatType(" secret "))
         assertTrue(SecretChatPolicy.isSecretChatType("\tSECRET\n"))
@@ -72,25 +66,12 @@ class SecretChatPolicyTest {
     @Test
     fun folderPlacementTruthTableIsComplementary() {
         for (isSecret in listOf(true, false)) {
-            assertEquals(isSecret, SecretChatPolicy.excludeFromAllChats(isSecret))
             assertEquals(!isSecret, SecretChatPolicy.allowInCustomOrLockedFolder(isSecret))
-            assertEquals(isSecret, SecretChatPolicy.excludeFromAllChats(isSecret))
         }
     }
 
     @Test
-    fun mosaicDisplayNameAlwaysFixedLabel() {
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("😀昵称"))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("  张三  "))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("密聊"))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName(null))
-    }
-
-    @Test
     fun mosaicHidesIdentity() {
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("张三"))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("Alice"))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("   "))
         assertFalse(SecretChatPolicy.allowInCustomOrLockedFolder(isSecret = true))
         assertTrue(SecretChatPolicy.allowInCustomOrLockedFolder(isSecret = false))
     }
@@ -111,12 +92,6 @@ class SecretChatPolicyTest {
     fun canCreateSecretRejectsGroupOfOneAndHugeNonGroup() {
         assertFalse(SecretChatPolicy.canCreateSecret(isGroup = true, participantCount = 1))
         assertFalse(SecretChatPolicy.canCreateSecret(isGroup = false, participantCount = 100))
-    }
-
-    @Test
-    fun mosaicDisplayNameIgnoresEmptyAndVeryLongInput() {
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName(""))
-        assertEquals("密聊", SecretChatPolicy.mosaicDisplayName("x".repeat(500)))
     }
 
     @Test

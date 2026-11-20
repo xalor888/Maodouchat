@@ -1,7 +1,6 @@
 package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
-import com.maodouchat.core.session.SecretChatPolicy
 
 // 会话列表可见会话的纯决策：文件夹过滤 + 搜索 + 置顶/未读优先排序；草稿用纯模型 ChatDraft。
 object ChatListVisibleChats {
@@ -21,7 +20,7 @@ object ChatListVisibleChats {
         val visible = chats.filter { it.archived == showArchived }
         val folderFiltered = when {
             selectedFolderId.isNullOrBlank() ->
-                visible.filter { !SecretChatPolicy.excludeFromAllChats(it.isSecret) }
+                visible.filter { !SecretChatDisplayPolicy.excludeFromAllChats(it.isSecret) }
             selectedFolderId == ChatFolderPolicy.SYSTEM_GROUPS_ID ->
                 visible.filter { it.isGroup }
             selectedFolderId == ChatFolderPolicy.SYSTEM_DIRECT_ID ->
