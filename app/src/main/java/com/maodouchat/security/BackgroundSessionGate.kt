@@ -1,6 +1,6 @@
 package com.maodouchat.security
 
-import com.maodouchat.core.session.BackgroundSessionGatePolicy
+import com.maodouchat.domain.messaging.BackgroundSessionGatePolicy
 import com.maodouchat.session.CurrentSession
 
 /**

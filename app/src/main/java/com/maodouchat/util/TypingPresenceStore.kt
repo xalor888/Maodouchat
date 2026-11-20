@@ -1,6 +1,6 @@
 package com.maodouchat.util
 
-import com.maodouchat.core.realtime.REMOTE_TYPING_TIMEOUT_MS
+import com.maodouchat.domain.messaging.REMOTE_TYPING_TIMEOUT_MS
 import com.maodouchat.network.TokenManager
 import com.maodouchat.core.model.WebSocketEvent
 import kotlinx.coroutines.CoroutineScope

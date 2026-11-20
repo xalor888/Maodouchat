@@ -1,7 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.session.BackgroundSessionGatePolicy
-
 /**
  * Whether this process may emit typing start/stop for [ownerUserId].
  * Blocks blank/"me" placeholders and cross-account sessions.

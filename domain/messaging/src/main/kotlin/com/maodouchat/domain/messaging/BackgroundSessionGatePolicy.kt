@@ -1,4 +1,4 @@
-package com.maodouchat.core.session
+package com.maodouchat.domain.messaging
 
 object BackgroundSessionGatePolicy {
 
