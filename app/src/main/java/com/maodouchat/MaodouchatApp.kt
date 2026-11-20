@@ -5,10 +5,10 @@ import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.OpenContactsRequest
 import com.maodouchat.core.model.OpenMissedCallsRequest
 import com.maodouchat.core.model.SessionScopedEvent
-import com.maodouchat.core.realtime.ChatMessageSentEvent
-import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.core.realtime.WebSocketEventBridge
 import com.maodouchat.domain.conversation.AttachmentFinalizedEvent
+import com.maodouchat.domain.conversation.ChatMessageSentEvent
+import com.maodouchat.domain.conversation.ChatReadEvent
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application

@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.Chat
+import com.maodouchat.domain.conversation.SecretChatPolicy
 import com.maodouchat.domain.conversation.copyableName
 import com.maodouchat.ui.theme.LocalChatPalette
 
@@ -79,7 +80,7 @@ internal fun ChatListScreenDialogs(
             DropdownMenuItem(text = { Text(stringResource(if (chat.notificationsMuted) R.string.chat_unmute_notifications else R.string.chat_mute_notifications)) }, onClick = { viewModel.toggleNotificationsMuted(chat.id); onMenuChatChange(null)})
             // 1.31：临时静音至快捷项（本地，1/8/24 小时）
             if (
-                com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
+                SecretChatPolicy.canStartFromDirect(
                     isGroup = chat.isGroup,
                     chatType = chat.chatType
                 )

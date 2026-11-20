@@ -10,8 +10,6 @@ import com.maodouchat.core.model.ConversationLocalStateCoordinator
 import com.maodouchat.conversation.createAndroidConversationLocalStateCoordinator
 import com.maodouchat.core.model.UpdateChatSettingsRequest
 import com.maodouchat.core.realtime.RealtimeEventDispatcher
-import com.maodouchat.core.realtime.ChatMessageSentEvent
-import com.maodouchat.core.realtime.ChatReadEvent
 import com.maodouchat.crypto.PersistentSignalProtocolStore
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.repository.AnnouncementNetworkRepository
@@ -24,6 +22,8 @@ import com.maodouchat.data.repository.PushNetworkRepository
 import com.maodouchat.data.repository.NotificationCenterRepository
 import com.maodouchat.data.repository.SecretChatRepository
 import com.maodouchat.domain.conversation.ArchiveSuggestion
+import com.maodouchat.domain.conversation.ChatMessageSentEvent
+import com.maodouchat.domain.conversation.ChatReadEvent
 import com.maodouchat.messaging.v2.MessagingV2Outbox
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.notification.CallNotificationService

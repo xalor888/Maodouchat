@@ -2,7 +2,6 @@ package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.NotificationCenterItem
-import com.maodouchat.core.session.SessionUiResetEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted

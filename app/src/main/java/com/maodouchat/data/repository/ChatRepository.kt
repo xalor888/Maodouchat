@@ -5,6 +5,7 @@ import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.domain.contacts.UserMergePolicy
+import com.maodouchat.domain.conversation.SecretChatPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
 import kotlinx.coroutines.flow.Flow
@@ -146,7 +147,7 @@ class ChatRepository(
                 User(id = peerUserId, name = ""),
             ),
             isGroup = false,
-            chatType = if (isSecret) com.maodouchat.core.session.SecretChatPolicy.CHAT_TYPE else "DIRECT",
+            chatType = if (isSecret) SecretChatPolicy.CHAT_TYPE else "DIRECT",
             lastMessage = "",
             lastMessageTime = System.currentTimeMillis(),
         )

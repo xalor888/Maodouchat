@@ -1,6 +1,7 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.domain.conversation.ChatHeaderStatus
+import com.maodouchat.domain.conversation.SecretChatPolicy
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -284,7 +285,7 @@ FloatingGlassTopBar(
                 // 钉钉式：从普通单聊发起一场独立密聊；群没有密聊。
                 if (
                     state.isSecretChat != true &&
-                    com.maodouchat.core.session.SecretChatPolicy.canStartFromDirect(
+                    SecretChatPolicy.canStartFromDirect(
                         isGroup = state.chatIsGroup,
                         chatType = state.chat?.chatType
                     )
