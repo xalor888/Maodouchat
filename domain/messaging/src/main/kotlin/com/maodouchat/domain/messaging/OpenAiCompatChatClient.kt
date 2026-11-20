@@ -1,4 +1,4 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AgentChatMessage
 import com.maodouchat.domain.messaging.AgentChatStreamPolicy
@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -21,7 +22,8 @@ object OpenAiCompatChatClient {
         provider: LocalAiProvider,
         messages: List<AgentChatMessage>,
         tools: List<Map<String, Any?>>?,
-        onDelta: ((String) -> Unit)? = null
+        onDelta: ((String) -> Unit)? = null,
+        httpClient: OkHttpClient
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
         val stream = AgentChatStreamPolicy.shouldStream(provider.stream, onDelta != null, tools)
         val (url, body) = when (provider.protocol) {
@@ -38,7 +40,7 @@ object OpenAiCompatChatClient {
             .post(body.toString().toRequestBody(OpenAiCompatHttp.jsonMedia))
         OpenAiCompatHttp.applyAuth(requestBuilder, provider)
         try {
-            OpenAiCompatHttp.clientFor(provider).newCall(requestBuilder.build()).execute().use { response ->
+            OpenAiCompatHttp.clientFor(provider, httpClient).newCall(requestBuilder.build()).execute().use { response ->
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {

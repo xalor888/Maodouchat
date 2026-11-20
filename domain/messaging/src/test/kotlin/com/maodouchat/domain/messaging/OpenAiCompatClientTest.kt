@@ -1,9 +1,14 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
-import com.maodouchat.domain.messaging.LocalAiCompletion
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
+import kotlin.test.Test
 
 class OpenAiCompatClientTest {
 
@@ -472,6 +477,32 @@ class OpenAiCompatClientTest {
         val result = OpenAiCompatClient.parseNonStream("""{"choices":[{"message":"hi"}]}""")
         assertTrue(result is LocalAiCompletion.Text)
         assertEquals("", (result as LocalAiCompletion.Text).content)
+    }
+
+    @Test
+    fun `transcribeAudio decodes base64 and reads text from stubbed response`() = runBlocking {
+        val provider = LocalAiProvider(
+            id = "p",
+            name = "t",
+            baseUrl = "https://example.test/v1",
+            apiKey = "k",
+            model = "m"
+        )
+        val stub = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("""{"text":"你好"}""".toResponseBody("application/json".toMediaType()))
+                    .build()
+            }
+            .build()
+        val audio = java.util.Base64.getEncoder().encodeToString("fake-audio".toByteArray())
+        val result = OpenAiCompatAudioClient.transcribeAudio(provider, audio, "audio/mpeg", stub)
+        assertTrue(result is LocalAiCompletion.Text)
+        assertEquals("你好", (result as LocalAiCompletion.Text).content)
     }
 
 }

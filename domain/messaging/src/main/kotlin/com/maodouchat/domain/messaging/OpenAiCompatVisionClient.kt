@@ -1,4 +1,4 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
 import com.maodouchat.domain.messaging.AgentVisionRequestPolicy
@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -18,22 +19,25 @@ object OpenAiCompatVisionClient {
         provider: LocalAiProvider,
         instruction: String,
         imageBase64: String,
-        mimeType: String
+        mimeType: String,
+        httpClient: OkHttpClient
     ): LocalAiCompletion = completeVision(
         provider,
         instruction,
-        listOf((AgentVisionRequestPolicy.defaultMime(mimeType)) to imageBase64)
+        listOf((AgentVisionRequestPolicy.defaultMime(mimeType)) to imageBase64),
+        httpClient
     )
 
     suspend fun completeVision(
         provider: LocalAiProvider,
         instruction: String,
-        images: List<Pair<String, String>>
+        images: List<Pair<String, String>>,
+        httpClient: OkHttpClient
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
         if (images.isEmpty()) return@withContext LocalAiCompletion.Error(AgentVisionRequestPolicy.EMPTY_IMAGES_ERROR)
         val url = AgentVisionRequestPolicy.visionUrl(provider.baseUrl)
         val body = AgentVisionRequestPolicy.buildVisionBody(
-            provider.model, instruction, images, LocalAiFileAnalyzer.MAX_PDF_PAGES
+            provider.model, instruction, images, LocalAiPdfPagePolicy.MAX_PDF_PAGES
         )
         val requestBuilder = Request.Builder()
             .url(url)
@@ -41,7 +45,7 @@ object OpenAiCompatVisionClient {
             .post(body.toString().toRequestBody(OpenAiCompatHttp.jsonMedia))
         OpenAiCompatHttp.applyAuth(requestBuilder, provider)
         try {
-            OpenAiCompatHttp.clientFor(provider).newCall(requestBuilder.build()).execute().use { response ->
+            OpenAiCompatHttp.clientFor(provider, httpClient).newCall(requestBuilder.build()).execute().use { response ->
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {

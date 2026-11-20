@@ -1,4 +1,4 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AgentAudioRequestPolicy
 import com.maodouchat.domain.messaging.AgentModelErrorPolicy
@@ -11,6 +11,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
@@ -19,9 +20,10 @@ object OpenAiCompatAudioClient {
     suspend fun transcribeAudio(
         provider: LocalAiProvider,
         audioBase64: String,
-        mimeType: String
+        mimeType: String,
+        httpClient: OkHttpClient
     ): LocalAiCompletion = withContext(Dispatchers.IO) {
-        val bytes = runCatching { android.util.Base64.decode(audioBase64, android.util.Base64.NO_WRAP) }
+        val bytes = runCatching { java.util.Base64.getDecoder().decode(audioBase64) }
             .getOrNull()
             ?: return@withContext LocalAiCompletion.Error(AgentAudioRequestPolicy.DECODE_ERROR)
         val url = AgentAudioRequestPolicy.transcriptionUrl(provider.baseUrl)
@@ -39,7 +41,7 @@ object OpenAiCompatAudioClient {
             .post(body)
         OpenAiCompatHttp.applyAuth(requestBuilder, provider)
         try {
-            OpenAiCompatHttp.clientFor(provider).newCall(requestBuilder.build()).execute().use { response ->
+            OpenAiCompatHttp.clientFor(provider, httpClient).newCall(requestBuilder.build()).execute().use { response ->
                 currentCoroutineContext().ensureActive()
                 val payload = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {

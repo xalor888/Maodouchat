@@ -12,12 +12,16 @@ import com.maodouchat.domain.messaging.AgentChatMessage
 import com.maodouchat.domain.messaging.AgentOverlayMode
 import com.maodouchat.domain.messaging.AgentServiceMessagePolicy
 import com.maodouchat.domain.messaging.AgentSession
+import com.maodouchat.domain.messaging.AgentSessionEngine
 import com.maodouchat.domain.messaging.AgentSessionTitlePolicy
+import com.maodouchat.domain.messaging.AgentTextCompletion
 import com.maodouchat.domain.messaging.AgentToolCall
 import com.maodouchat.domain.messaging.AgentTurnEvent
 import com.maodouchat.domain.messaging.AgentTurnMessagePolicy
 import com.maodouchat.domain.messaging.LocalAiProvider
+import com.maodouchat.domain.messaging.OpenAiCompatClient
 import com.maodouchat.domain.messaging.PendingAgentApproval
+import com.maodouchat.network.HttpClients
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -126,7 +130,12 @@ object MaodouAgentService {
         val style = AgentTextCompletion.styleHintFrom(AiWritingStylePreferences.snapshot(context))
         val history = messages.toList().filter { it.role != "system" }
         turnJob = app.applicationScope.launch {
-            AgentSessionEngine().runTurn(
+            AgentSessionEngine(
+                complete = { p, messages, tools, onDelta ->
+                    OpenAiCompatClient.complete(p, messages, tools, onDelta, HttpClients.chatModel(p.clampedTimeoutSeconds().toLong()))
+                },
+                executeTool = { name, args -> AgentToolHost.execute(name, args) }
+            ).runTurn(
                 provider = provider,
                 history = AgentTurnMessagePolicy.dropDuplicateLastUser(history, lastUserText),
                 userText = lastUserText,

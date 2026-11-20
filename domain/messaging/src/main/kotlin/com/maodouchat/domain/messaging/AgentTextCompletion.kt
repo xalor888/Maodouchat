@@ -1,4 +1,4 @@
-package com.maodouchat.ai.agent
+package com.maodouchat.domain.messaging
 
 import com.maodouchat.domain.messaging.AiWritingStylePolicy
 import com.maodouchat.domain.messaging.Snapshot
@@ -9,6 +9,7 @@ import com.maodouchat.domain.messaging.AgentTextTaskPolicy
 import com.maodouchat.domain.messaging.LocalAiCompletion
 import com.maodouchat.domain.messaging.LocalAiProvider
 import com.maodouchat.domain.messaging.normalizeAiRewriteMode
+import okhttp3.OkHttpClient
 
 // 单轮文本直连调用：改写/翻译/摘要等走这里，不经过工具轮次。
 object AgentTextCompletion {
@@ -37,10 +38,11 @@ object AgentTextCompletion {
         provider: LocalAiProvider,
         instruction: String,
         userContent: String,
-        onDelta: ((String) -> Unit)? = null
+        onDelta: ((String) -> Unit)? = null,
+        httpClient: OkHttpClient
     ): Result<String> =
         completeText(provider, instruction, userContent, onDelta) { p, messages, tools, delta ->
-            OpenAiCompatClient.complete(p, messages, tools, delta)
+            OpenAiCompatClient.complete(p, messages, tools, delta, httpClient)
         }
 
     suspend fun rewriteViaModel(
