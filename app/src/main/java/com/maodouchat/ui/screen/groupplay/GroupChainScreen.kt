@@ -40,7 +40,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.maodouchat.R
-import com.maodouchat.domain.groups.GroupChainDetailState
 import com.maodouchat.domain.groups.GroupChainUiState
 import com.maodouchat.domain.groups.GroupChainValidationPolicy
 import com.maodouchat.domain.groups.GroupPlayJsonPolicy
@@ -140,23 +139,12 @@ class GroupChainViewModel(application: Application, savedStateHandle: SavedState
                 _uiState.value = _uiState.value.copy(error = resp.errorText ?: text(R.string.group_play_chain_not_found))
                 return@launch
             }
-            val o = runCatching { JSONObject(resp.body) }.getOrNull()
-            if (o == null) {
+            val detail = GroupPlayJsonPolicy.parseChainDetail(resp.body)
+            if (detail == null) {
                 _uiState.value = _uiState.value.copy(error = text(R.string.group_play_chain_not_found))
                 return@launch
             }
-            _uiState.value = _uiState.value.copy(
-                detail = GroupChainDetailState(
-                    chainId = o.optString("id"),
-                    title = o.optString("title"),
-                    topic = o.optString("topic"),
-                    active = o.optBoolean("active"),
-                    entryCount = o.optInt("entryCount"),
-                    maxEntries = o.optInt("maxEntries"),
-                    myJoined = o.optBoolean("myJoined"),
-                    entries = GroupPlayJsonPolicy.parseChainEntries(o.optJSONArray("entries"))
-                )
-            )
+            _uiState.value = _uiState.value.copy(detail = detail)
         }
     }
 

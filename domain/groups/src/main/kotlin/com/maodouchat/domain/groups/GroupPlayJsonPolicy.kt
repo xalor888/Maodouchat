@@ -53,6 +53,25 @@ object GroupPlayJsonPolicy {
             )
         }
 
+    // 接龙详情是唯一残留的单对象解析：非法 JSON 返回 null，调用方沿用既有 not_found 分支。
+    fun parseChainDetail(text: String): GroupChainDetailState? {
+        val o = runCatching { JSONObject(text) }.getOrNull() ?: return null
+        return GroupChainDetailState(
+            chainId = o.optString("id"),
+            title = o.optString("title"),
+            topic = o.optString("topic"),
+            active = o.optBoolean("active"),
+            entryCount = o.optInt("entryCount"),
+            maxEntries = o.optInt("maxEntries"),
+            myJoined = o.optBoolean("myJoined"),
+            entries = parseChainEntries(o.optJSONArray("entries"))
+        )
+    }
+
+    fun parsePollId(text: String): String? =
+        runCatching { JSONObject(text).optString("id") }
+            .getOrNull()?.takeIf { it.isNotBlank() }
+
     fun parseCheckinRanking(text: String): List<CheckinRankItem> =
         parseObjectList(text) { o ->
             CheckinRankItem(

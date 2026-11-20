@@ -10,4 +10,11 @@ data class PkListItem(
     val rightCount: Int,
     val totalVoters: Int,
     val myChoice: String?
-)
+) {
+    val votedChoiceTitle: String?
+        get() = when (myChoice) {
+            "left" -> leftTitle
+            "right" -> rightTitle
+            else -> null
+        }
+}

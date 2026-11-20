@@ -3,6 +3,7 @@ package com.maodouchat.domain.groups
 import org.json.JSONArray
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class GroupPlayJsonPolicyTest {
 
@@ -194,6 +195,38 @@ class GroupPlayJsonPolicyTest {
             listOf(PollListItem("", "", emptyList(), false, false, false, emptyList(), 0, emptyList())),
             out
         )
+    }
+
+    @Test
+    fun `parseChainDetail maps fields and entries`() {
+        val detail = GroupPlayJsonPolicy.parseChainDetail(
+            "{\"id\":\"c1\",\"title\":\"接龙\",\"topic\":\"周末\",\"active\":true,\"entryCount\":2,\"maxEntries\":10,\"myJoined\":true,\"entries\":[{\"id\":\"e1\",\"userId\":\"u1\",\"sequence\":1,\"content\":\"x\"}]}"
+        )
+        assertEquals(
+            GroupChainDetailState(
+                "c1", "接龙", "周末", true, 2, 10, true,
+                listOf(ChainEntryItem("e1", "u1", 1, "x"))
+            ),
+            detail
+        )
+    }
+
+    @Test
+    fun `parseChainDetail invalid json yields null`() {
+        assertNull(GroupPlayJsonPolicy.parseChainDetail("not json"))
+        assertNull(GroupPlayJsonPolicy.parseChainDetail(""))
+    }
+
+    @Test
+    fun `parsePollId extracts id`() {
+        assertEquals("p1", GroupPlayJsonPolicy.parsePollId("{\"id\":\"p1\"}"))
+    }
+
+    @Test
+    fun `parsePollId blank or invalid yields null`() {
+        assertNull(GroupPlayJsonPolicy.parsePollId("{\"id\":\"  \"}"))
+        assertNull(GroupPlayJsonPolicy.parsePollId("{}"))
+        assertNull(GroupPlayJsonPolicy.parsePollId("not json"))
     }
 
     @Test

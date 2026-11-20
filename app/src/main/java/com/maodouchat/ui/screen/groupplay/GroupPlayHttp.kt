@@ -1,6 +1,6 @@
 package com.maodouchat.ui.screen.groupplay
 
-import com.maodouchat.domain.groups.GroupPlayJson
+import com.maodouchat.domain.groups.GroupPlayResponse
 import com.maodouchat.network.ApiConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,15 +14,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
  * 独立于 ApiService（不侵入既有文件），仅覆盖本功能所需的 GET/POST JSON 调用，
  * 统一挂 Authorization Bearer。非 2xx 仍带回响应体，供调用方展示服务端 `error`。
  */
-internal data class GroupPlayResponse(
-    val ok: Boolean,
-    val body: String,
-    val code: Int
-) {
-    val errorText: String?
-        get() = if (ok) null else GroupPlayJson.errorMessage(body)
-}
-
 internal object GroupPlayHttp {
     private val client = com.maodouchat.network.HttpClients.groupPlay()
     private val jsonMedia = "application/json; charset=utf-8".toMediaType()

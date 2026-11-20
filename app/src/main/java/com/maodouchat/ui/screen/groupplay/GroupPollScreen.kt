@@ -57,7 +57,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class GroupPollViewModel(application: Application, savedStateHandle: SavedStateHandle) :
     AndroidViewModel(application) {
@@ -150,10 +149,7 @@ class GroupPollViewModel(application: Application, savedStateHandle: SavedStateH
             val result = GroupPollNetworkRepository().createPoll(authToken(), chatId, question, options, s.multi, s.anonymous)
             // 9.4xx：接口返回整段 PollDto JSON（executeForText 原始 body），
             // 此前把整段 JSON 当 pollId 塞进分享快捷符 → 群友无法投票
-            val pollId = result.getOrNull()?.let { text ->
-                runCatching { org.json.JSONObject(text).optString("id") }
-                    .getOrNull()?.takeIf { it.isNotBlank() }
-            }
+            val pollId = result.getOrNull()?.let { GroupPlayJsonPolicy.parsePollId(it) }
             if (pollId == null) {
                 val fail = result.exceptionOrNull()?.message.orEmpty()
                 val serverError = GroupPlayErrorPolicy.serverErrorText(fail)
