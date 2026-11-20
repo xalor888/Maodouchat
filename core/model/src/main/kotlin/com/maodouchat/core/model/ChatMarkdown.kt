@@ -1,7 +1,7 @@
 package com.maodouchat.core.model
 
 /**
- * 聊天 Markdown 子集的**纯文本处理**（剥名片标记、转纯文本）。
+ * 聊天 Markdown 子集的**纯文本处理**（转纯文本）。
  *
  * G328c：这个 `object` 原先住在 `ui/component/MarkdownMessage.kt` 里（同文件还有一个
  * `@Composable MarkdownMessageContent`），于是 `notification/MessageNotificationService`
@@ -19,9 +19,6 @@ object ChatMarkdown {
     private val STRIP_CODE_REGEX = Regex("`([^`]+)`")
     private val STRIP_LINE_START_REGEX = Regex("(?m)^\\s{0,3}(#{1,6}[ \\t]+|> ?|[-+*] ?|\\d+\\. ?|```+)")
 
-    /** 1.18：剥离名片标记行 `[contactUser:xxx]`（含前一换行），会话列表预览等不显示裸标记。 */
-    private val CONTACT_CARD_MARKER_RE = Regex("\\n?\\[contactUser:[^\\]]+\\]")
-    fun stripContactCardMarker(text: String): String = CONTACT_CARD_MARKER_RE.replace(text, "")
 
     /** 0.71：剥离常见 Markdown 语法得到纯文本（「复制为纯文本」用）。 */
     fun toPlainText(markdown: String): String {

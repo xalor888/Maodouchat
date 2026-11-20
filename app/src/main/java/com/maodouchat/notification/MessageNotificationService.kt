@@ -10,7 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.net.toUri
 import com.maodouchat.MainActivity
 import com.maodouchat.R
-import com.maodouchat.core.model.ChatMarkdown
+import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.domain.conversation.NotificationCenterType
 import com.maodouchat.domain.messaging.NotificationSlotPolicy
@@ -70,7 +70,7 @@ object MessageNotificationService {
             }
         } else {
             // 1.23：名片裸标记不进通知正文（与会话列表预览 1.18 一致）
-            ChatMarkdown.stripContactCardMarker(preview)
+            ContactCardMarkerPolicy.stripContactCardMarker(preview)
         }
         // 0.72：群聊消息走独立渠道（独立铃声）
         val channelId = if (isGroup) NotificationInfrastructure.CHANNEL_GROUP_MESSAGES else NotificationInfrastructure.CHANNEL_MESSAGES

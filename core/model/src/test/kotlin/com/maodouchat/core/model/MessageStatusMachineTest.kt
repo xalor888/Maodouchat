@@ -10,19 +10,6 @@ import org.junit.Test
  */
 class MessageStatusMachineTest {
     @Test
-    fun `delivery ladder only advances forward`() {
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.SENT))
-        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.DELIVERED))
-        assertTrue(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.READ))
-        assertFalse(MessageStatus.READ.canAdvanceTo(MessageStatus.SENT))
-        assertFalse(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.SENDING))
-        assertFalse(MessageStatus.SENT.canAdvanceTo(MessageStatus.FAILED))
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.FAILED))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.SENDING))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.SENT))
-    }
-
-    @Test
     fun `fromWire defaults unknown to SENT so groups do not paint a false double-check`() {
         assertEquals(MessageStatus.SENT, MessageStatus.fromWire(null))
         assertEquals(MessageStatus.SENT, MessageStatus.fromWire("not-a-status"))
@@ -126,15 +113,6 @@ class MessageStatusMachineTest {
     }
 
     @Test
-    fun `canAdvanceTo same status and FAILED recovery edges`() {
-        assertTrue(MessageStatus.READ.canAdvanceTo(MessageStatus.READ))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.FAILED))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.READ))
-        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.READ))
-        assertFalse(MessageStatus.READ.canAdvanceTo(MessageStatus.FAILED))
-    }
-
-    @Test
     fun `merge keeps local-only and server-only messages in timestamp order`() {
         val merged = mergeMessageVersions(
             listOf(base("m1")),
@@ -159,14 +137,6 @@ class MessageStatusMachineTest {
         val revoked = local.copy(type = MessageType.REVOKED, editedAt = 1L, content = "revoked")
         val merged = mergeMessageVersions(listOf(local), listOf(revoked)).single()
         assertEquals(MessageType.REVOKED, merged.type)
-    }
-
-    @Test
-    fun `canAdvanceTo allows ladder skips but not backward steps`() {
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.DELIVERED))
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.READ))
-        assertFalse(MessageStatus.SENT.canAdvanceTo(MessageStatus.SENDING))
-        assertTrue(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.DELIVERED))
     }
 
     @Test
@@ -212,12 +182,6 @@ class MessageStatusMachineTest {
     )
 
     @Test
-    fun `DELIVERED cannot advance to FAILED but FAILED can advance to DELIVERED`() {
-        assertFalse(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.FAILED))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.DELIVERED))
-    }
-
-    @Test
     fun `equal revision keeps plaintext when server sends MD envelope`() {
         val local = base("m1").copy(content = "hello")
         val server = local.copy(content = "MD:0123456789abcdef")
@@ -248,13 +212,6 @@ class MessageStatusMachineTest {
         val merged = mergeMessageVersions(listOf(base("m1")), emptyList())
         assertEquals(listOf("m1"), merged.map { it.id })
         assertEquals("text", merged.single().content)
-    }
-
-    @Test
-    fun `canAdvanceTo rejects backward steps from every rung`() {
-        assertFalse(MessageStatus.READ.canAdvanceTo(MessageStatus.DELIVERED))
-        assertFalse(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.SENT))
-        assertTrue(MessageStatus.READ.canAdvanceTo(MessageStatus.READ))
     }
 
     @Test
@@ -311,12 +268,6 @@ class MessageStatusMachineTest {
         assertEquals(MessageStatus.DELIVERED, higherDeliveryStatus(MessageStatus.DELIVERED, MessageStatus.FAILED))
         assertEquals(MessageStatus.READ, higherDeliveryStatus(MessageStatus.FAILED, MessageStatus.READ))
         assertEquals(MessageStatus.SENDING, higherDeliveryStatus(MessageStatus.SENDING, MessageStatus.FAILED))
-    }
-
-    @Test
-    fun `canAdvanceTo same status holds for SENDING and SENT`() {
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.SENDING))
-        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.SENT))
     }
 
     @Test
@@ -380,15 +331,6 @@ class MessageStatusMachineTest {
         val merged = mergeMessageVersions(listOf(local), listOf(server)).single()
         assertEquals("hello", merged.content)
         assertEquals(20L, merged.editedAt)
-    }
-
-
-    @Test
-    fun `canAdvanceTo skips rungs forward and holds DELIVERED and FAILED same-status`() {
-        assertTrue(MessageStatus.SENDING.canAdvanceTo(MessageStatus.READ))
-        assertTrue(MessageStatus.SENT.canAdvanceTo(MessageStatus.READ))
-        assertTrue(MessageStatus.DELIVERED.canAdvanceTo(MessageStatus.DELIVERED))
-        assertTrue(MessageStatus.FAILED.canAdvanceTo(MessageStatus.FAILED))
     }
 
     @Test

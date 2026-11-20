@@ -159,7 +159,7 @@ internal fun ChatDetailMessageCopyActions(
         if (ContactCardMarkerPolicy.containsMarker(message.parsedContent())) {
             TextButton(
                 onClick = {
-                    val clean = ChatMarkdown.stripContactCardMarker(message.parsedContent()).trim()
+                    val clean = ContactCardMarkerPolicy.stripContactCardMarker(message.parsedContent()).trim()
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText(chatClipboardMessageLabel, clean))
                     Toast.makeText(context, chatCopiedMsg, Toast.LENGTH_SHORT).show()

@@ -8,7 +8,6 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.sp
 import com.maodouchat.domain.messaging.findUrlRanges
-import com.maodouchat.core.model.ChatMarkdown
 import com.maodouchat.domain.conversation.ContactCardMarkerPolicy
 import com.maodouchat.ui.theme.LocalSentBubbleContent
 import com.maodouchat.ui.theme.LocalSentBubbleContentSecondary
@@ -40,7 +39,7 @@ internal fun RichTextContent(
         }
     }
     // 1.11：先剥离名片标记，接收端不会看到裸 [contactUser:...]（1.18 复用 ChatMarkdown 统一实现）
-    val cleanText = ChatMarkdown.stripContactCardMarker(text)
+    val cleanText = ContactCardMarkerPolicy.stripContactCardMarker(text)
     // 1.17：名片消息整体渲染为可点击链接（点击打开该用户资料）
     val cardUserId = remember(text) { ContactCardMarkerPolicy.extractUserId(text) }
     if (cardUserId != null) {
