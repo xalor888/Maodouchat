@@ -60,7 +60,6 @@ import com.maodouchat.domain.conversation.ChatReminderController
 import com.maodouchat.domain.conversation.ChatSearchSelectionStateController
 import com.maodouchat.domain.conversation.ChatSettingToggleController
 import com.maodouchat.domain.conversation.ChatTimelineStateController
-import com.maodouchat.domain.conversation.SecretChatPolicy
 import com.maodouchat.domain.groups.ChatBotGroupActionController
 import com.maodouchat.domain.groups.GroupLifecycleCoordinator
 import com.maodouchat.core.model.GroupLifecycleService
@@ -167,7 +166,7 @@ internal class ChatDetailDeps(
         ChatOutgoingFacade(
             getCachedConversation = chatRepo::getChatById,
             fetchConversations = { liveToken -> ChatNetworkRepository().chats(liveToken).getOrThrow().map { it.toDomainChat() } },
-            createDirectConversation = { liveToken, recipientId, secret -> ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null, chatType = if (secret) SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat() },
+            createDirectConversation = { liveToken, recipientId, secret -> ChatNetworkRepository().createChat(liveToken, listOf(recipientId), isGroup = false, groupName = null, chatType = if (secret) com.maodouchat.domain.conversation.SecretChatPolicy.CHAT_TYPE else null).getOrThrow().toDomainChat() },
             cacheConversation = { chatRepo.cacheChats(listOf(it)) },
             ensureLocalCryptoReady = signalProtocol::ensureLocalCryptoReady,
             isBotUserId = com.maodouchat.core.model.BotCommandPolicy::isBotUserId,
