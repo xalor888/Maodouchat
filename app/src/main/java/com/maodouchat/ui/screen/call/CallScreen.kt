@@ -65,7 +65,7 @@ import com.maodouchat.domain.calls.CallAudioRoute
 import com.maodouchat.domain.calls.NetworkQuality
 import com.maodouchat.core.model.CallType
 import com.maodouchat.domain.calls.GroupCallParticipantUi
-import com.maodouchat.core.model.GroupCallPolicy
+import com.maodouchat.domain.calls.GroupCallPolicy
 
 /** 音视频通话页面 */
 @OptIn(ExperimentalMaterial3Api::class)

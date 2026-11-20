@@ -1,11 +1,8 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallReliabilityPolicy
-import com.maodouchat.core.model.GroupCallPolicy
-
 /**
  * P03：入站通话信令纯准入（对端、callId、群元数据、有序游标）。
- * 幂等去重由 [com.maodouchat.core.session.CallSignalingIdempotencyStore] 承接，不在此判定。
+ * 幂等去重由 [CallSignalingIdempotencyStore] 承接，不在此判定。
  */
 object CallSignalingAdmissionPolicy {
 

@@ -1,7 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.CallReliabilityPolicy
-
 /** ICE DISCONNECTED grace before treating the call as failed (ms). */
 const val ICE_RECONNECT_GRACE_MS = 10_000L
 
