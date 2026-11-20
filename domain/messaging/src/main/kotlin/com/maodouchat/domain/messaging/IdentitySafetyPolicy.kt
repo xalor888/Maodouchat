@@ -1,6 +1,5 @@
 package com.maodouchat.domain.messaging
 
-import com.maodouchat.core.crypto.SafetyCodePolicy
 import com.maodouchat.core.model.WarningKind
 import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState

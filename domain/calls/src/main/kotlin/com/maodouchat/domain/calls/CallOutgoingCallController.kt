@@ -2,7 +2,6 @@ package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
 import com.maodouchat.core.model.GroupCallParticipantUi
-import com.maodouchat.core.session.GroupCallCapabilities
 import com.maodouchat.domain.calls.CallForegroundServiceController
 import com.maodouchat.domain.calls.CallRingingTimeout
 import com.maodouchat.domain.calls.CallSignalingSender

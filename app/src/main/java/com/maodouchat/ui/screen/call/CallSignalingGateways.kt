@@ -4,7 +4,7 @@ import com.maodouchat.R
 import com.maodouchat.domain.calls.CallSessionGate
 import com.maodouchat.domain.calls.CallUiState
 import com.maodouchat.domain.calls.CallSessionMachine
-import com.maodouchat.core.session.CallSignalingOutboundCursor
+import com.maodouchat.domain.calls.CallSignalingOutboundCursor
 import com.maodouchat.domain.calls.CallIceRecovery
 import com.maodouchat.domain.calls.CallSignalingGateway
 import com.maodouchat.domain.calls.CallSignalingIngressMessage

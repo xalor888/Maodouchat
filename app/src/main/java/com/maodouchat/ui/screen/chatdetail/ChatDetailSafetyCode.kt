@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import com.maodouchat.R
 import com.maodouchat.core.model.DeviceSafetyState
 import com.maodouchat.core.model.IdentityTrustState
-import com.maodouchat.core.crypto.SafetyCodePolicy
+import com.maodouchat.domain.messaging.SafetyCodePolicy
 import com.maodouchat.domain.messaging.DeviceSafetyFilterPolicy
 import com.maodouchat.domain.messaging.IdentityTrustLabelKind
 import com.maodouchat.domain.messaging.identityTrustLabelKind
