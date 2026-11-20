@@ -31,7 +31,7 @@ import com.maodouchat.R
 import com.maodouchat.ui.component.Avatar
 import com.maodouchat.ui.component.AvatarSize
 import com.maodouchat.domain.calls.GroupCallPolicy
-import com.maodouchat.core.model.GroupPeerConnectionState
+import com.maodouchat.domain.calls.GroupPeerConnectionState
 import com.maodouchat.domain.calls.GroupParticipantStatusKind
 import com.maodouchat.domain.calls.groupParticipantStatusKind
 import com.maodouchat.domain.calls.GroupCallParticipantUi

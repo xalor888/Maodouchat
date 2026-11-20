@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import com.maodouchat.core.model.GroupPeerConnectionState
 
 data class GroupCallParticipantUi(
     val userId: String,

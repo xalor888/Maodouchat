@@ -1,7 +1,6 @@
 package com.maodouchat.domain.calls
 
 import com.maodouchat.core.model.CallType
-import com.maodouchat.core.model.GroupPeerConnectionState
 import com.maodouchat.core.realtime.RealtimeDomainEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
