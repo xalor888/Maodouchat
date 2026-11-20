@@ -21,7 +21,7 @@ import com.maodouchat.domain.messaging.SpecialAttachmentMessagePolicy
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.BackgroundSessionGate
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import com.maodouchat.util.MediaCache
 import com.maodouchat.util.RuntimeFlags
 import com.maodouchat.core.model.Flag
@@ -191,7 +191,7 @@ class DefaultAttachmentIntentController(
                 id = messageId,
                 chatId = intent.conversationId,
                 senderId = owner,
-                content = JsonFormat.composeContentWithMeta(prepared.sourceUri, meta),
+                content = MessageJsonPolicy.composeContentWithMeta(prepared.sourceUri, meta),
                 type = msgType,
                 timestamp = System.currentTimeMillis(),
                 status = MessageStatus.SENDING,

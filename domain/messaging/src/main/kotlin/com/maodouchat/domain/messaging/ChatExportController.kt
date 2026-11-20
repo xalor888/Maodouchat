@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.ChatDetailUiState
-import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.Message
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -156,7 +155,7 @@ class ChatExportController(
                 )
             }
         )
-        return JsonFormat.encode(data)
+        return MessageJsonPolicy.encode(data)
     }
 
     fun clearExportInfo() {

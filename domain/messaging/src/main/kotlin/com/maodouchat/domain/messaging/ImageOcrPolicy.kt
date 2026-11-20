@@ -1,7 +1,6 @@
 package com.maodouchat.domain.messaging
 
 import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.core.model.JsonFormat
 import com.maodouchat.core.model.Message
 
 // 自动 OCR 纯逻辑：常量、已索引判定、结果写回变换、结果截断。
@@ -26,7 +25,7 @@ object ImageOcrPolicy {
             preferredImageAnalysisMode = OCR_MODE
         )
         return message.copy(
-            content = JsonFormat.composeContentWithMeta(message.parsedContent(), updatedMeta),
+            content = MessageJsonPolicy.composeContentWithMeta(message.parsedContent(), updatedMeta),
             meta = updatedMeta
         )
     }

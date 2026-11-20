@@ -475,7 +475,7 @@ class ChatDetailViewModel(
 
     internal fun composeContentWithMeta(text: String, meta: MessageMeta): String =
         // 9.144：委托 JsonFormat 权威实现——本地手写清单漏字段（forwardedFrom 等）曾被静默丢弃
-        com.maodouchat.core.model.JsonFormat.composeContentWithMeta(text, meta)
+        com.maodouchat.domain.messaging.MessageJsonPolicy.composeContentWithMeta(text, meta)
 
     fun startGroupCallFromChat(
         callType: CallType,

@@ -13,7 +13,7 @@ import com.maodouchat.core.model.MessageMeta
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.messaging.v2.MessagingV2MessageGateway
-import com.maodouchat.core.model.JsonFormat
+import com.maodouchat.domain.messaging.MessageJsonPolicy
 import java.util.UUID
 
 // 消息发送与草稿：出站文本与草稿存取。
@@ -24,7 +24,7 @@ internal object AgentMessagingSendTools {
             val chat = app.database.chatDao().getChatById(chatId) ?: return AgentWriteErrorPolicy.chatNotFound()
             AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
             val meta = MessageMeta(aiAssisted = true, aiAssistantMode = AgentToolHostPolicy.AGENT_SOURCE)
-            val content = JsonFormat.composeContentWithMeta(body, meta)
+            val content = MessageJsonPolicy.composeContentWithMeta(body, meta)
             val message = Message(
                 id = AgentEntityIdPolicy.messageId(UUID.randomUUID().toString()),
                 chatId = chatId,
