@@ -26,7 +26,7 @@ import com.maodouchat.domain.conversation.ChatListUnreadBatchCoordinator
 import com.maodouchat.security.BackgroundSessionGate
 import com.maodouchat.security.SecureSessionAccess
 import com.maodouchat.util.RuntimeFlags
-import com.maodouchat.util.TypingPresenceStore
+import com.maodouchat.domain.messaging.TypingPresenceStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
