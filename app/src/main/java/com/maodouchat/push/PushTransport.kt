@@ -1,37 +1,12 @@
 package com.maodouchat.push
 
 import android.content.Context
-import com.maodouchat.domain.conversation.PushTransportState
+import com.maodouchat.domain.conversation.PushSocketPort
+import com.maodouchat.domain.conversation.PushTransport
+import com.maodouchat.domain.conversation.PushTransportController
 import com.maodouchat.network.ApiConfig
 import com.maodouchat.network.TokenManager
 import com.maodouchat.network.WebSocketClient
-
-interface PushTransport {
-    fun ensureForegroundConnection(): PushTransportState
-    fun onNetworkAvailable(): PushTransportState = ensureForegroundConnection()
-    fun stop()
-}
-
-fun interface PushSocketPort {
-    fun connect(url: String, token: String)
-}
-
-class PushTransportController(
-    private val session: () -> Pair<String, String>?,
-    private val isConnected: () -> Boolean,
-    private val socket: PushSocketPort,
-    private val url: String,
-) : PushTransport {
-    override fun ensureForegroundConnection(): PushTransportState {
-        val (ownerUserId, token) = session() ?: return PushTransportState.NoSession
-        if (ownerUserId.isBlank() || token.isBlank()) return PushTransportState.NoSession
-        if (isConnected()) return PushTransportState.Connected(ownerUserId)
-        socket.connect(url, token)
-        return PushTransportState.Connecting(ownerUserId)
-    }
-
-    override fun stop() = Unit
-}
 
 internal fun androidPushTransport(context: Context): PushTransport {
     val tokenManager = TokenManager.getInstance(context.applicationContext)
