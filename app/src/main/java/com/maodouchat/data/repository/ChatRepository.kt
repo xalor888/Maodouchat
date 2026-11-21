@@ -5,6 +5,7 @@ import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.entity.toDomain
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.domain.contacts.UserMergePolicy
+import com.maodouchat.domain.conversation.OfflineDirectChatIdPolicy
 import com.maodouchat.domain.conversation.SecretChatPolicy
 import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.User
@@ -137,7 +138,7 @@ class ChatRepository(
         peerUserId: String,
         isSecret: Boolean = false,
     ): Chat {
-        val chatId = if (isSecret) "secret_${ownerUserId}_${peerUserId}" else "direct_${ownerUserId}_${peerUserId}"
+        val chatId = OfflineDirectChatIdPolicy.offlineDirectChatId(ownerUserId, peerUserId, isSecret)
         val existing = getChatById(chatId)
         if (existing != null) return existing
         val newChat = Chat(

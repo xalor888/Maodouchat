@@ -464,7 +464,7 @@ class MaodouchatApp : Application() {
             .okHttpClient {
                 val apiHost = ApiConfig.BASE_URL.toHttpUrlOrNull()?.host
                 com.maodouchat.network.HttpClients.imageLoader()
-                    .dns(com.maodouchat.util.PublicNetworkDns.create(setOfNotNull(apiHost)))
+                    .dns(com.maodouchat.domain.messaging.PublicNetworkDns.create(setOfNotNull(apiHost)))
                     .addInterceptor { chain ->
                         val request = chain.request()
                         val isProtectedAppImage = apiHost != null && request.url.host == apiHost &&
