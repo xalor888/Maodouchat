@@ -4,7 +4,6 @@ import com.maodouchat.server.config.ServerConfig
 import com.maodouchat.server.db.*
 import com.maodouchat.server.model.*
 import com.maodouchat.server.repository.*
-import com.maodouchat.server.service.GroupInvitationService
 import com.maodouchat.server.service.UserDispositionService
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
@@ -19,14 +18,9 @@ import io.ktor.server.routing.routing
 internal fun Application.configureAdminManagementRouting(
     userRepo: UserRepository,
     postRepo: PostRepository,
-    moderationRuleRepo: ModerationRuleRepository,
-    reportRepo: ReportWorkflow = ReportWorkflow()
+    services: RoutingServiceAssembly,
 ) {
-    val authTokenRepo = AuthTokenRepository()
-    val adminManagementRepo = com.maodouchat.server.repository.AdminManagementRepository()
-    val adminSessionService = com.maodouchat.server.service.SessionService(authTokenRepo)
-    val groupMediaReferenceRepo = GroupMediaReferenceRepository()
-    val groupInvitationService = GroupInvitationService(GroupInvitationRepository())
+    val userDispositionService = UserDispositionService(userRepo)
     // 管理后台 SPA 静态资产与页面服务（HTML/CSS/JS/logo，见 AdminAssets.kt）
     configureAdminAssets()
     routing {
@@ -34,7 +28,7 @@ internal fun Application.configureAdminManagementRouting(
         // admin session token 需进入 handler 走「不能续签自身」的 400 拒绝分支
         // （仅 auth-jwt 时 admin token 会被 requireAuthSession 校验拒为 401，该分支不可达）。
         authenticate("auth-jwt", "admin-jwt") {
-            configureAdminSessionRoutes(userRepo, authTokenRepo)
+            configureAdminSessionRoutes(userRepo, services.authTokenRepo)
         }
         authenticate("admin-jwt") {
             route("/api/admin") {
@@ -46,45 +40,48 @@ internal fun Application.configureAdminManagementRouting(
             configureAdminUsersRoutes(
                 userRepo = userRepo,
                 postRepo = postRepo,
-                authTokenRepo = authTokenRepo,
-                sessionService = adminSessionService,
-                groupMediaReferenceRepo = groupMediaReferenceRepo,
-                userDispositionService = UserDispositionService(userRepo),
+                authTokenRepo = services.authTokenRepo,
+                sessionService = services.sessionService,
+                groupMediaReferenceRepo = services.groupMediaReferenceRepo,
+                userDispositionService = userDispositionService,
+                adminManagementRepo = services.adminManagementRepo,
             )
 
             // ─── 内容管理（动态 / 评论，见 AdminContentRouting.kt） ───
-            configureAdminContentRoutes(postRepo)
+            configureAdminContentRoutes(postRepo, services.adminManagementRepo)
 
             // ─── 群聊管理（见 AdminChatsRouting.kt） ───
-            configureAdminChatsRoutes()
+            configureAdminChatsRoutes(services.adminManagementRepo)
 
             // ─── 举报 + 风控（见 AdminModerationRouting.kt） ────
             configureAdminModerationRoutes(
-                reportRepo = reportRepo,
+                reportRepo = services.reportRepo,
                 postRepo = postRepo,
                 userRepo = userRepo,
-                moderationRuleRepo = moderationRuleRepo,
-                authTokenRepo = authTokenRepo,
-                sessionService = adminSessionService,
+                moderationRuleRepo = services.moderationRuleRepo,
+                authTokenRepo = services.authTokenRepo,
+                sessionService = services.sessionService,
+                adminManagementRepo = services.adminManagementRepo,
             )
 
             // ─── 诊断（AI 审计 / 推送令牌 / Bot / Ops 快照，见 AdminDiagnosticsRouting.kt） ───
-            configureAdminDiagnosticsRoutes()
+            configureAdminDiagnosticsRoutes(services.aiRepo, services.adminManagementRepo)
 
             // ─── 系统安全快照 + 运营配置（见 AdminSystemRouting.kt） ───
-            configureAdminSystemRoutes()
-            configureAdminExportsUserRoutes(authTokenRepo)
-            configureAdminExportsContentRoutes(authTokenRepo)
+            configureAdminSystemRoutes(services.adminManagementRepo)
+            configureAdminExportsUserRoutes(services.authTokenRepo)
+            configureAdminExportsContentRoutes(services.authTokenRepo)
             configureAdminExportsOpsRoutes()
             configureAdminBulkUserRoutes(
-                authTokenRepo = authTokenRepo,
-                userDispositionService = UserDispositionService(userRepo),
+                authTokenRepo = services.authTokenRepo,
+                userDispositionService = userDispositionService,
+                adminManagementRepo = services.adminManagementRepo,
             )
             configureAdminBulkChatRoutes(
-                groupInvitationService = groupInvitationService,
+                groupInvitationService = services.groupInvitationService,
             )
-            configureAdminUserSessionRoutes(userRepo, authTokenRepo, adminManagementRepo)
-            configureAdminOpsRoutes(userRepo, adminManagementRepo)
+            configureAdminUserSessionRoutes(userRepo, services.authTokenRepo, services.adminManagementRepo)
+            configureAdminOpsRoutes(userRepo, services.adminManagementRepo)
             }
         }
     }

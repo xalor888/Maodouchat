@@ -9,8 +9,8 @@ import io.ktor.server.routing.Route
 internal fun Route.configureAdminBulkUserRoutes(
     authTokenRepo: AuthTokenRepository,
     userDispositionService: com.maodouchat.server.service.UserDispositionService,
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository,
 ) {
-    val adminManagementRepo = com.maodouchat.server.repository.AdminManagementRepository()
     configureAdminBulkSessionRoutes(
         authTokenRepo = authTokenRepo,
         adminManagementRepo = adminManagementRepo,

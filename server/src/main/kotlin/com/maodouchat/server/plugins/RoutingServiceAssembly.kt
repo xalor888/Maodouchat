@@ -44,6 +44,7 @@ internal class RoutingServiceAssembly(
     val orphanGcJob: OrphanGcJob,
     val moderationRuleRepo: ModerationRuleRepository,
     val nearbyRepo: NearbyRepository,
+    val adminManagementRepo: AdminManagementRepository,
 )
 
 internal fun buildRoutingServiceAssembly(
@@ -94,6 +95,7 @@ internal fun buildRoutingServiceAssembly(
     )
     val moderationRuleRepo = ModerationRuleRepository()
     val nearbyRepo = NearbyRepository()
+    val adminManagementRepo = AdminManagementRepository()
     return RoutingServiceAssembly(
         signalKeyRepo = signalKeyRepo,
         starMessageRepo = starMessageRepo,
@@ -127,5 +129,6 @@ internal fun buildRoutingServiceAssembly(
         orphanGcJob = orphanGcJob,
         moderationRuleRepo = moderationRuleRepo,
         nearbyRepo = nearbyRepo,
+        adminManagementRepo = adminManagementRepo,
     )
 }

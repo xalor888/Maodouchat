@@ -18,7 +18,7 @@ internal fun Route.configureAdminModerationRoutes(
     moderationRuleRepo: ModerationRuleRepository,
     authTokenRepo: AuthTokenRepository,
     sessionService: com.maodouchat.server.service.SessionService,
-    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository,
 ) {
     configureAdminReportRoutes(reportRepo, postRepo, userRepo, sessionService)
     configureAdminModerationRuleRoutes(moderationRuleRepo)

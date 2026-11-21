@@ -20,7 +20,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 
 internal fun Route.configureAdminUserQueryRoutes(
-    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository,
 ) {
 // 用户查询 + 处置模板
     get("/users") {
