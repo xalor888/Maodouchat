@@ -1,7 +1,7 @@
 package com.maodouchat.chatdetail
 
-import com.maodouchat.data.local.entity.AiOperationParameters
-import com.maodouchat.data.local.entity.AiOperationType
+import com.maodouchat.domain.messaging.AiOperationParameters
+import com.maodouchat.domain.messaging.AiOperationType
 import com.maodouchat.core.model.Message
 import com.maodouchat.core.model.AiFileAnalysisMode
 import com.maodouchat.ui.screen.chatdetail.AiOperationPreparation

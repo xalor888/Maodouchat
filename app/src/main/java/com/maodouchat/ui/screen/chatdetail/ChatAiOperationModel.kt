@@ -1,11 +1,8 @@
 package com.maodouchat.ui.screen.chatdetail
 
 import com.maodouchat.data.local.entity.AiOperationEntity
-import com.maodouchat.data.local.entity.AiOperationParameters
-import com.maodouchat.data.local.entity.AiOperationType
-import com.maodouchat.core.model.Message
 import com.maodouchat.domain.messaging.PendingAiAction
-import com.maodouchat.domain.messaging.MAX_AI_SUMMARY_MESSAGES
+import com.maodouchat.domain.messaging.describeAiOperation
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.util.UUID
@@ -20,7 +17,7 @@ internal object ChatAiOperationFactory {
         now: Long = System.currentTimeMillis(),
         operationId: String = "aiop_${UUID.randomUUID()}"
     ): AiOperationPreparation {
-        val descriptor = descriptor(action) ?: return AiOperationPreparation.Untracked
+        val descriptor = describeAiOperation(action) ?: return AiOperationPreparation.Untracked
         if (ownerUserId.isBlank() || chatId.isBlank()) return AiOperationPreparation.InvalidContext
         return AiOperationPreparation.Persisted(
             AiOperationEntity(
@@ -34,44 +31,6 @@ internal object ChatAiOperationFactory {
                 updatedAt = now
             )
         )
-    }
-
-    private fun descriptor(action: PendingAiAction): Descriptor? = when (action) {
-        is PendingAiAction.TranscribeVoice -> Descriptor(
-            AiOperationType.TRANSCRIBE_VOICE,
-            action.messageId,
-            AiOperationParameters()
-        )
-        is PendingAiAction.TranslateMessage -> Descriptor(
-            AiOperationType.TRANSLATE_MESSAGE,
-            action.messageId,
-            AiOperationParameters(targetLanguage = action.targetLanguage.take(40))
-        )
-        is PendingAiAction.Summarize -> Descriptor(
-            AiOperationType.SUMMARIZE_MESSAGES,
-            null,
-            AiOperationParameters(
-                summaryScope = action.scope.name,
-                messageIds = action.messages.map(Message::id)
-                    .filter(String::isNotBlank)
-                    .distinct()
-                    .take(MAX_AI_SUMMARY_MESSAGES)
-            )
-        )
-        is PendingAiAction.AnalyzeImage -> Descriptor(
-            AiOperationType.ANALYZE_IMAGE,
-            action.messageId,
-            AiOperationParameters(analysisMode = action.mode.wireValue)
-        )
-        is PendingAiAction.AnalyzeFile -> Descriptor(
-            AiOperationType.ANALYZE_FILE,
-            action.messageId,
-            AiOperationParameters(
-                analysisMode = action.mode.wireValue,
-                question = action.question?.trim()?.take(500)
-            )
-        )
-        else -> null
     }
 
 }
