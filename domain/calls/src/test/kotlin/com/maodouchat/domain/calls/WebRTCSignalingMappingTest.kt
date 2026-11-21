@@ -102,7 +102,7 @@ class WebRTCSignalingMappingTest {
     @Test
     fun mapSignalingResultPassesSuccessAndNonApiFailureThrough() {
         val ok = Result.success(Unit)
-        assertSame(ok, mapSignalingResult(ok, FailureOperation.SEND))
+        assertEquals(ok, mapSignalingResult(ok, FailureOperation.SEND))
 
         val plain = RuntimeException("boom")
         val failed = Result.failure<Unit>(plain)
@@ -122,7 +122,9 @@ class WebRTCSignalingMappingTest {
 
         val already = SignalingException(FailureOperation.HANG_UP, statusCode = 500)
         val kept = Result.failure<Unit>(already)
-        assertSame(kept, mapSignalingResult(kept, FailureOperation.HANG_UP))
+        val result = mapSignalingResult(kept, FailureOperation.HANG_UP)
+        assertTrue(result.isFailure)
+        assertSame(already, result.exceptionOrNull())
     }
 
     @Test
