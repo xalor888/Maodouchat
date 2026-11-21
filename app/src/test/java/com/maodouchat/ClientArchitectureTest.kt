@@ -422,8 +422,6 @@ class ClientArchitectureTest {
         // 薄委托收尾：mergeMessages 转发删除（7 处调用点直调顶层 mergeMessageVersions，
         // 接线改 ::mergeMessageVersions）+ cleanupAttachmentForMessage 搬入
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
-        // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
-        // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
         // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 641,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
@@ -678,7 +676,7 @@ class ClientArchitectureTest {
         // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
-        "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        "com/maodouchat/security/SecureSessionManager.kt" to 451,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
         // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
@@ -741,8 +739,6 @@ class ClientArchitectureTest {
             // ChatSessionTeardownController（873 → 677），上限同步收紧（两份 map 一起改）。
             // 薄委托收尾：mergeMessages 转发删除 + cleanupAttachmentForMessage 搬入
             // ChatDetailFileTransferController（677 → 656）。
-            // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
-            // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
             // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 641,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
@@ -956,7 +952,7 @@ class ClientArchitectureTest {
         // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
-        "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        "com/maodouchat/security/SecureSessionManager.kt" to 451,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
         // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
