@@ -20,6 +20,7 @@ internal fun Route.configureAdminUserDeleteRoutes(
     userRepo: UserRepository,
     postRepo: PostRepository,
     groupMediaReferenceRepo: GroupMediaReferenceRepository,
+    encryptedAttachmentRepo: EncryptedAttachmentRepository = EncryptedAttachmentRepository(),
 ) {
 // 用户注销（逐项容错的提交后清理）
     delete("/users/{id}") {
@@ -45,7 +46,7 @@ internal fun Route.configureAdminUserDeleteRoutes(
                 .forEach(com.maodouchat.server.service.BlobStore::delete)
         }
         bestEffort("uploaderAttachments") {
-            EncryptedAttachmentRepository().deleteForUploader(id)
+            encryptedAttachmentRepo.deleteForUploader(id)
                 .forEach(com.maodouchat.server.service.BlobStore::delete)
         }
         bestEffort("posts") { postRepo.deleteAllPostsForAuthor(id) }
