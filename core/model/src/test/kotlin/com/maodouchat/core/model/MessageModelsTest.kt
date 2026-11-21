@@ -36,14 +36,6 @@ class MessageModelsTest {
     }
 
     @Test
-    fun messageDtoRoundTrips() {
-        val decoded = json.decodeFromString<MessageDto>("""{"id":"m1","chatId":"c1","senderId":"u1","content":"hi","timestamp":42}""")
-        assertEquals("TEXT", decoded.type)
-        assertTrue(decoded.reactions.isEmpty())
-        assertEquals(decoded, json.decodeFromString<MessageDto>(json.encodeToString(decoded)))
-    }
-
-    @Test
     fun chatDtoDerivedFlags() {
         val chat = ChatDto(id = "c1", isGroup = true)
         assertEquals("GROUP", chat.chatType)

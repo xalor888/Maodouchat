@@ -247,7 +247,6 @@ class SecureSessionManager(
                 com.maodouchat.util.MessageReminderScheduler.cancelAll(context)
                 accountUserId?.takeIf { it.isNotBlank() }?.let { uid ->
                     database.messageReminderDao().deleteForUserBlocking(uid)
-                    // 注：MessageReminderStore.clearForUser 与上一行同一 DAO 删除，移除重复调用。
                     database.voicePlayedDao().deleteForUserBlocking(uid)
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
