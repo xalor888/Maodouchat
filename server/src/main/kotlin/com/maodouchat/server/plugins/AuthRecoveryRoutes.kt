@@ -54,7 +54,7 @@ internal fun Route.configureAuthRecoveryRoutes(
                     return@post
                 }
                 sessionService.revokeAllUserSessions(userId)
-                disconnectUserSessions(userId, "密码已重置，请重新登录")
+                disconnectUserSessions(userId, "密码已重置，请重新登录", userRepo)
                 call.respond(
                     buildJsonObject {
     put("status", "ok")
