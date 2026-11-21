@@ -6,7 +6,7 @@ import com.maodouchat.core.model.ScheduledMessageRequest
 import com.maodouchat.util.MessageReminderScheduler
 import com.maodouchat.core.model.MessageReminder
 import com.maodouchat.core.model.ScheduledMessage
-import com.maodouchat.core.model.ScheduledMessagePolicy
+import com.maodouchat.domain.conversation.ScheduledMessageFactory
 import com.maodouchat.util.ScheduledMessageScheduler
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.AppDatabase
@@ -45,32 +45,17 @@ class AndroidConversationScheduleBackend(
         ownerUserId: String,
         request: ScheduledMessageRequest,
     ): ScheduledMessage? {
-        val userId = ownerUserId.trim()
-        if (userId.isBlank() || request.chatId.isBlank()) return null
-        val normalized = ScheduledMessagePolicy.normalizeText(request.text)
-        if (!ScheduledMessagePolicy.isValidText(normalized)) return null
-        val now = System.currentTimeMillis()
-        val sendAt = ScheduledMessagePolicy.clampSendAt(request.sendAtMillis, now)
-        val pending = onDb { scheduledMessageDao.listForChatBlocking(userId, request.chatId) }
-        if (!ScheduledMessagePolicy.canAddMore(pending.size)) return null
-        val item = ScheduledMessage(
-            id = "sch_${UUID.randomUUID().toString().take(12)}",
-            chatId = request.chatId,
-            peerUserId = request.peerUserId,
-            text = normalized,
-            sendAtMillis = sendAt,
-            createdAtMillis = now,
-            isGroup = request.isGroup,
-            ownerUserId = userId,
-            repeatIntervalMs = request.repeatIntervalMs.coerceAtLeast(0L),
-            repeatCount = request.repeatCount.coerceAtLeast(0),
-            occurrencesSent = 0,
-            weekdaysOnly = request.weekdaysOnly,
-            status = "PENDING",
-            attempt = 0,
+        val item = ScheduledMessageFactory.build(
+            request = request,
+            ownerUserId = ownerUserId,
+            pendingCount = {
+                onDb { scheduledMessageDao.listForChatBlocking(ownerUserId.trim(), request.chatId) }.size
+            },
+            nowMs = System.currentTimeMillis(),
+            idSuffix = UUID.randomUUID().toString().take(12),
             timeZoneId = java.time.ZoneId.systemDefault().id,
             idempotencyKey = UUID.randomUUID().toString(),
-        )
+        ) ?: return null
         scheduledMessageDao.upsertBlocking(item.toEntity())
         return item
     }
@@ -83,22 +68,24 @@ class AndroidConversationScheduleBackend(
     ): ScheduledMessage? {
         val userId = ownerUserId.trim()
         if (userId.isBlank() || id.isBlank()) return null
-        val existing = onDb { scheduledMessageDao.getByIdBlocking(id, userId) } ?: return null
-        val nextText = text?.let { ScheduledMessagePolicy.normalizeText(it) } ?: existing.text
-        if (!ScheduledMessagePolicy.isValidText(nextText)) return null
-        val now = System.currentTimeMillis()
-        val nextSendAt = sendAtMillis?.let { ScheduledMessagePolicy.clampSendAt(it, now) } ?: existing.sendAtMillis
-        val timeZoneId = existing.timeZoneId.ifBlank { java.time.ZoneId.systemDefault().id }
+        val existing = onDb { scheduledMessageDao.getByIdBlocking(id, userId) }?.toModel() ?: return null
+        val updated = ScheduledMessageFactory.applyUpdate(
+            existing = existing,
+            text = text,
+            sendAtMillis = sendAtMillis,
+            nowMs = System.currentTimeMillis(),
+            timeZoneId = java.time.ZoneId.systemDefault().id,
+        ) ?: return null
         onDb {
             scheduledMessageDao.updateTextAndTimeBlocking(
                 id = id,
                 ownerUserId = userId,
-                text = nextText,
-                sendAtMillis = nextSendAt,
-                timeZoneId = timeZoneId,
+                text = updated.text,
+                sendAtMillis = updated.sendAtMillis,
+                timeZoneId = updated.timeZoneId,
             )
         }
-        return existing.copy(text = nextText, sendAtMillis = nextSendAt, timeZoneId = timeZoneId).toModel()
+        return updated
     }
 
     override fun removeScheduled(ownerUserId: String, id: String): Boolean =
