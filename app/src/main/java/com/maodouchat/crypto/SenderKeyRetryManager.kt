@@ -9,7 +9,9 @@ import com.maodouchat.core.model.SenderKeyRetryView
 import com.maodouchat.core.model.TransientCoverageException
 import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.entity.SenderKeyRetryEntity
+import com.maodouchat.domain.messaging.SenderKeyRetryPolicy
 import com.maodouchat.domain.messaging.SenderKeyRetrySessionPolicy
+import com.maodouchat.domain.messaging.SenderKeyRetryTaskQueue
 import com.maodouchat.network.ApiService
 import com.maodouchat.network.TokenManager
 import com.maodouchat.security.SecureSessionManager
@@ -35,7 +37,7 @@ class SenderKeyRetryManager(
     }
 
     private val distributor = SenderKeyRetryDistributor(retryDao, signalProtocol, tokenManager, context, currentUserId = { initializedUserId }, setCurrentUserId = { initializedUserId = it }, sessionActive = ::sessionActive)
-    private val taskQueue = SenderKeyRetryTaskQueue(retryDao, sessionActive = ::sessionActive, refreshSchedule = ::refreshBackgroundSchedule)
+    private val taskQueue = SenderKeyRetryTaskQueue(SenderKeyRetryTaskStoreAdapter(retryDao), sessionActive = ::sessionActive, refreshSchedule = ::refreshBackgroundSchedule, jitterFactor = { Math.random() })
     private var job: Job? = null
     private var initializedUserId: String? = null
     /** 8.41：processDueTasks 互斥，防 Worker/应用循环/发送路径并发处理同一任务。 */
@@ -62,7 +64,7 @@ class SenderKeyRetryManager(
         job = null
     }
 
-    suspend fun enqueue(chatId: String, epoch: Long, reason: String, delayMs: Long = SenderKeyRetryTaskQueue.INITIAL_DELAY_MS) {
+    suspend fun enqueue(chatId: String, epoch: Long, reason: String, delayMs: Long = SenderKeyRetryPolicy.INITIAL_DELAY_MS) {
         if (chatId.isBlank()) return
         val ownerUserId = tokenManager.getUserId().orEmpty()
         if (ownerUserId.isBlank() || !sessionActive(ownerUserId)) return
@@ -112,22 +114,18 @@ class SenderKeyRetryManager(
                     if (!sessionActive(userId)) return
                     retryDao.delete(userId, task.chatId)
                 } else {
-                    taskQueue.markFailure(task, IllegalStateException("sender_key_coverage_incomplete"))
+                    taskQueue.markFailure(task.toRetryTask(), IllegalStateException("sender_key_coverage_incomplete"))
                 }
             } catch (error: kotlinx.coroutines.CancellationException) {
                 throw error
             } catch (error: Exception) {
                 if (!sessionActive(userId)) return
-                taskQueue.markFailure(task, error)
+                taskQueue.markFailure(task.toRetryTask(), error)
             }
         }
         if (sessionActive(userId)) refreshBackgroundSchedule(userId)
     }
 
-    /**
-     * 观察指定聊天是否还有未完成分发的 SenderKey 重试任务。
-     * 聊天详情页使用这个 indicator 显示"密钥分发中…"或"密钥分发失败"。
-     */
     fun observePendingForChat(chatId: String): Flow<SenderKeyRetryView> =
         tokenManager.getUserId().orEmpty().let { ownerUserId ->
             retryDao.observePendingCountForChat(ownerUserId, chatId).map { count ->
@@ -171,7 +169,7 @@ class SenderKeyRetryManager(
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
-            taskQueue.markFailure(task, error)
+            taskQueue.markFailure(task.toRetryTask(), error)
             false
         }
     }
@@ -278,13 +276,13 @@ class SenderKeyRetryManager(
                     // 8.37：网络瞬态失败（超时/断网）不得销毁群 SenderKey 或清空 READY 附件 wire——
                     // 其他设备已按旧 SKDM 加密的密文会在 key 轮换后无法解密；只入队退避重试。
                     // 8.41：以 TransientCoverageException 抛出，使发送路径保持 SENDING 待 flusher 重试
-                    taskQueue.enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_network_failed:${error.message.orEmpty()}", SenderKeyRetryTaskQueue.INITIAL_DELAY_MS)
+                    taskQueue.enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_network_failed:${error.message.orEmpty()}", SenderKeyRetryPolicy.INITIAL_DELAY_MS)
                     refreshBackgroundSchedule(userId)
                     return@withLock Result.failure(TransientCoverageException("sender key coverage transient failure", error))
                 }
                 signalProtocol.invalidateGroupSenderKey(chatId)
                 distributor.clearAttachmentWireForChat(chatId)
-                taskQueue.enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_failed:${error.message.orEmpty()}", SenderKeyRetryTaskQueue.INITIAL_DELAY_MS)
+                taskQueue.enqueueLocked(userId, chatId, expectedEpoch, "coverage_send_failed:${error.message.orEmpty()}", SenderKeyRetryPolicy.INITIAL_DELAY_MS)
                 refreshBackgroundSchedule(userId)
                 Result.failure(error)
             }
