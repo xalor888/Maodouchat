@@ -28,16 +28,17 @@ internal fun Route.configureSecretSurfaceHintRoutes(
     participantRepository: ConversationParticipantRepository,
     userRepo: UserRepository,
     messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
+    serviceMessageRepo: ServiceMessageRepository = ServiceMessageRepository(),
 ) {
     // ── 8 个新 surface 的 hint 路由（SYSTEM 消息，引导文案，无密聊明文）──
-    post("/api/bot/sendSecretScreenshotBurnHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SCREENSHOT_BURN_ENABLED, "BURN:SCREEN", "Secret chats burn local media cache when a screenshot attempt is detected", messagingV2Repository) }
-    post("/api/bot/sendSecretAutoDestroyHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_AUTO_DESTROY_ENABLED, "TTL:AUTODESTROY", "Secret chats auto-destroy after a session inactivity TTL", messagingV2Repository) }
-    post("/api/bot/sendSecretForwardWhitelistHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_FORWARD_WHITELIST_ENABLED, "FWL:WHITELIST", "Secret chat forwards are limited to the whitelist", messagingV2Repository) }
-    post("/api/bot/sendSecretSimChangeHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED, "SIM:LOCK", "Secret chats lock when the SIM changes or is removed", messagingV2Repository) }
-    post("/api/bot/sendSecret2faGateHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_2FA_GATE_ENABLED, "2FA:GATE", "Secret chats require a second factor before opening", messagingV2Repository) }
-    post("/api/bot/sendSecretNewDeviceRiskHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_NEW_DEVICE_RISK_ENABLED, "NDV:RISK", "Secret chats lock on untrusted new devices", messagingV2Repository) }
-    post("/api/bot/sendSecretDeviceVerifyHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_DEVICE_VERIFY_ENABLED, "DVZ:VERIFY", "Verify the peer device fingerprint before secret chats", messagingV2Repository) }
-    post("/api/bot/sendSecretSessionNoticeHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SESSION_NOTICE_ENABLED, "SNT:NOTICE", "Secret chat notices show when both sides enable secret mode", messagingV2Repository) }
+    post("/api/bot/sendSecretScreenshotBurnHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SCREENSHOT_BURN_ENABLED, "BURN:SCREEN", "Secret chats burn local media cache when a screenshot attempt is detected", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretAutoDestroyHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_AUTO_DESTROY_ENABLED, "TTL:AUTODESTROY", "Secret chats auto-destroy after a session inactivity TTL", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretForwardWhitelistHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_FORWARD_WHITELIST_ENABLED, "FWL:WHITELIST", "Secret chat forwards are limited to the whitelist", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretSimChangeHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SIM_CHANGE_PROTECTION_ENABLED, "SIM:LOCK", "Secret chats lock when the SIM changes or is removed", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecret2faGateHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_2FA_GATE_ENABLED, "2FA:GATE", "Secret chats require a second factor before opening", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretNewDeviceRiskHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_NEW_DEVICE_RISK_ENABLED, "NDV:RISK", "Secret chats lock on untrusted new devices", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretDeviceVerifyHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_DEVICE_VERIFY_ENABLED, "DVZ:VERIFY", "Verify the peer device fingerprint before secret chats", messagingV2Repository, serviceMessageRepo) }
+    post("/api/bot/sendSecretSessionNoticeHint") { sendSecretSurfaceHint(call, participantRepository, userRepo, RuntimeConfigService.KEY_SECRET_SESSION_NOTICE_ENABLED, "SNT:NOTICE", "Secret chat notices show when both sides enable secret mode", messagingV2Repository, serviceMessageRepo) }
 }
 
 /** 写入一条 bot SYSTEM 引导消息（前缀加密传输，内容为固定文案，不含密聊明文）。 */
@@ -49,6 +50,7 @@ private suspend fun sendSecretSurfaceHint(
     prefix: String,
     defaultHint: String,
     messagingV2Repository: com.maodouchat.server.messaging.v2.MessagingV2Repository,
+    serviceMessageRepo: ServiceMessageRepository,
 ) {
     val bot = authenticateBot(call) ?: return
     // 8.46 修复：8 个 hint 写端点此前无 per-bot 限流——bot 认证通过即可反复往任意
@@ -69,7 +71,7 @@ private suspend fun sendSecretSurfaceHint(
     val msgId = "bot_" + java.util.UUID.randomUUID().toString().replace("-", "").take(16)
     val now = System.currentTimeMillis()
     val ok = runCatching {
-        ServiceMessageRepository().insert(msgId, chatId, bot.id, content, now, "SYSTEM")
+        serviceMessageRepo.insert(msgId, chatId, bot.id, content, now, "SYSTEM")
     }.getOrDefault(false)
     if (!ok) return call.respond(HttpStatusCode.BadRequest, ErrorResponse("send failed"))
     BotRepository.logCommand(bot.id, chatId, null, "sendSecretSurfaceHint:$prefix")
