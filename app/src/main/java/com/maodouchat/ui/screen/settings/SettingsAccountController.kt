@@ -5,6 +5,7 @@ import com.maodouchat.data.repository.AccountSecurityNetworkRepository
 import com.maodouchat.core.session.LogoutStorePolicy
 import com.maodouchat.core.session.Reason
 import com.maodouchat.core.model.SettingsUiState
+import com.maodouchat.domain.messaging.TypingPresenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -42,7 +43,7 @@ internal class SettingsAccountController(
                 )
                 // 1.103：登出清空「正在输入」presence，避免残留对端状态。
                 // 放在 NonCancellable 内，避免 purge 后协程取消导致清理被跳过。
-                com.maodouchat.util.TypingPresenceStore.clear()
+                TypingPresenceStore.clear()
             }
             updateState { it.copy(isLoggedOut = true) }
         }
@@ -79,7 +80,7 @@ internal class SettingsAccountController(
                                 ),
                                 expectedOwnerUserId = ownerUserId
                             )
-                            com.maodouchat.util.TypingPresenceStore.clear()
+                            TypingPresenceStore.clear()
                         }
                         updateState { it.copy(isLoggingOutAll = false, isLoggedOut = true) }
                     },
@@ -131,7 +132,7 @@ internal class SettingsAccountController(
                                 ),
                                 expectedOwnerUserId = deleteOwnerUserId
                             )
-                            com.maodouchat.util.TypingPresenceStore.clear()
+                            TypingPresenceStore.clear()
                             result
                         }
                         // 8.33 修复：服务端账号已删除，即使本地 purge 失败也不能卡死在 loading——

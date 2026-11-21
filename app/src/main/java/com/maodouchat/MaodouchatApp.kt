@@ -9,6 +9,7 @@ import com.maodouchat.core.realtime.WebSocketEventBridge
 import com.maodouchat.domain.conversation.AttachmentFinalizedEvent
 import com.maodouchat.domain.conversation.ChatMessageSentEvent
 import com.maodouchat.domain.conversation.ChatReadEvent
+import com.maodouchat.domain.messaging.TypingPresenceStore
 import com.maodouchat.notification.NotificationInfrastructure
 import com.maodouchat.notification.MessageNotificationService
 import android.app.Application
@@ -150,7 +151,6 @@ class MaodouchatApp : Application() {
             ).also { _senderKeyRetryManager = it }
         }
 
-    /** 自动图片 OCR：识别图内文字并写入搜索索引（随应用启动与开关触发）。 */
     val imageOcrAutoIndexer: com.maodouchat.ai.ImageOcrAutoIndexer
         get() = _imageOcrAutoIndexer ?: synchronized(this) {
             _imageOcrAutoIndexer ?: com.maodouchat.ai.ImageOcrAutoIndexer(
@@ -290,7 +290,7 @@ class MaodouchatApp : Application() {
         com.maodouchat.call.CallSystemIntegration(this).registerPhoneAccount()
 
         // 1.103：会话列表「正在输入」presence——订阅领域事件流（进程级单例，随连接生灭自清理）
-        com.maodouchat.util.TypingPresenceStore.start(realtimeEventDispatcher)
+        TypingPresenceStore.start(realtimeEventDispatcher, currentUserId = { TokenManager.getInstanceOrNull()?.getUserId().orEmpty() })
 
         // 把加密数据库 + SignalProtocol 初始化移到后台线程，避免阻塞首帧
         applicationScope.launch {
