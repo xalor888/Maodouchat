@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.core.model.MessageStatus
 import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentSendResultPolicy
@@ -18,11 +17,11 @@ import java.util.UUID
 
 // 消息发送与草稿：出站文本与草稿存取。
 internal object AgentMessagingSendTools {
-        internal suspend fun sendText(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
+        internal suspend fun sendText(ports: AgentToolPorts, userId: String, chatId: String, text: String): String {
             val body = AgentWriteInputPolicy.cleanSendText(text)
             if (chatId.isBlank() || body.isBlank()) return AgentWriteErrorPolicy.required("chatId", "text")
-            val chat = app.database.chatDao().getChatById(chatId) ?: return AgentWriteErrorPolicy.chatNotFound()
-            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
+            val chat = ports.database.chatDao().getChatById(chatId) ?: return AgentWriteErrorPolicy.chatNotFound()
+            AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
             val meta = MessageMeta(aiAssisted = true, aiAssistantMode = AgentToolHostPolicy.AGENT_SOURCE)
             val content = MessageJsonPolicy.composeContentWithMeta(body, meta)
             val message = Message(
@@ -35,11 +34,11 @@ internal object AgentMessagingSendTools {
                 status = MessageStatus.SENDING,
                 meta = meta
             )
-            val messageStore = LocalMessageStore(app.database.messageDao(), app.database)
+            val messageStore = LocalMessageStore(ports.database.messageDao(), ports.database)
             MessagingV2MessageGateway(
-                database = app.database,
+                database = ports.database,
                 messageStore = messageStore,
-                outbox = app.messagingV2Outbox,
+                outbox = ports.messagingV2Outbox,
             ).stageAndEnqueue(
                 message = message,
                 groupRevision = chat.memberRevision.takeIf { chat.isGroup },
@@ -49,16 +48,16 @@ internal object AgentMessagingSendTools {
             return AgentSendResultPolicy.queued(message.id, chat.isGroup, chatId)
         }
 
-        internal suspend fun setDraft(app: MaodouchatApp, userId: String, chatId: String, text: String): String {
+        internal suspend fun setDraft(ports: AgentToolPorts, userId: String, chatId: String, text: String): String {
             if (chatId.isBlank()) return AgentWriteErrorPolicy.required("chatId")
-            if (app.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
-            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
+            if (ports.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
+            AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
             val body = AgentWriteInputPolicy.cleanDraftText(text)
             if (body.isBlank()) {
-                app.database.chatDraftDao().delete(userId, chatId)
+                ports.database.chatDraftDao().delete(userId, chatId)
                 return AgentSendResultPolicy.draftCleared(chatId)
             }
-            app.database.chatDraftDao().upsert(
+            ports.database.chatDraftDao().upsert(
                 ChatDraftEntity(ownerUserId = userId, chatId = chatId, text = body, updatedAt = System.currentTimeMillis())
             )
             return AgentSendResultPolicy.draftSaved(chatId, body.length)

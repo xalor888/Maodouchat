@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.ChatRepository
 import com.maodouchat.data.repository.UserRepository
 import com.maodouchat.domain.messaging.AgentChatErrorPolicy
@@ -11,12 +10,12 @@ import com.maodouchat.domain.messaging.AgentWriteInputPolicy
 
 // 会话与联系人设置：会话置顶/静音/归档/未读、联系人备注、通知已读。
 internal object AgentMessagingChatTools {
-        internal suspend fun updateChat(app: MaodouchatApp, args: Map<String, String>): String {
+        internal suspend fun updateChat(ports: AgentToolPorts, args: Map<String, String>): String {
             val chatId = args["chatId"].orEmpty()
             if (chatId.isBlank()) return AgentWriteErrorPolicy.required("chatId")
-            if (app.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
-            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
-            val repo = ChatRepository(app.database.chatDao(), app.database.userDao())
+            if (ports.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
+            AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
+            val repo = ChatRepository(ports.database.chatDao(), ports.database.userDao())
             val entries = AgentChatUpdatePolicy.updateEntries(args)
             for ((key, value) in entries) {
                 when (key) {
@@ -30,18 +29,18 @@ internal object AgentMessagingChatTools {
             return AgentChatUpdatePolicy.formatUpdated(chatId, entries)
         }
 
-        internal suspend fun setNickname(app: MaodouchatApp, userId: String, nickname: String): String {
+        internal suspend fun setNickname(ports: AgentToolPorts, userId: String, nickname: String): String {
             if (userId.isBlank()) return AgentWriteErrorPolicy.required("userId")
-            if (app.database.userDao().getUserById(userId) == null) return AgentChatErrorPolicy.contactNotFound()
-            UserRepository(app.database.userDao()).setNickname(userId, AgentWriteInputPolicy.cleanNickname(nickname))
+            if (ports.database.userDao().getUserById(userId) == null) return AgentChatErrorPolicy.contactNotFound()
+            UserRepository(ports.database.userDao()).setNickname(userId, AgentWriteInputPolicy.cleanNickname(nickname))
             return AgentChatResultPolicy.nicknameResult(userId, nickname)
         }
 
-        internal fun markNotificationRead(app: MaodouchatApp, itemId: String): String {
+        internal fun markNotificationRead(ports: AgentToolPorts, itemId: String): String {
             if (itemId.isBlank()) return AgentWriteErrorPolicy.required("itemId")
-            val exists = app.notificationCenter.items.value.any { it.id == itemId }
+            val exists = ports.notificationCenter.items.value.any { it.id == itemId }
             if (!exists) return AgentChatErrorPolicy.notificationNotFound()
-            app.notificationCenter.markRead(itemId)
+            ports.notificationCenter.markRead(itemId)
             return AgentChatResultPolicy.markedRead(itemId)
         }
 }

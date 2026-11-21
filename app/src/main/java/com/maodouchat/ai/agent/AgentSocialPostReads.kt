@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.domain.messaging.AgentPostReadLimitPolicy
 import com.maodouchat.domain.messaging.AgentPostRowPolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyLinePolicy
@@ -10,8 +9,8 @@ import com.maodouchat.domain.messaging.AgentToolHostPolicy
 import com.maodouchat.network.ApiService
 internal object AgentSocialPostReads {
 
-        internal suspend fun listPosts(app: MaodouchatApp, limit: Int): String {
-            val token = AgentToolHost.token(app) ?: return AgentToolHostPolicy.NOT_SIGNED_IN
+        internal suspend fun listPosts(ports: AgentToolPorts, limit: Int): String {
+            val token = ports.token ?: return AgentToolHostPolicy.NOT_SIGNED_IN
             val rows = ApiService.getPosts(token, limit = AgentPostReadLimitPolicy.postsLimit(limit)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return AgentReadEmptyLinePolicy.NO_POSTS
             return rows.joinToString("\n") { post ->
@@ -25,9 +24,9 @@ internal object AgentSocialPostReads {
             }
         }
 
-        internal suspend fun getPost(app: MaodouchatApp, postId: String): String {
+        internal suspend fun getPost(ports: AgentToolPorts, postId: String): String {
             if (postId.isBlank()) return AgentReadGatePolicy.blankPostIdError()
-            val token = AgentToolHost.token(app) ?: return AgentToolHostPolicy.NOT_SIGNED_IN
+            val token = ports.token ?: return AgentToolHostPolicy.NOT_SIGNED_IN
             val post = ApiService.getPost(token, postId).getOrElse { return AgentToolHost.fail(it) }
             return AgentPostRowPolicy.postDetail(
                 post.id,
@@ -40,9 +39,9 @@ internal object AgentSocialPostReads {
             )
         }
 
-        internal suspend fun listPostComments(app: MaodouchatApp, postId: String, limit: Int): String {
+        internal suspend fun listPostComments(ports: AgentToolPorts, postId: String, limit: Int): String {
             if (postId.isBlank()) return AgentReadGatePolicy.blankPostIdError()
-            val token = AgentToolHost.token(app) ?: return AgentToolHostPolicy.NOT_SIGNED_IN
+            val token = ports.token ?: return AgentToolHostPolicy.NOT_SIGNED_IN
             val rows = ApiService.getPostComments(token, postId, AgentPostReadLimitPolicy.commentsLimit(limit)).getOrElse { return AgentToolHost.fail(it) }
             if (rows.isEmpty()) return AgentReadEmptyLinePolicy.NO_COMMENTS
             return rows.joinToString("\n") { AgentPostRowPolicy.commentRow(it.id, it.author.name, AgentReadPreviewPolicy.commentContent(it.content)) }

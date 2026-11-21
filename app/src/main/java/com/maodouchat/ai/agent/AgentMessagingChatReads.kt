@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.LocalMessageStore
 import com.maodouchat.domain.messaging.AgentChatListPolicy
 import com.maodouchat.domain.messaging.AgentChatRowPolicy
@@ -14,11 +13,11 @@ import com.maodouchat.security.ChatLockSession
 
 // 会话只读查询：列表、详情、历史（门闩复用 AgentMessagingReadGates）。
 internal object AgentMessagingChatReads {
-        internal suspend fun listChats(app: MaodouchatApp, query: String?): String {
-            val all = app.database.chatDao().getAllChatsDirect()
+        internal suspend fun listChats(ports: AgentToolPorts, query: String?): String {
+            val all = ports.database.chatDao().getAllChatsDirect()
             val q = AgentChatListPolicy.normalizeQuery(query)
-            val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
-            val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+            val locked = ports.database.chatLockDao().listLockedChatIds().toHashSet()
+            val secret = ports.database.chatDao().listSecretChatIds().toHashSet()
             val lines = all.asSequence()
                 .filter { chat ->
                     if (!AgentSecretGatePolicy.includeInChatList(
@@ -54,9 +53,9 @@ internal object AgentMessagingChatReads {
             return if (lines.isEmpty()) AgentReadEmptyLinePolicy.NO_CHATS else lines.joinToString("\n")
         }
 
-        internal suspend fun getChat(app: MaodouchatApp, chatId: String): String {
-            AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
-            val chat = app.database.chatDao().getChatById(chatId) ?: return AgentReadGatePolicy.chatNotFoundError()
+        internal suspend fun getChat(ports: AgentToolPorts, chatId: String): String {
+            AgentMessagingReadGates.requireReadableChat(ports, chatId)?.let { return it }
+            val chat = ports.database.chatDao().getChatById(chatId) ?: return AgentReadGatePolicy.chatNotFoundError()
             val title = AgentChatListPolicy.detailTitle(chat.groupName, chat.participantIds)
             return AgentChatRowPolicy.chatDetail(
                 chat.id,
@@ -71,9 +70,9 @@ internal object AgentMessagingChatReads {
             )
         }
 
-        internal suspend fun getChatHistory(app: MaodouchatApp, chatId: String, limit: Int): String {
-            AgentMessagingReadGates.requireReadableChat(app, chatId)?.let { return it }
-            val messages = LocalMessageStore(app.database.messageDao(), app.database)
+        internal suspend fun getChatHistory(ports: AgentToolPorts, chatId: String, limit: Int): String {
+            AgentMessagingReadGates.requireReadableChat(ports, chatId)?.let { return it }
+            val messages = LocalMessageStore(ports.database.messageDao(), ports.database)
                 .getRecentMessages(chatId, AgentChatListPolicy.historyLimit(limit))
             if (messages.isEmpty()) return AgentReadEmptyLinePolicy.NO_MESSAGES
             return messages.asReversed().joinToString("\n") { AgentMessageLinePolicy.formatMessage(it) }

@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.repository.MessageSearchRepository
 import com.maodouchat.domain.messaging.AgentMessageLinePolicy
 import com.maodouchat.domain.messaging.AgentPinnedLinePolicy
@@ -14,14 +13,14 @@ import com.maodouchat.security.ChatLockSession
 
 // 消息只读查询：搜索、星标、置顶。
 internal object AgentMessagingMessageReads {
-        internal suspend fun searchMessages(app: MaodouchatApp, query: String, limit: Int): String {
+        internal suspend fun searchMessages(ports: AgentToolPorts, query: String, limit: Int): String {
             val q = AiPromptSafetyPolicy.sanitizeQuery(query)
             if (q.isBlank()) return AgentReadGatePolicy.blankQueryError()
-            val hits = MessageSearchRepository(app.database)
+            val hits = MessageSearchRepository(ports.database)
                 .search(q, AgentMessageLinePolicy.searchLimit(limit))
             if (hits.isEmpty()) return AgentReadEmptyLinePolicy.NO_MATCHES
-            val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
-            val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+            val locked = ports.database.chatLockDao().listLockedChatIds().toHashSet()
+            val secret = ports.database.chatDao().listSecretChatIds().toHashSet()
             return hits
                 .filter { hit ->
                     AgentSecretGatePolicy.includeInChatList(
@@ -36,11 +35,11 @@ internal object AgentMessagingMessageReads {
                 .ifBlank { AgentReadEmptyLinePolicy.NO_MATCHES }
         }
 
-        internal suspend fun listStarred(app: MaodouchatApp, limit: Int): String {
-            val rows = app.database.messageDao().getStarredMessages(AgentMessageLinePolicy.starredLimit(limit))
+        internal suspend fun listStarred(ports: AgentToolPorts, limit: Int): String {
+            val rows = ports.database.messageDao().getStarredMessages(AgentMessageLinePolicy.starredLimit(limit))
             if (rows.isEmpty()) return AgentReadEmptyLinePolicy.NO_STARRED_MESSAGES
-            val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
-            val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+            val locked = ports.database.chatLockDao().listLockedChatIds().toHashSet()
+            val secret = ports.database.chatDao().listSecretChatIds().toHashSet()
             return rows
                 .filter { msg ->
                     AgentSecretGatePolicy.includeInChatList(
@@ -55,10 +54,10 @@ internal object AgentMessagingMessageReads {
                 .ifBlank { AgentReadEmptyLinePolicy.NO_STARRED_MESSAGES }
         }
 
-        internal suspend fun listPinned(app: MaodouchatApp, chatId: String): String {
-            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
+        internal suspend fun listPinned(ports: AgentToolPorts, chatId: String): String {
+            AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
             if (chatId.isBlank()) return AgentReadGatePolicy.blankChatIdError()
-            val token = AgentToolHost.token(app) ?: return AgentToolHostPolicy.NOT_SIGNED_IN
+            val token = ports.token ?: return AgentToolHostPolicy.NOT_SIGNED_IN
             val result = ApiService.getPinnedMessages(token, chatId).getOrElse { return AgentToolHost.fail(it) }
             if (result.pins.isEmpty()) return AgentReadEmptyLinePolicy.NO_PINNED_MESSAGES
             return result.pins.joinToString("\n") { AgentPinnedLinePolicy.pinnedLine(it.messageId, it.pinnedBy, it.pinnedAt) }
