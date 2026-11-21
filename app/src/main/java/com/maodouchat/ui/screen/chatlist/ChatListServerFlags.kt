@@ -30,7 +30,7 @@ internal suspend fun fetchPublicStatusBanner(context: android.content.Context): 
         // optString 会把显式 JSON null 读成字面 "null"，先排除（与横幅拼装同法）
         val pushHmacKey = o.optString("pushHmacKey").takeIf { it != "null" }.orEmpty().ifBlank { null }
 
-        // G143：86 行开关写入收敛成一次调用（绑定表见 ChatListServerFlags.FLAG_BINDINGS）
+        // G143：86 行开关写入收敛成一次调用（绑定表见 :domain:messaging 的 serverFeatureFlagBindings）
         applyServerFeatureFlags(context, flags)
         pushHmacKey?.let { com.maodouchat.util.PushVerifyPrefs.setKey(context, it) }
 
