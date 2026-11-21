@@ -1,8 +1,6 @@
 package com.maodouchat.server.plugins
 
-import com.maodouchat.server.repository.ModerationRuleRepository
 import com.maodouchat.server.repository.PostRepository
-import com.maodouchat.server.repository.ReportWorkflow
 import com.maodouchat.server.repository.UserRepository
 import io.ktor.server.application.Application
 
@@ -10,13 +8,11 @@ import io.ktor.server.application.Application
 fun Application.configureAdminRouting(
     userRepo: UserRepository,
     postRepo: PostRepository,
-    moderationRuleRepo: ModerationRuleRepository,
-    reportRepo: ReportWorkflow = ReportWorkflow(),
+    services: RoutingServiceAssembly,
 ) {
     configureAdminManagementRouting(
         userRepo = userRepo,
         postRepo = postRepo,
-        moderationRuleRepo = moderationRuleRepo,
-        reportRepo = reportRepo,
+        services = services,
     )
 }
