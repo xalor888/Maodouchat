@@ -6,8 +6,7 @@ import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.data.local.AppDatabase
 import com.maodouchat.data.local.entity.toEntity
 import com.maodouchat.data.local.entity.toModel
-import com.maodouchat.domain.conversation.NotificationCenterMergePolicy
-import com.maodouchat.domain.conversation.NotificationCenterReadPolicy
+import com.maodouchat.domain.conversation.NotificationCenterFoldPolicy
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,38 +56,7 @@ class NotificationCenterRepository(context: Context) {
     /** 添加或合并一条通知。 */
     fun add(item: NotificationCenterItem, expectedUserId: String? = null) {
         withCurrentAccount(expectedUserId) { ownerUserId ->
-            val current = _items.value
-            // 同主题条目按类型合并（如同一未接来电不重复叠加）
-            val index = current.indexOfFirst {
-                it.type == item.type && it.mergeKey == item.mergeKey && !it.read
-            }
-            val updated = if (index >= 0) {
-                val existing = current[index]
-                // FCM+WS same message, or ring-timeout+peer-hang-up same missed call:
-                // do not double-count under a shared mergeKey.
-                val skipCount = NotificationCenterMergePolicy
-                    .shouldSkipCountIncrement(
-                        itemType = item.type,
-                        existingId = existing.id,
-                        existingExtra = existing.extra,
-                        incomingId = item.id,
-                        incomingExtra = item.extra,
-                    )
-                val merged = existing.copy(
-                    count = if (skipCount) existing.count else existing.count + 1,
-                    updatedAt = item.updatedAt,
-                    title = item.title,
-                    preview = item.preview,
-                    subtitle = item.subtitle,
-                    deeplink = item.deeplink,
-                    // Keep latest messageId/callId so delete/revoke/cancel can still match the head.
-                    extra = item.extra,
-                    id = if (skipCount) existing.id else item.id,
-                )
-                current.toMutableList().apply { set(index, merged) }
-            } else {
-                (listOf(item) + current).take(MAX_KEEP)
-            }
+            val updated = NotificationCenterFoldPolicy.foldInto(_items.value, item)
             _items.value = updated
             saveToDisk(ownerUserId, updated)
         }
@@ -141,8 +109,9 @@ class NotificationCenterRepository(context: Context) {
     fun markAllRead() {
         withCurrentAccount { ownerUserId ->
             if (_items.value.any { !it.read }) {
-                val now = System.currentTimeMillis()
-                val updated = _items.value.map { if (it.read) it else it.copy(read = true, updatedAt = now) }
+                val updated = NotificationCenterFoldPolicy.markAllRead(
+                    _items.value, System.currentTimeMillis()
+                )
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
             }
@@ -153,7 +122,7 @@ class NotificationCenterRepository(context: Context) {
         withCurrentAccount { ownerUserId ->
             val now = System.currentTimeMillis()
             val current = _items.value
-            val updated = current.map { if (it.id == itemId && !it.read) it.copy(read = true, updatedAt = now) else it }
+            val updated = NotificationCenterFoldPolicy.markRead(current, itemId, now)
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -168,7 +137,7 @@ class NotificationCenterRepository(context: Context) {
         withCurrentAccount { ownerUserId ->
             val now = System.currentTimeMillis()
             val current = _items.value
-            val updated = current.map { if (it.id == itemId && it.read) it.copy(read = false, updatedAt = now) else it }
+            val updated = NotificationCenterFoldPolicy.markUnread(current, itemId, now)
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -184,16 +153,9 @@ class NotificationCenterRepository(context: Context) {
         if (chatId.isBlank()) return
         withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val now = System.currentTimeMillis()
-            val updated = current.map { item ->
-                val matches = NotificationCenterReadPolicy.isChatMessageItem(
-                    chatId = chatId,
-                    mergeKey = item.mergeKey,
-                    deeplink = item.deeplink,
-                    extraChatId = item.extra["chatId"]
-                )
-                if (matches && !item.read) item.copy(read = true, updatedAt = now) else item
-            }
+            val updated = NotificationCenterFoldPolicy.markChatMessagesRead(
+                current, chatId, System.currentTimeMillis()
+            )
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -208,14 +170,9 @@ class NotificationCenterRepository(context: Context) {
         if (chatId.isBlank()) return
         withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val now = System.currentTimeMillis()
-            val updated = current.map { item ->
-                val matches = item.type == "AI_TASK" &&
-                    (item.mergeKey == "ai_tasks_$chatId" ||
-                        item.deeplink == "maodouchat:ai_tasks:$chatId" ||
-                        item.extra["chatId"] == chatId)
-                if (matches && !item.read) item.copy(read = true, updatedAt = now) else item
-            }
+            val updated = NotificationCenterFoldPolicy.markAiTasksRead(
+                current, chatId, System.currentTimeMillis()
+            )
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -231,12 +188,9 @@ class NotificationCenterRepository(context: Context) {
         if (postId.isBlank()) return
         withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val now = System.currentTimeMillis()
-            val updated = current.map { item ->
-                val matches = item.type == "POST_INTERACTION" &&
-                    (item.mergeKey == "post_$postId" || item.extra["postId"] == postId)
-                if (matches && !item.read) item.copy(read = true, updatedAt = now) else item
-            }
+            val updated = NotificationCenterFoldPolicy.markPostInteractionsRead(
+                current, postId, System.currentTimeMillis()
+            )
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -252,14 +206,7 @@ class NotificationCenterRepository(context: Context) {
         if (chatId.isBlank()) return
         withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val updated = current.filterNot { item ->
-                NotificationCenterReadPolicy.belongsToChat(
-                    chatId = chatId,
-                    mergeKey = item.mergeKey,
-                    deeplink = item.deeplink,
-                    extraChatId = item.extra["chatId"]
-                )
-            }
+            val updated = NotificationCenterFoldPolicy.removeChatItems(current, chatId)
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -276,13 +223,7 @@ class NotificationCenterRepository(context: Context) {
         if (messageId.isBlank()) return false
         return withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val updated = current.filterNot { item ->
-                NotificationCenterReadPolicy.referencesMessage(
-                    messageId = messageId,
-                    itemId = item.id,
-                    extraMessageId = item.extra["messageId"]
-                )
-            }
+            val updated = NotificationCenterFoldPolicy.removeMessageReferences(current, messageId)
             val changed = updated != current
             if (changed) {
                 _items.value = updated
@@ -295,18 +236,9 @@ class NotificationCenterRepository(context: Context) {
     /** 批量移除引用这批消息的通知中心条目（8.32 修复 F9：阅后即焚到期清理）。 */
     fun deleteItemsForMessages(messageIds: List<String>) {
         if (messageIds.isEmpty()) return
-        val ids = messageIds.distinct().filter(String::isNotBlank)
         withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val updated = current.filterNot { item ->
-                ids.any { id ->
-                    NotificationCenterReadPolicy.referencesMessage(
-                        messageId = id,
-                        itemId = item.id,
-                        extraMessageId = item.extra["messageId"]
-                    )
-                }
-            }
+            val updated = NotificationCenterFoldPolicy.deleteItemsForMessages(current, messageIds)
             if (updated != current) {
                 _items.value = updated
                 saveToDisk(ownerUserId, updated)
@@ -323,15 +255,9 @@ class NotificationCenterRepository(context: Context) {
         if (messageId.isBlank() || preview.isBlank()) return false
         return withCurrentAccount { ownerUserId ->
             val current = _items.value
-            val now = System.currentTimeMillis()
-            val updated = current.map { item ->
-                val matches = NotificationCenterReadPolicy.referencesMessage(
-                    messageId = messageId,
-                    itemId = item.id,
-                    extraMessageId = item.extra["messageId"]
-                )
-                if (matches && item.preview != preview) item.copy(preview = preview, updatedAt = now) else item
-            }
+            val updated = NotificationCenterFoldPolicy.updateMessagePreview(
+                current, messageId, preview, System.currentTimeMillis()
+            )
             val changed = updated != current
             if (changed) {
                 _items.value = updated
@@ -416,7 +342,6 @@ class NotificationCenterRepository(context: Context) {
     }
 
     companion object {
-        private const val MAX_KEEP = 520
         private const val MAX_AGE_MS = 180L * 24L * 3600L * 1000L
     }
 }
