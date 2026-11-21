@@ -7,7 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 // parseServerFeatureFlags：自 app 侧 ChatListServerFlagsTest 随迁。
-// 默认值不是统一的——三项默认 false，其余默认 true；绑定表一致性校验仍在 app 侧。
+// 默认值不是统一的——三项默认 false，其余默认 true；绑定表一致性校验见同模块 ServerFeatureFlagBindingsTest。
 class ServerFeatureFlagsTest {
 
     @Test

@@ -1,8 +1,7 @@
 package com.maodouchat.ui.screen.chatlist
 
-import com.maodouchat.domain.messaging.parseServerFeatureFlags
+import com.maodouchat.domain.messaging.serverFeatureFlagBindings
 import com.maodouchat.util.RuntimeFlags
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,42 +13,22 @@ import org.junit.Test
  * G143（`applyServerFeatureFlags` 从 86 行手写 setEnabled 收敛）、
  * G144（`fetchPublicStatusBanner` 抽出）这三次重构。
  *
- * 重点盯两件事：
- * 1. **默认值不是统一的**——三项默认 false，其余默认 true。改错一项就是
- *    「服务端没下发时行为反转」；
- * 2. **绑定表与解析表的 key 集合必须一致**——不一致会在运行时 `!!` 抛空指针。
+ * 表结构测试（86 对唯一、key 集与解析表一致、默认值分布）已随绑定表迁入
+ * `:domain:messaging` 的 `ServerFeatureFlagBindingsTest`；此处只留 app 侧才有意义的
+ * 一件事：**domain 表的 Flag 字面量与 `RuntimeFlags` 常量按值相等**——改一处不同步即红。
  */
 class ChatListServerFlagsTest {
 
-    // ─── FLAG_BINDINGS / applyServerFeatureFlags ───
-
     @Test
-    fun `binding table has no duplicate constants or keys`() {
-        val consts = FLAG_BINDINGS.map { it.first }
-        val keys = FLAG_BINDINGS.map { it.second }
+    fun `binding table flags exactly match RuntimeFlags constants`() {
+        // 未入表的只有这三个：AI_MASTER 走 `aiEnabled` 总闸，AI_IMAGE_OCR 与 FAKE_CHAT
+        // 不由服务端开关驱动。
+        val excluded = setOf(RuntimeFlags.AI_MASTER, RuntimeFlags.AI_IMAGE_OCR, RuntimeFlags.FAKE_CHAT)
+        val expected = RuntimeFlags.allFlags.filterNot { it in excluded }.toSet()
+        val actual = serverFeatureFlagBindings.map { it.first }.toSet()
 
-        assertEquals("绑定表有重复常量", consts.size, consts.toSet().size)
-        assertEquals("绑定表有重复 key", keys.size, keys.toSet().size)
-        assertEquals(86, consts.size)
-        assertEquals(86, keys.size)
-    }
-
-    @Test
-    fun `binding table keys exactly match the parser output keys`() {
-        val parsed = parseServerFeatureFlags(JSONObject()).keys
-        val bound = FLAG_BINDINGS.map { it.second }.toSet()
-
-        assertEquals(
-            "绑定表与解析表不同步——加开关时两边都要改",
-            parsed,
-            bound
-        )
-    }
-
-    @Test
-    fun `binding table uses distinct flag instances`() {
-        val flags = FLAG_BINDINGS.map { it.first }
-        assertEquals("绑定表有重复的 Flag 实例", flags.size, flags.toSet().size)
+        assertEquals(86, actual.size)
+        assertEquals("domain 表与 RuntimeFlags 常量不同步——加开关/改默认值时两边都要改", expected, actual)
     }
 
     @Test
@@ -64,8 +43,8 @@ class ChatListServerFlagsTest {
         )
         // AI_MASTER 走的是 `aiEnabled` 而不是 flags（服务端 AI 总闸），
         // 所以它不在绑定表里——见 G143 的记录与 ChatListServerFlags 的 fetchPublicStatusBanner。
-        assertTrue("AI_MASTER 不应在绑定表里", FLAG_BINDINGS.none { it.first == RuntimeFlags.AI_MASTER })
-        val actual = FLAG_BINDINGS.toMap()
+        assertTrue("AI_MASTER 不应在绑定表里", serverFeatureFlagBindings.none { it.first == RuntimeFlags.AI_MASTER })
+        val actual = serverFeatureFlagBindings.toMap()
         expected.forEach { (flag, key) ->
             assertEquals("常量 ${flag.key} 的绑定被改坏了", key, actual[flag])
         }
