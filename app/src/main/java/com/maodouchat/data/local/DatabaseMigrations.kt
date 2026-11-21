@@ -75,6 +75,6 @@ internal object DatabaseMigrations {
         MIGRATION_36_37,
         MIGRATION_37_38,
         MIGRATION_38_39,
-        MIGRATION_39_40,
+        MIGRATION_39_40, DatabaseMigrationsRecent.MIGRATION_40_41, // 本文件上限 80 行零余量：v41 不另起 getter 行，直接挂在末行
     )
 }

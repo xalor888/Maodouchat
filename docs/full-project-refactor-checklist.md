@@ -301,10 +301,10 @@ Gate：并发 401、进程恢复、A-B-A 换号、切服、设备吊销、错误
 - [ ] 按领域拆 entity、DAO、transaction 和 migration ownership。
 - [x] `AppDatabase.kt` 只负责数据库创建、注册 migration 和 transaction boundary（35 个迁移已抽到 `DatabaseMigrations.kt` 并经 `DatabaseMigrationsChainTest` 锁定连续无断点；AppDatabase 723→136 行）。
 - [x] 建立 `DatabaseLifecycle`，覆盖创建、解锁、换号销毁、迁移失败和恢复（已抽为 `internal object DatabaseLifecycle`：open/close/destroy/backup-recreate）。
-- [x] 登出清理覆盖审计（`SecureSessionManager` 双路径：销毁整库 vs 同账号保留；14 张 owner 作用域表逐项核对——定时/提醒/归档忽略/语音/通知中心/附件/推送等短暂队列按账号清理，草稿/信任/墓碑/V2 收发箱/重试队列在保留路径有意保留以保证重登收敛；销毁路径整库删除兜底）。
+- [x] 登出清理覆盖审计（`SecureSessionManager` 双路径：销毁整库 vs 同账号保留；14 张 owner 作用域表逐项核对——定时/提醒/归档忽略/语音/通知中心/附件/推送等短暂队列按账号清理，草稿/信任/墓碑/V2 收发箱/重试队列在保留路径有意保留以保证重登收敛；销毁路径整库删除兜底；v41 新增 `local_ai_providers`/`agent_sessions` 两表同规则核对：保留路径随消息/草稿保留（owner 隔离，换号不可见），销毁路径随整库删除）。
 - [ ] 为每个受支持旧版本到当前版本保存 schema fixture 和真实数据 fixture。
 - [ ] 测试 SQLCipher 密钥错误、迁移中断、磁盘满、FTS、外键、墓碑和账号隔离。
-- [ ] 所有 SharedPreferences JSON 业务存储迁移到版本化 Room 表；偏好设置除外。
+- [ ] 所有 SharedPreferences JSON 业务存储迁移到版本化 Room 表；偏好设置除外。（2026-11-21 进展：本地 AI 两坨业务 JSON——自配模型端点列表与 AI 会话历史——已迁入 Room v41 `local_ai_providers`/`agent_sessions` 表，一次性导入后删键；KEY_ACTIVE/KEY_OVERLAY 是标量偏好仍留 prefs。仍未迁：通话记录 JSON 等。）
 
 Gate：每条支持升级路径在 CI 仪器测试运行，且断言数据语义而不仅是 schema。
 
