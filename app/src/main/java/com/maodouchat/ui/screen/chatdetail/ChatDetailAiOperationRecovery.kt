@@ -3,17 +3,14 @@ package com.maodouchat.ui.screen.chatdetail
 import android.app.Application
 import com.maodouchat.R
 import com.maodouchat.ai.AiPrivacyPreferences
-import com.maodouchat.core.model.AiFileAnalysisMode
-import com.maodouchat.core.model.AiImageAnalysisMode
-import com.maodouchat.core.model.AiSummaryScope
 import com.maodouchat.core.model.mergeMessageVersions
 import com.maodouchat.data.local.entity.AiOperationEntity
 import com.maodouchat.data.local.entity.AiOperationError
-import com.maodouchat.data.local.entity.AiOperationParameters
-import com.maodouchat.data.local.entity.AiOperationType
 import com.maodouchat.core.model.Message
-import com.maodouchat.core.model.MessageType
+import com.maodouchat.domain.messaging.AiOperationParameters
+import com.maodouchat.domain.messaging.AiOperationType
 import com.maodouchat.domain.messaging.PendingAiAction
+import com.maodouchat.domain.messaging.restoreAiAction
 import com.maodouchat.domain.messaging.MessageLookupPolicy
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -81,50 +78,7 @@ internal suspend fun ChatDetailViewModel.restoreAiAction(operation: AiOperationE
     val parameters = runCatching {
         aiOperationJson.decodeFromString(AiOperationParameters.serializer(), operation.parametersJson)
     }.getOrNull() ?: return null
-    return when (operation.type) {
-        AiOperationType.TRANSCRIBE_VOICE -> {
-            val messageId = operation.targetMessageId ?: return null
-            ensureAiOperationMessage(messageId)?.takeIf { it.type == MessageType.VOICE }
-                ?: return null
-            PendingAiAction.TranscribeVoice(messageId)
-        }
-        AiOperationType.TRANSLATE_MESSAGE -> {
-            val messageId = operation.targetMessageId ?: return null
-            ensureAiOperationMessage(messageId)?.takeIf { it.type == MessageType.TEXT }
-                ?: return null
-            val targetLanguage = parameters.targetLanguage?.takeIf(String::isNotBlank) ?: return null
-            PendingAiAction.TranslateMessage(messageId, targetLanguage)
-        }
-        AiOperationType.SUMMARIZE_MESSAGES -> {
-            val scope = parameters.summaryScope?.let { value ->
-                AiSummaryScope.entries.firstOrNull { it.name == value }
-            } ?: return null
-            val messages = parameters.messageIds.mapNotNull { ensureAiOperationMessage(it) }
-            if (messages.isEmpty()) return null
-            PendingAiAction.Summarize(scope, messages)
-        }
-        AiOperationType.ANALYZE_IMAGE -> {
-            val messageId = operation.targetMessageId ?: return null
-            ensureAiOperationMessage(messageId)?.takeIf { it.type == MessageType.IMAGE }
-                ?: return null
-            val mode = AiImageAnalysisMode.entries.firstOrNull {
-                it.wireValue == parameters.analysisMode
-            } ?: return null
-            PendingAiAction.AnalyzeImage(messageId, mode)
-        }
-        AiOperationType.ANALYZE_FILE -> {
-            val messageId = operation.targetMessageId ?: return null
-            ensureAiOperationMessage(messageId)?.takeIf { it.type == MessageType.FILE }
-                ?: return null
-            val mode = AiFileAnalysisMode.entries.firstOrNull {
-                it.wireValue == parameters.analysisMode
-            } ?: return null
-            val question = parameters.question?.trim()?.takeIf(String::isNotBlank)
-            if (mode == AiFileAnalysisMode.QUESTION && question.isNullOrBlank()) return null
-            PendingAiAction.AnalyzeFile(messageId, mode, question)
-        }
-        else -> null
-    }
+    return restoreAiAction(operation.type, operation.targetMessageId, parameters, ::ensureAiOperationMessage)
 }
 
 internal suspend fun ChatDetailViewModel.ensureAiOperationMessage(messageId: String): Message? {

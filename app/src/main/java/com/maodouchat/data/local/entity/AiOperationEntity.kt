@@ -3,7 +3,6 @@ package com.maodouchat.data.local.entity
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import kotlinx.serialization.Serializable
 
 @Entity(
     tableName = "ai_operations",
@@ -29,23 +28,6 @@ data class AiOperationEntity(
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )
-
-@Serializable
-data class AiOperationParameters(
-    val targetLanguage: String? = null,
-    val summaryScope: String? = null,
-    val messageIds: List<String> = emptyList(),
-    val analysisMode: String? = null,
-    val question: String? = null
-)
-
-object AiOperationType {
-    const val TRANSCRIBE_VOICE = "TRANSCRIBE_VOICE"
-    const val TRANSLATE_MESSAGE = "TRANSLATE_MESSAGE"
-    const val SUMMARIZE_MESSAGES = "SUMMARIZE_MESSAGES"
-    const val ANALYZE_IMAGE = "ANALYZE_IMAGE"
-    const val ANALYZE_FILE = "ANALYZE_FILE"
-}
 
 object AiOperationState {
     const val QUEUED = "QUEUED"
