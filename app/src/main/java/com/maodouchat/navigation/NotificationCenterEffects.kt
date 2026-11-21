@@ -2,6 +2,7 @@ package com.maodouchat.navigation
 
 import android.content.Context
 import com.maodouchat.MaodouchatApp
+import com.maodouchat.domain.conversation.NotificationCenterOpenController
 import com.maodouchat.network.TokenManager
 import com.maodouchat.notification.CallNotificationService
 import com.maodouchat.notification.MessageNotificationService

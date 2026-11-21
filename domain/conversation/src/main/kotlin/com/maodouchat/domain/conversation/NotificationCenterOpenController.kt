@@ -1,10 +1,9 @@
-package com.maodouchat.navigation
+package com.maodouchat.domain.conversation
 
 import com.maodouchat.core.model.AppLinkDestination
 import com.maodouchat.core.model.AppLinkRouter
 import com.maodouchat.core.model.NotificationCenterItem
 import com.maodouchat.core.model.parseLegacyCenterDeeplink
-import com.maodouchat.domain.conversation.NotificationCenterOpenOutcome
 
 class NotificationCenterOpenController(
     /** 原判据：`TokenManager.getInstance(context).getToken().isNullOrBlank()`。 */
@@ -28,7 +27,7 @@ class NotificationCenterOpenController(
             val chatId = item.extra["chatId"].orEmpty()
             if (chatId.isBlank()) return NotificationCenterOpenOutcome.None
             clearMessageTray(chatId)
-            return NotificationCenterOpenOutcome.Navigate(Routes.chatDetail(chatId))
+            return NotificationCenterOpenOutcome.Navigate(AppLinkDestination.ChatDetail(chatId).toRoute())
         }
         // MISSED_CALL 类型无 deeplink 时仍打开未接箱，并按 callId 清托盘
         if (item.type == "MISSED_CALL" && item.deeplink.isNullOrBlank()) {

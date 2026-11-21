@@ -14,7 +14,7 @@ import com.maodouchat.ui.screen.chatlist.NotificationCenterScreen
  * 搜索/通知中心目的地（P08：自 `NavGraph.kt` 迁出的第五个 feature 簇）。
  *
  * U02 延伸：通知中心行点击的「决策 + 副作用」已收进非 ui 的
- * [NotificationCenterOpenController]（接线见 [NotificationCenterEffects]），
+ * [com.maodouchat.domain.conversation.NotificationCenterOpenController]（接线见 [NotificationCenterEffects]），
  * 本文件只剩「Outcome → NavController 动作」这一层映射，不再直接触碰
  * app 单例/通知服务（ui 直连持久层棘轮随之归零）。
  */
