@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.entity.AiTaskEntity
 import com.maodouchat.domain.messaging.AgentEntityIdPolicy
 import com.maodouchat.domain.messaging.AgentTaskResultPolicy
@@ -12,11 +11,11 @@ import java.util.UUID
 // Agent 工具执行簇：任务写操作（创建/完成/删除）。
 // 从 AgentMessagingWriteTools 按簇搬出，函数体逐字一致。
 internal object AgentTaskWriteTools {
-        internal suspend fun createTask(app: MaodouchatApp, chatId: String, title: String, dueText: String?): String {
+        internal suspend fun createTask(ports: AgentToolPorts, chatId: String, title: String, dueText: String?): String {
             val cleanTitle = AgentToolInputPolicy.cleanTaskTitle(title)
             if (chatId.isBlank() || cleanTitle.isBlank()) return AgentWriteErrorPolicy.required("chatId", "title")
-            if (app.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
-            AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
+            if (ports.database.chatDao().getChatById(chatId) == null) return AgentWriteErrorPolicy.chatNotFound()
+            AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
             val now = System.currentTimeMillis()
             val entity = AiTaskEntity(
                 id = AgentEntityIdPolicy.taskId(UUID.randomUUID().toString()),
@@ -27,15 +26,15 @@ internal object AgentTaskWriteTools {
                 createdAt = now,
                 updatedAt = now
             )
-            app.database.aiTaskDao().upsertAll(listOf(entity))
+            ports.database.aiTaskDao().upsertAll(listOf(entity))
             return AgentTaskResultPolicy.created(entity.id)
         }
 
-        internal suspend fun completeTask(app: MaodouchatApp, taskId: String, completed: Boolean): String {
+        internal suspend fun completeTask(ports: AgentToolPorts, taskId: String, completed: Boolean): String {
             if (taskId.isBlank()) return AgentWriteErrorPolicy.required("taskId")
-            if (app.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
+            if (ports.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
             val now = System.currentTimeMillis()
-            app.database.aiTaskDao().setCompleted(
+            ports.database.aiTaskDao().setCompleted(
                 taskId = taskId,
                 completed = completed,
                 completedAt = if (completed) now else null,
@@ -44,10 +43,10 @@ internal object AgentTaskWriteTools {
             return AgentTaskResultPolicy.completed(taskId, completed)
         }
 
-        internal suspend fun deleteTask(app: MaodouchatApp, taskId: String): String {
+        internal suspend fun deleteTask(ports: AgentToolPorts, taskId: String): String {
             if (taskId.isBlank()) return AgentWriteErrorPolicy.required("taskId")
-            if (app.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
-            app.database.aiTaskDao().delete(taskId)
+            if (ports.database.aiTaskDao().getById(taskId) == null) return AgentWriteErrorPolicy.taskNotFound()
+            ports.database.aiTaskDao().delete(taskId)
             return AgentTaskResultPolicy.deleted(taskId)
         }
 }

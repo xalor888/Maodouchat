@@ -1,6 +1,5 @@
 package com.maodouchat.ai.agent
 
-import com.maodouchat.MaodouchatApp
 import com.maodouchat.domain.messaging.AgentDraftLinePolicy
 import com.maodouchat.domain.messaging.AgentReadEmptyPolicy
 import com.maodouchat.domain.messaging.AgentSecretGatePolicy
@@ -12,11 +11,11 @@ import kotlinx.coroutines.flow.first
 
 // Agent 工具执行簇：草稿只读查询。从 AgentTaskReadTools 按读子簇拆出，函数体逐字一致。
 internal object AgentTaskDraftReads {
-    internal suspend fun listDrafts(app: MaodouchatApp, userId: String): String {
-        val drafts = app.database.chatDraftDao().observeForOwner(userId).first()
+    internal suspend fun listDrafts(ports: AgentToolPorts, userId: String): String {
+        val drafts = ports.database.chatDraftDao().observeForOwner(userId).first()
         if (drafts.isEmpty()) return AgentReadEmptyPolicy.noDrafts()
-        val locked = app.database.chatLockDao().listLockedChatIds().toHashSet()
-        val secret = app.database.chatDao().listSecretChatIds().toHashSet()
+        val locked = ports.database.chatLockDao().listLockedChatIds().toHashSet()
+        val secret = ports.database.chatDao().listSecretChatIds().toHashSet()
         val visible = drafts.filter { draft ->
             AgentSecretGatePolicy.includeInChatList(
                 isSecret = draft.chatId in secret,
@@ -29,10 +28,10 @@ internal object AgentTaskDraftReads {
             .joinToString("\n") { AgentDraftLinePolicy.draftLine(it.chatId, it.text) }
     }
 
-    internal suspend fun getDraft(app: MaodouchatApp, userId: String, chatId: String): String {
-        AgentMessagingReadGates.denySecretOrLockedChat(app, chatId)?.let { return it }
+    internal suspend fun getDraft(ports: AgentToolPorts, userId: String, chatId: String): String {
+        AgentMessagingReadGates.denySecretOrLockedChat(ports, chatId)?.let { return it }
         if (chatId.isBlank()) return AgentWriteErrorPolicy.required("chatId")
-        val draft = app.database.chatDraftDao().get(userId, chatId)
+        val draft = ports.database.chatDraftDao().get(userId, chatId)
         return if (draft == null || draft.text.isBlank()) AgentReadEmptyPolicy.noDraft() else draft.text.take(AgentToolPolicy.MAX_DRAFT_CHARS)
     }
 }
