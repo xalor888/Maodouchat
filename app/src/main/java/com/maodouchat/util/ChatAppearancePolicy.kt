@@ -2,59 +2,19 @@ package com.maodouchat.util
 
 import androidx.compose.ui.graphics.Color
 import com.maodouchat.domain.messaging.ChatFontScale
+import com.maodouchat.domain.messaging.ChatWallpaperColorPolicy
 import com.maodouchat.domain.messaging.ChatWallpaperPreset
 
 object ChatAppearancePolicy {
     fun normalizeWallpaper(raw: String?): ChatWallpaperPreset = ChatWallpaperPreset.fromId(raw)
     fun normalizeFontScale(raw: String?): ChatFontScale = ChatFontScale.fromId(raw)
 
-    /** 浅色模式下的壁纸底色；DEFAULT 返回 null 表示用主题默认。 */
-    fun wallpaperColorLight(preset: ChatWallpaperPreset): Color? = when (preset) {
-        // 默认壁纸 = Telegram 式浅蓝，告别灰白死气
-        ChatWallpaperPreset.DEFAULT -> Color(0xFFDBE7F3)
-        ChatWallpaperPreset.MINT -> Color(0xFFE8F6F1)
-        ChatWallpaperPreset.LAVENDER -> Color(0xFFF0ECFA)
-        ChatWallpaperPreset.SAND -> Color(0xFFF7F1E6)
-        ChatWallpaperPreset.NIGHT -> Color(0xFF1B2430)
-        ChatWallpaperPreset.ROSE -> Color(0xFFFBECEE)
-        ChatWallpaperPreset.SKY -> Color(0xFFE8F3FC)
-        ChatWallpaperPreset.SLATE -> Color(0xFFECEFF3)
-        ChatWallpaperPreset.PEACH -> Color(0xFFFFF0E8)
-        ChatWallpaperPreset.OLIVE -> Color(0xFFEEF3E6)
-        ChatWallpaperPreset.CORAL -> Color(0xFFFFEBE6)
-        ChatWallpaperPreset.PLUM -> Color(0xFFF3E8F6)
-        ChatWallpaperPreset.INDIGO -> Color(0xFFE8ECFA)
-        ChatWallpaperPreset.AMBER -> Color(0xFFFFF6E0)
-        ChatWallpaperPreset.TEAL -> Color(0xFFE4F6F5)
-        ChatWallpaperPreset.GRAPHITE -> Color(0xFFE8EAED)
-    }
+    fun wallpaperColorLight(preset: ChatWallpaperPreset): Color? =
+        Color(ChatWallpaperColorPolicy.wallpaperArgbLight(preset))
 
-    fun wallpaperColorDark(preset: ChatWallpaperPreset): Color? = when (preset) {
-        // 默认深色壁纸 = TG 经典深蓝 #0E1621
-        ChatWallpaperPreset.DEFAULT -> Color(0xFF0E1621)
-        ChatWallpaperPreset.MINT -> Color(0xFF14241F)
-        ChatWallpaperPreset.LAVENDER -> Color(0xFF1C1830)
-        ChatWallpaperPreset.SAND -> Color(0xFF2A241A)
-        ChatWallpaperPreset.NIGHT -> Color(0xFF0B1018)
-        ChatWallpaperPreset.ROSE -> Color(0xFF2A161C)
-        ChatWallpaperPreset.SKY -> Color(0xFF101A28)
-        ChatWallpaperPreset.SLATE -> Color(0xFF151A20)
-        ChatWallpaperPreset.PEACH -> Color(0xFF2A1A14)
-        ChatWallpaperPreset.OLIVE -> Color(0xFF171E14)
-        ChatWallpaperPreset.CORAL -> Color(0xFF2A1614)
-        ChatWallpaperPreset.PLUM -> Color(0xFF1E1424)
-        ChatWallpaperPreset.INDIGO -> Color(0xFF141828)
-        ChatWallpaperPreset.AMBER -> Color(0xFF2A2010)
-        ChatWallpaperPreset.TEAL -> Color(0xFF102422)
-        ChatWallpaperPreset.GRAPHITE -> Color(0xFF141618)
-    }
+    fun wallpaperColorDark(preset: ChatWallpaperPreset): Color? =
+        Color(ChatWallpaperColorPolicy.wallpaperArgbDark(preset))
 
-    fun resolveBackground(
-        preset: ChatWallpaperPreset,
-        isDark: Boolean,
-        fallback: Color
-    ): Color {
-        val override = if (isDark) wallpaperColorDark(preset) else wallpaperColorLight(preset)
-        return override ?: fallback
-    }
+    fun resolveBackground(preset: ChatWallpaperPreset, isDark: Boolean, fallback: Color): Color =
+        Color(ChatWallpaperColorPolicy.resolveBackgroundArgb(preset, isDark, fallback.value.toLong()))
 }
