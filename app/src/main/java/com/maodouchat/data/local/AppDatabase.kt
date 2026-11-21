@@ -4,6 +4,7 @@ import android.content.Context
 import com.maodouchat.BuildConfig
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.maodouchat.data.local.dao.AgentSessionDao
 import com.maodouchat.data.local.dao.AiSummaryCacheDao
 import com.maodouchat.data.local.dao.AiTaskDao
 import com.maodouchat.data.local.dao.AiOperationDao
@@ -12,6 +13,7 @@ import com.maodouchat.data.local.dao.ChatDao
 import com.maodouchat.data.local.dao.ChatDraftDao
 import com.maodouchat.data.local.dao.ChatLockDao
 import com.maodouchat.data.local.dao.IdentityTrustDao
+import com.maodouchat.data.local.dao.LocalAiProviderDao
 import com.maodouchat.data.local.dao.MessageDao
 import com.maodouchat.data.local.dao.MessageSearchDao
 import com.maodouchat.data.local.dao.MissedCallDao
@@ -25,6 +27,7 @@ import com.maodouchat.data.local.dao.SenderKeyRetryDao
 import com.maodouchat.data.local.dao.SignalKeyDao
 import com.maodouchat.data.local.dao.UserDao
 import com.maodouchat.data.local.dao.VoicePlayedDao
+import com.maodouchat.data.local.entity.AgentSessionEntity
 import com.maodouchat.data.local.entity.AiSummaryCacheEntity
 import com.maodouchat.data.local.entity.ArchiveSuggestionDismissalEntity
 import com.maodouchat.data.local.entity.AiTaskEntity
@@ -34,6 +37,7 @@ import com.maodouchat.data.local.entity.ChatEntity
 import com.maodouchat.data.local.entity.ChatDraftEntity
 import com.maodouchat.data.local.entity.ChatLockEntity
 import com.maodouchat.data.local.entity.IdentityTrustEntity
+import com.maodouchat.data.local.entity.LocalAiProviderEntity
 import com.maodouchat.data.local.entity.MessageEntity
 import com.maodouchat.data.local.entity.MessageMutationTombstoneEntity
 import com.maodouchat.data.local.entity.MessageReminderEntity
@@ -78,8 +82,10 @@ import com.maodouchat.data.local.entity.VoicePlayedEntity
         ArchiveSuggestionDismissalEntity::class,
         VoicePlayedEntity::class,
         NotificationCenterItemEntity::class,
+        LocalAiProviderEntity::class,
+        AgentSessionEntity::class,
     ],
-    version = 40,
+    version = 41,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -105,6 +111,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun archiveDismissalDao(): ArchiveDismissalDao
     abstract fun voicePlayedDao(): VoicePlayedDao
     abstract fun notificationCenterDao(): NotificationCenterDao
+    abstract fun localAiProviderDao(): LocalAiProviderDao
+    abstract fun agentSessionDao(): AgentSessionDao
 
 
     companion object {
