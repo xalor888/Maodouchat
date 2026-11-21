@@ -1,147 +1,69 @@
 package com.maodouchat.data.repository
 
+import com.maodouchat.core.session.RateLimiter
+import com.maodouchat.core.session.VerificationOutcome
 import com.maodouchat.data.local.dao.ChatLockDao
 import com.maodouchat.data.local.entity.ChatLockEntity
-import java.security.MessageDigest
-import java.security.SecureRandom
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.PBEKeySpec
+import com.maodouchat.domain.messaging.ChatLockPinPolicy
+import kotlinx.coroutines.CancellationException
 
-class ChatLockRepository(private val dao: ChatLockDao) {
-
-    // SecureRandom 线程安全，每次生成 salt 都 new 会反复播种，实例级复用。
-    private val secureRandom = SecureRandom()
-
-    // SecretKeyFactory 线程安全，getInstance 每次都要走 provider 查找，实例级复用。
-    private val pbkdf2Factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
-
-    /**
-     * PBKDF2 迭代次数。600k 次（OWASP 建议区间）使 4-8 位 PIN 的穷举成本从分钟级
-     * 提升到小时级，配合 SQLCipher 主防线和 16 字节随机 salt，达到聊天锁的隐私承诺。
-     * 旧 hash 仍按各自存储的迭代数验证，验证成功后自动升级。
-     */
-    private val pbkdf2Iterations = 600_000
-
-    /** 新格式 PIN 哈希前缀：`pbkdf2$<iter>$<saltHex>$<hashHex>` */
-    private val pbkdf2Prefix = "pbkdf2$"
-
-    /** 连续失败 [MAX_FAILURES] 次后锁定 [LOCKOUT_MS]（进程内状态，防暴力尝试）。 */
-    private val failuresByChat = java.util.concurrent.ConcurrentHashMap<String, Int>()
-    private val lockedUntilByChat = java.util.concurrent.ConcurrentHashMap<String, Long>()
-
-    private companion object {
-        const val MAX_FAILURES = 5
-        const val LOCKOUT_MS = 30_000L
-        // MessageDigest 非线程安全，ThreadLocal 每线程复用一个实例；每次使用都以 digest() 收尾（按规范自动重置），与 new 等价。
-        val sha256Digest: ThreadLocal<MessageDigest> =
-            ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }
-    }
+// 聊天锁 PIN 的 DAO 薄壳：密码学与限流核在 :domain:messaging 的
+// ChatLockPinPolicy（原语复用 :core:session），这里只剩 Room 往返与
+// 失败/锁定态的持有。公开 API 不变，调用方零改动。
+class ChatLockRepository(
+    private val dao: ChatLockDao,
+    private val limiter: RateLimiter = ChatLockPinPolicy.newLimiter(),
+) {
 
     suspend fun get(chatId: String): ChatLockEntity? = dao.get(chatId)
 
     suspend fun setLock(chatId: String, pin: String): Boolean {
-        if (pin.length !in 4..8) return false
-        val salt = generateSalt()
-        val hash = pbkdf2(pin, salt, pbkdf2Iterations)
-        // pinHash 编码完整格式，salt 字段保留以兼容旧 schema 查询
-        dao.upsert(ChatLockEntity(chatId, "$pbkdf2Prefix$pbkdf2Iterations\$$salt\$$hash", salt))
-        failuresByChat.remove(chatId)
-        lockedUntilByChat.remove(chatId)
+        if (!ChatLockPinPolicy.isSettablePin(pin)) return false
+        val stored = ChatLockPinPolicy.encodeNewLock(pin)
+        dao.upsert(ChatLockEntity(chatId, stored.formattedString, stored.saltHex))
+        limiter.reset(chatId)
         return true
     }
 
     suspend fun verify(chatId: String, pin: String): Boolean {
         val lock = dao.get(chatId) ?: return true
-        val now = System.currentTimeMillis()
-        val lockedUntil = lockedUntilByChat[chatId] ?: 0L
-        if (lockedUntil > now) return false
-        val expected = lock.pinHash
-        val ok = if (expected.startsWith(pbkdf2Prefix)) {
-            // 新格式：pbkdf2$<iter>$<saltHex>$<hashHex>
-            val parts = expected.split("$")
-            if (parts.size != 4) return false
-            val iter = parts[1].toIntOrNull() ?: return false
-            val salt = parts[2]
-            val storedHash = parts[3]
-            val actualHash = pbkdf2(pin, salt, iter)
-            val verified = constantTimeEquals(storedHash, actualHash)
-            // 迭代数低于当前标准（历史 100k 条目）→ 验证成功后升级
-            if (verified && iter < pbkdf2Iterations) {
-                try {
-                    setLock(chatId, pin)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // 升级失败不阻塞当前验证流程
-                }
-            }
-            verified
-        } else {
-            // 旧格式：SHA-256(pin + salt)。验证成功后立即升级到 PBKDF2
-            val actualHash = sha256(pin + lock.salt)
-            val oldOk = constantTimeEquals(expected, actualHash)
-            if (oldOk) {
-                // 升级到 PBKDF2：setLock 是 suspend，不能 runCatching 否则吞 CancellationException；
-                // 升级失败不影响本次验证通过（旧 hash 仍可校验），仅记录日志。
-                try {
-                    setLock(chatId, pin)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    // 升级失败不阻塞当前验证流程
-                }
-            }
-            oldOk
-        }
-        if (!ok) {
-            val failures = (failuresByChat[chatId] ?: 0) + 1
-            if (failures >= MAX_FAILURES) {
-                lockedUntilByChat[chatId] = now + LOCKOUT_MS
-                failuresByChat.remove(chatId)
-            } else {
-                failuresByChat[chatId] = failures
-            }
+        if (limiter.isLocked(chatId)) return false
+        // 空 hash 视同一次失败尝试：旧实现走 SHA-256 分支比对失败计一次。
+        if (lock.pinHash.isBlank()) {
+            limiter.recordFailure(chatId)
             return false
         }
-        failuresByChat.remove(chatId)
-        lockedUntilByChat.remove(chatId)
-        return true
+        return when (val outcome = ChatLockPinPolicy.verifyStoredPin(pin, lock.pinHash, lock.salt)) {
+            is VerificationOutcome.Success -> {
+                // 升级写回仍走 setLock 的长度校验：旧实现经 setLock 写回，
+                // 长度不合规的 PIN 不升级（但本次验证仍通过）。
+                if (outcome.needsUpgrade && ChatLockPinPolicy.isSettablePin(pin)) {
+                    outcome.upgradedHash?.let { upgraded ->
+                        try {
+                            dao.upsert(ChatLockEntity(chatId, upgraded.formattedString, upgraded.saltHex))
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            // 升级失败不阻塞当前验证流程
+                        }
+                    }
+                }
+                limiter.recordSuccess(chatId)
+                true
+            }
+            VerificationOutcome.Mismatch -> {
+                limiter.recordFailure(chatId)
+                false
+            }
+            // 畸形新格式：拒而不计失败，旧实现在格式解析处直接 return false。
+            VerificationOutcome.Corrupted -> false
+        }
     }
 
     /** 连续失败退避剩余毫秒；0 表示未锁定。 */
-    fun lockoutRemainingMs(chatId: String): Long {
-        val until = lockedUntilByChat[chatId] ?: return 0L
-        return (until - System.currentTimeMillis()).coerceAtLeast(0L)
-    }
+    fun lockoutRemainingMs(chatId: String): Long = limiter.remainingLockoutMs(chatId)
 
     suspend fun remove(chatId: String) = dao.remove(chatId)
 
     suspend fun listLockedChats(): List<String> = dao.listLockedChatIds()
-
-    private fun generateSalt(): String {
-        val bytes = ByteArray(16)
-        secureRandom.nextBytes(bytes)
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun sha256(input: String): String {
-        val md = sha256Digest.get()
-        val bytes = md.digest(input.toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun pbkdf2(pin: String, saltHex: String, iterations: Int): String {
-        val salt = saltHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, 256)
-        val bytes = pbkdf2Factory.generateSecret(spec).encoded
-        spec.clearPassword()
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
-    private fun constantTimeEquals(a: String, b: String): Boolean {
-        if (a.length != b.length) return false
-        var result = 0
-        for (i in a.indices) result = result or (a[i].code xor b[i].code)
-        return result == 0
-    }
 }
