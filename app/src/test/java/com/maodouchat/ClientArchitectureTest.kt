@@ -578,7 +578,8 @@ class ClientArchitectureTest {
         // （593 → 320，纯搬移；调用点改走 distributor/taskQueue 委托），上限同步收紧（两份 map 一起改）。
         // 拆小后 ChatDetailMessageActionsSheet（523）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
-        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
+        // 2026-11-21：SenderKeyRetryTaskQueue 纯决策迁入 :domain:messaging（320 → 318：接线 +2 import、删模板 KDoc 4 行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 318,
         // 2026-10-19：长按操作弹层按主题拆出复制/分享、AI 入口、消息管理三簇文件（523 → 176 纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 170,
         // 拆小后 MediaVoiceBubble（473）滑进前 20——按实测值纳入监管（两份 map 一起加；新条目无历史基线，G165 自动跳过）。
@@ -869,7 +870,8 @@ class ClientArchitectureTest {
         // （593 → 320，纯搬移；调用点改走 distributor/taskQueue 委托），上限同步收紧（两份 map 一起改）。
         // 拆小后 ChatDetailMessageActionsSheet（523）滑进前 20——按实测值纳入监管（两份 map 一起加）。
         "com/maodouchat/ui/screen/explore/ExploreOrchestrator.kt" to 114,
-        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 320,
+        // 2026-11-21：SenderKeyRetryTaskQueue 纯决策迁入 :domain:messaging（320 → 318：接线 +2 import、删模板 KDoc 4 行），上限同步收紧（两份 map 一起改）。
+        "com/maodouchat/crypto/SenderKeyRetryManager.kt" to 318,
         // 2026-10-19：长按操作弹层按主题拆出复制/分享、AI 入口、消息管理三簇文件（523 → 176 纯搬移），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailMessageActionsSheet.kt" to 170,
         // 拆小后 MediaVoiceBubble（473）滑进前 20——按实测值纳入监管（两份 map 一起加；新条目无历史基线，G165 自动跳过）。
