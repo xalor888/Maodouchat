@@ -1,4 +1,4 @@
-package com.maodouchat.security
+package com.maodouchat.domain.conversation
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
@@ -10,33 +10,29 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
-/**
- * G9：密聊活动心跳的单测。
- *
- * 这段逻辑原先埋在 `ChatDetailRoute.kt` 的 `LaunchedEffect` 里，**没有任何测试**——
- * 「过期就销毁解密缓存」「未过期不能误销毁」「按节奏写 activity」三条只能靠肉眼读。
- * 抽成 [SecretChatActivityHeartbeat.run] 之后依赖全部可注入，这三条才第一次可验证。
- */
-class SecretChatActivityHeartbeatTest {
+// 密聊活动心跳单测：由 app 侧 SecretChatActivityHeartbeatTest 平移，
+// 覆盖对象改为 SecretChatActivityHeartbeatPolicy.run；行为与原来一致。
+class SecretChatActivityHeartbeatPolicyTest {
 
     private class StopHeartbeat : RuntimeException("stop heartbeat loop")
 
     /**
-     * 跑 [SecretChatActivityHeartbeat.run]，把它那个无限循环用「第 N 次 sleep 抛哨兵」结束。
+     * 跑 [SecretChatActivityHeartbeatPolicy.run]，把它那个无限循环用「第 N 次 sleep 抛哨兵」结束。
      */
     private suspend fun runCycles(
         cycles: Int,
         lastActivityAt: Long?,
         expired: Boolean,
         readFails: Boolean = false,
-        intervalMs: Long = SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS,
+        intervalMs: Long = SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS,
     ): Harness {
         val h = Harness()
         try {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = {
                     if (readFails) error("db locked")
@@ -104,29 +100,22 @@ class SecretChatActivityHeartbeatTest {
         assertEquals(3, sleeps.size, "每写一次活动就睡一轮：${h.events}")
         sleeps.forEach {
             assertEquals(
-                "sleep:${SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS}",
+                "sleep:${SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS}",
                 it,
                 "心跳间隔必须保持 60s（原实现值）：${h.events}",
             )
         }
     }
 
-    /**
-     * G10 回归：心跳被取消后**不得再产生任何副作用**。
-     *
-     * 这是取消语义的核心：`touchActivity` 会延长密聊 TTL。如果取消后还能写一次活动时间，
-     * 「离开会话/销毁会话」就可能被一次泄漏的心跳续命——TTL 语义被悄悄破坏。
-     *
-     * 当前实现用 `runCatching { }` 包住首次读取，会把取消异常一起吞掉，随后 `while(true)`
-     * 仍会调用一次（非协作的）`touch`。这个用例就是钉住它。
-     */
+    // G10 回归：心跳被取消后不得再产生任何副作用——touchActivity 会延长密聊 TTL，
+    // 取消后还能写一次活动，就等于让泄漏的心跳给已离开的会话续命。
     @Test
     fun `cancellation during the initial read performs no write at all`() = runTest {
         val h = Harness()
         val readStarted = CompletableDeferred<Unit>()
 
         val job = launch {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = {
                     readStarted.complete(Unit)
@@ -154,7 +143,7 @@ class SecretChatActivityHeartbeatTest {
     fun `cancellation while waiting performs no further write`() = runTest {
         val h = Harness()
         val job = launch {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = { h.events += "read"; null },
                 isExpired = { _, _ -> false },
@@ -167,29 +156,23 @@ class SecretChatActivityHeartbeatTest {
         assertEquals(1, h.events.count { it == "touch" }, "应当先写一次活动：${h.events}")
 
         job.cancelAndJoin()
-        advanceTimeBy(3 * SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS)
+        advanceTimeBy(3 * SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS)
         runCurrent()
 
         assertEquals(1, h.events.count { it == "touch" }, "取消后不得再写活动：${h.events}")
     }
 
-    /**
-     * 取消发生在「读取已返回、但还没走到销毁/写活动」之间。
-     *
-     * 这一格专门守读取之后那一句 `ensureActive()`：读取回调本身不挂起，只是在返回前把当前任务取消掉，
-     * 所以修复前会**照常执行 destroy**（`runCatching` 吞不到任何异常，因为这里根本没抛），随后才在
-     * `touch` 前的检查处退出。取消后不该再产生任何副作用——包括销毁。
-     */
+    // 取消发生在「读取已返回、但还没走到销毁/写活动」之间：守读取之后那一句 ensureActive()。
     @Test
     fun `cancellation right after the read prevents the destroy and the heartbeat`() = runTest {
         val h = Harness()
 
         val job = launch {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = { id ->
                     h.events += "read"
-                    // 读取期间被取消（不抛异常，只把任务置为已取消）。
+                    // 读取期间被取消（不抛异常，只把当前任务置为已取消）。
                     kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.cancel()
                     LAST_ACTIVITY_AT
                 },
@@ -213,7 +196,7 @@ class SecretChatActivityHeartbeatTest {
         val touchArgs = mutableListOf<String>()
         val expiryArgs = mutableListOf<Pair<String, Long>>()
         try {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = { LAST_ACTIVITY_AT },
                 isExpired = { chatId, at -> expiryArgs += chatId to at; true },
@@ -234,7 +217,7 @@ class SecretChatActivityHeartbeatTest {
         val h = Harness()
         var expiryChecks = 0
         try {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = { 10L },
                 isExpired = { _, _ -> expiryChecks++; h.events += "isExpired"; false },
@@ -258,9 +241,9 @@ class SecretChatActivityHeartbeatTest {
         assertEquals(
             listOf(
                 "touch",
-                "sleep:${SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS}",
+                "sleep:${SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS}",
                 "touch",
-                "sleep:${SecretChatActivityHeartbeat.HEARTBEAT_INTERVAL_MS}",
+                "sleep:${SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS}",
             ),
             heartbeat,
             "每轮必须是 写活动→睡一轮 的交替：${h.events}",
@@ -282,7 +265,7 @@ class SecretChatActivityHeartbeatTest {
         val h = Harness()
         lateinit var job: Job
         job = launch {
-            SecretChatActivityHeartbeat.run(
+            SecretChatActivityHeartbeatPolicy.run(
                 chatId = CHAT,
                 readLastActivityAt = { h.events += "read"; 10L },
                 isExpired = { _, _ -> h.events += "isExpired"; true },
@@ -296,6 +279,65 @@ class SecretChatActivityHeartbeatTest {
             h.events,
             "销毁之后被取消，就不该再写活动：${h.events}",
         )
+    }
+
+    // destroy 在进入校验的 try 块内：它抛普通异常应被吞掉，心跳照常开始。
+    @Test
+    fun `a destroy failure is swallowed and the heartbeat continues`() = runTest {
+        val h = Harness()
+        try {
+            SecretChatActivityHeartbeatPolicy.run(
+                chatId = CHAT,
+                readLastActivityAt = { h.events += "read"; 10L },
+                isExpired = { _, _ -> h.events += "isExpired"; true },
+                destroy = { h.events += "destroy"; error("cache already gone") },
+                touch = { h.events += "touch" },
+                sleep = { ms ->
+                    h.events += "sleep:$ms"
+                    if (h.events.count { it.startsWith("sleep") } >= 1) throw StopHeartbeat()
+                },
+            )
+            fail("心跳循环不应当自然结束")
+        } catch (_: StopHeartbeat) {
+        }
+        assertEquals(
+            listOf("read", "isExpired", "destroy", "touch", "sleep:${SecretChatActivityHeartbeatPolicy.HEARTBEAT_INTERVAL_MS}"),
+            h.events,
+            "销毁失败被吞掉后，心跳必须照常写活动：${h.events}",
+        )
+    }
+
+    // touch 在循环体内、不在 try 块内：它抛异常应向上传播，心跳随之结束。
+    @Test
+    fun `a failing touch aborts the heartbeat`() = runTest {
+        val h = Harness()
+        assertFailsWith<IllegalStateException> {
+            SecretChatActivityHeartbeatPolicy.run(
+                chatId = CHAT,
+                readLastActivityAt = { null },
+                isExpired = { _, _ -> false },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch"; error("db locked") },
+            )
+        }
+        assertEquals(listOf("touch"), h.events, "touch 失败后不得再 sleep 或重试：${h.events}")
+    }
+
+    // sleep 同样在 try 块之外：它抛普通异常应向上传播，而不是被当成读失败吞掉。
+    @Test
+    fun `a failing sleep aborts the heartbeat`() = runTest {
+        val h = Harness()
+        assertFailsWith<IllegalStateException> {
+            SecretChatActivityHeartbeatPolicy.run(
+                chatId = CHAT,
+                readLastActivityAt = { null },
+                isExpired = { _, _ -> false },
+                destroy = { h.events += "destroy" },
+                touch = { h.events += "touch" },
+                sleep = { error("timer broken") },
+            )
+        }
+        assertEquals(listOf("touch"), h.events, "sleep 失败前应当恰好写过一次活动：${h.events}")
     }
 
     private companion object {
