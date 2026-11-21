@@ -7,7 +7,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "chat_locks")
 data class ChatLockEntity(
     @PrimaryKey val chatId: String,
-    val pinHash: String,        // SHA-256(pin + salt)
+    val pinHash: String,        // pbkdf2$<iter>$<saltHex>$<hashHex>；旧行仍可能是 SHA-256(pin + salt)
     val salt: String,           // 16 字节 hex
     val createdAt: Long = System.currentTimeMillis()
 )
