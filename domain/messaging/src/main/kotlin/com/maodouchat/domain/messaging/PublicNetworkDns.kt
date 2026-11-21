@@ -1,4 +1,4 @@
-package com.maodouchat.util
+package com.maodouchat.domain.messaging
 
 import okhttp3.Dns
 import java.net.Inet6Address

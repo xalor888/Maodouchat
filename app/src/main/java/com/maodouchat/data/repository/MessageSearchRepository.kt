@@ -12,6 +12,7 @@ import com.maodouchat.domain.messaging.semanticSearchText
 import com.maodouchat.domain.messaging.WireEnvelopePreviewPolicy
 import com.maodouchat.domain.messaging.MessageSearchContentHash
 import com.maodouchat.domain.messaging.MessageSearchTokenizer
+import com.maodouchat.domain.messaging.SearchIndexStalePolicy
 
 class MessageSearchRepository(private val database: AppDatabase) {
     private val messageDao = database.messageDao()
@@ -31,15 +32,9 @@ class MessageSearchRepository(private val database: AppDatabase) {
         val msgCount = messageDao.countSearchableWithContent()
         // 8.49 修复：全库都无可索引内容（如新设备上全部消息仍是 backlog 密文）时直接短路，
         // 否则 docCount==0 分支会让每次打开全局搜索都触发全表游标扫描
-        if (msgCount == 0 && docCount == 0) return 0
-        if (docCount > 0) {
-            val drift = kotlin.math.abs(msgCount - docCount)
-            if (drift < (msgCount.toDouble() * STALE_DRIFT_RATIO).toInt().coerceAtLeast(MIN_STALE_DRIFT)) {
-                // v25→v26 initialized every existing document as TEXT. The counts still match,
-                // so also verify type metadata before taking the fast path.
-                if (!searchDao.hasMessageTypeMismatch()) return 0
-            }
-        }
+        // v25→v26 initialized every existing document as TEXT. The counts still match,
+        // so also verify type metadata before taking the fast path.
+        if (!SearchIndexStalePolicy.shouldRefreshIndex(docCount, msgCount) { searchDao.hasMessageTypeMismatch() }) return 0
         return refreshIndex()
     }
 
@@ -170,9 +165,6 @@ class MessageSearchRepository(private val database: AppDatabase) {
     }
 
     private companion object {
-        /** 文档数与消息数偏差超过此比例或最小绝对值即触发全量重建（8.31 F18）。 */
-        const val STALE_DRIFT_RATIO = 0.1
-        const val MIN_STALE_DRIFT = 50
         const val MAX_DOCUMENT_CHARS = 10_000
         const val MAX_QUERY_TOKENS = 48
     }

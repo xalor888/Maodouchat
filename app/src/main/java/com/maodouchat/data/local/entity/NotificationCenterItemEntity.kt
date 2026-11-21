@@ -2,6 +2,7 @@ package com.maodouchat.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.Index
+import com.maodouchat.domain.messaging.NotificationCenterExtraJsonPolicy
 
 /**
  * 通知中心条目（退役 `notification_center` SharedPreferences JSON 存储）。
@@ -33,8 +34,7 @@ data class NotificationCenterItemEntity(
 )
 
 fun com.maodouchat.core.model.NotificationCenterItem.toEntity(ownerUserId: String): NotificationCenterItemEntity {
-    val extraJson = org.json.JSONObject()
-    extra.forEach { (k, v) -> extraJson.put(k, v) }
+    val extraJson = NotificationCenterExtraJsonPolicy.encode(extra)
     return NotificationCenterItemEntity(
         ownerUserId = ownerUserId,
         id = id,
@@ -53,9 +53,7 @@ fun com.maodouchat.core.model.NotificationCenterItem.toEntity(ownerUserId: Strin
 }
 
 fun NotificationCenterItemEntity.toModel(): com.maodouchat.core.model.NotificationCenterItem {
-    val extraJson = runCatching { org.json.JSONObject(extraJson) }.getOrNull()
-    val extraMap = if (extraJson == null) emptyMap()
-    else extraJson.keys().asSequence().associateWith { extraJson.optString(it) }
+    val extraMap = NotificationCenterExtraJsonPolicy.decode(extraJson)
     return com.maodouchat.core.model.NotificationCenterItem(
         id = id,
         type = type,
@@ -66,7 +64,7 @@ fun NotificationCenterItemEntity.toModel(): com.maodouchat.core.model.Notificati
         deeplink = deeplink,
         extra = extraMap,
         read = read,
-        count = count.coerceAtLeast(1),
+        count = NotificationCenterExtraJsonPolicy.displayCount(count),
         createdAt = createdAt,
         updatedAt = updatedAt,
     )

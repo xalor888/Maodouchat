@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicLong
 import com.maodouchat.domain.messaging.InFlightLock
 import com.maodouchat.domain.messaging.LinkPreviewPolicy
 import com.maodouchat.domain.messaging.Preview
+import com.maodouchat.domain.messaging.PublicNetworkDns
 
 /**
  * 本机拉取首屏 HTML 并解析 OG。进程内缓存；失败静默。

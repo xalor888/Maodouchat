@@ -4,8 +4,8 @@ import android.content.Context
 import com.maodouchat.MaodouchatApp
 import com.maodouchat.data.local.dao.AttachmentTransferDao
 import com.maodouchat.data.local.entity.AttachmentTransferEntity
-import com.maodouchat.data.local.entity.AttachmentTransferState
 import com.maodouchat.domain.messaging.AttachmentTransfer
+import com.maodouchat.domain.messaging.AttachmentTransferStatusPolicy
 import com.maodouchat.domain.messaging.TransferRepository
 import com.maodouchat.domain.messaging.TransferStatus
 import kotlinx.coroutines.flow.Flow
@@ -38,14 +38,10 @@ class RoomTransferRepository(
     }
 
     override suspend fun updateStatus(transferId: String, ownerUserId: String, status: TransferStatus): Boolean {
-        val entityState = when (status) {
-            TransferStatus.PREPARING -> AttachmentTransferState.PREPARING
-            TransferStatus.UPLOADING -> AttachmentTransferState.UPLOADING
-            TransferStatus.PAUSED -> AttachmentTransferState.PAUSED
-            TransferStatus.FINALIZING -> AttachmentTransferState.READY
-            TransferStatus.COMMITTED -> return true
-            TransferStatus.FAILED -> AttachmentTransferState.FAILED
-            TransferStatus.CANCELLED -> return cancel(transferId, ownerUserId)
+        val entityState = AttachmentTransferStatusPolicy.transferStateFromStatus(status)
+        if (entityState == null) {
+            if (status == TransferStatus.COMMITTED) return true
+            return cancel(transferId, ownerUserId)
         }
         val existing = dao.get(transferId, ownerUserId) ?: return false
         dao.upsert(existing.copy(state = entityState, updatedAt = System.currentTimeMillis()))
@@ -84,16 +80,7 @@ class RoomTransferRepository(
 
     companion object {
         fun AttachmentTransferEntity.toDomain(): AttachmentTransfer {
-            val status = when (state) {
-                AttachmentTransferState.PREPARING -> TransferStatus.PREPARING
-                AttachmentTransferState.QUEUED,
-                AttachmentTransferState.UPLOADING -> TransferStatus.UPLOADING
-                AttachmentTransferState.READY,
-                AttachmentTransferState.SENDING -> TransferStatus.FINALIZING
-                AttachmentTransferState.PAUSED -> TransferStatus.PAUSED
-                AttachmentTransferState.FAILED -> TransferStatus.FAILED
-                else -> TransferStatus.UPLOADING
-            }
+            val status = AttachmentTransferStatusPolicy.transferStatusFromState(state)
             return AttachmentTransfer(
                 transferId = messageId,
                 status = status,
