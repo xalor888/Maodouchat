@@ -69,7 +69,8 @@ internal fun Route.configureAuthLoginRefreshRoutes(
                     disconnectUserSessionsByAuthSessionIds(
                         rotated.userId,
                         setOf(rotated.sessionId),
-                        "登录会话存在令牌重用，已撤销"
+                        "登录会话存在令牌重用，已撤销",
+                        userRepo,
                     )
                     call.respond(HttpStatusCode.Unauthorized, ErrorResponse("登录已过期，请重新登录"))
                     return@post

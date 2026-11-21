@@ -77,10 +77,10 @@ post("/users/{id}/sessions/revoke") {
         result.count to result.sessionIds
     }
     if (revokeAll) {
-        bestEffortAdminDisconnect { disconnectUserSessions(id, "admin session revoke") }
+        bestEffortAdminDisconnect { disconnectUserSessions(id, "admin session revoke", userRepo) }
     } else if (revokedSessionIds.isNotEmpty()) {
         bestEffortAdminDisconnect {
-            disconnectUserSessionsByAuthSessionIds(id, revokedSessionIds, "admin session revoke")
+            disconnectUserSessionsByAuthSessionIds(id, revokedSessionIds, "admin session revoke", userRepo)
         }
     }
     adminManagementRepo.recordAudit(
@@ -108,7 +108,7 @@ post("/users/{id}/force-logout") {
                 if (authTokenRepo.rotateAccessTokenVersion(id) == 0L) {
                     return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("user not found"))
                 }
-                bestEffortAdminDisconnect { disconnectUserSessions(id, "admin force logout") }
+                bestEffortAdminDisconnect { disconnectUserSessions(id, "admin force logout", userRepo) }
                 adminManagementRepo.recordAudit(actorId, id, "ADMIN_FORCE_LOGOUT", "force logout")
                 call.respond(
                 buildJsonObject {

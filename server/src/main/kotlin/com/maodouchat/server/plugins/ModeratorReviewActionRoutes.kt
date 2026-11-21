@@ -167,7 +167,7 @@ internal fun Route.configureModeratorReviewActionRoutes(
                             val targetUserId = frozenRestrictionTargetUserId
                             if (action == "SUSPEND_24H" && !targetUserId.isNullOrBlank()) {
                                 sessionService.revokeAllUserSessions(targetUserId)
-                                disconnectUserSessions(targetUserId, "账号已被临时封禁")
+                                disconnectUserSessions(targetUserId, "账号已被临时封禁", userRepo)
                             }
                         }
                         else -> Unit

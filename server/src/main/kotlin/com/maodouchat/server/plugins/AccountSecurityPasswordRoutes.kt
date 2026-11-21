@@ -26,7 +26,7 @@ internal fun Route.configureAccountSecurityPasswordRoutes(
             if (ok) {
                 sessionService.revokeAllUserSessions(userId)
                 // 与 logout-all 一致：旧设备会话已废，推送 token 必须清掉，否则仍收消息/来电推送
-                disconnectUserSessions(userId, "密码已修改，请重新登录")
+                disconnectUserSessions(userId, "密码已修改，请重新登录", userRepo)
                 call.respondOk()
             } else {
                 // 403：勿用 401 — 客户端 executeWithRefresh 会把带 Authorization 的 401 当会话过期并清库
