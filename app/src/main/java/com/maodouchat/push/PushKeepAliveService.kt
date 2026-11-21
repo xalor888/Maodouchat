@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat
 import com.maodouchat.MainActivity
 import com.maodouchat.R
 import com.maodouchat.domain.conversation.PushKeepAlivePolicy
+import com.maodouchat.domain.conversation.PushTransport
 import com.maodouchat.domain.conversation.PushTransportState
 import com.maodouchat.network.TokenManager
 import kotlinx.coroutines.CoroutineScope

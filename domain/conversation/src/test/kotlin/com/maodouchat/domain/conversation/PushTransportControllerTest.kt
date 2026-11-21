@@ -1,6 +1,5 @@
-package com.maodouchat.push
+package com.maodouchat.domain.conversation
 
-import com.maodouchat.domain.conversation.PushTransportState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
