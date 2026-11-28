@@ -85,7 +85,7 @@ fun Application.configureRouting(
     val json = Json { ignoreUnknownKeys = true }
 
     // 管理后台路由（/admin/*）—— 首个「明确未完成」模块落地
-    configureAdminRouting(userRepo, postRepo, services.moderationRuleRepo, services.reportRepo)
+    configureAdminRouting(userRepo, postRepo, services)
 
     routing {
         // 全局请求体大小拦截：JSON/普通 API 限 5MB；一次性附件上传与分块上传有各自上限

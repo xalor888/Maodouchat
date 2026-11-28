@@ -17,7 +17,7 @@ import kotlinx.serialization.json.put
  * （引用表先删，遵守外键约束），磁盘附件清理作为事务外容错副作用。
  */
 internal fun Route.configureAdminChatsRoutes(
-    adminManagementRepo: AdminManagementRepository = AdminManagementRepository()
+    adminManagementRepo: AdminManagementRepository
 ) {
     get("/chats") {
         if (!call.isAdminUser()) return@get call.respond(HttpStatusCode.Forbidden, ErrorResponse("需要管理员权限"))

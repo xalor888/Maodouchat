@@ -4,9 +4,10 @@ import com.maodouchat.server.repository.AdminManagementRepository
 import com.maodouchat.server.repository.AiRepository
 import io.ktor.server.routing.Route
 
-internal fun Route.configureAdminDiagnosticsRoutes() {
-    val aiRepo = AiRepository()
-    val adminRepo = AdminManagementRepository()
-    configureAdminDiagnosticsQueryRoutes(aiRepo, adminRepo)
+internal fun Route.configureAdminDiagnosticsRoutes(
+    aiRepo: AiRepository,
+    adminManagementRepo: AdminManagementRepository,
+) {
+    configureAdminDiagnosticsQueryRoutes(aiRepo, adminManagementRepo)
     configureAdminDiagnosticsWriteRoutes()
 }

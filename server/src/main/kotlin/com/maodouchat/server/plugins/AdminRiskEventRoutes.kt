@@ -13,7 +13,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 internal fun Route.configureAdminRiskEventRoutes(
-    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository,
 ) {
 // 风控事件监控
     get("/risk-events") {

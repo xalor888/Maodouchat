@@ -15,6 +15,8 @@ dependencies {
     compileOnly("org.signal:libsignal-client:0.41.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:2.4.0")
+    testImplementation("org.json:json:20240303")
     testImplementation("org.signal:libsignal-client:0.41.0")
 }
 

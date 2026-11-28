@@ -723,8 +723,12 @@ class GroupPlayPolicyTest {
          * 不是新增死代码——`buildPollPayload` 在 main 上就是转调 `GroupPollPolicy.buildPollPayload`
          * 的薄壳，全仓无调用方；它此前不算「零引用」，只因被删的 app 侧 GroupPollPolicy.kt
          * 里有个同名定义，文本上被当成族外引用。文件删了，遮掩也没了。
+         *
+         * 2026-11-28（整合 199 个 fuzz PR）：15 → 5。下降来自新增 fuzz 测试真的
+         * 调用了 `spinWheel` / `randomMemoryBoard` / `randomEmojiDuel` / `randomChainSeed` /
+         * `randomHideEmoji`（此前它们是传递性死代码）。棘轮方向不变：只许降。
          */
-        const val UNREFERENCED_BASELINE = 15
+        const val UNREFERENCED_BASELINE = 5
 
     /**
      * G216b：`val`/`var` 声明的零引用冻结值。

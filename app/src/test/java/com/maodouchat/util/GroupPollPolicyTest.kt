@@ -1,5 +1,7 @@
 package com.maodouchat.util
 
+import com.maodouchat.domain.groups.GroupChainValidationPolicy
+import com.maodouchat.domain.groups.GroupPkValidationPolicy
 import com.maodouchat.domain.groups.GroupPollPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -84,6 +86,25 @@ class GroupPollPolicyTest {
         assertTrue(GroupPollPolicy.isValidPollOptions(listOf("x".repeat(80), "y")))
         assertFalse(GroupPollPolicy.isValidPollOptions(listOf("x".repeat(81), "y")))
         assertTrue(GroupPollPolicy.isValidPollOptions(listOf("a", " ", "b")))
+    }
+
+    @Test
+    fun chainAndPkValidationBounds() {
+        assertTrue(GroupChainValidationPolicy.isValidTitle("x".repeat(200)))
+        assertFalse(GroupChainValidationPolicy.isValidTitle("x".repeat(201)))
+        assertFalse(GroupChainValidationPolicy.isValidTitle(""))
+        assertFalse(GroupChainValidationPolicy.isValidTitle("   "))
+        assertTrue(GroupChainValidationPolicy.isValidTopic("x".repeat(500)))
+        assertFalse(GroupChainValidationPolicy.isValidTopic("x".repeat(501)))
+        assertTrue(GroupChainValidationPolicy.isValidTopic(""))
+        assertTrue(GroupChainValidationPolicy.isValidTopic("   "))
+        assertFalse(GroupChainValidationPolicy.isValidEntryContent(""))
+        assertFalse(GroupChainValidationPolicy.isValidEntryContent("   "))
+        assertTrue(GroupChainValidationPolicy.isValidEntryContent("x".repeat(500)))
+        assertFalse(GroupChainValidationPolicy.isValidEntryContent("x".repeat(501)))
+        assertTrue(GroupPkValidationPolicy.isValidTitle("x".repeat(120)))
+        assertFalse(GroupPkValidationPolicy.isValidTitle("x".repeat(121)))
+        assertFalse(GroupPkValidationPolicy.isValidTitle(""))
     }
 
     @Test

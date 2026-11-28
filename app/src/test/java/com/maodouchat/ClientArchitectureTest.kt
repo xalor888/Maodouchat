@@ -422,8 +422,6 @@ class ClientArchitectureTest {
         // 薄委托收尾：mergeMessages 转发删除（7 处调用点直调顶层 mergeMessageVersions，
         // 接线改 ::mergeMessageVersions）+ cleanupAttachmentForMessage 搬入
         // ChatDetailFileTransferController（VM 留一行委托），677 → 656。
-        // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
-        // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
         // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
         "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 641,
         // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
@@ -607,8 +605,10 @@ class ClientArchitectureTest {
         // 另修两处遗留缩进；删 1 个闲置 import），969 → 770 纯搬移；新文件未进前 20，不纳管。
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-11-28：1008 关闭原因分类策略迁入 :core:realtime 的 WebSocketCloseReasonPolicy，
+        // 675 → 653 纯搬移，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/WebSocketClient.kt" to 100,
-        "com/maodouchat/network/WebSocketTransport.kt" to 675,
+        "com/maodouchat/network/WebSocketTransport.kt" to 653,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
@@ -678,7 +678,7 @@ class ClientArchitectureTest {
         // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
-        "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        "com/maodouchat/security/SecureSessionManager.kt" to 451,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
         // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
@@ -741,8 +741,6 @@ class ClientArchitectureTest {
             // ChatSessionTeardownController（873 → 677），上限同步收紧（两份 map 一起改）。
             // 薄委托收尾：mergeMessages 转发删除 + cleanupAttachmentForMessage 搬入
             // ChatDetailFileTransferController（677 → 656）。
-            // 本轮：MessageReminderStore.MessageReminder 提为顶层（util/MessageReminderModels），
-            // 引用处加一行 import（655 → 656，纯接线），上限按实测同步上调（两份 map 一起改）。
             // 2026-10-17：删闲置 import（654 → 649 纯删行），上限同步收紧（两份 map 一起改）。
             "com/maodouchat/ui/screen/chatdetail/ChatDetailViewModel.kt" to 641,
             // G388：三控制器的装配 lambda 落进 ChatDetailDeps（845 → 898），挤进前 20——
@@ -892,8 +890,10 @@ class ClientArchitectureTest {
         // G164b：Top-20 排名门禁纳入的 8 个
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-11-28：1008 关闭原因分类策略迁入 :core:realtime 的 WebSocketCloseReasonPolicy，
+        // 675 → 653 纯搬移，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/WebSocketClient.kt" to 100,
-        "com/maodouchat/network/WebSocketTransport.kt" to 675,
+        "com/maodouchat/network/WebSocketTransport.kt" to 653,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
@@ -956,7 +956,7 @@ class ClientArchitectureTest {
         // CallScreen（451 行）被挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
         "com/maodouchat/ui/screen/call/CallScreen.kt" to 451,
         // 2026-11-01：AccountIsolationPolicy 迁入 :core:session 时 SecureSessionManager +2 行 import（450 → 452）挤进前 20——按判据纳管，上限=实测行数（两份 map 一起改）。
-        "com/maodouchat/security/SecureSessionManager.kt" to 452,
+        "com/maodouchat/security/SecureSessionManager.kt" to 451,
         // 2026-11-07：群玩法策略簇迁入 :core:model 后 GroupPlayClassicPolicy（700）/
         // GroupPlayClassicDelegates（605）/ GroupPlayPolicy（600）离场，VoicePlayer（422）/
         // ContactsCreateAndScroll（435）滑进前 20——按判据纳入监管（两份 map 一起加；
