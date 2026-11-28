@@ -126,4 +126,51 @@ internal object DatabaseMigrationsRecent {
         }
     }
 
+    val MIGRATION_40_41 = object : Migration(40, 41) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS local_ai_providers (
+                    ownerUserId TEXT NOT NULL,
+                    id TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    baseUrl TEXT NOT NULL,
+                    apiKey TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    protocol TEXT NOT NULL,
+                    anthropicVersion TEXT NOT NULL,
+                    organization TEXT NOT NULL,
+                    extraHeadersJson TEXT NOT NULL,
+                    temperature REAL,
+                    topP REAL,
+                    maxTokens INTEGER NOT NULL,
+                    contextWindowTokens INTEGER NOT NULL,
+                    historyMessageLimit INTEGER NOT NULL,
+                    timeoutSeconds INTEGER NOT NULL,
+                    stream INTEGER NOT NULL,
+                    supportsVision INTEGER NOT NULL,
+                    sortOrder INTEGER NOT NULL,
+                    PRIMARY KEY(ownerUserId, id)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_local_ai_providers_ownerUserId ON local_ai_providers(ownerUserId)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS agent_sessions (
+                    ownerUserId TEXT NOT NULL,
+                    id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    messagesJson TEXT NOT NULL,
+                    sortOrder INTEGER NOT NULL,
+                    PRIMARY KEY(ownerUserId, id)
+                )
+                """.trimIndent(),
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_agent_sessions_ownerUserId ON agent_sessions(ownerUserId)")
+        }
+    }
+
 }

@@ -50,7 +50,7 @@ class DatabaseMigrationsChainTest {
     }
 
     private companion object {
-        // 与 AppDatabase.version 同步（当前 40：notification_center_items）。
-        const val EXPECTED_LATEST_VERSION = 40
+        // 与 AppDatabase.version 同步（当前 41：local_ai_providers + agent_sessions）。
+        const val EXPECTED_LATEST_VERSION = 41
     }
 }

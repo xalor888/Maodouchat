@@ -352,6 +352,18 @@ jobs:
             app/build/outputs/androidTest-results-main
           if-no-files-found: ignore
 
+      # v41：Room 编译器在构建时生成 app/schemas/.../41.json（exportSchema=true）。
+      # 本地无法构建、41.json 的 identityHash 无法手写核验，故 v41 升版时不提交手写版；
+      # 收尾阶段从此工件取回编译器生成的 41.json 再提交，让迁移测试能走
+      # runMigrationsAndValidate 的完整 schema 校验。
+      - name: Upload generated Room schemas
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: room-schemas
+          path: app/schemas
+          if-no-files-found: ignore
+
       # G23：E2E 自己的结果与服务端日志单独上传，便于逐用例核对与失败诊断。
       - name: Upload two-device HTTP E2E reports
         if: always()

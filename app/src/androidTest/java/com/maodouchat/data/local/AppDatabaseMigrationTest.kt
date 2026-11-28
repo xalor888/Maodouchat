@@ -591,6 +591,148 @@ class AppDatabaseMigrationTest {
         }
     }
 
+    /**
+     * v40→v41：新建 local_ai_providers / agent_sessions 两表。
+     * 不用 runMigrationsAndValidate：41.json 由 Room 编译器在构建时生成
+     * （exportSchema=true），本地无法构建、手写 identityHash 无法核验，故本次
+     * 不提交手写版；这里直接跑迁移并用 PRAGMA 逐列核对建表结果（与实体定义一致），
+     * 41.json 待收尾阶段从 CI 构建产物取回提交后再补 runMigrationsAndValidate。
+     */
+    @Test
+    fun migrate40To41CreatesLocalAiTables() {
+        val db = helper.createDatabase(LOCAL_AI_TEST_DB, 40)
+        db.execSQL(
+            "INSERT INTO notification_center_items " +
+                "(ownerUserId, id, type, mergeKey, title, subtitle, preview, deeplink, " +
+                "extraJson, read, count, createdAt, updatedAt) " +
+                "VALUES ('u1', 'n1', 't', 'k', 'title', NULL, NULL, NULL, '{}', 0, 1, 1, 1)"
+        )
+        try {
+            DatabaseMigrationsRecent.MIGRATION_40_41.migrate(db)
+
+            assertTableColumns(
+                db, "local_ai_providers",
+                listOf(
+                    Triple("ownerUserId", "TEXT", true),
+                    Triple("id", "TEXT", true),
+                    Triple("name", "TEXT", true),
+                    Triple("baseUrl", "TEXT", true),
+                    Triple("apiKey", "TEXT", true),
+                    Triple("model", "TEXT", true),
+                    Triple("protocol", "TEXT", true),
+                    Triple("anthropicVersion", "TEXT", true),
+                    Triple("organization", "TEXT", true),
+                    Triple("extraHeadersJson", "TEXT", true),
+                    Triple("temperature", "REAL", false),
+                    Triple("topP", "REAL", false),
+                    Triple("maxTokens", "INTEGER", true),
+                    Triple("contextWindowTokens", "INTEGER", true),
+                    Triple("historyMessageLimit", "INTEGER", true),
+                    Triple("timeoutSeconds", "INTEGER", true),
+                    Triple("stream", "INTEGER", true),
+                    Triple("supportsVision", "INTEGER", true),
+                    Triple("sortOrder", "INTEGER", true)
+                ),
+                primaryKey = listOf("ownerUserId", "id")
+            )
+            assertTableColumns(
+                db, "agent_sessions",
+                listOf(
+                    Triple("ownerUserId", "TEXT", true),
+                    Triple("id", "TEXT", true),
+                    Triple("title", "TEXT", true),
+                    Triple("createdAt", "INTEGER", true),
+                    Triple("messagesJson", "TEXT", true),
+                    Triple("sortOrder", "INTEGER", true)
+                ),
+                primaryKey = listOf("ownerUserId", "id")
+            )
+            assertTableIndex(db, "index_local_ai_providers_ownerUserId", "local_ai_providers", listOf("ownerUserId"))
+            assertTableIndex(db, "index_agent_sessions_ownerUserId", "agent_sessions", listOf("ownerUserId"))
+
+            // v40 数据保留。
+            db.query("SELECT COUNT(*) FROM notification_center_items WHERE ownerUserId = 'u1'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(1, cursor.getInt(0))
+            }
+            // 新表可写可读（含可空 Double 列）。
+            db.execSQL(
+                "INSERT INTO local_ai_providers (ownerUserId, id, name, baseUrl, apiKey, model, " +
+                    "protocol, anthropicVersion, organization, extraHeadersJson, temperature, topP, " +
+                    "maxTokens, contextWindowTokens, historyMessageLimit, timeoutSeconds, stream, " +
+                    "supportsVision, sortOrder) VALUES ('u1', 'p1', 'sf', 'https://x', 'sk', 'm', " +
+                    "'OPENAI_CHAT_COMPLETIONS', '2023-06-01', '', '{}', 0.7, NULL, 4096, 128000, 24, 120, 1, 0, 0)"
+            )
+            db.query("SELECT apiKey, temperature, topP FROM local_ai_providers WHERE ownerUserId = 'u1' AND id = 'p1'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("sk", cursor.getString(0))
+                assertEquals(0.7, cursor.getDouble(1), 0.0)
+                assertTrue(cursor.isNull(2))
+            }
+            db.execSQL(
+                "INSERT INTO agent_sessions (ownerUserId, id, title, createdAt, messagesJson, sortOrder) " +
+                    "VALUES ('u1', 's1', 't', 7, '[{\"role\":\"user\",\"content\":\"hi\"}]', 0)"
+            )
+            db.query("SELECT title, messagesJson FROM agent_sessions WHERE ownerUserId = 'u1' AND id = 's1'").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("t", cursor.getString(0))
+                assertTrue(cursor.getString(1).contains("\"content\":\"hi\""))
+            }
+        } finally {
+            db.close()
+        }
+    }
+
+    /** PRAGMA table_info 逐列核对：列名、声明类型、NOT NULL、复合主键位置。 */
+    private fun assertTableColumns(
+        db: androidx.sqlite.db.SupportSQLiteDatabase,
+        table: String,
+        expected: List<Triple<String, String, Boolean>>,
+        primaryKey: List<String>,
+    ) {
+        val actual = buildList {
+            db.query("PRAGMA table_info($table)").use { cursor ->
+                while (cursor.moveToNext()) {
+                    add(
+                        Triple(
+                            cursor.getString(cursor.getColumnIndexOrThrow("name")),
+                            cursor.getString(cursor.getColumnIndexOrThrow("type")),
+                            cursor.getInt(cursor.getColumnIndexOrThrow("notnull")) == 1
+                        ) to cursor.getInt(cursor.getColumnIndexOrThrow("pk"))
+                    )
+                }
+            }
+        }
+        assertEquals(expected.map { it to if (it.first in primaryKey) primaryKey.indexOf(it.first) + 1 else 0 }, actual)
+    }
+
+    /** PRAGMA index_list + index_info 核对索引存在、非唯一、列一致。 */
+    private fun assertTableIndex(
+        db: androidx.sqlite.db.SupportSQLiteDatabase,
+        indexName: String,
+        table: String,
+        columns: List<String>,
+    ) {
+        val found = buildList {
+            db.query("PRAGMA index_list($table)").use { cursor ->
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == indexName) {
+                        add(cursor.getInt(cursor.getColumnIndexOrThrow("unique")) == 0)
+                    }
+                }
+            }
+        }
+        assertEquals(listOf(true), found)
+        val indexed = buildList {
+            db.query("PRAGMA index_info($indexName)").use { cursor ->
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                }
+            }
+        }
+        assertEquals(columns, indexed)
+    }
+
     private companion object {
         const val TEST_DB = "migration-16-17"
         const val SETTINGS_TEST_DB = "migration-17-18"
@@ -603,5 +745,6 @@ class AppDatabaseMigrationTest {
         const val JOURNAL_TEST_DB = "migration-34-35-plaintext-journal"
         const val TOMBSTONE_TEST_DB = "migration-33-34-tombstone"
         const val NEW_TABLES_TEST_DB = "migration-36-40-business-tables"
+        const val LOCAL_AI_TEST_DB = "migration-40-41-local-ai"
     }
 }
