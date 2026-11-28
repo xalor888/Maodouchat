@@ -1,5 +1,7 @@
 // ChatDateDisplay format functions (141st block); oracle uses
 // SimpleDateFormat with the same probed patterns in the same JVM.
+// JDK 21 CLDR 在 am/pm 前用窄空格而非 ASCII 空格：en_US 是 U+202F，
+// 而 zh_TW 仍是 ASCII 空格。pattern 里写 "\u202Fa" 才能逐码点对上。
 // isSameDay / isYesterday / dateLabelBucket / formatHourMinute were
 // covered by the 102nd block.
 package com.maodouchat.domain.messaging
@@ -30,14 +32,15 @@ private fun localeTagOracle(locale: Locale): String = when (locale) {
 }
 
 private fun dtPatternOracle(locale: Locale): String = when (localeTagOracle(locale)) {
-    "en_US" -> "MMM d, y, h:mm a"
+    "en_US" -> "MMM d, y, h:mm\u202Fa"
     "en_GB" -> "d MMM y, HH:mm"
-    "zh_CN", "zh_TW" -> "y年M月d日 ah:mm"
+    "zh_CN" -> "y年M月d日 HH:mm"
+    "zh_TW" -> "y年M月d日 ah:mm"
     "ja_JP" -> "y/MM/dd H:mm"
     "de_DE" -> "dd.MM.y, HH:mm"
     "fr_FR" -> "d MMM y HH:mm"
     "ko_KR" -> "y. M. d. a h:mm"
-    else -> "MMM d, y, h:mm a"
+    else -> "MMM d, y, h:mm\u202Fa"
 }
 
 private fun mdPatternOracle(locale: Locale): String = when (localeTagOracle(locale)) {

@@ -10,13 +10,13 @@ import kotlin.test.assertEquals
 // Independent re-implementation of currentWeekRange: pure epoch-day
 // arithmetic in fixed +08:00 (Asia/Shanghai has no DST in the tested
 // range), no Calendar at all, so a slip in either side shows up.
-// Epoch day 0 is a Thursday; Monday of the Sunday-start week is
-// (weekday+1)%7 days back, plus one -- so a Sunday lands on the
-// *next* Monday, not the one six days earlier.
+// Epoch day 0 is a Thursday, so the Monday-based weekday index of an
+// epoch day is (day+3) mod 7. Weeks run Monday..Sunday, i.e. a Sunday
+// belongs to the week that started six days earlier.
 private fun weekRangeOracle192(now: Long): Pair<Long, Long> {
     val localDay = Math.floorDiv(now + 8L * 3_600_000L, 86_400_000L)
     val weekdayMon0 = ((localDay + 3) % 7 + 7) % 7
-    val mondayDay = localDay - (weekdayMon0 + 1) % 7 + 1
+    val mondayDay = localDay - weekdayMon0
     val start = mondayDay * 86_400_000L - 8L * 3_600_000L
     return start to start + 7L * 86_400_000L
 }
@@ -82,10 +82,10 @@ class AiWeeklyReportWeekRangeFuzzTest {
             -288_000_000L to 316_800_000L,
             AiWeeklyReportWeekRange.currentWeekRange(-1L)
         )
-        // Sunday 2026-11-22 00:00+08 belongs to the week starting the
-        // *next* Monday (Sunday-start weeks under the default locale).
+        // Sunday 2026-11-22 00:00+08 is the last day of the week that
+        // started Monday 2026-11-16 (Monday-start weeks, locale-free).
         assertEquals(
-            1_795_363_200_000L to 1_795_968_000_000L,
+            1_794_758_400_000L to 1_795_363_200_000L,
             AiWeeklyReportWeekRange.currentWeekRange(1_795_276_800_000L)
         )
         // Monday 00:00 sharp is its own week start.

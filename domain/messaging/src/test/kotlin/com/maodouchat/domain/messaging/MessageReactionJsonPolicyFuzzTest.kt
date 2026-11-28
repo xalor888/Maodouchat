@@ -129,7 +129,9 @@ class MessageReactionJsonPolicyFuzzTest {
             val badField = when (random.nextInt(4)) {
                 0 -> "userId" to randomJsonScalar(random).let { if (it is JsonPrimitive && it.isString) JsonPrimitive(123) else it }
                 1 -> "emoji" to JsonObject(mapOf("x" to JsonPrimitive(1)))
-                2 -> "reactedAt" to JsonPrimitive("42")
+                // kotlinx.serialization 的 Long 反序列化接受 JSON 字符串里的数字（"42" → 42），
+                // 所以「类型错」要选真正解不出的值：非数字文本。
+                2 -> "reactedAt" to JsonPrimitive("not-a-number")
                 else -> "userId" to JsonArray(listOf(JsonPrimitive("u1")))
             }
             val base = mapOf(

@@ -295,7 +295,11 @@ class MentionPolicyFuzzTest {
             // @everyone 项固定排第一（不参与排序），其余候选按 displayName 排序。
             val peopleNames = actual.filter { !it.isEveryone }.map { it.displayName.lowercase() }
             assertEquals(peopleNames.sorted(), peopleNames, "fuzz 迭代 #$i：候选必须按 displayName 排序")
-            assertTrue(actual.none { it.userId == currentUserId }, "fuzz 迭代 #$i：不得含本人")
+            // @everyone 项固定带 EVERYONE_ID；currentUserId 恰好抽到它时不算「含本人」。
+            assertTrue(
+                actual.none { it.userId == currentUserId && !it.isEveryone },
+                "fuzz 迭代 #$i：不得含本人",
+            )
             assertTrue(actual.none { it.userId.isBlank() }, "fuzz 迭代 #$i：不得含空 id")
             assertTrue(actual.count { it.isEveryone } <= 1, "fuzz 迭代 #$i：@everyone 至多一项")
             if (actual.any { it.isEveryone }) {

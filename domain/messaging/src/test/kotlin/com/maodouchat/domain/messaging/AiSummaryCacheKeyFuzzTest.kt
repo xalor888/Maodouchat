@@ -82,7 +82,8 @@ class AiSummaryCacheKeyFuzzTest {
             "Manual:c1:RECENT:brief:m1:m2:5" to AiSummaryScope.UNREAD,
             "manual:c1" to AiSummaryScope.RECENT,
             "manual:" to AiSummaryScope.RECENT,
-            "manual" to AiSummaryScope.RECENT,
+            // 只有 "manual:" 前缀才算手动键；裸 "manual" 连冒号都没有，走 UNREAD。
+            "manual" to AiSummaryScope.UNREAD,
             "manual:c1:BOGUS:brief:m1:m2:5" to AiSummaryScope.RECENT,
             "manual:c1:recent:brief:m1:m2:5" to AiSummaryScope.RECENT,
             "manual:c1::brief:m1:m2:5" to AiSummaryScope.RECENT,

@@ -142,7 +142,8 @@ class AiPromptSanitizeTextFuzzTest {
         // \u0009 不在剥离集里（生产侧 CONTROL_CHARS 不含 \t），\n/\r 不在剥离集但 trim 会处理首尾。
         assertEquals("a\tb", AiPromptSanitizeText.sanitizeContextText("a\tb"))
         assertEquals("ab", AiPromptSanitizeText.sanitizeContextText("a\u0007b"))
-        assertEquals("ab", AiPromptSanitizeText.sanitizeContextText("a\u0000b\u001Fc"))
+        // \u0000 与 \u001F 都在剥离集内，中间字符保留 → "abc"。
+        assertEquals("abc", AiPromptSanitizeText.sanitizeContextText("a\u0000b\u001Fc"))
         assertEquals("", AiPromptSanitizeText.sanitizeContextText("   \u0007  "))
     }
 
@@ -196,8 +197,9 @@ class AiPromptSanitizeTextFuzzTest {
                 AiPromptSanitizeText.sanitizeContextText("${role.uppercase()}: hello"),
                 "大写行首 $role 标记必须被弱化",
             )
+            // 只替换标记本身，前面那行的换行与内容原样保留。
             assertEquals(
-                "[untrusted-$role] hello",
+                "first line\n[untrusted-$role] hello",
                 AiPromptSanitizeText.sanitizeContextText("first line\n  $role： hello"),
                 "第二行行首 $role 标记必须被弱化",
             )
