@@ -32,10 +32,16 @@ class GroupPollPolicyFuzzTest {
             repeat(random.nextInt(0, 13)) { append(CHAIN_CONTENT_CHARS[random.nextInt(CHAIN_CONTENT_CHARS.size)]) }
         }
 
-    // parse 前会对整串 trim：esc 后内容尾部连续的空白/控制符（含 |/^ 转义成的 \u0001/\u0002）会被剥掉，
-    // 所以期望内容要先掐掉原文尾部连续的空白/控制符与 |/^，再做 \u0001/\u0002 还原。
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
+    // parse 前会对整串 trim，只会剥掉尾部真正的 Kotlin 空白。esc 后的 \u0001/\u0002
+    // 不是空白，故原文尾部的 |/^ 会保留；先按 Kotlin 空白裁尾，再做还原。
     private fun expectedChainContent(content: String): String =
-        content.dropLastWhile { it <= ' ' || it == '|' || it == '^' }
+        content.dropLastWhile { isKotlinWhitespace(it) }
             .replace("\u0001", "|").replace("\u0002", "^")
 
     @Test

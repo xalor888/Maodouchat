@@ -138,7 +138,7 @@ class BotCommandPolicyFuzzTest {
         )
         assertEquals(listOf(mixed[1]), BotCommandPolicy.filterCommands(mixed, "/hello"))
         assertEquals(emptyList(), BotCommandPolicy.filterCommands(mixed, "hello"))
-        assertEquals("/help@alice ", BotCommandPolicy.insertCommand(mixed[1], true))
-        assertEquals("/help ", BotCommandPolicy.insertCommand(mixed[1], false))
+        assertEquals("/hello@u ", BotCommandPolicy.insertCommand(mixed[1], true))
+        assertEquals("/hello ", BotCommandPolicy.insertCommand(mixed[1], false))
     }
 }

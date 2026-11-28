@@ -13,19 +13,23 @@ import kotlin.test.assertTrue
  * over UTF-16 code units and the send-window arithmetic by hand; a Python
  * mini-model differentially checks the oracle transcription against an
  * independent production transcription.
- * Note: Kotlin trim() only strips chars <= U+0020, so NBSP (U+00A0) is NOT trimmed.
+ * Note: Kotlin String.trim() uses Char.isWhitespace = Character.isWhitespace ||
+ * Character.isSpaceChar, so NBSP (U+00A0) IS trimmed (unlike Java String.trim).
  * Long arithmetic wraps: isValidSendAt/delayFromNow see the wrapped delay, and
  * clampSendAt throws when now is so close to Long.MAX_VALUE that now+MAX wraps
  * below now+MIN (pinned as current behaviour, not changed).
  */
 class ScheduledMessagePolicyFuzzTest {
 
-    // Manual trim: drop leading/trailing chars with code <= ' ' (Kotlin trim semantics).
+    // Manual trim matching Kotlin String.trim()'s Char.isWhitespace predicate.
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        Character.isWhitespace(c) || Character.isSpaceChar(c)
+
     private fun oracleTrim(s: String): String {
         var start = 0
-        while (start < s.length && s[start] <= ' ') start++
+        while (start < s.length && isKotlinWhitespace(s[start])) start++
         var end = s.length
-        while (end > start && s[end - 1] <= ' ') end--
+        while (end > start && isKotlinWhitespace(s[end - 1])) end--
         return s.substring(start, end)
     }
 

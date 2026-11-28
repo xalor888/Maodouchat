@@ -153,8 +153,9 @@ internal fun deviceJson158(device: DeviceSafetyState): String {
     sb.append("{\"id\":").append(device.deviceId)
     sb.append(",\"key\":\"").append(deviceJsonEscape158(device.identityKey)).append("\"")
     sb.append(",\"trust\":\"").append(device.trustState.name).append("\"")
-    if (device.safetyCode != null) {
-        sb.append(",\"code\":\"").append(deviceJsonEscape158(device.safetyCode)).append("\"")
+    val code = device.safetyCode
+    if (code != null) {
+        sb.append(",\"code\":\"").append(deviceJsonEscape158(code)).append("\"")
     }
     sb.append("}")
     return sb.toString()

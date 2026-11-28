@@ -123,8 +123,10 @@ class MessageMetaJsonFuzzTest {
             val result = runCatching { MessageMetaJson.fromJsonString(text) }
             result.onFailure { e ->
                 assertTrue(
-                    e is SerializationException || e is IllegalStateException,
-                    "fuzz 迭代 #$i：畸形输入只应抛 SerializationException/IllegalStateException，实际 ${e::class.simpleName}"
+                    e is SerializationException || e is IllegalStateException ||
+                        e is IllegalArgumentException,
+                    "fuzz 迭代 #$i：畸形输入只应抛 SerializationException/IllegalStateException/" +
+                        "IllegalArgumentException，实际 ${e::class.simpleName}"
                 )
             }
             result.onSuccess { first ->
@@ -137,11 +139,12 @@ class MessageMetaJsonFuzzTest {
     }
 
     @Test
-    fun `nonObjectTopLevelThrowsIllegalState`() {
-        // 合法 JSON 但顶层不是对象：.jsonObject 抛 IllegalStateException。
+    fun `nonObjectTopLevelThrows`() {
+        // 合法 JSON 但顶层不是对象：当前 kotlinx 的 .jsonObject 抛 IllegalArgumentException
+        // （"Element class ... is not a JsonObject"），早期版本抛 IllegalStateException。
         listOf("123", "\"x\"", "[1]", "null", "true", "[]").forEach { text ->
-            assertFailsWith<IllegalStateException>(
-                "顶层 $text 不是对象，应抛 IllegalStateException"
+            assertFailsWith<IllegalArgumentException>(
+                "顶层 $text 不是对象，应抛 IllegalArgumentException"
             ) { MessageMetaJson.fromJsonString(text) }
         }
         assertEquals(MessageMeta(), MessageMetaJson.fromJsonString("{}"), "空对象应回默认 meta")

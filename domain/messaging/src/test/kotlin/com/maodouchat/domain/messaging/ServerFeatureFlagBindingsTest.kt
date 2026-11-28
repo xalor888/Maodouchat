@@ -17,8 +17,9 @@ class ServerFeatureFlagBindingsTest {
 
         assertEquals(86, flags.size)
         assertEquals(86, keys.size)
-        assertEquals("绑定表有重复 Flag", flags.size, flags.toSet().size)
-        assertEquals("绑定表有重复 key", keys.size, keys.toSet().size)
+        // kotlin.test has no message-first overload: keep the message last.
+        assertEquals(flags.size, flags.toSet().size, "绑定表有重复 Flag")
+        assertEquals(keys.size, keys.toSet().size, "绑定表有重复 key")
     }
 
     @Test
@@ -26,11 +27,7 @@ class ServerFeatureFlagBindingsTest {
         val parsed = parseServerFeatureFlags(JSONObject()).keys
         val bound = serverFeatureFlagBindings.map { it.second }.toSet()
 
-        assertEquals(
-            "绑定表与解析表不同步——加开关时两边都要改",
-            parsed,
-            bound
-        )
+        assertEquals(parsed, bound, "绑定表与解析表不同步——加开关时两边都要改")
     }
 
     @Test

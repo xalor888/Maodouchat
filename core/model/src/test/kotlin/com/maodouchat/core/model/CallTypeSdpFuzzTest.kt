@@ -46,7 +46,7 @@ class CallTypeSdpFuzzTest {
             val lines = List(random.nextInt(1, 7)) { randomSdpLine() }
             val separator = listOf("\n", "\r\n").random(random)
             val sdp = lines.joinToString(separator)
-            assertEquals(expectedType(sdp), CallType.detectFromSdp(sdp), "sdp=<$sdp>")
+            assertEquals("sdp=<$sdp>", expectedType(sdp), CallType.detectFromSdp(sdp))
         }
     }
 
@@ -73,9 +73,12 @@ class CallTypeSdpFuzzTest {
         assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video 9999999999 UDP/TLS/RTP/SAVPF 96"))
         assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video 2147483648 UDP/TLS/RTP/SAVPF 96"))
         assertEquals(CallType.VIDEO, CallType.detectFromSdp("m=video 2147483647 UDP/TLS/RTP/SAVPF 96"))
-        // 非 ASCII 数字 isDigit 为真但 toIntOrNull 为 null，按 0 处理。
-        assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video \u0663 UDP/TLS/RTP/SAVPF 96"))
-        assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video \uFF15 UDP/TLS/RTP/SAVPF 96"))
+        // Java Integer.parseInt 走 Character.digit，接受任意 Unicode 十进制数字：
+        // 阿拉伯-印度数字 ٣ 与全角 ５ 都能解析成非 0 端口，因此判 VIDEO。
+        assertEquals(CallType.VIDEO, CallType.detectFromSdp("m=video \u0663 UDP/TLS/RTP/SAVPF 96"))
+        assertEquals(CallType.VIDEO, CallType.detectFromSdp("m=video \uFF15 UDP/TLS/RTP/SAVPF 96"))
+        // 但 0 仍是 0，阿拉伯-印度数字 ٠ 也按 0 处理。
+        assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video \u0660 UDP/TLS/RTP/SAVPF 96"))
         // 端口前有符号或缺失数字时数字前缀为空，按 0 处理。
         assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video +9 UDP/TLS/RTP/SAVPF 96"))
         assertEquals(CallType.AUDIO, CallType.detectFromSdp("m=video -9 UDP/TLS/RTP/SAVPF 96"))

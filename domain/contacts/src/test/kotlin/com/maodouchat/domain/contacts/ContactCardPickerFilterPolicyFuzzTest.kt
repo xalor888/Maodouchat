@@ -146,10 +146,11 @@ internal fun cardJsonEscape158(s: String): String {
 
 internal fun cardUserJson158(user: User): String {
     val sb = StringBuilder()
+    val nickname = user.nickname
     sb.append("{\"id\":\"").append(cardJsonEscape158(user.id)).append("\"")
     sb.append(",\"name\":\"").append(cardJsonEscape158(user.name)).append("\"")
-    if (user.nickname != null) {
-        sb.append(",\"nick\":\"").append(cardJsonEscape158(user.nickname)).append("\"")
+    if (nickname != null) {
+        sb.append(",\"nick\":\"").append(cardJsonEscape158(nickname)).append("\"")
     }
     sb.append("}")
     return sb.toString()

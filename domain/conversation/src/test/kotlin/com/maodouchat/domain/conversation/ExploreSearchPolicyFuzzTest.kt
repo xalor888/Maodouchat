@@ -17,8 +17,8 @@ import kotlin.test.assertTrue
  * per cluster (0 diffs) before this file was written.
  *
  * Two asymmetries the oracle must reproduce: matches() does not trim the query
- * (filter() does), and trim() only strips chars <= ' ' while isBlank() follows
- * Character.isWhitespace, so NBSP/NEL are not blank and are not trimmed.
+ * (filter() does), and trim()/isBlank() use Kotlin Char.isWhitespace, so NBSP is
+ * blank and trimmed while NEL is not.
  * Random strings are built one code point at a time, so they stay well-formed.
  */
 class ExploreSearchPolicyFuzzTest {
@@ -56,16 +56,22 @@ class ExploreSearchPolicyFuzzTest {
         return false
     }
 
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
     private fun kotlinTrim(s: String): String {
         var a = 0
         var b = s.length
-        while (a < b && s[a] <= ' ') a++
-        while (b > a && s[b - 1] <= ' ') b--
+        while (a < b && isKotlinWhitespace(s[a])) a++
+        while (b > a && isKotlinWhitespace(s[b - 1])) b--
         return s.substring(a, b)
     }
 
     private fun kotlinBlank(s: String): Boolean =
-        s.isEmpty() || s.all { Character.isWhitespace(it) }
+        s.isEmpty() || s.all { isKotlinWhitespace(it) }
 
     private data class Item(val content: String, val authorName: String, val authorId: String)
 
@@ -258,9 +264,10 @@ class ExploreSearchPolicyFuzzTest {
         assertFalse(ExploreSearchPolicy.matches("alice", "Bob", "u1", "\talice\n"))
         assertEquals(listOf(items[0]), ExploreSearchPolicy.filter(items, "  alice  ", { it.content }, { it.authorName }, { it.authorId }))
         assertEquals(listOf(items[0]), ExploreSearchPolicy.filter(items, "ALICE", { it.content }, { it.authorName }, { it.authorId }))
-        // NBSP/NEL are not blank and are not trimmed: they are real searches.
+        // NBSP is Kotlin whitespace, so filter() treats it as a blank query; NEL is
+        // not whitespace, so it stays a real search.
         assertTrue(ExploreSearchPolicy.matches("x\u00A0y", "Carol", "u2", "\u00A0"))
-        assertEquals(listOf(items[1]), ExploreSearchPolicy.filter(items, "\u00A0", { it.content }, { it.authorName }, { it.authorId }))
+        assertEquals(items, ExploreSearchPolicy.filter(items, "\u00A0", { it.content }, { it.authorName }, { it.authorId }))
         assertTrue(ExploreSearchPolicy.matches("q\u0085z", "Dave", "u3", "\u0085"))
         assertEquals(listOf(items[2]), ExploreSearchPolicy.filter(items, "\u0085", { it.content }, { it.authorName }, { it.authorId }))
         assertEquals(items, ExploreSearchPolicy.filter(items, "   ", { it.content }, { it.authorName }, { it.authorId }))

@@ -92,13 +92,14 @@ class MissedCallRecordPolicyFuzzTest {
 
     @Test
     fun `blank variants all fall back to fromUserId`() {
-        for (blank in listOf("", " ", "   ", "\t", "\n", " \t\n ", "\u2000", "\u3000")) {
+        for (blank in listOf("", " ", "   ", "\t", "\n", " \t\n ", "\u2000", "\u3000", "\u00a0")) {
             assertEquals("u1", displayCallerName(blank, "u1"))
         }
         assertEquals("Alice", displayCallerName("Alice", "u1"))
         assertEquals(" Alice ", displayCallerName(" Alice ", "u1"))
-        // 不换行空格不是 Kotlin 空白：不回落。
-        assertEquals("\u00a0", displayCallerName("\u00a0", "u1"))
+        // isBlank 走 Char.isWhitespace，NBSP 属 Zs 也算空白，因此同样回落；
+        // 而 U+0085 (NEL) 不在 Kotlin 空白集里，保留原值。
+        assertEquals("\u0085", displayCallerName("\u0085", "u1"))
     }
 
     @Test

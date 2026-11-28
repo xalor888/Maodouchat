@@ -11,24 +11,20 @@ import kotlin.test.assertTrue
  * 41st block). Test-only, zero production changes.
  *
  * The oracle derives validity independently of production: it hard-codes the
- * `Character.isWhitespace` set and strips only chars `<= ' '` from both ends.
- * Three traps it nails down, all verified offline before this file was written:
- * - `trim()` strips only `<= ' '`, while `isNotBlank()` uses Java whitespace:
- *   U+2003/U+3000/U+1680/U+2028/U+2029/U+205F/U+2000-U+2006/U+2008-U+200A make
- *   a title non-blank but are NOT trimmed, so 120 x's wrapped in them count
- *   122 and are rejected — a Unicode-aware trim model says "valid" and is wrong;
- * - NBSP (U+00A0), FIGURE SPACE (U+2007) and NNBSP (U+202F) are NOT whitespace
- *   at all (`Character.isWhitespace` excludes non-breaking spaces), so a lone
- *   NBSP is a *valid* title — as is a lone NEL (U+0085), which the javadoc
- *   lists as whitespace but the JDK implementation returns false for;
- * - zero-width chars (ZWSP U+200B, BOM U+FEFF) and control chars `<= ' '`
- *   (NUL, U+0001) are not whitespace either: a lone NUL is valid, and NUL
- *   *does* trim, so NUL + 120 x's is exactly 120 and valid.
- * A Python mini-model differentially checks the oracle against the production
- * expression re-run on the real JVM (Java probe) on 5000 random inputs
- * (0 diffs); the probe also verifies the hand-written whitespace set against
- * `Character.isWhitespace` over the whole BMP (0 diffs). The naive
- * Unicode-trim model disagrees with production on 331 of those 5000 inputs.
+ * Kotlin whitespace set and strips those chars from both ends.
+ *
+ * Kotlin 2.x `String.trim()`/`isBlank()` use `Char.isWhitespace`, which is
+ * `Character.isWhitespace || Character.isSpaceChar`. Verified on JDK 21 with
+ * an in-repo probe over the BMP, so:
+ * - ASCII controls U+0009-U+000D and U+001C-U+001F trim; NUL/U+0001/U+0007 do
+ *   NOT (they are neither Java whitespace nor space chars);
+ * - U+2003/U+3000/U+1680/U+2028/U+2029/U+205F/U+2000-U+200A all trim, and the
+ *   non-breaking spaces U+00A0/U+2007/U+202F also trim because isSpaceChar is
+ *   true for them;
+ * - NEL U+0085, ZWSP U+200B, ZWNJ/ZWJ, BOM U+FEFF and soft hyphen U+00AD are
+ *   neither whitespace nor space chars: they neither trim nor make a title
+ *   blank.
+ * This differs from `java.lang.String.trim()`, which strips only `<= ' '`.
  */
 class GroupPkValidationPolicyFuzzTest {
 
@@ -58,36 +54,35 @@ class GroupPkValidationPolicyFuzzTest {
         )
     }
 
-    // Character.isWhitespace as implemented by the JDK: U+0085 is listed in
-    // the javadoc but returns false, and the non-breaking spaces U+00A0 /
-    // U+2007 / U+202F are explicitly excluded. Verified exhaustively over the
-    // BMP by the Java probe before this file was written.
-    private fun isJavaWhitespace(c: Char): Boolean =
+    // Kotlin Char.isWhitespace == Character.isWhitespace || Character.isSpaceChar.
+    // Hard-coded so the oracle does not call the same predicate as production.
+    private fun isKotlinWhitespace(c: Char): Boolean =
         c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
-            c == '\u1680' || c in '\u2000'..'\u2006' || c in '\u2008'..'\u200A' ||
-            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000'
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
 
     private fun trimmedLength(title: String): Int {
         var start = 0
         var end = title.length
-        while (start < end && title[start] <= ' ') start++
-        while (end > start && title[end - 1] <= ' ') end--
+        while (start < end && isKotlinWhitespace(title[start])) start++
+        while (end > start && isKotlinWhitespace(title[end - 1])) end--
         return end - start
     }
 
     private fun oracleValid(title: String): Boolean =
-        title.any { !isJavaWhitespace(it) } && trimmedLength(title) <= MAX_TITLE_LENGTH
+        title.any { !isKotlinWhitespace(it) } && trimmedLength(title) <= MAX_TITLE_LENGTH
 
-    // The obvious-but-wrong model: trim with the Java whitespace set, as a
-    // Unicode-aware trim would. It disagrees with production wherever a
-    // whitespace char survives trim() or a control char is trimmed.
-    private fun naiveValid(title: String): Boolean {
-        if (title.none { !isJavaWhitespace(it) }) return false
+    // The wrong model: java.lang.String.trim() semantics, which strip only
+    // chars <= ' '. It disagrees with Kotlin trim() on NBSP and on controls
+    // like NUL/U+0001 that Kotlin does not consider whitespace.
+    private fun javaTrimValid(title: String): Boolean {
         var start = 0
         var end = title.length
-        while (start < end && isJavaWhitespace(title[start])) start++
-        while (end > start && isJavaWhitespace(title[end - 1])) end--
-        return end - start <= MAX_TITLE_LENGTH
+        while (start < end && title[start] <= ' ') start++
+        while (end > start && title[end - 1] <= ' ') end--
+        val trimmed = title.substring(start, end)
+        return title.any { !isKotlinWhitespace(it) } && trimmed.length <= MAX_TITLE_LENGTH
     }
 
     private fun randomTitle(random: Random): String {
@@ -173,20 +168,24 @@ class GroupPkValidationPolicyFuzzTest {
     }
 
     @Test
-    fun `non-breaking spaces and NEL are not blank`() {
-        // NBSP / FIGURE SPACE / NNBSP are explicitly excluded from Java
-        // whitespace, and NEL is listed in the javadoc but false in the JDK
-        // implementation — a lone one of these is a valid title.
-        val validSingles = listOf("\u00A0", "\u2007", "\u202F", "\u0085")
-        for (title in validSingles) {
-            assertTrue(
+    fun `non-breaking spaces are blank but NEL is not`() {
+        // Kotlin 的 isBlank 走 Char.isWhitespace，其中包含 Character.isSpaceChar，
+        // 所以 NBSP / FIGURE SPACE / NNBSP 都算空白，单个出现也判无效。
+        val blanks = listOf("\u00A0", "\u2007", "\u202F")
+        for (title in blanks) {
+            assertFalse(
                 GroupPkValidationPolicy.isValidTitle(title),
-                "单个非断行空白应为有效标题：码点=${title.map { it.code }}"
+                "单个非断行空白应判空白：码点=${title.map { it.code }}"
             )
         }
+        // NEL 既不是 Java 空白也不是 SpaceChar，单个出现是有效标题。
+        assertTrue(
+            GroupPkValidationPolicy.isValidTitle("\u0085"),
+            "单个 NEL 应为有效标题"
+        )
         assertTrue(
             GroupPkValidationPolicy.isValidTitle("\u2003\u00A0\u3000\u0085\u2028"),
-            "混入 NBSP/NEL 的串不再是纯空白，应为有效标题"
+            "混入 NEL 的串不是纯空白，应为有效标题"
         )
     }
 
@@ -202,12 +201,30 @@ class GroupPkValidationPolicyFuzzTest {
     }
 
     @Test
-    fun `trim only strips chars at most space`() {
-        // Unicode spaces around 120 x's survive trim(): 122 chars, rejected.
-        val notTrimmed = listOf(
+    fun `kotlin trim strips unicode spaces but not NUL`() {
+        // Kotlin trim() 走 Char.isWhitespace，Unicode 空格同样会被剥掉，
+        // 因此 120 个 x 两侧包 Unicode 空格仍是 120 字，有效。
+        val trimmed = listOf(
             "\u2003" + "x".repeat(120) + "\u2003",
             "\u00A0" + "x".repeat(120),
             "\u3000" + "x".repeat(120) + "\u3000",
+            "\u2007" + "x".repeat(120),
+            "\u202F" + "x".repeat(120),
+            " " + "x".repeat(120) + " ",
+            "\t" + "x".repeat(120) + "\n",
+            "\u001C" + "x".repeat(120) + "\u001F"
+        )
+        for (title in trimmed) {
+            assertTrue(
+                GroupPkValidationPolicy.isValidTitle(title),
+                "可被 trim 的环绕字符不应计入长度：首码点=${title.first().code}"
+            )
+        }
+        // NUL/U+0001/U+0007 既不是空白也不会被 trim 剥掉：环绕时计入长度。
+        val notTrimmed = listOf(
+            "\u0000" + "x".repeat(120),
+            "\u0001" + "x".repeat(120),
+            "\u0007" + "x".repeat(120),
             "\u0085" + "x".repeat(120),
             "\u200B" + "x".repeat(120),
             "\uFEFF" + "x".repeat(120)
@@ -216,19 +233,6 @@ class GroupPkValidationPolicyFuzzTest {
             assertFalse(
                 GroupPkValidationPolicy.isValidTitle(title),
                 "未被 trim 的环绕字符应计入长度：首码点=${title.first().code}"
-            )
-        }
-        // ASCII whitespace and control chars <= ' ' do strip: exactly 120.
-        val trimmed = listOf(
-            " " + "x".repeat(120) + " ",
-            "\t" + "x".repeat(120) + "\n",
-            "\u0000" + "x".repeat(120),
-            "\u001C" + "x".repeat(120) + "\u001F"
-        )
-        for (title in trimmed) {
-            assertTrue(
-                GroupPkValidationPolicy.isValidTitle(title),
-                "可被 trim 的环绕字符不应计入长度：首码点=${title.first().code}"
             )
         }
     }
@@ -240,78 +244,80 @@ class GroupPkValidationPolicyFuzzTest {
         assertFalse(GroupPkValidationPolicy.isValidTitle("x".repeat(121)), "121 字无效")
         assertTrue(GroupPkValidationPolicy.isValidTitle(" " + "x".repeat(120)), "空格 + 120 字有效")
         assertFalse(GroupPkValidationPolicy.isValidTitle(" " + "x".repeat(121)), "空格 + 121 字无效")
+        // Unicode 空格会被 trim 剥掉，长度只看 x 的个数。
         assertTrue(
-            GroupPkValidationPolicy.isValidTitle("\u2003" + "x".repeat(118) + "\u2003"),
-            "EM SPACE + 118 字 + EM SPACE 恰 120 字，有效"
+            GroupPkValidationPolicy.isValidTitle("\u2003" + "x".repeat(120) + "\u2003"),
+            "EM SPACE + 120 字 + EM SPACE trim 后恰 120 字，有效"
         )
         assertFalse(
-            GroupPkValidationPolicy.isValidTitle("\u2003" + "x".repeat(119) + "\u2003"),
-            "EM SPACE + 119 字 + EM SPACE 共 121 字，无效"
+            GroupPkValidationPolicy.isValidTitle("\u2003" + "x".repeat(121) + "\u2003"),
+            "EM SPACE + 121 字 + EM SPACE trim 后 121 字，无效"
         )
-        assertTrue(GroupPkValidationPolicy.isValidTitle("\u00A0" + "x".repeat(119)), "NBSP + 119 字恰 120 字，有效")
-        assertFalse(GroupPkValidationPolicy.isValidTitle("\u00A0" + "x".repeat(120)), "NBSP + 120 字共 121 字，无效")
+        assertTrue(GroupPkValidationPolicy.isValidTitle("\u00A0" + "x".repeat(120)), "NBSP + 120 字 trim 后 120 字，有效")
+        assertFalse(GroupPkValidationPolicy.isValidTitle("\u00A0" + "x".repeat(121)), "NBSP + 121 字 trim 后 121 字，无效")
         assertTrue(GroupPkValidationPolicy.isValidTitle("\u0085" + "x".repeat(119)), "NEL + 119 字恰 120 字，有效")
-        assertTrue(GroupPkValidationPolicy.isValidTitle("\u202F" + "x".repeat(119)), "NNBSP + 119 字恰 120 字，有效")
-        assertTrue(GroupPkValidationPolicy.isValidTitle("\u2007" + "x".repeat(119)), "FIGURE SPACE + 119 字恰 120 字，有效")
+        assertFalse(GroupPkValidationPolicy.isValidTitle("\u0085" + "x".repeat(120)), "NEL 不 trim，+ 120 字共 121 字，无效")
+        assertTrue(GroupPkValidationPolicy.isValidTitle("\u202F" + "x".repeat(120)), "NNBSP + 120 字 trim 后 120 字，有效")
+        assertTrue(GroupPkValidationPolicy.isValidTitle("\u2007" + "x".repeat(120)), "FIGURE SPACE + 120 字 trim 后 120 字，有效")
     }
 
     @Test
-    fun `naive unicode-trim model disagrees`() {
-        // Naive trims Unicode whitespace, so it says "valid" where production
-        // counts the surviving spaces and rejects.
-        val naiveSaysValid = listOf(
+    fun `java-trim model disagrees with kotlin trim`() {
+        // java.lang.String.trim() 只剥 <= ' '，Kotlin trim() 还剥 Unicode 空格：
+        // 前者对「Unicode 空格 + 121 字」算 122 判无效，后者剥掉空格后 121 仍无效，
+        // 但「Unicode 空格 + 120 字」java-trim 模型算 121 判无效、生产判有效。
+        val javaTrimSaysInvalid = listOf(
             "\u2003" + "x".repeat(120) + "\u2003",
             "\u3000" + "x".repeat(120) + "\u3000",
-            "\u2003" + "x".repeat(119) + "\u2003"
+            "\u00A0" + "x".repeat(120)
         )
-        for (title in naiveSaysValid) {
-            assertTrue(naiveValid(title), "naive 模型应判有效：首码点=${title.first().code}")
-            assertFalse(
-                GroupPkValidationPolicy.isValidTitle(title),
-                "生产侧应判无效：首码点=${title.first().code}"
-            )
-        }
-        // Naive does not trim control chars, so it says "invalid" where
-        // production trims them to exactly 120 and accepts.
-        val naiveSaysInvalid = listOf(
-            "\u0000" + "x".repeat(120),
-            "\u0001" + "x".repeat(120)
-        )
-        for (title in naiveSaysInvalid) {
-            assertFalse(naiveValid(title), "naive 模型应判无效：首码点=${title.first().code}")
+        for (title in javaTrimSaysInvalid) {
+            assertFalse(javaTrimValid(title), "java-trim 模型应判无效：首码点=${title.first().code}")
             assertTrue(
                 GroupPkValidationPolicy.isValidTitle(title),
                 "生产侧应判有效：首码点=${title.first().code}"
             )
         }
+        // NUL 不是 Kotlin 空白，不会被 trim；java-trim 会剥掉，于是两者相反。
+        val nulPrefixed = listOf(
+            "\u0000" + "x".repeat(120),
+            "\u0001" + "x".repeat(120)
+        )
+        for (title in nulPrefixed) {
+            assertTrue(javaTrimValid(title), "java-trim 模型应判有效：首码点=${title.first().code}")
+            assertFalse(
+                GroupPkValidationPolicy.isValidTitle(title),
+                "生产侧应判无效：首码点=${title.first().code}"
+            )
+        }
     }
 
     @Test
-    fun `control chars below space trim but are not blank`() {
+    fun `non-whitespace controls neither trim nor blank`() {
         val validSingles = listOf("\u0000", "\u0001", "\u0007")
         for (title in validSingles) {
             assertTrue(
                 GroupPkValidationPolicy.isValidTitle(title),
-                "单个 <= ' ' 的控制字符不是空白、且 trim 后长度为 0，应有效：码点=${title.map { it.code }}"
+                "单个非空白控制字符不是空白、长度 1，应有效：码点=${title.map { it.code }}"
             )
         }
-        assertTrue(GroupPkValidationPolicy.isValidTitle("\u0001" + "x".repeat(120)), "控制字符 + 120 字有效")
-        assertFalse(GroupPkValidationPolicy.isValidTitle("\u0001" + "x".repeat(121)), "控制字符 + 121 字无效")
+        assertTrue(GroupPkValidationPolicy.isValidTitle("\u0001" + "x".repeat(119)), "控制字符 + 119 字恰 120 字，有效")
+        assertFalse(GroupPkValidationPolicy.isValidTitle("\u0001" + "x".repeat(120)), "控制字符不 trim，+ 120 字共 121 字，无效")
     }
 
     @Test
     fun `both-sides pairs with quirk chars`() {
         assertTrue(GroupPkValidationPolicy.isValidTitles("a", "b"), "两侧普通标题有效")
         assertFalse(GroupPkValidationPolicy.isValidTitles("\u2003", "b"), "左侧纯 EM SPACE 无效")
-        assertTrue(GroupPkValidationPolicy.isValidTitles("a", "\u00A0"), "右侧单个 NBSP 有效")
+        assertFalse(GroupPkValidationPolicy.isValidTitles("a", "\u00A0"), "右侧单个 NBSP 是空白，无效")
         assertTrue(GroupPkValidationPolicy.isValidTitles("\u200B", "\uFEFF"), "两侧零宽字符均有效")
-        assertFalse(
+        assertTrue(
             GroupPkValidationPolicy.isValidTitles("x".repeat(120), "\u2003" + "x".repeat(120)),
-            "右侧 EM SPACE + 120 字共 121 字，无效"
+            "右侧 EM SPACE + 120 字 trim 后 120 字，有效"
         )
         assertTrue(
             GroupPkValidationPolicy.isValidTitles("\u2003" + "x".repeat(118) + "\u2003", "x"),
-            "左侧恰 120 字，右侧普通标题，有效"
+            "左侧 EM SPACE + 118 字 trim 后 118 字，有效"
         )
         assertFalse(GroupPkValidationPolicy.isValidTitles("", "a"), "左侧空串无效")
         assertFalse(GroupPkValidationPolicy.isValidTitles("x".repeat(121), "a"), "左侧 121 字无效")

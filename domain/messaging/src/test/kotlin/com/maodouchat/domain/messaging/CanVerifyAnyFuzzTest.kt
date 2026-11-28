@@ -394,8 +394,9 @@ private fun substringBeforeOracle(s: String, delim: Char): String {
 // never counts, a VERIFIED device never counts.
 private fun canVerifyAnyOracle(states: List<DeviceSafetyState>): Boolean =
     states.any { state ->
-        state.safetyCode != null &&
-            !isBlankOracle(state.safetyCode) &&
+        val code = state.safetyCode
+        code != null &&
+            !isBlankOracle(code) &&
             state.trustState != IdentityTrustState.VERIFIED
     }
 

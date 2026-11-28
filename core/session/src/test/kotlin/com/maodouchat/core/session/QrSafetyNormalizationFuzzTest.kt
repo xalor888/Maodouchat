@@ -11,8 +11,8 @@ import kotlin.test.assertEquals
 // typed by sight were wrong before (U+1F9B mapped as U+1FBC, U+1FC8 as
 // U+1F74, U+0391/U+039F/fullwidth B-Z/0-9 missing). Letter/digit is
 // Kotlin Char.isLetterOrDigit per UTF-16 unit; astral chars arrive as
-// two surrogates and are dropped. U+2C2F is NOT a letter in this
-// Kotlin/JDK (Python disagrees); it is excluded. Final sigma follows
+// two surrogates and are dropped. U+2C2F / U+2C5F are letters in this
+// Kotlin/JDK 21 (Unicode 16) and lowercase to each other. Final sigma follows
 // Java/Kotlin lowercase(): scan past case-ignorable chars (all digits
 // plus U+00AA/U+00BA/U+01BB/U+01C0-U+01C3, SigmaProbe189) -- the old
 // immediate-neighbour model was wrong (drive run1: 42 mismatches).
@@ -46,6 +46,7 @@ private fun isLetterOrDigit189(c: Char): Boolean =
     c in '\u1ff2'..'\u1ff4' ||
     c in '\u1ff6'..'\u1ffc' ||
     c in '\u212a'..'\u212b' ||
+    c in '\u2c2f'..'\u2c5f' ||
     c in '\ua64a'..'\ua64b' ||
     c in '\ufb00'..'\ufb06' ||
     c in '\uff10'..'\uff19' ||
@@ -83,6 +84,7 @@ private fun isCased189(c: Char): Boolean =
     c in '\u1ff2'..'\u1ff4' ||
     c in '\u1ff6'..'\u1ffc' ||
     c in '\u212a'..'\u212b' ||
+    c in '\u2c2f'..'\u2c5f' ||
     c in '\ua64a'..'\ua64b' ||
     c in '\ufb00'..'\ufb06' ||
     c in '\uff21'..'\uff3a' ||
@@ -351,6 +353,7 @@ private fun lowerUnit189(c: Char): String = when (c) {
     '\u1ffc' -> "\u1ff3"
     '\u212a' -> "\u006b"
     '\u212b' -> "\u00e5"
+    '\u2c2f' -> "\u2c5f"
     '\ua64a' -> "\ua64b"
     else -> c.toString()
 }
@@ -557,7 +560,7 @@ class QrSafetyNormalizationFuzzTest {
             Triple("A\u0307", "a", ""),
             Triple("12 34", "1234", "1234"),
             Triple("AB-12-CD", "ab12cd", "12"),
-            Triple("\u2c2f", "", ""),
+            Triple("\u2c2f", "\u2c5f", ""),
             Triple("\u1f9b", "\u1f93", ""),
             Triple("\u1fc8", "\u1f72", ""),
             Triple("\u212b", "\u00e5", ""),

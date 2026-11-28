@@ -1,6 +1,5 @@
 package com.maodouchat.domain.calls
 
-import kotlin.enums.enumValueOf
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -8,21 +8,26 @@ import kotlin.test.assertTrue
 
 /**
  * Fuzz / random-oracle tests for [GroupChainValidationPolicy] (checklist line 931, 32nd block).
- * Test-only, zero production changes. The oracle below re-implements trim over
- * UTF-16 code units by hand; a Python mini-model differentially checks the
- * oracle transcription against an independent production transcription.
- * Note the two different blank notions: isNotBlank uses Java Character.isWhitespace
- * (NBSP U+00A0 and NEL U+0085 are NOT whitespace), while trim() only strips
- * chars <= U+0020 (em space U+2003 is NOT stripped).
+ * Test-only, zero production changes. The oracle below re-implements Kotlin's
+ * Char.isWhitespace (Java whitespace OR space chars) over UTF-16 code units by
+ * hand. NBSP U+00A0, U+2007, U+202F and the Zs spaces ARE blank/trimmed; NEL
+ * U+0085, U+200B and U+FEFF are not.
  */
 class GroupChainValidationPolicyFuzzTest {
 
-    // Manual trim: drop leading/trailing chars with code <= ' ' (Kotlin trim semantics).
+    // Kotlin Char.isWhitespace == Character.isWhitespace || Character.isSpaceChar.
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
+    // Manual trim matching Kotlin String.trim().
     private fun oracleTrim(s: String): String {
         var start = 0
-        while (start < s.length && s[start] <= ' ') start++
+        while (start < s.length && isKotlinWhitespace(s[start])) start++
         var end = s.length
-        while (end > start && s[end - 1] <= ' ') end--
+        while (end > start && isKotlinWhitespace(s[end - 1])) end--
         return s.substring(start, end)
     }
 
@@ -112,21 +117,22 @@ class GroupChainValidationPolicyFuzzTest {
 
     @Test
     fun whitespaceAndUtf16BoundaryPins() {
-        // NBSP is not Java whitespace and is not trimmed: a NBSP-only title is valid.
-        assertTrue(GroupChainValidationPolicy.isValidTitle("\u00A0"))
-        // NEL is not Java whitespace either (verified against the JDK): valid as well.
+        // NBSP is a Kotlin space char, so a NBSP-only title is blank.
+        assertFalse(GroupChainValidationPolicy.isValidTitle("\u00A0"))
+        // NEL is not Kotlin whitespace: a NEL-only title is valid.
         assertTrue(GroupChainValidationPolicy.isValidTitle("\u0085"))
-        // Em space IS Java whitespace, so an em-space-only title is blank.
+        // Em space IS Kotlin whitespace, so an em-space-only title is blank.
         assertFalse(GroupChainValidationPolicy.isValidTitle("\u2003"))
         assertFalse(GroupChainValidationPolicy.isValidTitle("   "))
         assertFalse(GroupChainValidationPolicy.isValidTitle(""))
-        // Trailing NBSP is not trimmed, so it counts toward the 200 cap.
+        // Trailing NBSP is trimmed before counting.
         assertTrue(GroupChainValidationPolicy.isValidTitle("x".repeat(199) + "\u00A0"))
-        assertFalse(GroupChainValidationPolicy.isValidTitle("x".repeat(200) + "\u00A0"))
+        assertTrue(GroupChainValidationPolicy.isValidTitle("x".repeat(200) + "\u00A0"))
+        assertFalse(GroupChainValidationPolicy.isValidTitle("x".repeat(201) + "\u00A0"))
         // Plain spaces are trimmed before counting.
         assertTrue(GroupChainValidationPolicy.isValidTitle("  " + "x".repeat(200) + "  "))
         assertFalse(GroupChainValidationPolicy.isValidTitle("  " + "x".repeat(201) + "  "))
-        // Em space is not trimmed either: it counts, but a letter keeps it non-blank.
+        // Em space is trimmed, but the letter keeps the content non-blank.
         assertTrue(GroupChainValidationPolicy.isValidEntryContent("\u2003x\u2003"))
         // Topic length counts UTF-16 code units: one emoji is two units.
         assertTrue(GroupChainValidationPolicy.isValidTopic("\uD83D\uDE00".repeat(250)))

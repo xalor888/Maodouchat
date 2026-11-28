@@ -175,7 +175,8 @@ class CallDataModelsFuzzTest {
             assertEquals(null, participant.avatar)
             assertEquals(GroupPeerConnectionState.CONNECTING, participant.connectionState)
             assertEquals(false, participant.videoAvailable)
-            val named = participant.copy(name = randomString())
+            // randomString() 可能是空串；copy 后的 name 必须与默认值（= userId）不同。
+            val named = participant.copy(name = if (userId.isEmpty()) "x" else "x$userId")
             assertNotEquals(participant, named)
         }
     }

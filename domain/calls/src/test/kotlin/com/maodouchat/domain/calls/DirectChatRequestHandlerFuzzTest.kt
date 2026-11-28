@@ -118,7 +118,7 @@ class DirectChatRequestHandlerFuzzTest {
                 warnings += message to cause
             }
             assertEquals(Outcome.Failed(error.message), handler.handle(request))
-            assertEquals(listOf("createChat failed" to error), warnings)
+            assertEquals(listOf<Pair<String, Throwable?>>("createChat failed" to error), warnings)
         }
     }
 

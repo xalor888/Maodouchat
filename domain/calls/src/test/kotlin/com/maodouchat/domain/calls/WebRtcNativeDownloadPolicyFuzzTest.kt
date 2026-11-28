@@ -179,8 +179,9 @@ class WebRtcNativeDownloadPolicyFuzzTest {
         assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf()))
         // 大小写敏感：全大写既不在 hosted 集里，也不是 arm64 前缀。
         assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("ARM64-V8A")))
-        assertEquals("x86_64", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("arm64-v8a", "x86_64")))
-        assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("x86_64", "arm64-v8a")))
+        // 按输入顺序取第一个 hosted ABI，不偏好 x86_64。
+        assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("arm64-v8a", "x86_64")))
+        assertEquals("x86_64", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("x86_64", "arm64-v8a")))
         assertEquals("arm64-custom", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("mips", "arm64-custom")))
         assertEquals("arm64-v8a", WebRtcNativeDownloadPolicy.requestAbi(arrayOf("armeabi-v7a")))
     }

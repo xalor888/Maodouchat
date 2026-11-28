@@ -113,7 +113,8 @@ class GroupPlayJsonFuzzTest {
                 2 -> JsonPrimitive("str_${random.nextInt(1000)}")
                 else -> JsonNull
             }
-            assertFailsWith<IllegalStateException>("fuzz 迭代 #$i：原始值必须大声失败：$element") {
+            // jsonObject on a non-object throws IllegalArgumentException.
+            assertFailsWith<IllegalArgumentException>("fuzz 迭代 #$i：原始值必须大声失败：$element") {
                 GroupPlayJson.array(element.toString())
             }
         }

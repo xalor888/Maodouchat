@@ -345,14 +345,8 @@ internal fun buildErrB151(e: ErrB151): Throwable {
     }
 }
 
-// Test-only stand-ins with the exact simple names production matches
-// on (it only reads javaClass.simpleName, never the type). Private to
-// this file, so they cannot collide with the real Signal classes.
-private class NoSessionException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
-private class UntrustedIdentityException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
-private class InvalidKeyIdException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
-private class InvalidKeyException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
-private class StaleKeyException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
+// Test-only stand-ins with the exact simple names production matches on live in
+// SignalExceptionStandIns.kt (shared across fuzz cases).
 private class SessionException(message: String?, cause: Throwable?) : RuntimeException(message, cause)
 private class NoSessionError(message: String?, cause: Throwable?) : RuntimeException(message, cause)
 private class InvalidKey(message: String?, cause: Throwable?) : RuntimeException(message, cause)

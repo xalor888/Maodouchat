@@ -325,9 +325,11 @@ private fun randomInt(rnd: Random): Int = when (rnd.nextInt(8)) {
         assertEquals("\ud801\udc00", AccountDeviceFingerprintPolicy.shortFingerprint("\ud801\udc28"))
         assertEquals("\u13a0", AccountDeviceFingerprintPolicy.shortFingerprint("\uab70"))
         assertEquals("\ud801\udcb0", AccountDeviceFingerprintPolicy.shortFingerprint("\ud801\udcb0"))
-        assertEquals("\u2c5f", AccountDeviceFingerprintPolicy.shortFingerprint("\u2c5f"))
-        assertEquals("\ua7c1", AccountDeviceFingerprintPolicy.shortFingerprint("\ua7c1"))
-        assertEquals("\ud801\udd97", AccountDeviceFingerprintPolicy.shortFingerprint("\ud801\udd97"))
+        // uppercase(Locale.US) 走 JDK 21 的 Unicode 16 大小写表：
+        // U+2C5F -> U+2C2F，U+A7C1 -> U+A7C0，U+10597 -> U+10570。
+        assertEquals("\u2c2f", AccountDeviceFingerprintPolicy.shortFingerprint("\u2c5f"))
+        assertEquals("\ua7c0", AccountDeviceFingerprintPolicy.shortFingerprint("\ua7c1"))
+        assertEquals("\ud801\udd70", AccountDeviceFingerprintPolicy.shortFingerprint("\ud801\udd97"))
         assertEquals("\ud800", AccountDeviceFingerprintPolicy.shortFingerprint("\ud800"))
         assertEquals("A\ud800", AccountDeviceFingerprintPolicy.shortFingerprint("a\ud800"))
         assertEquals("\ud800\udc00", AccountDeviceFingerprintPolicy.shortFingerprint("\ud800\udc00"))

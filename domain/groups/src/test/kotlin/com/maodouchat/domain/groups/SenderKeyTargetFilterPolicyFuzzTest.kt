@@ -120,11 +120,12 @@ internal fun senderJsonEscape159(s: String): String {
 
 internal fun senderTargetJson159(target: SenderKeyDistributionTargetDto): String {
     val sb = StringBuilder()
+    val error = target.error
     sb.append("{\"userId\":\"").append(senderJsonEscape159(target.userId)).append("\"")
     sb.append(",\"deviceId\":").append(target.deviceId)
     sb.append(",\"status\":\"").append(senderJsonEscape159(target.status)).append("\"")
-    if (target.error != null) {
-        sb.append(",\"error\":\"").append(senderJsonEscape159(target.error)).append("\"")
+    if (error != null) {
+        sb.append(",\"error\":\"").append(senderJsonEscape159(error)).append("\"")
     }
     sb.append(",\"updatedAt\":").append(target.updatedAt)
     sb.append("}")

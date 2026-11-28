@@ -60,10 +60,13 @@ class CallAudioRoutePolicyFuzzTest {
             val available = randomAvailable()
             val speakerPreferred = random.nextBoolean()
             val manualRoute = randomManualRoute()
-            val head = CallAudioRoutePolicy.candidates(available, speakerPreferred, manualRoute).first()
-            assertEquals(head, CallAudioRoutePolicy.preferred(available, speakerPreferred))
+            val autoHead = CallAudioRoutePolicy.candidates(available, speakerPreferred, null).first()
+            val manualHead =
+                CallAudioRoutePolicy.candidates(available, speakerPreferred, manualRoute).first()
+            // preferred 不带手动路由，selected 才吃 manualRoute。
+            assertEquals(autoHead, CallAudioRoutePolicy.preferred(available, speakerPreferred))
             assertEquals(
-                head,
+                manualHead,
                 CallAudioRoutePolicy.selected(available, speakerPreferred, manualRoute),
             )
         }

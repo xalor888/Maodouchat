@@ -101,15 +101,10 @@ class PasswordStrengthFuzzTest {
             ),
             PasswordStrength.evaluate("aaaaaaaa\u00B2")
         )
-        // NBSP 不是 Java 空白：单个 NBSP 不走 blank 分支，自身算特殊字符。
+        // NBSP 的通用类别是 Zs：Character.isWhitespace 为假，但 Kotlin 的
+        // Char.isWhitespace 额外包含 isSpaceChar，因此单个 NBSP 走 blank 分支。
         assertEquals(
-            PasswordStrengthResult(
-                1, Level.WEAK,
-                listOf(
-                    Suggestion.USE_MINIMUM_LENGTH, Suggestion.ADD_DIGIT,
-                    Suggestion.ADD_LOWERCASE, Suggestion.ADD_UPPERCASE
-                )
-            ),
+            PasswordStrengthResult(0, Level.WEAK, listOf(Suggestion.ENTER_PASSWORD)),
             PasswordStrength.evaluate("\u00A0")
         )
         // 4 个 emoji 按 UTF-16 计长度 8；代理项不算字母数字，故算特殊字符。
@@ -163,7 +158,7 @@ class PasswordStrengthFuzzTest {
     fun blankInputsAlwaysWeakWithEnterHint() {
         val blanks = listOf(
             "", " ", "  \t\n\r", "\u000B\u000C", "\u001C\u001D",
-            "\u0085", "\u2003\u2007", "\u3000"
+            "\u2003\u2007", "\u3000"
         )
         for (blank in blanks) {
             assertEquals(

@@ -215,7 +215,7 @@ class MessageVersionMergeFuzzTest {
             val (existing, incoming) = randomPair(r)
             val out = mergeMessageVersions(existing, incoming)
             val keys = out.map { it.timestamp to it.id }
-            assertEquals(keys.sorted(), keys)
+            assertEquals(keys.sortedWith(compareBy({ it.first }, { it.second })), keys)
             assertEquals(out.map { it.id }.toSet().size, out.size)
         }
     }
@@ -242,6 +242,8 @@ class MessageVersionMergeFuzzTest {
             val out = mergeMessageVersions(existing, incoming)
             for (m in out) {
                 val versions = (existing + incoming).filter { it.id == m.id }
+                // 撤回是终态：REVOKED 版本连内容一起覆盖，即使别的版本可读也不保留。
+                if (versions.any { it.type == MessageType.REVOKED }) continue
                 if (versions.any { contentClass(it.content) == READABLE }) {
                     assertEquals(READABLE, contentClass(m.content))
                 }

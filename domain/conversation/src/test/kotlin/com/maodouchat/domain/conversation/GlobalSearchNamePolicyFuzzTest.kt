@@ -160,8 +160,8 @@ class GlobalSearchNamePolicyFuzzTest {
         // Blank group name falls back to the group label; null does too.
         assertEquals("群聊", GlobalSearchNamePolicy.chatName(Chat(id = "g1", isGroup = true, groupName = "  "), "未知", "群聊"))
         assertEquals("群聊", GlobalSearchNamePolicy.chatName(Chat(id = "g1", isGroup = true, groupName = null), "未知", "群聊"))
-        // NBSP is not blank, so it counts as a group name.
-        assertEquals("\u00A0", GlobalSearchNamePolicy.chatName(Chat(id = "g1", isGroup = true, groupName = "\u00A0"), "未知", "群聊"))
+        // NBSP is Kotlin whitespace, so it falls back to the group label.
+        assertEquals("群聊", GlobalSearchNamePolicy.chatName(Chat(id = "g1", isGroup = true, groupName = "\u00A0"), "未知", "群聊"))
         // Direct chat takes the first participant; a fully blank display name falls back.
         assertEquals("Alice", GlobalSearchNamePolicy.chatName(Chat(id = "d1", participants = listOf(user("u1", "Alice", null), user("u2", "Bob", null))), "未知", "群聊"))
         assertEquals("未知", GlobalSearchNamePolicy.chatName(Chat(id = "d1", participants = listOf(user("", " ", null))), "未知", "群聊"))

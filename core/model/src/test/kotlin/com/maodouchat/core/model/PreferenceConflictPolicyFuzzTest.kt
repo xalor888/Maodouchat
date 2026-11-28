@@ -300,7 +300,7 @@ class PreferenceConflictPolicyFuzzTest {
                 } else {
                     remoteValue
                 }
-                assertEquals(expected, prefsField(merged.mergedPreferences, i), "field ${fieldNames[i]}")
+                assertEquals("field ${fieldNames[i]}", expected, prefsField(merged.mergedPreferences, i))
             }
             assertEquals(expectedConflicts, merged.conflictFields)
         }
@@ -308,18 +308,18 @@ class PreferenceConflictPolicyFuzzTest {
 
     @Test
     fun `revision boundaries pin max-plus-one behavior`() {
-        val local = MultiDevicePreferences(ownerUserId = "u1", revision = Long.MAX_VALUE - 1)
-        val remote = MultiDevicePreferences(ownerUserId = "u1", revision = Long.MAX_VALUE)
+        val local = MultiDevicePreferences(ownerUserId = "u1", revision = Long.MAX_VALUE - 2)
+        val remote = MultiDevicePreferences(ownerUserId = "u1", revision = Long.MAX_VALUE - 1)
         val patch = PreferencesPatch(themeMode = "dark")
         val merged = PreferenceConflictPolicy.resolve("u1", local, remote, patch, 5000L)
         assertTrue(merged is ConflictResolutionResult.Merged)
         // max + 1 without overflow: Long.MAX_VALUE.
         assertEquals(Long.MAX_VALUE, (merged as ConflictResolutionResult.Merged).mergedPreferences.revision)
-        // Both at Long.MAX_VALUE: max + 1 wraps (current behavior, pinned, not fixed here).
+        // max == Long.MAX_VALUE: max + 1 wraps to Long.MIN_VALUE (current behavior, pinned).
         val wrapped = PreferenceConflictPolicy.resolve(
             "u1",
-            local.copy(revision = Long.MAX_VALUE),
-            remote,
+            local.copy(revision = Long.MAX_VALUE - 1),
+            remote.copy(revision = Long.MAX_VALUE),
             patch,
             5000L
         )

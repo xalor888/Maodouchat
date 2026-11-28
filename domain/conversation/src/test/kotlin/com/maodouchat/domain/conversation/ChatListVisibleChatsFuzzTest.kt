@@ -253,7 +253,8 @@ internal fun visibleCaseWireJson156(case: VisibleCase156): String {
             sb.append("{\"id\":").append(esc(u.id))
             sb.append(",\"n\":").append(esc(u.name))
             sb.append(",\"em\":").append(esc(u.email))
-            if (u.nickname != null) sb.append(",\"nn\":").append(esc(u.nickname))
+            val nickname = u.nickname
+            if (nickname != null) sb.append(",\"nn\":").append(esc(nickname))
             sb.append("}")
         }
         sb.append("]")
@@ -262,7 +263,8 @@ internal fun visibleCaseWireJson156(case: VisibleCase156): String {
         sb.append(",\"uc\":").append(chat.unreadCount)
         sb.append(",\"ig\":").append(if (chat.isGroup) 1 else 0)
         sb.append(",\"ct\":").append(esc(chat.chatType))
-        if (chat.groupName != null) sb.append(",\"gn\":").append(esc(chat.groupName))
+        val groupName = chat.groupName
+        if (groupName != null) sb.append(",\"gn\":").append(esc(groupName))
         sb.append(",\"pin\":").append(chat.pinnedAt)
         sb.append(",\"mut\":").append(if (chat.notificationsMuted) 1 else 0)
         sb.append(",\"arc\":").append(if (chat.archived) 1 else 0)

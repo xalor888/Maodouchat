@@ -798,6 +798,10 @@ private fun longOrNullOracle(content: String): Long? {
         if (s[i] != '"') return null
         i++
     }
+    // Trailing ASCII JSON whitespace is allowed; anything else means the
+    // literal is not a clean number ("12 34", "12,34", "1e 3" all fail).
+    while (i < s.length && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) i++
+    if (i != s.length) return null
     if (hasExp) {
         val value = result.toDouble() * calculateExponentOracle(exp, expPositive)
         if (value > 9.223372036854776E18 || value < -9.223372036854776E18) return null
@@ -1038,7 +1042,8 @@ private fun genAnnRaw117(rnd: Random, poolOnly: Boolean): String =
             val raw = genAnnRaw117(rnd, poolOnly = true)
             assertEquals(
                 parseAndFilterActivePayloadOracle(raw, now),
-                AnnouncementPolicy.parseAndFilterActivePayload(raw, now)
+                AnnouncementPolicy.parseAndFilterActivePayload(raw, now),
+                "raw=<$raw> now=$now"
             )
         }
     }

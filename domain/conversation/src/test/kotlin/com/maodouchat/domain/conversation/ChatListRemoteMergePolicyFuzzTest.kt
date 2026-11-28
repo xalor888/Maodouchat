@@ -4,7 +4,6 @@ import com.maodouchat.core.model.Chat
 import com.maodouchat.core.model.ChatDto
 import com.maodouchat.core.model.MessageType
 import com.maodouchat.core.model.UserDto
-import kotlin.math.maxOf
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals

@@ -150,10 +150,11 @@ internal fun friendJsonEscape157(s: String): String {
 
 internal fun friendUserJson157(user: User): String {
     val sb = StringBuilder()
+    val nickname = user.nickname
     sb.append("{\"id\":\"").append(friendJsonEscape157(user.id)).append("\"")
     sb.append(",\"name\":\"").append(friendJsonEscape157(user.name)).append("\"")
-    if (user.nickname != null) {
-        sb.append(",\"nick\":\"").append(friendJsonEscape157(user.nickname)).append("\"")
+    if (nickname != null) {
+        sb.append(",\"nick\":\"").append(friendJsonEscape157(nickname)).append("\"")
     }
     sb.append("}")
     return sb.toString()

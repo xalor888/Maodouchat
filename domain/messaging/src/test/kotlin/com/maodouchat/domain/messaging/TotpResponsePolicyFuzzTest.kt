@@ -13,13 +13,13 @@ import kotlin.test.assertEquals
 
 private class Json141Error : Exception()
 
-private sealed interface JVal
-private data class JStr(val s: String) : JVal
-private data class JNum(val text: String, val jsonText: String) : JVal
-private data class JBool(val b: Boolean) : JVal
-private object JNull : JVal
-private class JObj(val map: LinkedHashMap<String, JVal>) : JVal
-private class JArr(val list: ArrayList<JVal>) : JVal
+private sealed interface TotpJVal
+private data class TotpJStr(val s: String) : TotpJVal
+private data class TotpJNum(val text: String, val jsonText: String) : TotpJVal
+private data class TotpJBool(val b: Boolean) : TotpJVal
+private object TotpJNull : TotpJVal
+private class TotpJObj(val map: LinkedHashMap<String, TotpJVal>) : TotpJVal
+private class TotpJArr(val list: ArrayList<TotpJVal>) : TotpJVal
 
 private class Json141Parser(private val s: String) {
     private var i = 0
@@ -29,7 +29,7 @@ private class Json141Parser(private val s: String) {
     // "must end with '}'" while the flag is still set.
     private var eof = false
 
-    fun parseTopObject(): JObj {
+    fun parseTopObject(): TotpJObj {
         skipWs()
         if (i >= s.length || s[i] != '{') throw Json141Error()
         val v = parseObject()
@@ -41,12 +41,12 @@ private class Json141Parser(private val s: String) {
         while (i < s.length && s[i].code in 1..0x20) i++
     }
 
-    private fun parseValue(): JVal {
+    private fun parseValue(): TotpJVal {
         skipWs()
         if (i >= s.length) throw Json141Error()
         val c = s[i]
         return when {
-            c == '"' || c == '\'' -> JStr(parseString(c))
+            c == '"' || c == '\'' -> TotpJStr(parseString(c))
             c == '{' -> parseObject()
             c == '[' -> parseArray()
             c == '}' || c == ']' || c == ',' || c == ':' || c.code == 0 -> throw Json141Error()
@@ -126,13 +126,13 @@ private class Json141Parser(private val s: String) {
         return word
     }
 
-    private fun parseObject(): JObj {
+    private fun parseObject(): TotpJObj {
         i++
-        val map = LinkedHashMap<String, JVal>()
+        val map = LinkedHashMap<String, TotpJVal>()
         skipWs()
         if (i < s.length && s[i] == '}') {
             i++
-            return JObj(map)
+            return TotpJObj(map)
         }
         while (true) {
             skipWs()
@@ -159,44 +159,44 @@ private class Json141Parser(private val s: String) {
                     skipWs()
                     if (i < s.length && s[i] == '}') {
                         i++
-                        return JObj(map)
+                        return TotpJObj(map)
                     }
                     if (eof) throw Json141Error()
                     eof = false
                 }
                 '}' -> {
                     i++
-                    return JObj(map)
+                    return TotpJObj(map)
                 }
                 else -> throw Json141Error()
             }
         }
     }
 
-    private fun parseArray(): JArr {
+    private fun parseArray(): TotpJArr {
         i++
-        val list = ArrayList<JVal>()
+        val list = ArrayList<TotpJVal>()
         skipWs()
         if (i < s.length && s[i] == ']') {
             i++
-            return JArr(list)
+            return TotpJArr(list)
         }
         while (true) {
             skipWs()
             if (i >= s.length) throw Json141Error()
             if (s[i] == ',') {
-                list.add(JNull)
+                list.add(TotpJNull)
                 i++
                 skipWs()
                 if (i < s.length && s[i] == ']') {
                     i++
-                    return JArr(list)
+                    return TotpJArr(list)
                 }
                 continue
             }
             if (s[i] == ']') {
                 i++
-                return JArr(list)
+                return TotpJArr(list)
             }
             eof = false
             list.add(parseValue())
@@ -209,7 +209,7 @@ private class Json141Parser(private val s: String) {
                 }
                 ']' -> {
                     i++
-                    return JArr(list)
+                    return TotpJArr(list)
                 }
                 else -> throw Json141Error()
             }
@@ -225,12 +225,12 @@ private fun trimJava(s: String): String {
     return s.substring(a, b)
 }
 
-private fun stringToValue(word: String): JVal {
-    if (word.equals("true", ignoreCase = true)) return JBool(true)
-    if (word.equals("false", ignoreCase = true)) return JBool(false)
-    if (word.equals("null", ignoreCase = true)) return JNull
+private fun stringToValue(word: String): TotpJVal {
+    if (word.equals("true", ignoreCase = true)) return TotpJBool(true)
+    if (word.equals("false", ignoreCase = true)) return TotpJBool(false)
+    if (word.equals("null", ignoreCase = true)) return TotpJNull
     if (word.isNotEmpty() && (word[0].isDigit() || word[0] == '-')) return numberOrString(word)
-    return JStr(word)
+    return TotpJStr(word)
 }
 
 private fun numberToString141(s: String): String {
@@ -238,38 +238,38 @@ private fun numberToString141(s: String): String {
     return s
 }
 
-private fun numberOrString(word: String): JVal {
-    if (word == "-0") return JNum("-0.0", "-0")
+private fun numberOrString(word: String): TotpJVal {
+    if (word == "-0") return TotpJNum("-0.0", "-0")
     if (word.any { it == '.' || it == 'e' || it == 'E' }) {
         return try {
             val bd = BigDecimal(word)
-            if (bd.signum() == 0 && word.startsWith('-')) JNum("-0.0", "-0")
-            else JNum(bd.toString(), numberToString141(bd.toString()))
+            if (bd.signum() == 0 && word.startsWith('-')) TotpJNum("-0.0", "-0")
+            else TotpJNum(bd.toString(), numberToString141(bd.toString()))
         } catch (e: NumberFormatException) {
-            JStr(word)
+            TotpJStr(word)
         }
     }
-    if (word.length > 1 && (word[0] == '0' || (word[0] == '-' && word[1] == '0'))) return JStr(word)
+    if (word.length > 1 && (word[0] == '0' || (word[0] == '-' && word[1] == '0'))) return TotpJStr(word)
     return try {
         val t = word.toLong().toString()
-        JNum(t, t)
+        TotpJNum(t, t)
     } catch (e: NumberFormatException) {
         try {
             val t = BigInteger(word).toString()
-            JNum(t, t)
+            TotpJNum(t, t)
         } catch (e2: NumberFormatException) {
-            JStr(word)
+            TotpJStr(word)
         }
     }
 }
 
-private fun jValToKeyString(v: JVal): String = when (v) {
-    is JStr -> v.s
-    is JNum -> v.text
-    is JBool -> if (v.b) "true" else "false"
-    JNull -> "null"
-    is JObj -> jToString(v)
-    is JArr -> jToString(v)
+private fun jValToKeyString(v: TotpJVal): String = when (v) {
+    is TotpJStr -> v.s
+    is TotpJNum -> v.text
+    is TotpJBool -> if (v.b) "true" else "false"
+    TotpJNull -> "null"
+    is TotpJObj -> jToString(v)
+    is TotpJArr -> jToString(v)
 }
 
 private fun jQuote(s: String): String {
@@ -295,7 +295,7 @@ private fun jQuote(s: String): String {
 
 // org.json JSONObject keeps entries in a java.util.HashMap: toString walks
 // bucket order (capacity 16, x0.75 resize), insertion order inside a bucket.
-private fun hashMapOrder141(entries: List<Pair<String, JVal>>): List<Pair<String, JVal>> {
+private fun hashMapOrder141(entries: List<Pair<String, TotpJVal>>): List<Pair<String, TotpJVal>> {
     var cap = 16
     while (entries.size > cap * 3 / 4) cap *= 2
     fun bucket(key: String): Int {
@@ -319,47 +319,47 @@ private fun hexEnc141(s: String): String {
     return sb.toString()
 }
 
-private fun jToString(v: JVal): String = when (v) {
-    is JStr -> jQuote(v.s)
-    is JNum -> v.jsonText
-    is JBool -> if (v.b) "true" else "false"
-    JNull -> "null"
-    is JObj -> "{" + hashMapOrder141(v.map.entries.map { it.key to it.value }).joinToString(",") { (k, x) -> jQuote(k) + ":" + jToString(x) } + "}"
-    is JArr -> "[" + v.list.joinToString(",") { jToString(it) } + "]"
+private fun jToString(v: TotpJVal): String = when (v) {
+    is TotpJStr -> jQuote(v.s)
+    is TotpJNum -> v.jsonText
+    is TotpJBool -> if (v.b) "true" else "false"
+    TotpJNull -> "null"
+    is TotpJObj -> "{" + hashMapOrder141(v.map.entries.map { it.key to it.value }).joinToString(",") { (k, x) -> jQuote(k) + ":" + jToString(x) } + "}"
+    is TotpJArr -> "[" + v.list.joinToString(",") { jToString(it) } + "]"
 }
 
-private fun jElemOptString(v: JVal): String = when (v) {
-    is JStr -> v.s
-    JNull -> ""
-    is JNum -> v.text
-    is JBool -> if (v.b) "true" else "false"
-    is JObj -> jToString(v)
-    is JArr -> jToString(v)
+private fun jElemOptString(v: TotpJVal): String = when (v) {
+    is TotpJStr -> v.s
+    TotpJNull -> ""
+    is TotpJNum -> v.text
+    is TotpJBool -> if (v.b) "true" else "false"
+    is TotpJObj -> jToString(v)
+    is TotpJArr -> jToString(v)
 }
 
-private fun jOptString(obj: JObj, key: String): String {
+private fun jOptString(obj: TotpJObj, key: String): String {
     val v = obj.map[key] ?: return ""
     return jElemOptString(v)
 }
 
-private fun jOptBoolean(obj: JObj, key: String, default: Boolean): Boolean {
+private fun jOptBoolean(obj: TotpJObj, key: String, default: Boolean): Boolean {
     val v = obj.map[key] ?: return default
-    if (v is JBool) return v.b
-    if (v is JStr) {
+    if (v is TotpJBool) return v.b
+    if (v is TotpJStr) {
         if (v.s.equals("true", ignoreCase = true)) return true
         if (v.s.equals("false", ignoreCase = true)) return false
     }
     return default
 }
 
-private fun jOptArray(obj: JObj, key: String): JArr? {
+private fun jOptArray(obj: TotpJObj, key: String): TotpJArr? {
     val v = obj.map[key] ?: return null
-    return v as? JArr
+    return v as? TotpJArr
 }
 
-private fun jGetString(arr: JArr, index: Int): String {
+private fun jGetString(arr: TotpJArr, index: Int): String {
     val v = arr.list[index]
-    if (v !is JStr) throw Json141Error()
+    if (v !is TotpJStr) throw Json141Error()
     return v.s
 }
 

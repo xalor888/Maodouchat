@@ -5,7 +5,7 @@ import com.maodouchat.server.repository.UserRepository
 import io.ktor.server.application.Application
 
 /** Stable admin registry; route groups are implemented in focused plugins. */
-fun Application.configureAdminRouting(
+internal fun Application.configureAdminRouting(
     userRepo: UserRepository,
     postRepo: PostRepository,
     services: RoutingServiceAssembly,

@@ -177,9 +177,9 @@ class ArchiveSuggestionScoringFuzzTest {
             ArchiveSuggestionScoring.Score(score = 5, idleDays = 14, recent30 = 28),
             ArchiveSuggestionScoring.score(chat(), (1..28).map { msg("m$it", 14) }, now),
         )
-        // 静置 21 天（+6）、近 30 天 0 条（+15）：21 分。
+        // 静置 21 天（+6）、近 30 天 1 条（+14）：20 分。
         assertEquals(
-            ArchiveSuggestionScoring.Score(score = 21, idleDays = 21, recent30 = 0),
+            ArchiveSuggestionScoring.Score(score = 20, idleDays = 21, recent30 = 1),
             ArchiveSuggestionScoring.score(chat(), listOf(msg("m1", 21)), now),
         )
         // 13 天内活跃、未来消息、空列表：一律 null。

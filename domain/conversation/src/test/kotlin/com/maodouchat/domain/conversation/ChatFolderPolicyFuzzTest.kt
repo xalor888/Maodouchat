@@ -52,14 +52,21 @@ class ChatFolderPolicyFuzzTest {
     private fun isAsciiWhitespace(ch: Char): Boolean =
         ch == ' ' || ch == '\t' || ch == '\n' || ch == '\u000B' || ch == '\u000C' || ch == '\r'
 
-    // normalizeName, reimplemented by hand: trim (chars <= ' '), collapse each run of
+    // Kotlin Char.isWhitespace == Character.isWhitespace || Character.isSpaceChar.
+    private fun isKotlinWhitespace(ch: Char): Boolean =
+        ch in '\u0009'..'\u000D' || ch == ' ' || ch in '\u001C'..'\u001F' ||
+            ch == '\u1680' || ch in '\u2000'..'\u200A' ||
+            ch == '\u2028' || ch == '\u2029' || ch == '\u205F' || ch == '\u3000' ||
+            ch == '\u00A0' || ch == '\u2007' || ch == '\u202F'
+
+    // normalizeName, reimplemented by hand: Kotlin trim, collapse each run of
     // ASCII whitespace to one space (Java \s is ASCII-only), take the first 48 chars.
     private fun oracleNormalizeName(raw: String?): String {
         val s = raw ?: ""
         var start = 0
         var end = s.length
-        while (start < end && s[start] <= ' ') start++
-        while (end > start && s[end - 1] <= ' ') end--
+        while (start < end && isKotlinWhitespace(s[start])) start++
+        while (end > start && isKotlinWhitespace(s[end - 1])) end--
         val out = StringBuilder()
         var i = start
         while (i < end) {
@@ -469,9 +476,9 @@ class ChatFolderPolicyFuzzTest {
         assertEquals(1, moved.count { "c1" in it.chatIds })
         assertTrue(ChatFolderPolicy.moveChatToFolder(withChats, "c1", null).none { "c1" in it.chatIds })
         assertEquals(withChats, ChatFolderPolicy.moveChatToFolder(withChats, "  ", "f2"))
-        // setChatInFolder adds once, removes only the first copy, ignores blanks.
+        // setChatInFolder never adds a duplicate, removes only the first copy, ignores blanks.
         val one = listOf(ChatFolder(id = "f1", name = "F1", chatIds = listOf("c1", "c1"), sortOrder = 0))
-        assertEquals(listOf("c1"), ChatFolderPolicy.setChatInFolder(one, "f1", "c1", true).first().chatIds)
+        assertEquals(listOf("c1", "c1"), ChatFolderPolicy.setChatInFolder(one, "f1", "c1", true).first().chatIds)
         assertEquals(listOf("c1"), ChatFolderPolicy.setChatInFolder(one, "f1", "c1", false).first().chatIds)
         assertEquals(one, ChatFolderPolicy.setChatInFolder(one, "f1", " ", true))
         // Lookups and unread sums.

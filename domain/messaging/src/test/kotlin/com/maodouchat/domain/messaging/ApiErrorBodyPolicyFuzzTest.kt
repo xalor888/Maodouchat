@@ -57,13 +57,13 @@ private fun randomText(rnd: Random, maxLen: Int): String {
 
 // ---------- oracle: mini JSON parser (kotlinx 1.6.2 lenient tokens) ----------
 
-private sealed interface JVal
-private data object JNull : JVal
-private data class JBool(val v: Boolean) : JVal
-private data class JNum(val lit: String) : JVal
-private data class JStr(val v: String) : JVal
-private data class JArr(val items: List<JVal>) : JVal
-private data class JObj(val entries: List<Pair<String, JVal>>) : JVal
+private sealed interface AebJVal
+private data object AebJNull : AebJVal
+private data class AebJBool(val v: Boolean) : AebJVal
+private data class AebJNum(val lit: String) : AebJVal
+private data class AebJStr(val v: String) : AebJVal
+private data class AebJArr(val items: List<AebJVal>) : AebJVal
+private data class AebJObj(val entries: List<Pair<String, AebJVal>>) : AebJVal
 
 private fun tokenClass(c: Char): Int = when (c) {
     '\t', '\n', '\r', ' ' -> 3
@@ -80,10 +80,10 @@ private fun tokenClass(c: Char): Int = when (c) {
 
 private fun asciiFold(c: Char): Char = if (c in 'A'..'Z') (c.code or 32).toChar() else c
 
-private class JsonParser(private val s: String) {
+private class AebJsonParser(private val s: String) {
     private var i = 0
 
-    fun parse(): JVal {
+    fun parse(): AebJVal {
         skipWs()
         val v = parseValue()
         skipWs()
@@ -95,36 +95,36 @@ private class JsonParser(private val s: String) {
         while (i < s.length && (s[i] == ' ' || s[i] == '\t' || s[i] == '\n' || s[i] == '\r')) i++
     }
 
-    private fun parseValue(): JVal {
+    private fun parseValue(): AebJVal {
         if (i >= s.length) error("eof")
         val c = s[i]
         return when (c) {
             '{' -> parseObj()
             '[' -> parseArr()
-            '"' -> JStr(parseString())
+            '"' -> AebJStr(parseString())
             'n' -> {
-                val tok = (parseNum() as JNum).lit
-                if (tok == "null") JNull else JNum(tok)
+                val tok = (parseNum() as AebJNum).lit
+                if (tok == "null") AebJNull else AebJNum(tok)
             }
             't', 'T', 'f', 'F' -> boolOrNum()
             else -> if (tokenClass(c) == 0) parseNum() else error("unexpected")
         }
     }
 
-    private fun boolOrNum(): JVal {
-        val tok = (parseNum() as JNum).lit
-        if (tok.length == 4 && tok.indices.all { asciiFold(tok[it]) == "true"[it] }) return JBool(true)
-        if (tok.length == 5 && tok.indices.all { asciiFold(tok[it]) == "false"[it] }) return JBool(false)
-        return JNum(tok)
+    private fun boolOrNum(): AebJVal {
+        val tok = (parseNum() as AebJNum).lit
+        if (tok.length == 4 && tok.indices.all { asciiFold(tok[it]) == "true"[it] }) return AebJBool(true)
+        if (tok.length == 5 && tok.indices.all { asciiFold(tok[it]) == "false"[it] }) return AebJBool(false)
+        return AebJNum(tok)
     }
 
-    private fun parseObj(): JVal {
+    private fun parseObj(): AebJVal {
         i++
         skipWs()
-        val entries = ArrayList<Pair<String, JVal>>()
+        val entries = ArrayList<Pair<String, AebJVal>>()
         if (i < s.length && s[i] == '}') {
             i++
-            return JObj(entries)
+            return AebJObj(entries)
         }
         while (true) {
             skipWs()
@@ -138,19 +138,19 @@ private class JsonParser(private val s: String) {
             skipWs()
             when {
                 i < s.length && s[i] == ',' -> { i++; continue }
-                i < s.length && s[i] == '}' -> { i++; return JObj(entries) }
+                i < s.length && s[i] == '}' -> { i++; return AebJObj(entries) }
                 else -> error("obj sep")
             }
         }
     }
 
-    private fun parseArr(): JVal {
+    private fun parseArr(): AebJVal {
         i++
         skipWs()
-        val items = ArrayList<JVal>()
+        val items = ArrayList<AebJVal>()
         if (i < s.length && s[i] == ']') {
             i++
-            return JArr(items)
+            return AebJArr(items)
         }
         while (true) {
             skipWs()
@@ -158,7 +158,7 @@ private class JsonParser(private val s: String) {
             skipWs()
             when {
                 i < s.length && s[i] == ',' -> { i++; continue }
-                i < s.length && s[i] == ']' -> { i++; return JArr(items) }
+                i < s.length && s[i] == ']' -> { i++; return AebJArr(items) }
                 else -> error("arr sep")
             }
         }
@@ -197,11 +197,11 @@ private class JsonParser(private val s: String) {
         }
     }
 
-    private fun parseNum(): JVal {
+    private fun parseNum(): AebJVal {
         val start = i
         while (i < s.length && tokenClass(s[i]) == 0) i++
         if (i == start) error("num")
-        return JNum(s.substring(start, i))
+        return AebJNum(s.substring(start, i))
     }
 }
 
@@ -271,31 +271,31 @@ private fun parseKotlinxLong(lit: String): Long? {
 
 private fun aebDecodeOracle(body: String): ErrorResponse? {
     val root = try {
-        JsonParser(body).parse()
+        AebJsonParser(body).parse()
     } catch (e: Exception) {
         return null
     }
-    val obj = root as? JObj ?: return null
+    val obj = root as? AebJObj ?: return null
     var error: String? = null
     var code: String? = null
     var retry: Long? = null
-    fun numLit(v: JVal): String? = when (v) {
-        is JNum -> v.lit
-        is JStr -> v.v
+    fun numLit(v: AebJVal): String? = when (v) {
+        is AebJNum -> v.lit
+        is AebJStr -> v.v
         else -> null
     }
     for ((key, v) in obj.entries) {
         when (key) {
             "error" -> {
-                if (v is JNull) return null
-                error = (v as? JStr)?.v ?: return null
+                if (v is AebJNull) return null
+                error = (v as? AebJStr)?.v ?: return null
             }
             "code" -> {
-                if (v is JNull) code = null
-                else code = (v as? JStr)?.v ?: return null
+                if (v is AebJNull) code = null
+                else code = (v as? AebJStr)?.v ?: return null
             }
             "retryAfterSeconds" -> {
-                if (v is JNull) retry = null
+                if (v is AebJNull) retry = null
                 else retry = parseKotlinxLong(numLit(v) ?: return null) ?: return null
             }
             else -> { /* unknown key: skipped */ }

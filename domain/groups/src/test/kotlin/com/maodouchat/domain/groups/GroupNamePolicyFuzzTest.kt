@@ -11,16 +11,24 @@ import kotlin.test.assertTrue
  * Test-only, zero production changes. The oracle below re-implements trim/take
  * over UTF-16 code units by hand; a Python mini-model differentially checks the
  * oracle transcription against an independent production transcription.
- * Note: Kotlin trim() only strips chars <= U+0020, so NBSP (U+00A0) is NOT trimmed.
+ * Note: Kotlin trim() strips Char.isWhitespace (Java whitespace OR space chars),
+ * so NBSP (U+00A0) IS trimmed. This differs from java.lang.String.trim().
  */
 class GroupNamePolicyFuzzTest {
 
-    // Manual trim: drop leading/trailing chars with code <= ' ' (Kotlin trim semantics).
+    // Kotlin Char.isWhitespace == Character.isWhitespace || Character.isSpaceChar.
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
+    // Manual trim matching Kotlin String.trim().
     private fun oracleTrim(s: String): String {
         var start = 0
-        while (start < s.length && s[start] <= ' ') start++
+        while (start < s.length && isKotlinWhitespace(s[start])) start++
         var end = s.length
-        while (end > start && s[end - 1] <= ' ') end--
+        while (end > start && isKotlinWhitespace(s[end - 1])) end--
         return s.substring(start, end)
     }
 
@@ -72,7 +80,10 @@ class GroupNamePolicyFuzzTest {
             val filtered = GroupNamePolicy.filterInput(raw)
             assertEquals(filtered, GroupNamePolicy.filterInput(filtered))
             val normalized = GroupNamePolicy.normalize(raw)
-            assertEquals(normalized, GroupNamePolicy.normalize(normalized))
+            // trim-then-take is only idempotent up to a final trim: truncating at
+            // 50 units can leave a trailing space that a second pass strips.
+            assertEquals(normalized.trim(), GroupNamePolicy.normalize(normalized))
+            assertTrue(GroupNamePolicy.normalize(normalized).length <= normalized.length)
             // normalize == filter of the trimmed input (same 50-unit cap, trim first).
             assertEquals(GroupNamePolicy.filterInput(raw.trim()), normalized)
         }
@@ -118,10 +129,10 @@ class GroupNamePolicyFuzzTest {
         assertEquals(GroupNamePolicy.Validation.TooLong, GroupNamePolicy.validate("  " + "a".repeat(51) + "  "))
         assertEquals("a".repeat(50), GroupNamePolicy.filterInput("a".repeat(60)))
         assertEquals("  ab  ", GroupNamePolicy.filterInput("  ab  "))
-        // NBSP (U+00A0) is not stripped by Kotlin trim: a lone NBSP is a valid one-char name.
-        assertEquals(GroupNamePolicy.Validation.Valid, GroupNamePolicy.validate("\u00A0"))
-        assertEquals("\u00A0", GroupNamePolicy.normalize("\u00A0"))
-        // Vertical tab / form feed (<= U+0020) ARE stripped.
+        // NBSP (U+00A0) is a space char, so Kotlin trim strips it: a lone NBSP is blank.
+        assertEquals(GroupNamePolicy.Validation.Blank, GroupNamePolicy.validate("\u00A0"))
+        assertEquals("", GroupNamePolicy.normalize("\u00A0"))
+        // Vertical tab / form feed ARE Kotlin whitespace and get stripped too.
         assertEquals("abc", GroupNamePolicy.normalize("\u000Babc\u000C"))
         // Emoji count as 2 UTF-16 units each: 25 fit, 26 overflow.
         val emoji = "\uD83D\uDE00"

@@ -117,7 +117,9 @@ class ServerUrlPolicyFuzzTest {
                 rawAuthority = afterSlashes.substring(0, end)
                 remainder = afterSlashes.substring(end)
             } else {
-                // Opaque URI: no authority and no path; validate only needs host == null.
+                // Opaque URI: no authority, but an illegal char in the opaque part still
+                // fails the java.net.URI parse -> INVALID (not SCHEME).
+                illegalComponentReason(rest, "opaque part")?.let { return MiniParse.Fail(it) }
                 return MiniParse.Ok(MiniUri(scheme, null, null, null, -1, null, null, null))
             }
         } else if (rest.startsWith("//")) {
@@ -127,7 +129,10 @@ class ServerUrlPolicyFuzzTest {
             rawAuthority = afterSlashes.substring(0, end)
             remainder = afterSlashes.substring(end)
         } else {
-            // No scheme and no authority: validate reports SCHEME before anything else.
+            // No scheme and no authority: a relative path still has to parse. A space or
+            // other illegal char fails the URI parse -> INVALID; a clean relative path
+            // parses with scheme == null -> SCHEME.
+            illegalComponentReason(rest, "path")?.let { return MiniParse.Fail(it) }
             return MiniParse.Ok(MiniUri(null, null, null, null, -1, null, null, null))
         }
         val authority = rawAuthority!!
@@ -224,6 +229,29 @@ class ServerUrlPolicyFuzzTest {
             }
         }
         return MiniParse.Ok(MiniUri(scheme, host, rawAuthority, userInfo, port, rawPath, query, fragment))
+    }
+
+    /** Returns a URI-parse failure reason when [text] has an illegal char or bad escape. */
+    private fun illegalComponentReason(text: String, component: String): String? {
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            if (c == '%') {
+                if (i + 2 >= text.length) return "Malformed escape pair"
+                if (text[i + 1].digitToIntOrNull(16) == null ||
+                    text[i + 2].digitToIntOrNull(16) == null
+                ) {
+                    return "Malformed escape pair"
+                }
+                i += 3
+            } else {
+                if (c in authorityIllegal || c.code < 0x20) {
+                    return "Illegal character in $component"
+                }
+                i++
+            }
+        }
+        return null
     }
 
     private fun oracleIsLocalOrPrivateHost(host: String): Boolean {

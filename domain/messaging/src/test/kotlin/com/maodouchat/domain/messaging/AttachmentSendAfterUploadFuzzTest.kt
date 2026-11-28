@@ -37,14 +37,6 @@ private fun decStr196b(h: String): String {
 
 private fun encOpt196b(s: String?): String = if (s == null) "NULL" else "S:" + encStr196b(s)
 
-// Signal 库异常名的本地替身：生产只读 simpleName（is 检查只认真正的
-// NoRecipientDevicesException，那一路用 nrd 链节走真类）。
-private class NoSessionException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
-private class UntrustedIdentityException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
-private class InvalidKeyIdException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
-private class InvalidKeyException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
-private class StaleKeyException(message: String? = null, cause: Throwable? = null) : Exception(message, cause)
-
 // 错误链规约：链节以 >> 相连；"null" 表示空错误。
 // api:KIND:status:retry:code:msg（status/retry/code/msg 里的 - 表示 null）；
 // io:Name:msg、gen:Name:msg、sig:Name:msg（msg 里的 - 表示 null）；nrd（真类，无消息）。

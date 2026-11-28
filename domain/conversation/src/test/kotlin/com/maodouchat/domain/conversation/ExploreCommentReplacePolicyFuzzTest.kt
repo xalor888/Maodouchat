@@ -133,8 +133,9 @@ internal fun commentJson160(c: PostCommentDto): String {
     sb.append(",\"content\":\"").append(commentJsonEscape160(c.content)).append("\"")
     sb.append(",\"createdAt\":").append(c.createdAt)
     sb.append(",\"isMine\":").append(if (c.isMine) "true" else "false")
-    if (c.parentId != null) {
-        sb.append(",\"parentId\":\"").append(commentJsonEscape160(c.parentId)).append("\"")
+    val parentId = c.parentId
+    if (parentId != null) {
+        sb.append(",\"parentId\":\"").append(commentJsonEscape160(parentId)).append("\"")
     }
     sb.append(",\"likeCount\":").append(c.likeCount)
     sb.append(",\"likedByMe\":").append(if (c.likedByMe) "true" else "false")

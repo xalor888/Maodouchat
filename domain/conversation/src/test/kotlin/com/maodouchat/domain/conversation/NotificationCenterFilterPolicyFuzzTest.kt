@@ -20,8 +20,8 @@ import kotlin.test.assertTrue
  * (0 diffs) before this file was written.
  *
  * Two asymmetries the oracle must reproduce: matches() does not trim the query (filter()
- * does), and trim() only strips chars <= ' ' while isBlank() follows Character.isWhitespace,
- * so NBSP/NEL are not blank and are not trimmed.
+ * does), and trim()/isBlank() use Kotlin Char.isWhitespace, so NBSP is blank and
+ * trimmed while NEL is not.
  */
 class NotificationCenterFilterPolicyFuzzTest {
 
@@ -66,16 +66,22 @@ class NotificationCenterFilterPolicyFuzzTest {
             containsIgnoreCase(item.type, query) ||
             item.extra.values.any { containsIgnoreCase(it, query) }
 
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
     private fun kotlinTrim(s: String): String {
         var a = 0
         var b = s.length
-        while (a < b && s[a] <= ' ') a++
-        while (b > a && s[b - 1] <= ' ') b--
+        while (a < b && isKotlinWhitespace(s[a])) a++
+        while (b > a && isKotlinWhitespace(s[b - 1])) b--
         return s.substring(a, b)
     }
 
     private fun kotlinBlank(s: String): Boolean =
-        s.isEmpty() || s.all { Character.isWhitespace(it) }
+        s.isEmpty() || s.all { isKotlinWhitespace(it) }
 
     private fun oracleFilter(items: List<NotificationCenterItem>, query: String): List<NotificationCenterItem> {
         val trimmed = kotlinTrim(query)
@@ -255,12 +261,13 @@ class NotificationCenterFilterPolicyFuzzTest {
     @Test
     fun sharpSDoesNotFoldToSs() {
         // No full case folding: ß matches only ß and ẞ, never SS/ss.
-        val sharp = item("1", "ß")
+        // The default MESSAGE type itself contains "SS", so use a neutral type here.
+        val sharp = item("1", "ß", type = "INFO")
         assertTrue(NotificationCenterFilterPolicy.matches(sharp, "ß"))
         assertTrue(NotificationCenterFilterPolicy.matches(sharp, "ẞ"))
         assertFalse(NotificationCenterFilterPolicy.matches(sharp, "SS"))
         assertFalse(NotificationCenterFilterPolicy.matches(sharp, "ss"))
-        assertFalse(NotificationCenterFilterPolicy.matches(item("2", "SS"), "ß"))
+        assertFalse(NotificationCenterFilterPolicy.matches(item("2", "SS", type = "INFO"), "ß"))
     }
 
     @Test
@@ -306,8 +313,8 @@ class NotificationCenterFilterPolicyFuzzTest {
 
     @Test
     fun nbspAndNelAreNotBlank() {
-        // Character.isWhitespace is false for NBSP/NEL, and trim() only strips <= ' ':
-        // a query of NBSP/NEL is a real search, not a blank query.
+        // NBSP is a Kotlin space char (blank query, returns all); NEL is not
+        // whitespace, so it stays a real search.
         val items = listOf(
             item("1", "alice"),
             item("2", "Bob", type = "MISSED_CALL"),
@@ -317,7 +324,7 @@ class NotificationCenterFilterPolicyFuzzTest {
         assertEquals(items, NotificationCenterFilterPolicy.filter(items, ""))
         assertEquals(items, NotificationCenterFilterPolicy.filter(items, "   "))
         assertEquals(items, NotificationCenterFilterPolicy.filter(items, "\t\n"))
-        assertEquals(listOf(items[2]), NotificationCenterFilterPolicy.filter(items, "\u00A0"))
+        assertEquals(items, NotificationCenterFilterPolicy.filter(items, "\u00A0"))
         assertEquals(listOf(items[3]), NotificationCenterFilterPolicy.filter(items, "\u0085"))
         assertEquals(emptyList(), NotificationCenterFilterPolicy.filter(items, "\u0085alice\u0085"))
         assertEquals(listOf(items[1]), NotificationCenterFilterPolicy.filter(items, "MISSED_CALL"))

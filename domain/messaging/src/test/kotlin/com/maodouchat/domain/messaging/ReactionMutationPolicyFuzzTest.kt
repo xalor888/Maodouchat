@@ -8,8 +8,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import com.maodouchat.core.model.MessageReaction
 import com.maodouchat.core.model.ReadCountUi
-import com.maodouchat.domain.conversation.PrefetchMessage
-
 class ReactionMutationPolicyFuzzTest {
 
 // ---------- shared oracle (all three clusters) ----------

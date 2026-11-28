@@ -17,14 +17,20 @@ import kotlin.test.assertTrue
  * against an independent reimplementation on 5000 random inputs (0 diffs).
  *
  * Rules pinned here: a marked-unread chat with zero count shows a badge but no number
- * (badge text stays ""), and NBSP is not blank, so an NBSP owner id is a real owner.
+ * (badge text stays ""), and NBSP is Kotlin whitespace, so an NBSP owner id is blank.
  */
 class ChatListReceiptPolicyFuzzTest {
 
-    // Character.isWhitespace, spelled out: Kotlin's isBlank() follows it, and NBSP/NEL
-    // are not whitespace under it.
+    // Kotlin's isBlank() uses Char.isWhitespace (Java whitespace OR space chars), so
+    // NBSP is blank while NEL is not.
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
     private fun kotlinBlank(s: String): Boolean =
-        s.isEmpty() || s.all { Character.isWhitespace(it) }
+        s.isEmpty() || s.all { isKotlinWhitespace(it) }
 
     private fun oracleDisplayStatus(status: MessageStatus, isGroup: Boolean): MessageStatus {
         if (!isGroup) return status
@@ -158,8 +164,10 @@ class ChatListReceiptPolicyFuzzTest {
         assertNull(ChatListReceiptPolicy.fromLatest("me", MessageStatus.SENT, false, " "))
         assertNull(ChatListReceiptPolicy.fromLatest(null, null, false, "me"))
         assertNull(ChatListReceiptPolicy.fromLatest("", MessageStatus.SENT, false, "me"))
-        // NBSP is not blank: an NBSP owner id with an equal NBSP sender shows a receipt.
-        val nbsp = ChatListReceiptPolicy.fromLatest("\u00A0", MessageStatus.SENT, false, "\u00A0")
-        assertTrue(nbsp != null && nbsp.fromMe && nbsp.status == MessageStatus.SENT)
+        // NBSP is Kotlin whitespace, so an NBSP owner id is blank and hides the receipt.
+        assertNull(ChatListReceiptPolicy.fromLatest("\u00A0", MessageStatus.SENT, false, "\u00A0"))
+        // NEL is not whitespace: a NEL owner id is a real owner.
+        val nel = ChatListReceiptPolicy.fromLatest("\u0085", MessageStatus.SENT, false, "\u0085")
+        assertTrue(nel != null && nel.fromMe && nel.status == MessageStatus.SENT)
     }
 }

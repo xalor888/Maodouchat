@@ -130,7 +130,7 @@ class EncryptedAttachmentReferenceCodecFuzzTest {
                     val value = when (random.nextInt(5)) {
                         0 -> JsonPrimitive(random.nextBoolean())
                         1 -> JsonPrimitive(random.nextInt(-1000, 1001))
-                        2 -> JsonPrimitive(randomText(random, ID_CHARSET, 12))
+                        2 -> JsonPrimitive(randomText(random, ID_CHARSET, 0, 12))
                         3 -> JsonArray(listOf(JsonPrimitive(1), JsonPrimitive("x")))
                         else -> JsonNull
                     }

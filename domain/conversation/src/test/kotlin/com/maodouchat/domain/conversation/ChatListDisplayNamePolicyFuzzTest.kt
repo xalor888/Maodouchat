@@ -140,19 +140,21 @@ internal fun jsonEscape155(s: String): String {
 
 internal fun displayCaseWireJson155(case: DisplayNameCase155): String {
     val sb = StringBuilder()
+    val groupName = case.chat.groupName
     sb.append("{\"id\":\"").append(jsonEscape155(case.chat.id)).append("\"")
     sb.append(",\"ig\":").append(if (case.chat.isGroup) 1 else 0)
     sb.append(",\"ct\":\"").append(jsonEscape155(case.chat.chatType)).append("\"")
-    if (case.chat.groupName != null) {
-        sb.append(",\"gn\":\"").append(jsonEscape155(case.chat.groupName)).append("\"")
+    if (groupName != null) {
+        sb.append(",\"gn\":\"").append(jsonEscape155(groupName)).append("\"")
     }
     sb.append(",\"ps\":[")
     case.chat.participants.forEachIndexed { i, u ->
         if (i > 0) sb.append(",")
         sb.append("{\"id\":\"").append(jsonEscape155(u.id)).append("\"")
         sb.append(",\"n\":\"").append(jsonEscape155(u.name)).append("\"")
-        if (u.nickname != null) {
-            sb.append(",\"nn\":\"").append(jsonEscape155(u.nickname)).append("\"")
+        val nickname = u.nickname
+        if (nickname != null) {
+            sb.append(",\"nn\":\"").append(jsonEscape155(nickname)).append("\"")
         }
         sb.append("}")
     }

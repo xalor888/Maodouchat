@@ -55,16 +55,22 @@ class ExploreFeedFilterPolicyFuzzTest {
         return false
     }
 
+    private fun isKotlinWhitespace(c: Char): Boolean =
+        c in '\u0009'..'\u000D' || c == ' ' || c in '\u001C'..'\u001F' ||
+            c == '\u1680' || c in '\u2000'..'\u200A' ||
+            c == '\u2028' || c == '\u2029' || c == '\u205F' || c == '\u3000' ||
+            c == '\u00A0' || c == '\u2007' || c == '\u202F'
+
     private fun kotlinTrim(s: String): String {
         var a = 0
         var b = s.length
-        while (a < b && s[a] <= ' ') a++
-        while (b > a && s[b - 1] <= ' ') b--
+        while (a < b && isKotlinWhitespace(s[a])) a++
+        while (b > a && isKotlinWhitespace(s[b - 1])) b--
         return s.substring(a, b)
     }
 
     private fun kotlinBlank(s: String): Boolean =
-        s.isEmpty() || s.all { Character.isWhitespace(it) }
+        s.isEmpty() || s.all { isKotlinWhitespace(it) }
 
     private fun oracleMatchesSearch(post: PostDto, query: String): Boolean =
         containsIgnoreCase(post.content, query) ||

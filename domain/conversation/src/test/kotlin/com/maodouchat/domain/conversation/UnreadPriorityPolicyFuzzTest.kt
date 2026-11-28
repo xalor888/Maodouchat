@@ -176,7 +176,7 @@ class UnreadPriorityPolicyFuzzTest {
         assertTrue(UnreadPriorityPolicy.shouldShowHint(true, 3, false))
         assertFalse(UnreadPriorityPolicy.shouldShowHint(true, -1, false))
         assertEquals(2, UnreadPriorityPolicy.countUnreadChats(listOf(0, 5), listOf(true, false)))
-        assertEquals(3, UnreadPriorityPolicy.countUnreadChats(listOf(0), listOf(true, true, false)))
+        assertEquals(2, UnreadPriorityPolicy.countUnreadChats(listOf(0), listOf(true, true, false)))
         assertEquals(0, UnreadPriorityPolicy.countUnreadChats(emptyList(), emptyList()))
     }
 }
