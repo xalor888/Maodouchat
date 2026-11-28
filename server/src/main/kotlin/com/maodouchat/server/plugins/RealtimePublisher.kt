@@ -139,7 +139,7 @@ internal suspend fun sendSafe(session: WebSocketSession, text: String) {
  * Call after password change / logout-all / account deactivation so revoked tokens
  * cannot keep accepting signaling until the TCP socket drops.
  */
-internal suspend fun disconnectUserSessions(userId: String, reason: String = "会话已失效") {
+internal suspend fun disconnectUserSessions(userId: String, reason: String = "会话已失效", userRepo: UserRepository = UserRepository()) {
     if (userId.isBlank()) return
     val sessions = ConnectionRegistry.onlineUsers.remove(userId) ?: return
     sessions.forEach { session ->
@@ -153,13 +153,14 @@ internal suspend fun disconnectUserSessions(userId: String, reason: String = "�
         } catch (_: Exception) {
         }
     }
-    markOfflineAndBroadcastIfNoSessions(userId)
+    markOfflineAndBroadcastIfNoSessions(userId, userRepo)
 }
 
 internal suspend fun disconnectUserSessionsByAuthSessionIds(
     userId: String,
     authSessionIds: Set<String>,
-    reason: String = "会话已失效"
+    reason: String = "会话已失效",
+    userRepo: UserRepository = UserRepository(),
 ) {
     if (userId.isBlank() || authSessionIds.isEmpty()) return
     val sessions = ConnectionRegistry.onlineUsers[userId] ?: return
@@ -179,7 +180,7 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
     ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
-    markOfflineAndBroadcastIfNoSessions(userId)
+    markOfflineAndBroadcastIfNoSessions(userId, userRepo)
 }
 
 /**
@@ -190,7 +191,8 @@ internal suspend fun disconnectUserSessionsByAuthSessionIds(
 internal suspend fun disconnectUserSessionsByAccessJti(
     userId: String,
     accessJti: String?,
-    reason: String = "已退出登录"
+    reason: String = "已退出登录",
+    userRepo: UserRepository = UserRepository(),
 ) {
     if (userId.isBlank()) return
     // 无 jti（过期 access / body-only logout）：只吊销 refresh，不误踢其他设备 WS
@@ -214,13 +216,13 @@ internal suspend fun disconnectUserSessionsByAccessJti(
     ConnectionRegistry.onlineUsers.compute(userId) { _, existing ->
         if (existing === sessions && sessions.isEmpty()) null else existing
     }
-    markOfflineAndBroadcastIfNoSessions(userId)
+    markOfflineAndBroadcastIfNoSessions(userId, userRepo)
 }
 
 /**
  * 强制断连后若该用户已无任何在线会话，落库离线并向其他在线用户广播。
  * 状态锁 + 锁外二次确认避免新连接注册后被旧清理路径误标离线。
  */
-internal suspend fun markOfflineAndBroadcastIfNoSessions(userId: String) {
-    PresenceService.markOffline(userId, wsJson, UserRepository())
+internal suspend fun markOfflineAndBroadcastIfNoSessions(userId: String, userRepo: UserRepository = UserRepository()) {
+    PresenceService.markOffline(userId, wsJson, userRepo)
 }

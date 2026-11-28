@@ -55,7 +55,7 @@ internal fun Route.configureAccountSecurityDeleteRoutes(
                 // 与 logout-all / 改密码一致：吊销已签发的 access token（版本号）并清推送 token，
                 // 否则注销后旧 JWT 在 TTL 内仍可调用 API；推送 token 不清则已注销设备仍收消息/来电。
                 sessionService.revokeAllUserSessions(userId)
-                disconnectUserSessions(userId, "账号已注销")
+                disconnectUserSessions(userId, "账号已注销", userRepo)
                 // 8.33：注销后向各群剩余成员广播成员变更（含自动群主转让），客户端即时刷新成员列表
                 groupSnapshots.forEach { (chatId, recipients) ->
                     val remaining = recipients.filter { it != userId }

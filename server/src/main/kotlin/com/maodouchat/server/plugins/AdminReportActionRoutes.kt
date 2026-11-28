@@ -115,7 +115,7 @@ post("/reports/{reportId}/action") {
             if (action == "SUSPEND_24H") {
                 frozenRestrictionTargetUserId?.let { targetUserId ->
                     sessionService.revokeAllUserSessions(targetUserId)
-                    disconnectUserSessions(targetUserId, "账号已被临时封禁")
+                    disconnectUserSessions(targetUserId, "账号已被临时封禁", userRepo)
                 }
             }
             recordAdminAudit(actorId, "REPORT_ACTION_APPLIED", "reportId=$reportId; action=$action")
