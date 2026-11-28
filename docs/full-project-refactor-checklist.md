@@ -635,7 +635,7 @@ Gate：锁屏超时、进程恢复、设备撤销、TOTP replay、截图与数�
 - [x] AI 与隐私体验优化：`AiPrivacyPreferences.enableAllDefaults` 支持设置页一键开启推荐默认配置。
 - [x] 彻底清理端侧遗留模型代码：已删除废弃的 `OnDeviceEmbeddingGate` 及其单测，净化注释与文档。
 - [~] 拆为 Provider、Credential、Context Builder、Tool Registry、Approval、Audit、Executor。
-- [ ] 每个 Tool 只依赖领域 Command/Query Port，不访问 DAO、ApiService 或 Application。
+- [ ] 每个 Tool 只依赖领域 Command/Query Port，不访问 DAO、ApiService 或 Application。（2026-11-21：AI 工具簇 20 文件改走 AgentToolPorts，Application 不再线程进工具；DAO/ApiService 直访待下一步）
 - [ ] 明确每种模型调用的数据出境清单、密聊/PIN 门禁和日志脱敏。
 - [ ] 写操作携带审批记录和幂等键；取消后不得继续执行工具。
 - [ ] 改写、回复建议、翻译、摘要、OCR、转写、任务提取分别拥有状态和错误边界。
@@ -902,7 +902,7 @@ Gate：恶意文件、资源耗尽、制品签名、备份恢复和滚动发布�
 - [x] `ApiService` 巨单体拆解完成，分离为 Auth、Messaging、Conversation、Media、Social 等独立域 API，收敛为组合委托薄门面。
 - [x] `AppNotifier` 全局巨型入口删除（文件已物理删除；四服务 + `NotificationSlotPolicy` + `NotificationIntents` + `NotificationInfrastructure` 替代）。
 - [x] Notification Center、Scheduled Message、Reminder 等业务 JSON SharedPreferences store 删除（定时/提醒 Room 36→37；归档忽略 37→38；语音已播 38→39；通知中心本轮迁入 Room 39→40：`notification_center_items` 表 + DAO + 一次性 prefs 导入 + 登出清理，旧 JSON 读写删除；调用方 API 零变更——内存 StateFlow 仍是真相源，磁盘经 `runBlocking(IO)`/后台协程桥接）。
-- [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。
+- [ ] 页面、Widget、Worker、AI 直接访问 `MaodouchatApp`/DAO/Signal/Token 的路径归零。（2026-11-21：AI 工具簇 20 文件改走 AgentToolPorts，MaodouchatApp.instance 仅剩 AgentToolHost.execute 一处入口；Widget/Worker/页面路径待续）
 - [x] 服务端 `Routing.kt` 只保留模块注册，不再包含领域 endpoint/事务。（2026-10-13 实测：`transaction {`=0，`routing {}` 内联端点=0；最后两个领域残留——`respondBotUnavailable()` 搬 `BotRoutingSupport.kt`、`PinnedMessagesUpdatedPayload` 搬 `RealtimePayloads.kt`，同包零 import 改动。）
 - [x] `BotApiRouting.kt`、`AdminRouting.kt` 巨型实现删除并由子域 routes 替代。
 - [x] `Database.kt` 启动期 create/backfill/drop 逻辑删除（Database.kt 47 行仅留 datasource，migrationRunner 接管）。
