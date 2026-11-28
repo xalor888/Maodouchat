@@ -19,7 +19,7 @@ internal fun Route.configureAdminUsersRoutes(
     sessionService: com.maodouchat.server.service.SessionService,
     groupMediaReferenceRepo: GroupMediaReferenceRepository,
     userDispositionService: UserDispositionService,
-    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository = com.maodouchat.server.repository.AdminManagementRepository(),
+    adminManagementRepo: com.maodouchat.server.repository.AdminManagementRepository,
 ) {
     configureAdminUserQueryRoutes(adminManagementRepo)
     configureAdminUserRestrictionRoutes(sessionService, userDispositionService)

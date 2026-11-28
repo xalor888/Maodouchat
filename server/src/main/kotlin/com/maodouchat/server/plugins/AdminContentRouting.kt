@@ -10,7 +10,7 @@ import io.ktor.server.routing.Route
  */
 internal fun Route.configureAdminContentRoutes(
     postRepo: PostRepository,
-    adminManagementRepo: AdminManagementRepository = AdminManagementRepository()
+    adminManagementRepo: AdminManagementRepository
 ) {
     configureAdminContentQueryRoutes(adminManagementRepo)
     configureAdminContentWriteRoutes(postRepo)
