@@ -605,8 +605,10 @@ class ClientArchitectureTest {
         // 另修两处遗留缩进；删 1 个闲置 import），969 → 770 纯搬移；新文件未进前 20，不纳管。
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-11-28：1008 关闭原因分类策略迁入 :core:realtime 的 WebSocketCloseReasonPolicy，
+        // 675 → 653 纯搬移，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/WebSocketClient.kt" to 100,
-        "com/maodouchat/network/WebSocketTransport.kt" to 675,
+        "com/maodouchat/network/WebSocketTransport.kt" to 653,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
@@ -888,8 +890,10 @@ class ClientArchitectureTest {
         // G164b：Top-20 排名门禁纳入的 8 个
         // 2026-10-17：WebSocketTransport 整对象抽出同包 WebSocketTransport.kt
         // （770 → 100 纯搬移；新文件 675 行进前 20，按判据纳管），上限同步收紧（两份 map 一起改）。
+        // 2026-11-28：1008 关闭原因分类策略迁入 :core:realtime 的 WebSocketCloseReasonPolicy，
+        // 675 → 653 纯搬移，上限同步收紧（两份 map 一起改）。
         "com/maodouchat/network/WebSocketClient.kt" to 100,
-        "com/maodouchat/network/WebSocketTransport.kt" to 675,
+        "com/maodouchat/network/WebSocketTransport.kt" to 653,
         // Markdown 瘦身第一批：行内扫描器 → MarkdownInlineParser（块级解析留守 MarkdownParser）
         // 拆分后挤进前 20 的文件：按判据纳管，上限=实测行数。
         "com/maodouchat/ui/component/MarkdownInlineParser.kt" to 834,
