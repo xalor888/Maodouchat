@@ -4,6 +4,7 @@ import com.maodouchat.core.model.*
 import com.maodouchat.core.realtime.NonReplayingEventBus
 import com.maodouchat.core.realtime.RealtimeTransport
 import com.maodouchat.core.realtime.RealtimeTransportEvent
+import com.maodouchat.core.realtime.WebSocketCloseReasonPolicy
 import com.maodouchat.core.realtime.WebSocketSessionGate
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -217,11 +218,11 @@ internal object WebSocketTransport : RealtimeTransport {
                 // 1008 + 「过期/token」reason：可恢复（刷新 token 后重连），不得视为登出。
                 // 8.52 接入 isRecoverableExpiryReason（此前为死代码）：服务端通常用 1013 表示
                 // 过期，但兼容旧实例仍发 1008 + 过期文案的情况。
-                if (code == 1008 && isRecoverableExpiryReason(reason) && shouldReconnect) {
+                if (code == 1008 && WebSocketCloseReasonPolicy.isRecoverableExpiryReason(reason) && shouldReconnect) {
                     refreshTokenThenReconnect()
                     return
                 }
-                if (code == 1008 && isAuthDeathReason(reason)) {
+                if (code == 1008 && WebSocketCloseReasonPolicy.isAuthDeathReason(reason)) {
                     shouldReconnect = false
                     runCatching {
                         com.maodouchat.network.ApiService.notifyTokenExpired(
@@ -417,29 +418,6 @@ internal object WebSocketTransport : RealtimeTransport {
             }
             connect(url, token, isReconnect = true, reconnectSession = failedSession)
         }
-    }
-
-    private fun isAuthDeathReason(reason: String?): Boolean {
-        val r = reason.orEmpty().lowercase()
-        // "expired" / "会话已过期" 是可恢复的（token 刷新后重连即可），不视为永久 auth death
-        return r.contains("会话已失效") ||
-            r.contains("已退出") ||
-            r.contains("密码已修改") ||
-            r.contains("账号已注销") ||
-            r.contains("封禁") ||
-            r.contains("已被移除") ||
-            r.contains("被移除") ||
-            r.contains("unauth") ||
-            r.contains("revoked")
-    }
-
-    /** 1008/认证类关闭原因中可恢复的「访问令牌到期」子集：刷新 token 后重连即可，不得 purge。 */
-    private fun isRecoverableExpiryReason(reason: String?): Boolean {
-        val r = reason.orEmpty().lowercase()
-        return r.contains("过期") ||
-            r.contains("expired") ||
-            r.contains("expires") ||
-            r.contains("token")
     }
 
     override fun sendTyping(chatId: String, isTyping: Boolean): Boolean {
